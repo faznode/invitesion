@@ -13,10 +13,11 @@ export const metadata: Metadata = {
 };
 
 export default async function PricingPage() {
-  const copy = getMarketingCopy(await getLocale());
+  const locale = await getLocale();
+  const copy = getMarketingCopy(locale);
   return (
     <main className={styles.site}>
-      <MarketingHeader />
+      <MarketingHeader locale={locale} />
       <section className={styles.simplePageHero}>
         <small className={styles.eyebrow}>{copy.pricingEyebrow}</small>
         <h1>{copy.pricingTitle}</h1>
@@ -45,7 +46,6 @@ export default async function PricingPage() {
               <strong>{copy.tierStandardPrice}</strong>
               <span>{copy.tierStandardPer}</span>
             </div>
-            <p>&nbsp;</p>
             <ul>{copy.tierStandardItems.map(item => <li key={item}><Check size={15}/>{item}</li>)}</ul>
             <Link href="/sign-up" className={styles.pricingCtaOutline}>
               {copy.tierCta} <ArrowRight size={15}/>
@@ -60,7 +60,6 @@ export default async function PricingPage() {
               <strong>{copy.tierPremiumPrice}</strong>
               <span>{copy.tierPremiumPer}</span>
             </div>
-            <p>&nbsp;</p>
             <ul>{copy.tierPremiumItems.map(item => <li key={item}><Check size={15}/>{item}</li>)}</ul>
             <Link href="/sign-up" className={styles.pricingCtaPrimary}>
               {copy.tierCta} <ArrowRight size={15}/>
