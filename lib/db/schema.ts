@@ -12,9 +12,9 @@ import {
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
-// ─────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
 // AUTH
-// ─────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
 /**
  * Local identity.
  *
@@ -49,14 +49,17 @@ export const users = pgTable('users', {
   deletedAt: timestamp('deleted_at'),
 });
 
-// ─────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
 // CONTENT
-// ─────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
 export const templates = pgTable('templates', {
   id: serial('id').primaryKey(),
   name: varchar('name', { length: 120 }).notNull(),
-  // enum SATU sumber (samain design-agent + catalog)
-  category: varchar('category', { length: 20 }).notNull(), // wedding|birthday|aqiqah|tasyakuran|khitanan|corporate
+  // Kategori katalog (lib/invitation/templates.ts TemplateCategory, 27 nilai
+  // seperti 'employee-appreciation' @ 21 char) — BUKAN lagi cuma 6 event type
+  // inti lawas (wedding|birthday|aqiqah|tasyakuran|khitanan|corporate).
+  // Lebar 30 dipilih dengan longgar di atas kategori terpanjang saat ini.
+  category: varchar('category', { length: 30 }).notNull(),
   defaultConfig: jsonb('default_config'),
   thumbnail: text('thumbnail'),
   isPremium: boolean('is_premium').notNull().default(false),
@@ -119,9 +122,9 @@ export const mediaAssets = pgTable(
   }),
 );
 
-// ─────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
 // GUESTS
-// ─────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
 export const guests = pgTable(
   'guests',
   {
@@ -158,9 +161,9 @@ export const guestMessages = pgTable('guest_messages', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 
-// ─────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
 // COMMERCE  (Midtrans one-time, bukan subscription)
-// ─────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
 /**
  * Orders are provider-neutral.
  *
@@ -231,9 +234,9 @@ export const paymentEvents = pgTable(
   (table) => [unique('payment_events_rail_event_unique').on(table.rail, table.eventId)],
 );
 
-// ─────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
 // AI / MESSAGING
-// ─────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
 export const conversations = pgTable('conversations', {
   id: serial('id').primaryKey(),
   userId: integer('user_id').references(() => users.id), // nullable: customer baru blm kedaftar
@@ -286,9 +289,9 @@ export const waLog = pgTable('wa_log', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 
-// ─────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
 // CUSTOMER MEMORY (after-sales — customer-memory.md)
-// ─────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
 export const customerMemory = pgTable('customer_memory', {
   id: serial('id').primaryKey(),
   userId: integer('user_id')
@@ -313,9 +316,9 @@ export const customerSessionSummary = pgTable('customer_session_summary', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 
-// ─────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
 // ANALYTICS
-// ─────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
 export const analyticsEvents = pgTable('analytics_events', {
   id: serial('id').primaryKey(),
   invitationId: integer('invitation_id')
@@ -327,9 +330,9 @@ export const analyticsEvents = pgTable('analytics_events', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 
-// ─────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
 // RELATIONS
-// ─────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
 export const usersRelations = relations(users, ({ many, one }) => ({
   invitations: many(invitations),
   orders: many(orders),
@@ -374,9 +377,9 @@ export const messagesRelations = relations(messages, ({ one }) => ({
   }),
 }));
 
-// ─────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
 // TYPES
-// ─────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type Template = typeof templates.$inferSelect;
