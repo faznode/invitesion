@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import MarketingHeader from './marketing-header';
+import MarketingFooter from './marketing-footer';
 import type { MarketingPage } from './marketing-registry';
 import styles from './home.module.css';
 
@@ -22,6 +23,9 @@ export function MarketingDetailPage({ page }: { page: MarketingPage }) {
         </section>
         <Link href="/sign-up" className={styles.primaryBtn}>Mulai buat undangan <span aria-hidden="true">→</span></Link>
       </article>
+      <div className={styles.frame}>
+        <MarketingFooter />
+      </div>
     </main>
   );
 }

@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { ArrowRight, Check } from 'lucide-react';
 import styles from '../home.module.css';
 import MarketingHeader from '../marketing-header';
+import MarketingFooter from '../marketing-footer';
 import { getMarketingCopy } from '../marketing-copy';
 import { getLocale } from '@/lib/locale-server';
 import type { Metadata } from 'next';
@@ -69,6 +70,9 @@ export default async function PricingPage() {
 
         <p className={styles.pricingNote}>{copy.pricingNote}</p>
       </section>
+      <div className={styles.frame}>
+        <MarketingFooter />
+      </div>
     </main>
   );
 }
