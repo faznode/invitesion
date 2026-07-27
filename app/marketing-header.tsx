@@ -41,13 +41,13 @@ type MenuDef = { groups: MenuGroup[]; footer: { label: string; href: string } | 
 
 const LABELS = {
   id: {
-    events: 'Jenis Acara', features: 'Fitur', resources: 'Resource', pricing: 'Harga',
+    events: 'Jenis Acara', features: 'Fitur', resources: 'Resource', templates: 'Katalog Tema', pricing: 'Harga',
     signIn: 'Masuk', cta: 'Coba gratis',
     allEvents: 'Lihat semua jenis acara', allFeatures: 'Lihat semua fitur',
     openNav: 'Buka navigasi', closeNav: 'Tutup navigasi', langAria: 'Pilih bahasa',
   },
   en: {
-    events: 'Event Types', features: 'Features', resources: 'Resources', pricing: 'Pricing',
+    events: 'Event Types', features: 'Features', resources: 'Resources', templates: 'Templates', pricing: 'Pricing',
     signIn: 'Sign in', cta: 'Try it free',
     allEvents: 'See all event types', allFeatures: 'See all features',
     openNav: 'Open navigation', closeNav: 'Close navigation', langAria: 'Choose language',
@@ -199,6 +199,7 @@ export default function MarketingHeader({ locale = 'id' }: { locale?: Locale }) 
               {label} <ChevronDown size={14} />
             </button>
           ))}
+          <Link href="/templates" onClick={() => setOpen(null)}>{L.templates}</Link>
           <Link href="/pricing" onClick={() => setOpen(null)}>{L.pricing}</Link>
         </div>
 
@@ -263,6 +264,10 @@ export default function MarketingHeader({ locale = 'id' }: { locale?: Locale }) 
               ))}
             </div>
           ))}
+          <div className={styles.mobileGroup}>
+            <h4>{L.templates}</h4>
+            <Link href="/templates" onClick={() => setMobileOpen(false)}>{L.templates}</Link>
+          </div>
           <div className={styles.mobileGroup}>
             <h4>{L.pricing}</h4>
             <Link href="/pricing" onClick={() => setMobileOpen(false)}>{L.pricing}</Link>
