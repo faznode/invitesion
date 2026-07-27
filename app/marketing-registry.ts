@@ -47,7 +47,7 @@ const fallbacks: Record<MarketingCategory, { eyebrow: string; summary: string; h
  * must have an entry here so no two categories read the same.
  */
 const handWritten: Record<string, { summary: string; highlights: readonly MarketingHighlight[] }> = {
-  // ── Event types ──────────────────────────────────────────────────────
+  // ── Event types ──────────────────────────────────────────────────────────────────
   weddings: {
     summary: 'Undangan pernikahan digital yang elegan: love story, galeri prewedding, detail akad dan resepsi, RSVP plus-one, sampai amplop digital — semua dalam satu tautan personal.',
     highlights: [
@@ -96,6 +96,30 @@ const handWritten: Record<string, { summary: string; highlights: readonly Market
       { title: 'Bagikan sekali klik', text: 'Kirim tautan lewat WhatsApp ke grup keluarga dan sahabat tanpa cetak apa pun.' },
     ],
   },
+  'gender-reveals': {
+    summary: 'Bikin momen pengumuman si kecil makin seru — halaman penuh teka-teki pink atau biru, hitung mundur menuju reveal, dan RSVP orang-orang terdekat.',
+    highlights: [
+      { title: 'Misteri tetap terjaga', text: 'Tema netral dengan sentuhan pink dan biru menjaga kejutan sampai detik pengumuman.' },
+      { title: 'Ajak tamu ikut menebak', text: 'Tambahkan pertanyaan tebakan “cowok atau cewek?” di form RSVP dan lihat rekap tebakannya di dashboard.' },
+      { title: 'Countdown menuju reveal', text: 'Hitung mundur otomatis membangun antisipasi sebelum momen puncak.' },
+    ],
+  },
+  syukuran: {
+    summary: 'Syukuran rumah baru, kelahiran, jabatan, atau nazar — sampaikan rasa syukur lewat undangan hangat dengan doa, agenda, dan konfirmasi keluarga besar.',
+    highlights: [
+      { title: 'Pembuka penuh makna', text: 'Awali undangan dengan ayat, doa, atau kata pengantar yang bisa kamu tulis sendiri.' },
+      { title: 'Fleksibel untuk segala syukuran', text: 'Satu format untuk syukuran rumah, kelahiran, promosi, hingga keberangkatan haji.' },
+      { title: 'Kepastian jumlah tamu', text: 'Konfirmasi kehadiran masuk real-time supaya konsumsi dan tempat bisa disiapkan pas.' },
+    ],
+  },
+  'celebrations-of-life': {
+    summary: 'Undangan tahlilan, haul, dan doa bersama yang khidmat — kabar tersampaikan dengan hormat tanpa harus menghubungi kerabat satu per satu.',
+    highlights: [
+      { title: 'Nuansa tenang & hormat', text: 'Tema yang teduh dan sederhana, sesuai untuk momen mengenang dan mendoakan.' },
+      { title: 'Informasi jelas untuk kerabat', text: 'Waktu, lokasi, dan rangkaian tahlilan hari ke-7 hingga haul tersusun rapi di satu halaman.' },
+      { title: 'Sebar cepat lewat WhatsApp', text: 'Satu tautan untuk seluruh keluarga besar dan jamaah, tanpa perlu broadcast berulang.' },
+    ],
+  },
   reunions: {
     summary: 'Kumpulkan kembali teman lama: sebar satu tautan ke grup alumni, data kehadiran lintas kota terkumpul sendiri, lengkap dengan iuran acara.',
     highlights: [
@@ -120,8 +144,72 @@ const handWritten: Record<string, { summary: string; highlights: readonly Market
       { title: 'Konfirmasi kilat', text: 'Anggota keluarga cukup sekali klik untuk memberi kabar hadir atau berhalangan.' },
     ],
   },
+  'product-launches': {
+    summary: 'Perkenalkan produk, brand, atau gerai baru dengan halaman peluncuran yang berkesan — countdown, agenda, dan registrasi untuk media, mitra, dan tamu VIP.',
+    highlights: [
+      { title: 'Kesan pertama yang kuat', text: 'Halaman bergaya premium dengan hitung mundur menuju momen peluncuran atau grand opening.' },
+      { title: 'Registrasi undangan terkurasi', text: 'Kirim tautan personal ke media, mitra, dan pelanggan setia — daftar hadir terkontrol penuh.' },
+      { title: 'Detail acara satu pintu', text: 'Rundown, lokasi, dan dress code tersampaikan rapi tanpa perlu balas pesan satu-satu.' },
+    ],
+  },
+  conferences: {
+    summary: 'Konferensi dan seminar butuh registrasi yang rapi — satu tautan untuk agenda multi-sesi, data peserta terpusat, dan check-in QR di lokasi.',
+    highlights: [
+      { title: 'Agenda multi-sesi', text: 'Susun jadwal pembicara dan sesi dalam satu halaman yang mudah dipindai peserta.' },
+      { title: 'Data peserta terpusat', text: 'Nama, instansi, dan kebutuhan khusus peserta terkumpul otomatis di dashboard.' },
+      { title: 'Check-in QR di lokasi', text: 'Setiap peserta membawa QR unik — antrean registrasi ulang jadi hitungan detik.' },
+    ],
+  },
+  'workshops-and-classes': {
+    summary: 'Buka pendaftaran workshop, kelas, atau pelatihan dalam hitungan menit — informasi materi, kuota peserta, dan pengingat menjelang hari-H.',
+    highlights: [
+      { title: 'Halaman info yang meyakinkan', text: 'Materi, pemateri, dan benefit kelas tersaji rapi sehingga calon peserta yakin mendaftar.' },
+      { title: 'Kuota terpantau', text: 'Lihat jumlah pendaftar real-time dan tutup registrasi saat kelas penuh.' },
+      { title: 'Pengingat otomatis', text: 'Peserta menerima pengingat menjelang jadwal sehingga tingkat kehadiran tetap tinggi.' },
+    ],
+  },
+  'networking-events': {
+    summary: 'Undang komunitas profesional untuk saling terhubung — halaman acara yang kredibel, registrasi cepat, dan daftar peserta yang terkontrol.',
+    highlights: [
+      { title: 'Tampil profesional', text: 'Halaman bergaya bersih dan modern yang pantas dibagikan ke jejaring bisnis.' },
+      { title: 'Registrasi tanpa friksi', text: 'Peserta cukup membuka tautan dan mengisi form singkat — tanpa membuat akun.' },
+      { title: 'Kenali siapa yang datang', text: 'Data peserta dan instansinya terkumpul rapi untuk membantu sesi perkenalan.' },
+    ],
+  },
+  'galas-and-benefit-dinners': {
+    summary: 'Gala dinner, malam penghargaan, dan galang dana menuntut kesan mewah — undangan elegan, RSVP VIP, dan pengelolaan tamu yang presisi.',
+    highlights: [
+      { title: 'Undangan bernuansa mewah', text: 'Tema gelap-emas dan marmer yang selaras dengan dekorasi ballroom dan black-tie.' },
+      { title: 'Perlakuan khusus tamu VIP', text: 'Tautan personal atas nama tiap tamu membuat undangan terasa eksklusif, bukan broadcast.' },
+      { title: 'Donasi & kontribusi', text: 'Untuk acara galang dana, tamu bisa berkontribusi langsung dari halaman undangan.' },
+    ],
+  },
+  'retirement-parties': {
+    summary: 'Lepas masa purnabakti dengan penghormatan yang layak — perjalanan karier, ucapan rekan kerja, dan undangan acara perpisahan dalam satu halaman.',
+    highlights: [
+      { title: 'Kilas balik perjalanan karier', text: 'Tampilkan galeri dan cerita pengabdian dari tahun pertama hingga purnatugas.' },
+      { title: 'Ucapan dari rekan kerja', text: 'Kolega lintas kota bisa menitipkan pesan dan doa langsung dari halaman undangan.' },
+      { title: 'Formal namun hangat', text: 'Tema elegan yang cocok untuk acara instansi, BUMN, maupun perusahaan swasta.' },
+    ],
+  },
+  'client-and-vip-events': {
+    summary: 'Apresiasi klien, pelanggan setia, dan tamu VIP dengan undangan personal atas nama masing-masing — eksklusif, rapi, dan mudah dikonfirmasi.',
+    highlights: [
+      { title: 'Personal, bukan broadcast', text: 'Setiap undangan menyapa nama tamu — detail kecil yang menunjukkan penghargaan besar.' },
+      { title: 'Daftar tamu terkurasi', text: 'Kelompokkan tamu per segmen atau tingkat prioritas dan pantau konfirmasinya.' },
+      { title: 'Citra brand terjaga', text: 'Halaman undangan yang halus dan profesional memperkuat kesan perusahaan kamu.' },
+    ],
+  },
+  'team-building-and-offsites': {
+    summary: 'Ajak tim keluar kantor tanpa drama koordinasi — agenda kegiatan, lokasi, dan konfirmasi kehadiran karyawan terkumpul dalam satu tautan.',
+    highlights: [
+      { title: 'Rundown kegiatan jelas', text: 'Jadwal, titik kumpul, dan barang bawaan tersampaikan sekali — tidak tenggelam di grup chat.' },
+      { title: 'Konfirmasi per divisi', text: 'Lihat siapa yang ikut dari tiap tim untuk mengatur transportasi dan kamar.' },
+      { title: 'Kebutuhan khusus tercatat', text: 'Preferensi makanan dan kondisi kesehatan peserta terkumpul lewat form registrasi.' },
+    ],
+  },
 
-  // ── Features ─────────────────────────────────────────────────────────
+  // ── Features ─────────────────────────────────────────────────────────────────
   'online-invitations': {
     summary: 'Buat undangan digital yang bisa dibuka di perangkat mana pun — pilih tema, isi detail acara, dan sebar dalam hitungan menit.',
     highlights: [
@@ -195,7 +283,7 @@ const handWritten: Record<string, { summary: string; highlights: readonly Market
     ],
   },
 
-  // ── Resources ────────────────────────────────────────────────────────
+  // ── Resources ────────────────────────────────────────────────────────────────
   'help-center': {
     summary: 'Panduan langkah demi langkah untuk setiap fitur Invitesion — dari membuat undangan pertama sampai rekap pasca-acara.',
     highlights: [
