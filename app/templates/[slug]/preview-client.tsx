@@ -79,6 +79,54 @@ const SAMPLE_EVENTS: Record<TemplateCategory, SampleEvent[]> = {
   corporate: [
     { title: 'Main Event', time: 'THURSDAY · 18.30 WIB', venue: 'Grand Ballroom, Hotel Indonesia Kempinski', address: 'Jl. M.H. Thamrin No. 1, Jakarta' },
   ],
+  'gender-reveal': [
+    { title: 'Gender Reveal Party', time: 'SABTU · 16.00 WIB', venue: 'Kediaman Keluarga', address: 'Jl. Kenari No. 9, Depok' },
+  ],
+  tahlilan: [
+    { title: 'Tahlil & Doa Bersama', time: 'KAMIS · 19.30 WIB', venue: 'Kediaman Keluarga', address: 'Jl. Cendrawasih No. 14, Malang' },
+  ],
+  retirement: [
+    { title: 'Acara Pelepasan Purnabakti', time: 'JUMAT · 14.00 WIB', venue: 'Aula Kantor Pusat', address: 'Jl. Gatot Subroto No. 20, Jakarta' },
+  ],
+  'product-launch': [
+    { title: 'Grand Launching', time: 'RABU · 18.00 WIB', venue: 'The Kasablanka Hall', address: 'Jl. Casablanca Raya, Jakarta Selatan' },
+  ],
+  conference: [
+    { title: 'Opening Keynote', time: 'THURSDAY · 09.00 WIB', venue: 'JCC Senayan, Assembly Hall', address: 'Jl. Jend. Gatot Subroto, Jakarta' },
+  ],
+  tradeshow: [
+    { title: 'Expo Floor Opens', time: 'FRIDAY · 10.00 WIB', venue: 'ICE BSD, Hall 5', address: 'BSD City, Tangerang' },
+  ],
+  'sales-kickoff': [
+    { title: 'Kickoff Main Session', time: 'SENIN · 09.00 WIB', venue: 'Ritz-Carlton Ballroom', address: 'Jl. Mega Kuningan, Jakarta' },
+  ],
+  workshop: [
+    { title: 'Sesi Workshop', time: 'SABTU · 13.00 WIB', venue: 'Ruang Kreatif Comma', address: 'Jl. Kemang Raya No. 8, Jakarta Selatan' },
+  ],
+  networking: [
+    { title: 'Networking Mixer', time: 'FRIDAY · 19.00 WIB', venue: 'Skye Rooftop', address: 'Jl. M.H. Thamrin No. 1, Jakarta' },
+  ],
+  'team-building': [
+    { title: 'Team Offsite', time: 'SABTU · 08.00 WIB', venue: 'Taman Safari Camp Ground', address: 'Cisarua, Bogor' },
+  ],
+  'investor-meeting': [
+    { title: 'Annual Shareholders Meeting', time: 'TUESDAY · 10.00 WIB', venue: 'Menara BCA, Boardroom Lt. 40', address: 'Jl. M.H. Thamrin No. 1, Jakarta' },
+  ],
+  gala: [
+    { title: 'Gala Dinner', time: 'SATURDAY · 19.00 WIB', venue: 'Grand Ballroom, Mulia Senayan', address: 'Jl. Asia Afrika, Jakarta' },
+  ],
+  'client-vip': [
+    { title: 'VIP Appreciation Night', time: 'THURSDAY · 18.30 WIB', venue: 'Private Dining, Fairmont Jakarta', address: 'Jl. Asia Afrika No. 8, Jakarta' },
+  ],
+  'employee-appreciation': [
+    { title: 'Night of Champions', time: 'FRIDAY · 18.00 WIB', venue: 'Balai Kartini', address: 'Jl. Gatot Subroto Kav. 37, Jakarta' },
+  ],
+  shows: [
+    { title: 'Malam Pertunjukan', time: 'SABTU · 19.30 WIB', venue: 'Ciputra Artpreneur Theatre', address: 'Jl. Prof. Dr. Satrio, Jakarta' },
+  ],
+  'community-event': [
+    { title: 'Festival Komunitas', time: 'MINGGU · 09.00 WIB', venue: 'Lapangan Warga RW 05', address: 'Jl. Kenanga Raya No. 1, Bekasi' },
+  ],
 };
 
 const SAMPLE_STORY = [
