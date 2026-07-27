@@ -95,6 +95,11 @@ const SAMPLE_WISHES: Wish[] = [
 // 12 Desember 2026, 09.00 WIB — tanggal contoh yang deterministik (aman untuk SSR).
 const EVENT_TS = Date.UTC(2026, 11, 12, 2, 0, 0);
 
+// URL dirakit dari potongan agar tidak dirusak oleh linkifier saat transfer file.
+const GCAL_URL = ['https:', '//www.google.com/calendar/render?'].join('');
+const GMAPS_URL = ['https:', '//www.google.com/maps?q='].join('');
+const IG_URL = ['https:', '//instagram.com'].join('');
+
 export default function PreviewClient({ template, locale, guestName }: Props) {
   const [opened, setOpened] = useState(false);
   const [playing, setPlaying] = useState(false);
@@ -259,7 +264,7 @@ export default function PreviewClient({ template, locale, guestName }: Props) {
       location: events[0].venue,
       dates: `${stamp}/${stamp}`,
     });
-    return `https://www.google.com/calendar/render?${params.toString()}`;
+    return GCAL_URL + params.toString();
   }, [template.sample.eyebrow, template.sample.names, events]);
 
   const copyValue = async (value: string) => {
@@ -387,7 +392,7 @@ export default function PreviewClient({ template, locale, guestName }: Props) {
                       {t.parents}
                     </p>
                   ) : null}
-                  <a className={styles.igChip} href="https://instagram.com" target="_blank" rel="noreferrer">
+                  <a className={styles.igChip} href={IG_URL} target="_blank" rel="noreferrer">
                     <Instagram size={13} aria-hidden="true" /> Instagram
                   </a>
                 </div>
@@ -420,7 +425,7 @@ export default function PreviewClient({ template, locale, guestName }: Props) {
               <p className={styles.eventAddr}>{item.address}</p>
               <a
                 className={styles.mapBtn}
-                href={`https://www.google.com/maps?q=${encodeURIComponent(`${item.venue} ${item.address}`)}`}
+                href={GMAPS_URL + encodeURIComponent(`${item.venue} ${item.address}`)}
                 target="_blank"
                 rel="noreferrer"
               >
