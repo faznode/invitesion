@@ -1,0 +1,135 @@
+import { eq } from 'drizzle-orm';
+import { db } from '@/lib/db/drizzle';
+import { templates, type Template } from '@/lib/db/schema';
+import {
+  getTemplateBySlug,
+  invitationTemplates,
+  type InvitationTemplate,
+  type TemplateCategory,
+} from './templates';
+
+/**
+ * Jembatan antara katalog kode dan tabel `templates` di database.
+ *
+ * - Katalog (lib/invitation/templates.ts) adalah sumber kebenaran DESAIN:
+ *   47 tema lengkap dengan preset DetailConfig, palet, motif, dan tier.
+ * - Tabel `templates` adalah sumber kebenaran IDENTITAS: id integer yang
+ *   direferensikan `invitations.template_id` dan `orders.template_id`.
+ *
+ * Baris dicocokkan berdasarkan NAMA (unik di katalog), sama seperti seed lama,
+ * sehingga sync aman diulang dan tidak menggandakan tema. `defaultConfig`
+ * diisi preset katalog, jadi `createInvitation` men-seed draf undangan dengan
+ * konfigurasi tema yang persis sama dengan preview publik — dan customer
+ * tinggal mengubahnya sendiri lewat editor dashboard.
+ *
+ * PENTING: file ini sengaja TIDAK meng-import 'server-only' ataupun
+ * lib/invitation/create.ts supaya tetap bisa dijalankan scripts/seed-templates.ts
+ * lewat tsx di luar runtime Next.
+ */
+
+export type CoreEventType =
+  | 'wedding'
+  | 'birthday'
+  | 'aqiqah'
+  | 'tasyakuran'
+  | 'khitanan'
+  | 'corporate';
+
+const CORE_EVENT_TYPES: readonly string[] = [
+  'wedding',
+  'birthday',
+  'aqiqah',
+  'tasyakuran',
+  'khitanan',
+  'corporate',
+];
+
+/**
+ * Kategori katalog (11) → event type inti (6) yang dipahami pipeline
+ * pembuatan undangan, aturan publish, dan agen desain.
+ */
+export const templateEventTypes: Record<TemplateCategory, CoreEventType> = {
+  wedding: 'wedding',
+  anniversary: 'tasyakuran',
+  'bridal-shower': 'wedding',
+  birthday: 'birthday',
+  'aqiqah-khitanan': 'aqiqah',
+  syukuran: 'tasyakuran',
+  'baby-shower': 'tasyakuran',
+  graduation: 'tasyakuran',
+  reunion: 'corporate',
+  'holiday-gathering': 'tasyakuran',
+  corporate: 'corporate',
+};
+
+/**
+ * Menerjemahkan kategori yang tersimpan di DB menjadi event type inti.
+ * Menerima kategori katalog baru maupun kategori inti lawas (baris seed lama),
+ * dan mengembalikan null untuk nilai tak dikenal.
+ */
+export function resolveEventType(category: string): CoreEventType | null {
+  if (category in templateEventTypes) {
+    return templateEventTypes[category as TemplateCategory];
+  }
+  return CORE_EVENT_TYPES.includes(category) ? (category as CoreEventType) : null;
+}
+
+function toRow(tpl: InvitationTemplate) {
+  return {
+    name: tpl.name,
+    category: tpl.category,
+    // premium & signature dua-duanya berbayar; kolom DB hanya kenal boolean.
+    isPremium: tpl.tier !== 'free',
+    defaultConfig: tpl.preset as Record<string, unknown>,
+  };
+}
+
+async function upsertCatalogTemplate(
+  tpl: InvitationTemplate,
+): Promise<{ row: Template; created: boolean }> {
+  const [existing] = await db
+    .select()
+    .from(templates)
+    .where(eq(templates.name, tpl.name))
+    .limit(1);
+
+  if (existing) {
+    const [row] = await db
+      .update(templates)
+      .set(toRow(tpl))
+      .where(eq(templates.id, existing.id))
+      .returning();
+    return { row, created: false };
+  }
+
+  const [row] = await db.insert(templates).values(toRow(tpl)).returning();
+  return { row, created: true };
+}
+
+/** Upsert seluruh katalog ke DB. Aman diulang kapan pun katalog berubah. */
+export async function syncTemplateCatalog(): Promise<{
+  created: number;
+  updated: number;
+  total: number;
+}> {
+  let created = 0;
+  let updated = 0;
+  for (const tpl of invitationTemplates) {
+    const result = await upsertCatalogTemplate(tpl);
+    if (result.created) created++;
+    else updated++;
+  }
+  return { created, updated, total: invitationTemplates.length };
+}
+
+/**
+ * Resolve slug katalog (mis. dari /templates/[slug]) menjadi baris DB.
+ * Kalau temanya belum pernah di-sync, baris dibuat saat itu juga — jadi
+ * deep-link dari katalog publik tetap jalan meski seed belum dijalankan.
+ */
+export async function getTemplateRowBySlug(slug: string): Promise<Template | null> {
+  const tpl = getTemplateBySlug(slug);
+  if (!tpl) return null;
+  const { row } = await upsertCatalogTemplate(tpl);
+  return row;
+}

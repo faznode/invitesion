@@ -129,6 +129,7 @@ export default async function TemplatePreviewPage({ params }: PageProps) {
         };
 
   const preset = template.preset;
+  const useHref = `/dashboard/templates/use?slug=${template.slug}`;
   const vars = {
     '--bg': template.palette.bg,
     '--ink': template.palette.ink,
@@ -151,7 +152,7 @@ export default async function TemplatePreviewPage({ params }: PageProps) {
             {L.tiers[template.tier]}
           </span>
         </span>
-        <Link href="/sign-up" className={styles.topUse}>
+        <Link href={useHref} className={styles.topUse}>
           {L.use}
         </Link>
       </div>
@@ -270,7 +271,7 @@ export default async function TemplatePreviewPage({ params }: PageProps) {
 
       <div className={styles.ctaBar}>
         <span className={styles.ctaText}>{L.ctaText}</span>
-        <Link href="/sign-up" className={styles.ctaBtn}>
+        <Link href={useHref} className={styles.ctaBtn}>
           {L.use} <ArrowRight size={15} aria-hidden="true" />
         </Link>
       </div>

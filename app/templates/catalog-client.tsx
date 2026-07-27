@@ -193,7 +193,7 @@ export default function CatalogClient({ locale = 'id' }: { locale?: Locale }) {
                     <Link href={`/templates/${tpl.slug}`} className={styles.previewLink}>
                       <Eye size={14} aria-hidden="true" /> {t.preview}
                     </Link>
-                    <Link href="/sign-up" className={styles.useLink}>
+                    <Link href={`/dashboard/templates/use?slug=${tpl.slug}`} className={styles.useLink}>
                       {t.use} <ArrowUpRight size={14} aria-hidden="true" />
                     </Link>
                   </div>
