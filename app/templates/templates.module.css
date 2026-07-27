@@ -198,7 +198,7 @@
   color: #241a04;
 }
 
-/* ————— Motif ornaments — pure CSS, driven by the palette variables ————— */
+/* Motif ornaments: pure CSS, driven by the palette variables. */
 
 .cover::before,
 .cover::after {
@@ -274,4 +274,200 @@
     radial-gradient(ellipse 46px 90px at 6% 20%, color-mix(in srgb, var(--a) 20%, transparent), transparent 70%),
     radial-gradient(ellipse 36px 70px at 16% 6%, color-mix(in srgb, var(--a) 14%, transparent), transparent 70%),
     radial-gradient(ellipse 46px 90px at 94% 84%, color-mix(in srgb, var(--a) 20%, transparent), transparent 70%),
-    radial-gradient(ellipse 36px 70px at 86% 96%, color-mix(in srgb, var(--a) 14%, transparent
+    radial-gradient(ellipse 36px 70px at 86% 96%, color-mix(in srgb, var(--a) 14%, transparent), transparent 70%);
+}
+
+.cover[data-motif='deco']::before {
+  content: '';
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 34%;
+  background: repeating-linear-gradient(90deg, color-mix(in srgb, var(--a) 30%, transparent) 0 1.5px, transparent 1.5px 16px);
+  -webkit-mask-image: linear-gradient(180deg, #000, transparent);
+  mask-image: linear-gradient(180deg, #000, transparent);
+}
+
+.cover[data-motif='deco']::after {
+  content: '';
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 34%;
+  background: repeating-linear-gradient(90deg, color-mix(in srgb, var(--a) 30%, transparent) 0 1.5px, transparent 1.5px 16px);
+  -webkit-mask-image: linear-gradient(0deg, #000, transparent);
+  mask-image: linear-gradient(0deg, #000, transparent);
+}
+
+.cover[data-motif='confetti']::before {
+  content: '';
+  inset: 0;
+  background:
+    radial-gradient(circle 4px at 15% 20%, color-mix(in srgb, var(--a) 70%, transparent), transparent 70%),
+    radial-gradient(circle 3px at 80% 14%, color-mix(in srgb, var(--ink) 40%, transparent), transparent 70%),
+    radial-gradient(circle 5px at 90% 45%, color-mix(in srgb, var(--a) 55%, transparent), transparent 70%),
+    radial-gradient(circle 3px at 8% 60%, color-mix(in srgb, var(--a) 55%, transparent), transparent 70%),
+    radial-gradient(circle 4px at 25% 88%, color-mix(in srgb, var(--ink) 35%, transparent), transparent 70%),
+    radial-gradient(circle 5px at 72% 90%, color-mix(in srgb, var(--a) 60%, transparent), transparent 70%),
+    radial-gradient(circle 3px at 55% 8%, color-mix(in srgb, var(--a) 55%, transparent), transparent 70%);
+}
+
+.cover[data-motif='stars']::before {
+  content: '';
+  inset: 0;
+  background:
+    radial-gradient(circle 22px at 78% 18%, color-mix(in srgb, var(--a) 25%, transparent), transparent 70%),
+    radial-gradient(circle 2px at 16% 14%, color-mix(in srgb, var(--a) 80%, transparent), transparent 70%),
+    radial-gradient(circle 2px at 32% 26%, color-mix(in srgb, var(--a) 55%, transparent), transparent 70%),
+    radial-gradient(circle 2px at 62% 10%, color-mix(in srgb, var(--a) 65%, transparent), transparent 70%),
+    radial-gradient(circle 2px at 88% 60%, color-mix(in srgb, var(--a) 55%, transparent), transparent 70%),
+    radial-gradient(circle 2px at 12% 78%, color-mix(in srgb, var(--a) 60%, transparent), transparent 70%),
+    radial-gradient(circle 2px at 70% 84%, color-mix(in srgb, var(--a) 50%, transparent), transparent 70%);
+}
+
+.cover[data-motif='waves']::before {
+  content: '';
+  left: -20%;
+  right: -20%;
+  bottom: -12%;
+  height: 44%;
+  background:
+    radial-gradient(120% 100% at 50% 100%, color-mix(in srgb, var(--a) 22%, transparent), transparent 62%),
+    radial-gradient(120% 100% at 20% 100%, color-mix(in srgb, var(--a) 14%, transparent), transparent 55%);
+}
+
+.cover[data-motif='crescent']::before {
+  content: '';
+  width: 92px;
+  height: 92px;
+  left: calc(50% - 46px);
+  top: 9%;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--a) 38%, transparent);
+  -webkit-mask-image: radial-gradient(circle 78px at 68% 32%, transparent 60px, #000 61px);
+  mask-image: radial-gradient(circle 78px at 68% 32%, transparent 60px, #000 61px);
+}
+
+.cover[data-motif='geometric']::before {
+  content: '';
+  inset: 0;
+  background:
+    repeating-linear-gradient(45deg, color-mix(in srgb, var(--a) 12%, transparent) 0 1px, transparent 1px 26px),
+    repeating-linear-gradient(-45deg, color-mix(in srgb, var(--a) 12%, transparent) 0 1px, transparent 1px 26px);
+}
+
+.cover[data-motif='balloons']::before {
+  content: '';
+  inset: 0;
+  background:
+    radial-gradient(circle 26px at 14% 86%, color-mix(in srgb, var(--a) 35%, transparent), transparent 70%),
+    radial-gradient(circle 20px at 28% 94%, color-mix(in srgb, var(--a) 24%, transparent), transparent 70%),
+    radial-gradient(circle 30px at 88% 88%, color-mix(in srgb, var(--a) 30%, transparent), transparent 70%),
+    radial-gradient(circle 18px at 76% 97%, color-mix(in srgb, var(--ink) 18%, transparent), transparent 70%);
+}
+
+.cardBody {
+  display: grid;
+  gap: 8px;
+  padding: 16px 18px 18px;
+}
+
+.cardName {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--inkc);
+}
+
+.cardTagline {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--mut);
+}
+
+.tagRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.catChip {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--pink);
+  background: #fff0f5;
+  border-radius: 99px;
+  padding: 4px 9px;
+}
+
+.tag {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--mut);
+  background: #f6f1f6;
+  border-radius: 99px;
+  padding: 4px 9px;
+}
+
+.cardFoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--linec);
+}
+
+.jsonChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  color: var(--mut);
+}
+
+.useLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--pink);
+  text-decoration: none;
+}
+
+.useLink:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+@media (max-width: 1023px) {
+  .page {
+    padding: 40px 28px 72px;
+  }
+}
+
+@media (max-width: 560px) {
+  .page {
+    padding: 32px 18px 64px;
+  }
+
+  .grid {
+    gap: 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .card:hover {
+    transition: none;
+    transform: none;
+  }
+}
