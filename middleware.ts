@@ -132,10 +132,19 @@ export default clerkMiddleware(async (getAuth, request) => {
     }
   }
 
-  // Do not let an old cookie pick a conflicting language. Geo is first, then
-  // browser locale, then Indonesian. The resolved value is passed downstream.
+  // Language resolution, in order of trust:
+  // 1. An explicit visitor choice from the site's language switcher
+  //    (`locale-pref`, set client-side) always wins — a person outranks a guess.
+  // 2. Geo country from the trusted CDN header.
+  // 3. Browser Accept-Language.
+  // 4. Indonesian default.
+  // The auto-managed `locale` cookie remains a mirror of the resolved value for
+  // server components rendered outside middleware; it is never read as intent.
   const country = request.headers.get('x-vercel-ip-country') ?? request.headers.get('cf-ipcountry');
-  const locale = resolveLocale(country, request.headers.get('accept-language'));
+  const pref = request.cookies.get('locale-pref')?.value;
+  const locale = pref === 'en' || pref === 'id'
+    ? pref
+    : resolveLocale(country, request.headers.get('accept-language'));
   // Brand-neutral header names on purpose. These once carried the old product
   // name, which meant a rebrand reached into the wire protocol between
   // middleware and server components for no reason. Named after what they carry.

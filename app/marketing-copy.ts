@@ -1,65 +1,69 @@
 import type { Locale } from '@/lib/i18n';
 
+export type HeroSlideTheme = 'wedding' | 'rsvp' | 'whatsapp' | 'party';
+export type HeroSlide = { theme: HeroSlideTheme; tag: string; q: string; a: string };
+
 export const marketingCopy = {
   id: {
-    // ── Hero ──────────────────────────────────────────────────────────────────
-    heroPill: 'Untuk pasangan, keluarga & penyelenggara acara di Indonesia',
-    heroTitleBefore: '',
-    heroTitleMark: 'Undangan pernikahan',
-    heroTitleAfter: ' yang terasa hidup.',
+    // ── Hero (rotating slides, satu tagline) ───────────────────────────
+    heroPill: 'Satu platform untuk semua momen spesial',
+    heroSlides: [
+      { theme: 'wedding', tag: 'PERNIKAHAN', q: 'Undangan nikah yang berkesan?', a: 'Bisa. Banget.' },
+      { theme: 'rsvp', tag: 'RSVP', q: 'Ratusan tamu konfirmasi?', a: 'Kekontrol rapi.' },
+      { theme: 'whatsapp', tag: 'WHATSAPP', q: 'Sebar ke semua tamu?', a: 'Sekali klik.' },
+      { theme: 'party', tag: 'SEMUA ACARA', q: 'Ultah, aqiqah, reuni?', a: 'Semua jalan.' },
+    ] as readonly HeroSlide[],
+    heroStageAria: 'Pratinjau produk Invitesion',
     heroBody:
-      'Pilih tema, tulis cerita kalian, sebar ke WhatsApp — dan pantau siapa yang hadir secara real-time. Semua dari satu tempat, tanpa ribet.',
+      'Buat halaman undangan, sebar tautan personal, dan pantau kehadiran tamu secara real-time. Semua dari satu tempat, tanpa ribet.',
     heroPrimary: 'Buat undangan gratis',
     heroSecondary: 'Lihat cara kerja',
     heroNote: 'Tanpa kartu kredit · Siap dalam hitungan menit',
 
-    // ── Trust bar (jujur, bukan logo palsu) ───────────────────────────────────
-    trustBarItems: [
-      { icon: '🇮🇩', text: 'Dibuat di Indonesia' },
-      { icon: '💳', text: 'Bayar sekali per undangan' },
-      { icon: '📅', text: 'Aktif 12 bulan penuh' },
-    ],
-
-    // ── Intro ─────────────────────────────────────────────────────────────────
+    // ── Intro ──────────────────────────────────────────────────────────────
     introEyebrow: 'PLATFORM UNDANGAN',
     introTitle: 'Dari undangan pertama sampai tamu pulang.',
     introBody:
       'Invitesion bukan sekadar halaman undangan. Ini ruang kerja untuk membuat momen kalian terasa lebih terencana, lebih personal, dan lebih mudah dikelola.',
 
-    // ── Features (hanya fitur yang benar-benar ada) ───────────────────────────
+    // ── Features ──────────────────────────────────────────────────────────
     featureLink: 'Pelajari fitur',
     features: [
       {
         title: 'Halaman Undangan',
         text: 'Pilih tema premium, tulis cerita kalian, tambah agenda, lokasi, galeri foto, dan countdown hari-H.',
+        href: '/features/online-invitations',
       },
       {
         title: 'RSVP & Form Tamu',
         text: 'Kumpulkan konfirmasi kehadiran, plus-one, dan pertanyaan khusus dalam satu alur yang rapi.',
+        href: '/features/online-rsvps',
       },
       {
         title: 'Manajemen Tamu',
         text: 'Kelola daftar tamu, lihat status RSVP, dan kirim tautan personal via WhatsApp ke setiap tamu.',
+        href: '/features/guest-list-management',
       },
       {
         title: 'Tema Premium',
-        text: 'Koleksi tema pernikahan eksklusif — Romantis, Minimalis, Modern, hingga Tradisional.',
+        text: 'Koleksi tema eksklusif untuk pernikahan, ulang tahun, aqiqah, hingga acara komunitas.',
+        href: '/features/event-website-builder',
       },
     ],
 
-    // ── Guest experience ──────────────────────────────────────────────────────
+    // ── Guest experience ────────────────────────────────────────────────────
     guestEyebrow: 'PENGALAMAN TAMU',
     guestTitle: 'Semudah membuka tautan. Senyaman memberi kabar.',
     guestBody:
       'Tamu tidak perlu membuat akun. Mereka cukup membuka tautan personal, mengisi respons, dan semua jawabannya langsung masuk ke dashboard kalian.',
     guestPoints: [
       'Tautan unik untuk setiap tamu',
-      'RSVP, plus-one & pesan untuk pasangan',
+      'RSVP, plus-one & pesan untuk tuan rumah',
       'Sebar langsung via WhatsApp',
     ],
     guestCta: 'Buat undangan pertama',
 
-    // ── Pricing ───────────────────────────────────────────────────────────────
+    // ── Pricing ─────────────────────────────────────────────────────────────
     pricingEyebrow: 'HARGA INVITESION',
     pricingTitle: 'Bayar sekali. Aktif 12 bulan.',
     pricingBody:
@@ -77,8 +81,6 @@ export const marketingCopy = {
     pricingCta: 'Coba gratis',
     pricingNote:
       'Untuk kebutuhan acara khusus, hubungi tim Invitesion setelah event kalian dibuat.',
-
-    // Pricing tiers (real prices)
     tierStandardLabel: 'STANDARD',
     tierStandardPrice: 'Rp149.000',
     tierStandardPer: 'per undangan · aktif 12 bulan',
@@ -104,7 +106,7 @@ export const marketingCopy = {
     tierCta: 'Mulai sekarang',
     tierCtaFree: 'Coba gratis dulu',
 
-    // ── Roadmap ───────────────────────────────────────────────────────────────
+    // ── Roadmap ─────────────────────────────────────────────────────────────
     roadmapEyebrow: 'DAN TERUS BERKEMBANG',
     roadmapTitle: 'Semakin lengkap, tanpa kehilangan kesederhanaannya.',
     roadmapBody:
@@ -119,33 +121,34 @@ export const marketingCopy = {
     ],
     roadmapSoon: 'Segera hadir',
 
-    // ── CTA ───────────────────────────────────────────────────────────────────
-    ctaTitle: 'Hari istimewa kalian layak dirayakan dengan indah.',
+    // ── CTA ────────────────────────────────────────────────────────────────
+    ctaTitle: 'Momen istimewa kalian layak dirayakan dengan indah.',
     ctaBody: 'Mulai gratis. Upgrade ke tema premium kapan pun kalian siap.',
     ctaButton: 'Buat undangan gratis',
 
-    // ── Footer ────────────────────────────────────────────────────────────────
+    // ── Footer ──────────────────────────────────────────────────────────────
     footerTagline: 'Undangan digital yang membantu kabar baik sampai dengan baik.',
-    footerProduct: 'Produk',
-    footerFeatures: 'Fitur',
-    footerHow: 'Cara kerja',
-    footerPricing: 'Harga',
-    footerSignIn: 'Masuk',
-    footerContact: 'Kontak',
-    footerPrivacy: 'Kebijakan Privasi',
+    footProduct: 'Produk',
+    footHelp: 'Bantuan',
+    footAccount: 'Akun & Legal',
+    linkAllFeatures: 'Semua fitur',
+    linkAllEvents: 'Jenis acara',
+    linkPricing: 'Harga',
+    linkHow: 'Cara kerja',
+    linkHelp: 'Pusat bantuan',
+    linkFaq: 'FAQ',
+    linkContact: 'Kontak',
+    linkPrivacy: 'Privasi & keamanan',
+    linkSignIn: 'Masuk',
+    linkSignUp: 'Daftar gratis',
+    footMeta: [
+      { icon: '🇮🇩', text: 'Dibuat di Indonesia' },
+      { icon: '💳', text: 'Bayar sekali per undangan' },
+      { icon: '📅', text: 'Aktif 12 bulan penuh' },
+    ],
+    footerRights: '© 2026 Invitesion. Dibuat dengan ❤️ di Indonesia.',
 
-    // ── Product preview (hero visual) ─────────────────────────────────────────
-    previewBrief: 'UNDANGAN · 2026',
-    previewDate: 'SABTU, 18 OKTOBER',
-    previewTitle: ['Nadya', '& Arga'],
-    previewBody: 'Dengan penuh syukur, kami mengundang kehadiran Bapak/Ibu/Saudara/i di hari bahagia kami.',
-    previewTime: 'WAKTU',
-    previewPlace: 'TEMPAT',
-    previewRsvp: 'RSVP',
-    previewRsvpValue: '84 terkonfirmasi',
-    previewSteps: ['Undangan', 'RSVP', 'Hari-H'],
-    previewTag: 'Live · Semua tersambung',
-    previewAria: 'Pratinjau undangan digital Invitesion',
+    // ── Workflow phone mock ─────────────────────────────────────────────────
     phoneWedding: 'THE WEDDING OF',
     phoneConfirm: 'Konfirmasi kehadiran',
     phoneQuestion: 'Apakah kamu bisa hadir?',
@@ -155,20 +158,19 @@ export const marketingCopy = {
   },
 
   en: {
-    heroPill: 'For couples, families & event organisers',
-    heroTitleBefore: '',
-    heroTitleMark: 'Wedding invitations',
-    heroTitleAfter: ' that feel alive.',
+    heroPill: 'One platform for every special moment',
+    heroSlides: [
+      { theme: 'wedding', tag: 'WEDDINGS', q: 'A wedding invitation to remember?', a: 'Absolutely.' },
+      { theme: 'rsvp', tag: 'RSVP', q: 'Hundreds of guest confirmations?', a: 'Under control.' },
+      { theme: 'whatsapp', tag: 'WHATSAPP', q: 'Share it with every guest?', a: 'One click.' },
+      { theme: 'party', tag: 'EVERY EVENT', q: 'Birthdays, aqiqah, reunions?', a: 'All covered.' },
+    ] as readonly HeroSlide[],
+    heroStageAria: 'Invitesion product preview',
     heroBody:
-      'Pick a theme, write your story, share to WhatsApp — and watch RSVPs come in real time. All from one place, without the hassle.',
+      'Build your invitation page, share personal links, and watch attendance in real time. All from one place, without the hassle.',
     heroPrimary: 'Create free invitation',
     heroSecondary: 'See how it works',
     heroNote: 'No credit card · Ready in minutes',
-    trustBarItems: [
-      { icon: '🇮🇩', text: 'Made in Indonesia' },
-      { icon: '💳', text: 'One-time payment per invitation' },
-      { icon: '📅', text: 'Active for 12 full months' },
-    ],
     introEyebrow: 'INVITATION PLATFORM',
     introTitle: 'From the first invitation to the last guest home.',
     introBody:
@@ -178,18 +180,22 @@ export const marketingCopy = {
       {
         title: 'Invitation Page',
         text: 'Choose a premium theme, write your story, add schedule, venue, photo gallery, and a countdown to the big day.',
+        href: '/features/online-invitations',
       },
       {
         title: 'RSVP & Guest Forms',
         text: 'Collect confirmations, plus-ones, and custom questions in one clean flow.',
+        href: '/features/online-rsvps',
       },
       {
         title: 'Guest Management',
         text: 'Manage your guest list, track RSVP status, and send personal WhatsApp links to each guest.',
+        href: '/features/guest-list-management',
       },
       {
         title: 'Premium Themes',
-        text: 'An exclusive collection of wedding themes — Romantic, Minimalist, Modern, and Traditional.',
+        text: 'An exclusive theme collection for weddings, birthdays, aqiqah, and community events.',
+        href: '/features/event-website-builder',
       },
     ],
     guestEyebrow: 'GUEST EXPERIENCE',
@@ -198,7 +204,7 @@ export const marketingCopy = {
       'Guests never need an account. They open their personal link, fill in their response, and every answer lands straight in your dashboard.',
     guestPoints: [
       'Unique link for every guest',
-      'RSVP, plus-ones & a message for the couple',
+      'RSVP, plus-ones & a message for the host',
       'Share directly via WhatsApp',
     ],
     guestCta: 'Create your first invitation',
@@ -253,28 +259,29 @@ export const marketingCopy = {
       'Cashless envelope & gifts',
     ],
     roadmapSoon: 'Coming soon',
-    ctaTitle: 'Your special day deserves to be celebrated beautifully.',
+    ctaTitle: 'Your special moment deserves to be celebrated beautifully.',
     ctaBody: 'Start free. Upgrade to a premium theme whenever you are ready.',
     ctaButton: 'Create free invitation',
     footerTagline: 'The invitation platform that helps good news arrive well.',
-    footerProduct: 'Product',
-    footerFeatures: 'Features',
-    footerHow: 'How it works',
-    footerPricing: 'Pricing',
-    footerSignIn: 'Sign in',
-    footerContact: 'Contact',
-    footerPrivacy: 'Privacy Policy',
-    previewBrief: 'INVITATION · 2026',
-    previewDate: 'SATURDAY, 18 OCTOBER',
-    previewTitle: ['Nadya', '& Arga'],
-    previewBody: 'With gratitude, we invite you to share in our joy on our wedding day.',
-    previewTime: 'TIME',
-    previewPlace: 'VENUE',
-    previewRsvp: 'RSVP',
-    previewRsvpValue: '84 confirmed',
-    previewSteps: ['Invitation', 'RSVP', 'Wedding day'],
-    previewTag: 'Live · Everything connected',
-    previewAria: 'Invitesion digital invitation preview',
+    footProduct: 'Product',
+    footHelp: 'Support',
+    footAccount: 'Account & Legal',
+    linkAllFeatures: 'All features',
+    linkAllEvents: 'Event types',
+    linkPricing: 'Pricing',
+    linkHow: 'How it works',
+    linkHelp: 'Help Center',
+    linkFaq: 'FAQ',
+    linkContact: 'Contact',
+    linkPrivacy: 'Privacy & security',
+    linkSignIn: 'Sign in',
+    linkSignUp: 'Sign up free',
+    footMeta: [
+      { icon: '🇮🇩', text: 'Made in Indonesia' },
+      { icon: '💳', text: 'One-time payment per invitation' },
+      { icon: '📅', text: 'Active for 12 full months' },
+    ],
+    footerRights: '© 2026 Invitesion. Made with ❤️ in Indonesia.',
     phoneWedding: 'THE WEDDING OF',
     phoneConfirm: 'Confirm attendance',
     phoneQuestion: 'Can you make it?',
