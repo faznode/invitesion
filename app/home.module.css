@@ -758,8 +758,8 @@
 .cta .ctaButton { background: var(--pink); color: #fff; padding: 15px 22px; box-shadow: 0 8px 24px #e8005340; }
 .cta .ctaButton:hover { background: #c8004a; }
 
-/* ─── Footer ─────────────────────────────────────────────────────────────── */
-footer { border-top: 1px solid var(--line); max-width: 1216px; margin: auto; padding: 40px 32px 50px; }
+/* ─── Footer (scoped to .site — CSS Modules purity) ──────────────────── */
+.site footer { border-top: 1px solid var(--line); max-width: 1216px; margin: auto; padding: 40px 32px 50px; }
 .footerTop { display: grid; grid-template-columns: 1fr 2fr; gap: 40px; align-items: start; }
 .footerBrand { max-width: 300px; }
 .footerBrand p { font-size: 13px; line-height: 1.6; color: var(--muted); margin-top: 10px; }
@@ -817,15 +817,6 @@ footer { border-top: 1px solid var(--line); max-width: 1216px; margin: auto; pad
 .resourceCards span { color: var(--pink); font-weight: 800; }
 .resourceCards h2 { font-size: 20px; margin: 24px 0 9px; }
 .resourceCards p { font-size: 13px; line-height: 1.6; color: var(--muted); }
-.pricingCard { max-width: 680px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; border: 1.5px solid var(--line); border-radius: 20px; padding: 28px; background: #fff; }
-.pricingCard h2 { font-size: 22px; margin: 10px 0; }
-.pricingCard strong { font-size: 44px; letter-spacing: -0.05em; }
-.pricingCard p { font-size: 13px !important; line-height: 1.6 !important; }
-.pricingCard ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
-.pricingCard li { display: flex; gap: 8px; align-items: center; font-size: 13px; }
-.pricingCard li svg { color: var(--pink); }
-.pricingCard > a { grid-column: 1 / -1; }
-.pricingNote { font-size: 13px !important; margin-top: 22px; }
 
 /* ─── Responsive ─────────────────────────────────────────────────────────── */
 @media (max-width: 900px) {
@@ -844,7 +835,6 @@ footer { border-top: 1px solid var(--line); max-width: 1216px; margin: auto; pad
   .footerLinks { grid-template-columns: repeat(3, 1fr); }
   .dropdownGroups { grid-template-columns: 1fr 1fr; }
   .resourceCards { grid-template-columns: 1fr; }
-  .pricingCard { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 560px) {
@@ -870,7 +860,7 @@ footer { border-top: 1px solid var(--line); max-width: 1216px; margin: auto; pad
   .cta { margin: 0 18px 55px; padding: 36px 24px; display: grid; }
   .cta .serifH2 { font-size: 2.1rem; }
   .cta .ctaButton { width: 100%; }
-  footer { margin: 0 18px; padding: 36px 0 40px; }
+  .site footer { margin: 0 18px; padding: 36px 0 40px; }
   .footerLinks { grid-template-columns: 1fr 1fr; }
   .waFloat span { display: none; }
   .waFloat { padding: 14px; border-radius: 50%; }
