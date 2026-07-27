@@ -18,7 +18,7 @@ import {
  * 3. TERSIMPAN DI DATABASE — template-sync menulis cover ke kolom
  *    `templates.thumbnail` dan seluruh set ke `defaultConfig.art`; FE tidak
  *    membaca basis data ini secara langsung.
- * 4. SIAP TUMBUH — pool jauh lebih besar dari kebutuhan 47 tema sekarang,
+ * 4. SIAP TUMBUH — pool jauh lebih besar dari kebutuhan 63 tema sekarang,
  *    jadi katalog bisa ditambah banyak template baru tanpa cari aset lagi.
  */
 
@@ -92,6 +92,17 @@ const SLUG_POOLS: Record<string, PoolKey> = {
   'bunga-kering': 'boho',
   'kurma-oasis': 'gold',
   'marigold-fiesta': 'party',
+  'pink-or-blue': 'sakura',
+  'purnabakti-emas': 'elegant',
+  'ignition': 'fireworks',
+  'kickoff-arena': 'fireworks',
+  'after-hours-mixer': 'candle',
+  'offsite-escape': 'sawah',
+  'boardroom-charter': 'marble',
+  'velvet-rope': 'rose',
+  'bravo-team': 'party',
+  'grand-stage': 'fireworks',
+  'kampung-fest': 'party',
 };
 
 const MOTIF_POOLS: Partial<Record<TemplateMotif, PoolKey>> = {
@@ -120,6 +131,22 @@ const CATEGORY_POOLS: Record<TemplateCategory, PoolKey> = {
   reunion: 'candle',
   'holiday-gathering': 'tropics',
   corporate: 'elegant',
+  'gender-reveal': 'sakura',
+  tahlilan: 'islamic',
+  retirement: 'elegant',
+  'product-launch': 'fireworks',
+  conference: 'marble',
+  tradeshow: 'marble',
+  'sales-kickoff': 'fireworks',
+  workshop: 'eucalyptus',
+  networking: 'candle',
+  'team-building': 'sawah',
+  'investor-meeting': 'marble',
+  gala: 'gold',
+  'client-vip': 'gold',
+  'employee-appreciation': 'party',
+  shows: 'fireworks',
+  'community-event': 'party',
 };
 
 const poolKeyFor = (
