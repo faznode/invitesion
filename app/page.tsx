@@ -147,7 +147,7 @@ export default async function HomePage() {
         <footer className={styles.footer}>
           <div className={styles.footerTop}>
             <div className={styles.footerBrand}>
-              <span className={styles.logo}>Invitesion</span>
+              <span className={styles.logo}>invitesion<b>.</b></span>
               <p>{copy.footerTagline}</p>
             </div>
             <nav className={styles.footerLinks} aria-label="Footer">
@@ -171,11 +171,6 @@ export default async function HomePage() {
                 <Link href="/resources/privacy-and-security">{copy.linkPrivacy}</Link>
               </div>
             </nav>
-          </div>
-          <div className={styles.footMeta}>
-            {copy.footMeta.map((item) => (
-              <span key={item.text}><span aria-hidden="true">{item.icon}</span> {item.text}</span>
-            ))}
           </div>
           <div className={styles.footerBottom}>{copy.footerRights}</div>
         </footer>

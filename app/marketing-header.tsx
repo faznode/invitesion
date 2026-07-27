@@ -183,7 +183,7 @@ export default function MarketingHeader({ locale = 'id' }: { locale?: Locale }) 
   return (
     <header className={styles.marketingHeader}>
       <nav className={styles.nav} aria-label="Main">
-        <Link href="/" className={styles.logo} onClick={() => setOpen(null)}>Invitesion</Link>
+        <Link href="/" className={styles.logo} onClick={() => setOpen(null)}>invitesion<b>.</b></Link>
 
         <div className={styles.desktopNav} onMouseLeave={scheduleClose}>
           {menuEntries.map(([key, label]) => (
