@@ -1,7 +1,9 @@
 /* ==========================================================================
-   Invitesion marketing styles — grid-canvas v2.
-   The blueprint grid lives on the page background; content floats above it
-   as clean white rounded cards. No 1px seam collapsing, no corner markers.
+   Invitesion marketing styles — grid-canvas v3.
+   The blueprint grid lives on the page canvas but FADES: strongest around
+   the hero, dissolving toward the footer, with warm rose glows layered in.
+   Visual stages use a soft blush→peach gradient + fine dot texture so they
+   feel warm instead of flat white.
    CSS Modules rule: every selector contains a local class (no bare elements).
    ========================================================================== */
 
@@ -12,19 +14,40 @@
   --ink: #16121c;
   --mut: #6f6577;
   --line: #e8e2e7;
-  --grid: #f1ecf0;
+  --grid: #ece4ea;
   --blush: #fff0f5;
   --peach: #fff5ee;
   --paper: #ffffff;
   --bg: #faf8fa;
   --serif: var(--font-serif, Georgia, 'Times New Roman', serif);
   background-color: var(--bg);
+  color: var(--ink);
+  min-height: 100vh;
+  position: relative;
+  isolation: isolate;
+}
+.site::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
   background-image:
     linear-gradient(var(--grid) 1px, transparent 1px),
     linear-gradient(90deg, var(--grid) 1px, transparent 1px);
-  background-size: 36px 36px;
-  color: var(--ink);
-  min-height: 100vh;
+  background-size: 44px 44px;
+  -webkit-mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0.3) 48%, transparent 90%);
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0.3) 48%, transparent 90%);
+}
+.site::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(620px 420px at 10% 2%, rgba(232, 0, 83, 0.05), transparent 70%),
+    radial-gradient(680px 460px at 92% 6%, rgba(255, 123, 166, 0.09), transparent 70%);
 }
 
 /* ── Frame: centered content column over the grid canvas ────── */
@@ -253,9 +276,13 @@
   min-height: 500px;
   border: 1px solid var(--line);
   border-radius: 24px;
-  background: var(--paper);
+  background-color: #fff;
+  background-image:
+    radial-gradient(rgba(232, 0, 83, 0.09) 1px, transparent 1.6px),
+    linear-gradient(150deg, var(--blush) 0%, rgba(255, 255, 255, 0) 46%, var(--peach) 100%);
+  background-size: 22px 22px, 100% 100%;
   overflow: hidden;
-  box-shadow: 0 30px 60px -40px rgba(22, 18, 28, 0.25);
+  box-shadow: 0 30px 60px -40px rgba(22, 18, 28, 0.28);
 }
 .slideCard {
   position: absolute;
@@ -472,7 +499,11 @@
   border: 1px solid var(--line);
   border-radius: 24px;
   padding: 44px 24px;
-  background: var(--paper);
+  background-color: #fff;
+  background-image:
+    radial-gradient(rgba(232, 0, 83, 0.07) 1px, transparent 1.6px),
+    linear-gradient(215deg, var(--peach) 0%, rgba(255, 255, 255, 0) 52%, var(--blush) 100%);
+  background-size: 22px 22px, 100% 100%;
 }
 .phoneMock {
   position: relative;
