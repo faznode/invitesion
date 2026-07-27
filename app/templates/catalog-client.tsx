@@ -8,10 +8,13 @@ import {
   templateCategories,
   templateCategoryLabels,
   templateStyleTagLabels,
+  type InvitationTemplate,
   type TemplateCategory,
   type TemplateStyleTag,
 } from '@/lib/invitation/templates';
+import { getThemeArt } from '@/lib/invitation/theme-art';
 import styles from './templates.module.css';
+import ui from './catalog-ui.module.css';
 
 type Locale = 'id' | 'en';
 
@@ -20,9 +23,14 @@ const COPY: Record<
   {
     kicker: string;
     lead: string;
+    steps: Array<{ n: string; t: string; b: string }>;
     filterCat: string;
     filterStyle: string;
     all: string;
+    themes: string;
+    curatedNote: string;
+    more: string;
+    reset: string;
     preview: string;
     use: string;
     empty: string;
@@ -31,10 +39,19 @@ const COPY: Record<
 > = {
   id: {
     kicker: 'KATALOG TEMA',
-    lead: 'Setiap tema adalah arah seni tersendiri — floral yang bergerak, batik, art deco, cat air — bukan sekadar ganti warna. Klik tema mana pun untuk melihat preview undangan seutuhnya, tanpa perlu login.',
+    lead: 'Setiap tema punya arah seni dan asetnya sendiri — bukan sekadar ganti warna. Mulai dari pilihan kurasi di bawah, atau saring sesuai acaramu.',
+    steps: [
+      { n: '01', t: 'Pilih & saring', b: 'Gunakan filter kategori dan gaya — kami tampilkan pilihan terbaik lebih dulu, bukan semuanya sekaligus.' },
+      { n: '02', t: 'Preview seperti tamu', b: 'Buka tema mana pun tanpa login: nama tamu, hitung mundur, RSVP demo — semuanya bisa dicoba.' },
+      { n: '03', t: 'Pakai & sesuaikan', b: 'Klik “Pakai tema”, dan semua teks, foto, serta detail acara bisa kamu ubah di dashboard.' },
+    ],
     filterCat: 'Kategori',
     filterStyle: 'Gaya',
     all: 'Semua',
+    themes: 'tema',
+    curatedNote: 'Pilihan kurasi — satu tema terbaik dari tiap kategori. Saring atau jelajahi untuk melihat lainnya.',
+    more: 'Jelajahi semua tema',
+    reset: 'Atur ulang filter',
     preview: 'Preview penuh',
     use: 'Pakai tema',
     empty: 'Belum ada tema untuk kombinasi filter ini — coba longgarkan salah satu filter.',
@@ -42,10 +59,19 @@ const COPY: Record<
   },
   en: {
     kicker: 'THEME CATALOG',
-    lead: 'Every theme is its own art direction — moving florals, batik, art deco, watercolor — not just a palette swap. Click any theme to preview the full invitation, no login required.',
+    lead: 'Every theme has its own art direction and assets — not just a palette swap. Start from the curated picks below, or filter by your event.',
+    steps: [
+      { n: '01', t: 'Pick & filter', b: 'Use the category and style filters — we surface the best picks first, not everything at once.' },
+      { n: '02', t: 'Preview as a guest', b: 'Open any theme without logging in: guest name, countdown, demo RSVP — all interactive.' },
+      { n: '03', t: 'Use & customize', b: 'Click “Use theme” and edit every text, photo, and event detail in your dashboard.' },
+    ],
     filterCat: 'Category',
     filterStyle: 'Style',
     all: 'All',
+    themes: 'themes',
+    curatedNote: 'Curated picks — the best theme from each category. Filter or explore to see more.',
+    more: 'Explore all themes',
+    reset: 'Reset filters',
     preview: 'Full preview',
     use: 'Use theme',
     empty: 'No themes match this filter combo — try loosening one filter.',
@@ -56,15 +82,8 @@ const COPY: Record<
 export default function CatalogClient({ locale = 'id' }: { locale?: Locale }) {
   const [cat, setCat] = useState<TemplateCategory | 'all'>('all');
   const [tag, setTag] = useState<TemplateStyleTag | 'all'>('all');
+  const [showAll, setShowAll] = useState(false);
   const t = COPY[locale];
-
-  const catCounts = useMemo(() => {
-    const counts = new Map<TemplateCategory, number>();
-    for (const tpl of invitationTemplates) {
-      counts.set(tpl.category, (counts.get(tpl.category) ?? 0) + 1);
-    }
-    return counts;
-  }, []);
 
   const styleTags = useMemo(() => {
     const seen = new Set<TemplateStyleTag>();
@@ -74,7 +93,20 @@ export default function CatalogClient({ locale = 'id' }: { locale?: Locale }) {
     return Array.from(seen);
   }, []);
 
-  const shown = useMemo(
+  // Kurasi default: satu tema pertama dari tiap kategori — etalase, bukan gudang.
+  const curated = useMemo(() => {
+    const seen = new Set<TemplateCategory>();
+    const picks: InvitationTemplate[] = [];
+    for (const tpl of invitationTemplates) {
+      if (!seen.has(tpl.category)) {
+        seen.add(tpl.category);
+        picks.push(tpl);
+      }
+    }
+    return picks;
+  }, []);
+
+  const filtered = useMemo(
     () =>
       invitationTemplates.filter(
         (tpl) =>
@@ -83,6 +115,10 @@ export default function CatalogClient({ locale = 'id' }: { locale?: Locale }) {
       ),
     [cat, tag],
   );
+
+  const hasFilter = cat !== 'all' || tag !== 'all';
+  const isCurated = !hasFilter && !showAll;
+  const shown = isCurated ? curated : filtered;
 
   return (
     <div className={styles.page}>
@@ -104,50 +140,68 @@ export default function CatalogClient({ locale = 'id' }: { locale?: Locale }) {
         <p className={styles.lead}>{t.lead}</p>
       </header>
 
-      <div className={styles.filters}>
-        <div className={styles.filterRow}>
-          <span className={styles.filterName}>{t.filterCat}</span>
-          <button
-            type="button"
-            className={cat === 'all' ? `${styles.tab} ${styles.tabOn}` : styles.tab}
-            onClick={() => setCat('all')}
-          >
-            {t.all}
-            <span className={styles.tabCount}>{invitationTemplates.length}</span>
-          </button>
-          {templateCategories.map((category) => (
-            <button
-              key={category}
-              type="button"
-              className={cat === category ? `${styles.tab} ${styles.tabOn}` : styles.tab}
-              onClick={() => setCat(category)}
-            >
-              {templateCategoryLabels[category][locale]}
-              <span className={styles.tabCount}>{catCounts.get(category) ?? 0}</span>
-            </button>
-          ))}
-        </div>
-        <div className={styles.filterRow}>
-          <span className={styles.filterName}>{t.filterStyle}</span>
-          <button
-            type="button"
-            className={tag === 'all' ? `${styles.tab} ${styles.tabOn}` : styles.tab}
-            onClick={() => setTag('all')}
-          >
-            {t.all}
-          </button>
-          {styleTags.map((styleTag) => (
-            <button
-              key={styleTag}
-              type="button"
-              className={tag === styleTag ? `${styles.tab} ${styles.tabOn}` : styles.tab}
-              onClick={() => setTag(styleTag)}
-            >
-              {templateStyleTagLabels[styleTag][locale]}
-            </button>
-          ))}
-        </div>
+      <div className={ui.steps}>
+        {t.steps.map((step) => (
+          <div key={step.n} className={ui.step}>
+            <p className={ui.stepN}>{step.n}</p>
+            <p className={ui.stepT}>{step.t}</p>
+            <p className={ui.stepB}>{step.b}</p>
+          </div>
+        ))}
       </div>
+
+      <div className={ui.bar}>
+        <label className={ui.field}>
+          {t.filterCat}
+          <select
+            className={ui.select}
+            value={cat}
+            onChange={(event) => setCat(event.target.value as TemplateCategory | 'all')}
+          >
+            <option value="all">{t.all}</option>
+            {templateCategories.map((category) => (
+              <option key={category} value={category}>
+                {templateCategoryLabels[category][locale]}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className={ui.field}>
+          {t.filterStyle}
+          <select
+            className={ui.select}
+            value={tag}
+            onChange={(event) => setTag(event.target.value as TemplateStyleTag | 'all')}
+          >
+            <option value="all">{t.all}</option>
+            {styleTags.map((styleTag) => (
+              <option key={styleTag} value={styleTag}>
+                {templateStyleTagLabels[styleTag][locale]}
+              </option>
+            ))}
+          </select>
+        </label>
+        <span className={ui.count}>
+          {shown.length} {t.themes}
+          {hasFilter ? (
+            <>
+              {' · '}
+              <button
+                type="button"
+                className={ui.reset}
+                onClick={() => {
+                  setCat('all');
+                  setTag('all');
+                }}
+              >
+                {t.reset}
+              </button>
+            </>
+          ) : null}
+        </span>
+      </div>
+
+      {isCurated ? <p className={ui.curatedNote}>{t.curatedNote}</p> : <div style={{ height: 24 }} aria-hidden="true" />}
 
       {shown.length > 0 ? (
         <div className={styles.grid}>
@@ -158,6 +212,7 @@ export default function CatalogClient({ locale = 'id' }: { locale?: Locale }) {
               '--a': tpl.palette.accent,
               '--s': tpl.palette.soft,
             } as CSSProperties;
+            const art = getThemeArt(tpl);
             return (
               <article key={tpl.slug} className={styles.card}>
                 <Link
@@ -171,12 +226,15 @@ export default function CatalogClient({ locale = 'id' }: { locale?: Locale }) {
                     data-motif={tpl.motif}
                     data-font={tpl.font}
                   >
-                    <span className={styles.tierBadge} data-tier={tpl.tier}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img className={ui.art} src={art.cover} alt="" loading="lazy" />
+                    <span className={ui.tint} aria-hidden="true" />
+                    <span className={`${styles.tierBadge} ${ui.raise}`} data-tier={tpl.tier}>
                       {t.tiers[tpl.tier]}
                     </span>
                     <i className={styles.petals} aria-hidden="true" />
                     <span className={styles.frame} aria-hidden="true" />
-                    <div className={styles.coverInner}>
+                    <div className={`${styles.coverInner} ${ui.lift}`}>
                       <span className={styles.cEyebrow}>{tpl.sample.eyebrow}</span>
                       <span className={styles.cNames}>{tpl.sample.names}</span>
                       <span className={styles.cDate}>{tpl.sample.date}</span>
@@ -205,6 +263,14 @@ export default function CatalogClient({ locale = 'id' }: { locale?: Locale }) {
       ) : (
         <p className={styles.empty}>{t.empty}</p>
       )}
+
+      {isCurated ? (
+        <div className={ui.moreWrap}>
+          <button type="button" className={ui.moreBtn} onClick={() => setShowAll(true)}>
+            {t.more} ({invitationTemplates.length}) →
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }

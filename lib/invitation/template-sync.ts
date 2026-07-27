@@ -7,6 +7,7 @@ import {
   type InvitationTemplate,
   type TemplateCategory,
 } from './templates';
+import { getThemeArt } from './theme-art';
 
 /**
  * Jembatan antara katalog kode dan tabel `templates` di database.
@@ -21,6 +22,12 @@ import {
  * diisi preset katalog, jadi `createInvitation` men-seed draf undangan dengan
  * konfigurasi tema yang persis sama dengan preview publik — dan customer
  * tinggal mengubahnya sendiri lewat editor dashboard.
+ *
+ * Basis data aset foto (lib/invitation/theme-art.ts) juga ikut disimpan di
+ * sini: cover unik tiap tema masuk ke kolom `thumbnail`, dan set lengkapnya
+ * (cover + galeri) masuk ke `defaultConfig.art`. FE publik tidak membaca
+ * basis data ini secara langsung — ini fondasi internal untuk editor dan
+ * untuk men-generate template baru di masa depan.
  *
  * PENTING: file ini sengaja TIDAK meng-import 'server-only' ataupun
  * lib/invitation/create.ts supaya tetap bisa dijalankan scripts/seed-templates.ts
@@ -75,12 +82,18 @@ export function resolveEventType(category: string): CoreEventType | null {
 }
 
 function toRow(tpl: InvitationTemplate) {
+  const art = getThemeArt(tpl);
   return {
     name: tpl.name,
     category: tpl.category,
     // premium & signature dua-duanya berbayar; kolom DB hanya kenal boolean.
     isPremium: tpl.tier !== 'free',
-    defaultConfig: tpl.preset as Record<string, unknown>,
+    // Basis data aset: cover unik per tema + galeri, tersimpan di DB.
+    thumbnail: art.cover,
+    defaultConfig: {
+      ...(tpl.preset as Record<string, unknown>),
+      art,
+    } as Record<string, unknown>,
   };
 }
 
