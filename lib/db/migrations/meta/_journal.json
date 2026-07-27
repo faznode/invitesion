@@ -50,6 +50,13 @@
       "when": 1785105585664,
       "tag": "0006_friendly_viper",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1785129000000,
+      "tag": "0007_theme_scoped_orders",
+      "breakpoints": true
     }
   ]
 }

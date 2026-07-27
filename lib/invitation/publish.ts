@@ -54,7 +54,12 @@ export async function publishInvitation(invitationId: number, userId: number) {
   // Re-publishing an invitation that was taken down stays free, because the
   // active window was already paid for; that path returns above or passes this
   // check via its existing PAID order.
-  if (!(await hasPaidOrder(invitation.id))) throw new NotPaidError();
+  //
+  // Entitlement is per (invitation, theme): the check carries the current
+  // templateId, so switching to a new theme means paying the full price again
+  // before the next publish. Orders from before themes were recorded
+  // (template_id NULL) stay valid for any theme.
+  if (!(await hasPaidOrder(invitation.id, invitation.templateId))) throw new NotPaidError();
 
   const publishedAt = invitation.publishedAt ?? new Date();
   const expiresAt = invitation.expiresAt ?? addMonths(publishedAt, ACTIVE_PERIOD_MONTHS);

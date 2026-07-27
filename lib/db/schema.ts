@@ -178,6 +178,11 @@ export const orders = pgTable('orders', {
     .notNull()
     .references(() => users.id),
   invitationId: integer('invitation_id').references(() => invitations.id),
+  // Theme the order bought. Entitlement is per (invitation, template): switching
+  // themes means paying again, so the gate has to know which theme a PAID order
+  // covers. NULL on orders that predate this column; those are grandfathered as
+  // valid for any theme (see lib/payment/service.ts hasPaidOrder).
+  templateId: integer('template_id').references(() => templates.id),
   tier: varchar('tier', { length: 50 }),
   amount: integer('amount').notNull(),
   currency: varchar('currency', { length: 3 }).notNull().default('IDR'),
@@ -353,6 +358,7 @@ export const guestsRelations = relations(guests, ({ one }) => ({
 export const ordersRelations = relations(orders, ({ one, many }) => ({
   user: one(users, { fields: [orders.userId], references: [users.id] }),
   invitation: one(invitations, { fields: [orders.invitationId], references: [invitations.id] }),
+  template: one(templates, { fields: [orders.templateId], references: [templates.id] }),
   payments: many(payments),
 }));
 
