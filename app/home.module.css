@@ -1,6 +1,7 @@
 /* ==========================================================================
-   Invitesion marketing styles — grid-canvas edition.
-   White paper + ink + rose. Boxed sections with visible 1px grid seams.
+   Invitesion marketing styles — grid-canvas v2.
+   The blueprint grid lives on the page background; content floats above it
+   as clean white rounded cards. No 1px seam collapsing, no corner markers.
    CSS Modules rule: every selector contains a local class (no bare elements).
    ========================================================================== */
 
@@ -17,42 +18,23 @@
   --paper: #ffffff;
   --bg: #faf8fa;
   --serif: var(--font-serif, Georgia, 'Times New Roman', serif);
-  background: var(--bg);
+  background-color: var(--bg);
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 36px 36px;
   color: var(--ink);
   min-height: 100vh;
 }
 
-/* ── Frame: the drawing canvas ────────────────────────────────── */
+/* ── Frame: centered content column over the grid canvas ────── */
 
 .frame {
   max-width: 1240px;
   margin: 0 auto;
-  background: var(--paper);
-  border-inline: 1px solid var(--line);
 }
-.frame > section,
-.frame > footer {
-  position: relative;
-  border-top: 1px solid var(--line);
-}
-.frame > section:first-child { border-top: 0; }
-.frame > section::before,
-.frame > section::after {
-  content: '+';
-  position: absolute;
-  top: -10px;
-  font-size: 14px;
-  font-weight: 700;
-  line-height: 1;
-  color: #cfc5cf;
-  pointer-events: none;
-}
-.frame > section::before { left: 12px; }
-.frame > section::after { right: 12px; }
-.frame > section:first-child::before,
-.frame > section:first-child::after { display: none; }
 
-/* ── Header ──────────────────────────────────────────────────── */
+/* ── Header ──────────────────────────────────────── */
 
 .marketingHeader {
   position: sticky;
@@ -78,6 +60,7 @@
   color: var(--ink);
   text-decoration: none;
 }
+.logo b { color: var(--pink); font-weight: 900; }
 .desktopNav { display: flex; align-items: center; gap: 4px; }
 .desktopNav a,
 .desktopNav button {
@@ -199,7 +182,7 @@
 }
 .mobileDrawer { display: none; }
 
-/* ── Hero + slide rotator ───────────────────────────────────────── */
+/* ── Hero + slide rotator ───────────────────────────── */
 
 .hero {
   display: grid;
@@ -269,11 +252,10 @@
   align-self: stretch;
   min-height: 500px;
   border: 1px solid var(--line);
-  background-color: #fff;
-  background-image:
-    linear-gradient(var(--grid) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
-  background-size: 36px 36px;
+  border-radius: 24px;
+  background: var(--paper);
+  overflow: hidden;
+  box-shadow: 0 30px 60px -40px rgba(22, 18, 28, 0.25);
 }
 .slideCard {
   position: absolute;
@@ -296,6 +278,7 @@
   color: var(--mut);
   background: #fff;
   border: 1px solid var(--line);
+  border-radius: 8px;
   padding: 5px 10px;
 }
 .slideDots {
@@ -323,6 +306,7 @@
   gap: 12px;
   background: #fff;
   border: 1px solid var(--line);
+  border-radius: 18px;
   padding: 26px;
   box-shadow: 12px 14px 0 var(--blush);
 }
@@ -363,6 +347,7 @@
   align-items: center;
   justify-content: space-between;
   border: 1px solid var(--line);
+  border-radius: 10px;
   padding: 10px 12px;
   font-size: 12.5px;
   font-weight: 650;
@@ -403,7 +388,7 @@
 .miniParty b i { color: #d97706; }
 .miniParty .miniChip { background: #fff3e0; color: #b45309; }
 
-/* ── Shared section bits ─────────────────────────────────────────── */
+/* ── Shared section bits ─────────────────────────────── */
 
 .eyebrow {
   display: inline-block;
@@ -413,7 +398,8 @@
   color: var(--pink);
   border: 1px solid var(--line);
   background: #fff;
-  padding: 5px 11px;
+  border-radius: 99px;
+  padding: 5px 12px;
   margin-bottom: 14px;
 }
 .serifH2 {
@@ -434,18 +420,17 @@
 }
 .intro > p { margin: 0; font-size: 16.5px; line-height: 1.75; color: var(--mut); }
 
-.featureGrid { display: grid; grid-template-columns: repeat(4, 1fr); padding: 40px 48px 72px; }
+.featureGrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; padding: 40px 48px 72px; }
 .featureCard {
   display: grid;
   align-content: start;
   gap: 12px;
   border: 1px solid var(--line);
-  margin-left: -1px;
+  border-radius: 18px;
   padding: 26px 24px 24px;
   min-height: 264px;
   background: #fff;
 }
-.featureCard:first-child { margin-left: 0; }
 .featureCard h3 { margin: 0; font-size: 18px; font-weight: 800; letter-spacing: -0.01em; }
 .featureCard p { margin: 0; font-size: 13.5px; line-height: 1.65; color: var(--mut); }
 .featureIndex { font-family: var(--serif); font-style: italic; font-size: 26px; color: var(--pink); }
@@ -467,7 +452,7 @@
 .fInk .featureIndex { color: var(--rose-soft); }
 .fInk .textLink { color: var(--rose-soft); }
 
-/* ── Workflow ───────────────────────────────────────────────────── */
+/* ── Workflow ─────────────────────────────────────── */
 
 .workflow {
   display: grid;
@@ -485,12 +470,9 @@
   display: grid;
   place-items: center;
   border: 1px solid var(--line);
+  border-radius: 24px;
   padding: 44px 24px;
-  background-color: #fff;
-  background-image:
-    linear-gradient(var(--grid) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
-  background-size: 36px 36px;
+  background: var(--paper);
 }
 .phoneMock {
   position: relative;
@@ -552,22 +534,21 @@
   box-shadow: 0 10px 24px rgba(22, 18, 28, 0.24);
 }
 
-/* ── Pricing ────────────────────────────────────────────────────── */
+/* ── Pricing ──────────────────────────────────────── */
 
 .pricingSection { padding: 80px 48px 64px; }
 .pricingSectionHead { max-width: 620px; display: grid; gap: 14px; margin-bottom: 40px; }
 .pricingSectionHead p { margin: 0; color: var(--mut); font-size: 16px; line-height: 1.7; }
-.pricingCards { display: grid; grid-template-columns: repeat(3, 1fr); align-items: stretch; margin-top: 8px; }
+.pricingCards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; align-items: stretch; margin-top: 8px; }
 .pricingCard {
   display: flex;
   flex-direction: column;
   gap: 12px;
   border: 1px solid var(--line);
-  margin-left: -1px;
+  border-radius: 20px;
   background: #fff;
   padding: 30px 28px;
 }
-.pricingCard:first-child { margin-left: 0; }
 .pricingCard small { font-size: 10px; font-weight: 800; letter-spacing: 0.18em; color: var(--pink); }
 .pricingCard h3 { margin: 0; font-size: 17px; font-weight: 800; letter-spacing: -0.01em; min-height: 2.4em; }
 .pricingCard p { margin: 0; font-size: 13.5px; color: var(--mut); line-height: 1.6; }
@@ -615,6 +596,7 @@
   border-color: var(--ink);
   position: relative;
   z-index: 1;
+  box-shadow: 0 30px 60px -36px rgba(22, 18, 28, 0.5);
 }
 .pricingCardFeatured small { color: var(--rose-soft); }
 .pricingCardFeatured p { color: #cfc8d6; }
@@ -623,15 +605,15 @@
 .pricingCardFeatured .pricingCtaOutline { border-color: #fff; color: #fff; }
 .pricingNote { margin: 26px 0 0; font-size: 13px; color: var(--mut); }
 
-/* ── Roadmap ────────────────────────────────────────────────────── */
+/* ── Roadmap ──────────────────────────────────────── */
 
 .roadmap { padding: 80px 48px; }
 .roadmapHead { max-width: 620px; display: grid; gap: 14px; margin-bottom: 36px; }
 .roadmapHead p { margin: 0; color: var(--mut); font-size: 15.5px; line-height: 1.7; }
-.roadmapGrid { display: grid; grid-template-columns: repeat(3, 1fr); }
+.roadmapGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 .roadmapGrid > div {
   border: 1px solid var(--line);
-  margin: 0 0 -1px -1px;
+  border-radius: 14px;
   padding: 20px 22px;
   display: grid;
   gap: 8px;
@@ -640,25 +622,21 @@
 .roadmapGrid span { font-size: 9.5px; letter-spacing: 0.16em; font-weight: 800; color: var(--pink); }
 .roadmapGrid b { font-size: 15px; font-weight: 750; letter-spacing: -0.01em; }
 
-/* ── CTA ───────────────────────────────────────────────────────── */
+/* ── CTA ─────────────────────────────────────────── */
 
-.ctaWrap {
-  padding: 88px 48px;
-  background-image:
-    linear-gradient(var(--grid) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
-  background-size: 36px 36px;
-}
+.ctaWrap { padding: 88px 48px; }
 .cta {
   max-width: 760px;
   margin: 0 auto;
   background: var(--ink);
   color: #fff;
+  border-radius: 28px;
   padding: 56px 48px;
   text-align: center;
   display: grid;
   gap: 16px;
   justify-items: center;
+  box-shadow: 0 40px 80px -48px rgba(22, 18, 28, 0.55);
 }
 .ctaSpark { color: var(--rose-soft); display: inline-flex; }
 .cta p { margin: 0; color: #cfc8d6; font-size: 16px; line-height: 1.7; }
@@ -679,9 +657,15 @@
 }
 .ctaButton:hover { background: var(--pink-deep); transform: translateY(-1px); }
 
-/* ── Footer ────────────────────────────────────────────────────── */
+/* ── Footer ──────────────────────────────────────── */
 
-.footer { padding: 56px 48px 40px; }
+.footer {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  margin: 0 24px 56px;
+  padding: 56px 48px 40px;
+}
 .footerTop { display: grid; grid-template-columns: 1.1fr 1.6fr; gap: 48px; }
 .footerBrand { display: grid; gap: 12px; align-content: start; justify-items: start; }
 .footerBrand p { margin: 0; color: var(--mut); font-size: 14px; line-height: 1.7; max-width: 34ch; }
@@ -690,21 +674,15 @@
 .footerLinks h4 { margin: 0 0 4px; font-size: 10px; letter-spacing: 0.16em; font-weight: 800; color: var(--mut); }
 .footerLinks a { color: var(--ink); font-size: 13.5px; font-weight: 600; text-decoration: none; }
 .footerLinks a:hover { color: var(--pink); }
-.footMeta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px 28px;
+.footerBottom {
   border-top: 1px solid var(--line);
   margin-top: 40px;
-  padding-top: 22px;
-  font-size: 12.5px;
-  font-weight: 700;
-  color: var(--mut);
+  padding-top: 20px;
+  font-size: 12px;
+  color: #a89dab;
 }
-.footMeta > span { display: inline-flex; align-items: center; gap: 8px; }
-.footerBottom { margin-top: 20px; font-size: 12px; color: #a89dab; }
 
-/* ── WhatsApp float ──────────────────────────────────────────────── */
+/* ── WhatsApp float ──────────────────────────────────── */
 
 .waFloat {
   position: fixed;
@@ -735,11 +713,11 @@
   line-height: 1.08;
 }
 .simplePageHero > p { margin: 0 0 40px; max-width: 60ch; color: var(--mut); font-size: 16.5px; line-height: 1.75; }
-.resourceCards { display: grid; grid-template-columns: repeat(3, 1fr); margin: 0 0 40px; }
+.resourceCards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 0 0 40px; }
 .resourceCards > div,
 .resourceCards > article {
   border: 1px solid var(--line);
-  margin: 0 0 -1px -1px;
+  border-radius: 16px;
   background: #fff;
   padding: 24px;
   display: grid;
@@ -759,7 +737,7 @@
   text-decoration: none;
 }
 
-/* ── Responsive ─────────────────────────────────────────────────── */
+/* ── Responsive ─────────────────────────────────────── */
 
 @media (max-width: 1023px) {
   .desktopNav { display: none; }
@@ -793,22 +771,18 @@
   .slideStage { min-height: 420px; }
   .intro { grid-template-columns: 1fr; padding: 56px 28px 28px; gap: 20px; }
   .featureGrid { grid-template-columns: repeat(2, 1fr); padding: 24px 28px 56px; }
-  .featureCard { margin: 0 0 -1px -1px; }
   .workflow { grid-template-columns: 1fr; padding: 56px 28px; gap: 40px; }
   .pricingSection { padding: 56px 28px 48px; }
   .pricingCards { grid-template-columns: 1fr; }
-  .pricingCard { margin: -1px 0 0; }
   .roadmap { padding: 56px 28px; }
   .roadmapGrid { grid-template-columns: repeat(2, 1fr); }
   .ctaWrap { padding: 56px 28px; }
+  .footer { margin: 0 20px 44px; }
   .footerTop { grid-template-columns: 1fr; gap: 32px; }
   .resourceCards { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (max-width: 560px) {
-  .frame { border-inline: none; }
-  .frame > section::before,
-  .frame > section::after { display: none; }
   .nav { padding: 0 16px; gap: 12px; }
   .hero { padding: 36px 18px 44px; }
   .heroHeading { min-height: auto; }
@@ -822,7 +796,7 @@
   .roadmapGrid { grid-template-columns: 1fr; }
   .ctaWrap { padding: 44px 18px; }
   .cta { padding: 40px 22px; }
-  .footer { padding: 40px 18px 32px; }
+  .footer { margin: 0 12px 36px; padding: 40px 18px 32px; }
   .resourceCards { grid-template-columns: 1fr; }
   .simplePageHero { padding: 48px 18px 64px; }
 }
