@@ -24,7 +24,9 @@ import {
   Users,
 } from 'lucide-react';
 import type { InvitationTemplate, TemplateCategory } from '@/lib/invitation/templates';
+import { getThemeArt } from '@/lib/invitation/theme-art';
 import styles from './preview.module.css';
+import artStyles from './art.module.css';
 
 /**
  * Pengalaman preview undangan yang meniru undangan digital sungguhan:
@@ -197,6 +199,7 @@ export default function PreviewClient({ template, locale, guestName }: Props) {
   const preset = template.preset;
   const useHref = `/dashboard/templates/use?slug=${template.slug}`;
   const events = SAMPLE_EVENTS[template.category];
+  const artwork = useMemo(() => getThemeArt(template), [template]);
   const partners = useMemo(
     () => template.sample.names.split('&').map((part) => part.trim()).filter(Boolean),
     [template.sample.names],
@@ -316,6 +319,9 @@ export default function PreviewClient({ template, locale, guestName }: Props) {
       {/* Gate “Buka Undangan” */}
       <div className={styles.gate} data-open={opened ? 'true' : undefined} aria-hidden={opened}>
         <div className={styles.scene} data-motif={template.motif}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img className={artStyles.artBg} src={artwork.cover} alt="" aria-hidden="true" />
+          <span className={artStyles.artTint} aria-hidden="true" />
           <i className={styles.petals} aria-hidden="true" />
           <span className={styles.frame} aria-hidden="true" />
           <div className={styles.gateInner}>
@@ -351,6 +357,9 @@ export default function PreviewClient({ template, locale, guestName }: Props) {
       <main className={styles.invite}>
         {/* Hero */}
         <section id="beranda" className={`${styles.scene} ${styles.hero}`} data-motif={template.motif}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img className={artStyles.artBg} src={artwork.cover} alt="" aria-hidden="true" />
+          <span className={artStyles.artTint} aria-hidden="true" />
           <i className={styles.petals} aria-hidden="true" />
           <span className={styles.frame} aria-hidden="true" />
           <p className={styles.cEyebrow}>{template.sample.eyebrow}</p>
@@ -441,8 +450,11 @@ export default function PreviewClient({ template, locale, guestName }: Props) {
             <h2 className={styles.sTitle}>{t.gallery}</h2>
             <p className={styles.sSub}>{t.gallerySub}</p>
             <div className={styles.gallery}>
-              {Array.from({ length: 6 }).map((_, index) => (
-                <div key={index} className={styles.ph} aria-hidden="true" />
+              {artwork.gallery.map((src, index) => (
+                <div key={`${src}-${index}`} className={`${styles.ph} ${artStyles.phClip}`}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img className={artStyles.phImg} src={src} alt="" loading="lazy" />
+                </div>
               ))}
             </div>
           </section>
