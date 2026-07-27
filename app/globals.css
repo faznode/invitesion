@@ -1,0 +1,132 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/*
+ * Dark mode is class-based, not media-based.
+ *
+ * The panel shells and the shadcn primitives carry 65 `dark:` variants, but no
+ * dark theme was ever defined — no `prefers-color-scheme` block, no dark token
+ * set, no toggle. With Tailwind's default media strategy those variants fired
+ * for every visitor whose OS is in dark mode, producing a broken hybrid: a dark
+ * sidebar and dark inputs sitting on a light page, with the active navigation
+ * item rendering near-black instead of brand rose.
+ *
+ * Scoping the variant to a `.dark` ancestor makes that existing work inert
+ * until a real dark theme exists, rather than throwing it away. To build one:
+ * define dark values for the tokens in `:root` under `.dark`, then put the
+ * class on <html>. The public invitation renderer is deliberately paper-light
+ * and must stay opted out.
+ */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  /*
+   * Brand scale — the single source of truth for Invitesion rose.
+   *
+   * Use `brand-*` in markup. Do not write the hex values inline: 53 hardcoded
+   * `#e80053` / `#be0045` literals were previously spread across components,
+   * which is how a "change the brand colour" task becomes an archaeology
+   * project.
+   */
+  --color-brand-50: #fff0f5;
+  --color-brand-100: #ffe0ea;
+  --color-brand-200: #ffc1d5;
+  --color-brand-300: #ff94ba;
+  --color-brand-400: #fb5c91;
+  --color-brand-500: #f22d70;
+  --color-brand-600: #e80053;
+  --color-brand-700: #be0045;
+  --color-brand-800: #9a0038;
+  --color-brand-900: #74002a;
+  /* Dark-mode surface tint for active navigation. */
+  --color-brand-950: #4a001b;
+
+  /*
+   * DEPRECATED alias, kept so nothing breaks mid-migration.
+   *
+   * Tailwind's `orange-*` was redefined to these rose values, which meant a
+   * class literally named `orange-600` rendered pink. Every reader of the admin
+   * panel was misled, and a genuine orange was impossible to express. Prefer
+   * `brand-*`; this block should be deleted once no `orange-*` remains.
+   */
+  --color-orange-50: var(--color-brand-50);
+  --color-orange-100: var(--color-brand-100);
+  --color-orange-200: var(--color-brand-200);
+  --color-orange-300: var(--color-brand-300);
+  --color-orange-400: var(--color-brand-400);
+  --color-orange-500: var(--color-brand-500);
+  --color-orange-600: var(--color-brand-600);
+  --color-orange-700: var(--color-brand-700);
+}
+
+:root {
+  /* Keep native controls, scrollbars and form widgets light too, so a
+     dark-preference OS does not repaint half the chrome on its own. */
+  color-scheme: light;
+  --background: #ffffff;
+  --foreground: #18121d;
+  --card: #ffffff;
+  --card-foreground: #18121d;
+  --popover: #ffffff;
+  --popover-foreground: #18121d;
+  --primary: #e80053;
+  --primary-foreground: #ffffff;
+  --secondary: #f4efff;
+  --secondary-foreground: #241334;
+  --muted: #f4efff;
+  --muted-foreground: #695d72;
+  --accent: #fff0f5;
+  --accent-foreground: #241334;
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --border: #eadfeb;
+  --input: #eadfeb;
+  --ring: #e80053;
+  --radius: 0.6rem;
+}
+
+@layer base {
+  *, ::after, ::before, ::backdrop, ::file-selector-button {
+    border-color: var(--border);
+  }
+  html, body { overflow-x: clip; }
+  body {
+    margin: 0;
+    font-family: "Manrope", Arial, Helvetica, sans-serif;
+    background-color: var(--background);
+    color: var(--foreground);
+  }
+}
+
+/* App-shell utility compatibility; invitation renderer remains opt-out. */
+[data-app-shell] :is(.bg-white, .bg-white\/95):not([data-invitation-renderer], [data-invitation-renderer] *) { background-color: #fff; }
+[data-app-shell] :is(.bg-slate-50, .bg-slate-50\/70):not([data-invitation-renderer], [data-invitation-renderer] *) { background-color: #f8fafc; }
+[data-app-shell] :is(.text-slate-900, .text-slate-800, .text-slate-700):not([data-invitation-renderer], [data-invitation-renderer] *) { color: #0f172a; }
+[data-app-shell] :is(.text-slate-600, .text-slate-500, .text-slate-400):not([data-invitation-renderer], [data-invitation-renderer] *) { color: #475569; }
+[data-app-shell] :is(.border-slate-100, .border-slate-200):not([data-invitation-renderer], [data-invitation-renderer] *) { border-color: #e2e8f0; }
+
+button, a { -webkit-tap-highlight-color: transparent; }
+img { max-width: 100%; }

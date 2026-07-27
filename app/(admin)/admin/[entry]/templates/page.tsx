@@ -1,0 +1,8 @@
+import { desc } from 'drizzle-orm';
+import { getUser } from '@/lib/db/queries';
+import { assertAuthorizedAdmin } from '@/lib/auth/admin-access';
+import { db } from '@/lib/db/drizzle';
+import { templates } from '@/lib/db/schema';
+
+export default async function TemaPage() { assertAuthorizedAdmin(await getUser()); const rows=await db.select().from(templates).orderBy(desc(templates.createdAt)); return <section className="p-4 lg:p-8"><div className="mx-auto max-w-7xl"><p className="text-sm font-medium text-brand-600">Katalog</p><h1 className="mt-1 text-2xl font-semibold">Tema</h1><p className="mt-2 text-sm text-muted-foreground">Kelola tema undangan yang tersedia untuk customer.</p><div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{rows.map(r=><div key={r.id} className="overflow-hidden rounded-xl border bg-white shadow-sm"><div className="flex h-36 items-center justify-center bg-gradient-to-br from-brand-50 to-rose-100 text-brand-600"><span className="text-4xl">✦</span></div><div className="p-5"><div className="flex justify-between gap-2"><h2 className="font-semibold">{r.name}</h2><span className="text-xs text-muted-foreground">{r.isPremium?'Premium':'Gratis'}</span></div><p className="mt-2 text-sm capitalize text-muted-foreground">{r.category}</p></div></div>)}{rows.length===0&&<div className="col-span-full rounded-xl border border-dashed bg-white p-12 text-center"><p className="font-medium">Belum ada template</p><p className="mt-1 text-sm text-muted-foreground">Tema undangan akan muncul di sini setelah dibuat.</p></div>}</div></div></section> }
+export const dynamic='force-dynamic';

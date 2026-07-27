@@ -1,0 +1,6 @@
+import { and, eq } from 'drizzle-orm';
+import { getUser } from '@/lib/db/queries';
+import { db } from '@/lib/db/drizzle';
+import { guests, invitations } from '@/lib/db/schema';
+function csv(v:unknown){const s=String(v??'');return `"${s.replace(/"/g,'""')}"`;}
+export async function GET(_req:Request,{params}:{params:Promise<{id:string}>}){const user=await getUser();if(!user)return new Response('Unauthorized',{status:401});const id=Number((await params).id);const [inv]=await db.select({id:invitations.id,slug:invitations.slug}).from(invitations).where(and(eq(invitations.id,id),eq(invitations.userId,user.id))).limit(1);if(!inv)return new Response('Not found',{status:404});const rows=await db.select().from(guests).where(eq(guests.invitationId,id));const header=['name','phone','category','guest_count','rsvp_status','sent_at','opened_count','checked_in_at'];const body=rows.map(g=>[g.name,g.phone,g.category,g.guestCount,g.rsvpStatus,g.sentAt?.toISOString(),g.openedCount,g.checkedInAt?.toISOString()].map(csv).join(','));return new Response([header.join(','),...body].join('\n'),{headers:{'content-type':'text/csv; charset=utf-8','content-disposition':`attachment; filename="${inv.slug}-guests.csv"`}});}
