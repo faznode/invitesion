@@ -4,10 +4,11 @@ import { detailConfigSchema, type DetailConfig } from './detail-config';
  * Invitation template catalog.
  *
  * Competitor scan (Jul 2026 — WebNikah, Wevitation, Satumomen, Katsudoto,
- * Paperless Post, Greenvelope): local players win on catalog breadth and
- * category filters, global players on strong per-theme art direction and
- * style filters. This catalog does both — broad, filterable, and every
- * template is an opinionated art direction instead of a palette swap.
+ * Paperless Post, Greenvelope, RSVPify): local players win on catalog breadth
+ * and category filters, global players on strong per-theme art direction,
+ * style filters, and event-type coverage far beyond weddings. This catalog
+ * does all three — broad, filterable, general-purpose, and every template is
+ * an opinionated art direction instead of a palette swap.
  *
  * The contract with the backend is deliberately boring: every entry is plain
  * JSON-serialisable data, and `preset` is validated through
@@ -29,7 +30,23 @@ export type TemplateCategory =
   | 'graduation'
   | 'reunion'
   | 'holiday-gathering'
-  | 'corporate';
+  | 'corporate'
+  | 'gender-reveal'
+  | 'tahlilan'
+  | 'retirement'
+  | 'product-launch'
+  | 'conference'
+  | 'tradeshow'
+  | 'sales-kickoff'
+  | 'workshop'
+  | 'networking'
+  | 'team-building'
+  | 'investor-meeting'
+  | 'gala'
+  | 'client-vip'
+  | 'employee-appreciation'
+  | 'shows'
+  | 'community-event';
 
 export type TemplateStyleTag =
   | 'elegant'
@@ -99,6 +116,22 @@ export const templateCategoryLabels: Record<TemplateCategory, { id: string; en: 
   reunion: { id: 'Reuni', en: 'Reunion' },
   'holiday-gathering': { id: 'Hari raya', en: 'Holiday' },
   corporate: { id: 'Korporat', en: 'Corporate' },
+  'gender-reveal': { id: 'Gender reveal', en: 'Gender reveal' },
+  tahlilan: { id: 'Tahlilan & Doa', en: 'Memorial' },
+  retirement: { id: 'Purnabakti', en: 'Retirement' },
+  'product-launch': { id: 'Launching & Brand', en: 'Launch' },
+  conference: { id: 'Konferensi & Summit', en: 'Conference' },
+  tradeshow: { id: 'Pameran & Expo', en: 'Tradeshow' },
+  'sales-kickoff': { id: 'Sales Kickoff', en: 'Sales kickoff' },
+  workshop: { id: 'Workshop & Training', en: 'Workshop' },
+  networking: { id: 'Networking', en: 'Networking' },
+  'team-building': { id: 'Team Building', en: 'Team building' },
+  'investor-meeting': { id: 'Investor & RUPS', en: 'Investor' },
+  gala: { id: 'Gala & Fundraising', en: 'Gala' },
+  'client-vip': { id: 'Klien & VIP', en: 'Client & VIP' },
+  'employee-appreciation': { id: 'Apresiasi Karyawan', en: 'Employee' },
+  shows: { id: 'Pertunjukan', en: 'Shows' },
+  'community-event': { id: 'Komunitas', en: 'Community' },
 };
 
 export const templateStyleTagLabels: Record<TemplateStyleTag, { id: string; en: string }> = {
@@ -144,6 +177,7 @@ type TemplateSeed = Omit<InvitationTemplate, 'palette' | 'preset'> & {
  * Category defaults keep every preset honest about what the public renderer
  * can actually display today: greetings, quote, events, story, gallery,
  * gift, RSVP, guestbook and music. Anything richer stays in the editor.
+ * Business-formal categories share one English base preset.
  */
 function basePreset(seed: TemplateSeed): Record<string, unknown> {
   const theme = { templateId: seed.id, paletteId: seed.paletteId, cover: { headline: seed.sample.eyebrow } };
@@ -233,7 +267,83 @@ function basePreset(seed: TemplateSeed): Record<string, unknown> {
         gallery: { enabled: true, layout: 'grid', assetIds: [] },
         guestbook: { enabled: true, heading: 'Ucapan & Doa' },
       };
+    case 'gender-reveal':
+      return {
+        ...common,
+        settings: { language: 'id', openingCopy: 'Pink atau biru? Datang dan saksikan kejutannya bersama kami.' },
+        gallery: { enabled: true, layout: 'carousel', assetIds: [] },
+        guestbook: { enabled: true, heading: 'Tebakanmu: Cowok atau Cewek?' },
+        music: { enabled: true },
+      };
+    case 'tahlilan':
+      return {
+        ...common,
+        settings: { language: 'id', openingCopy: 'Dengan memohon rahmat dan maghfirah Allah SWT, kami mengundang Bapak/Ibu/Saudara/i hadir dalam majelis tahlil dan doa bersama.' },
+        greetings: { enabled: true, prayer: 'Bismillahirrahmanirrahim' },
+        quote: { enabled: true, text: 'Ya Tuhan kami, ampunilah kami dan saudara-saudara kami yang telah mendahului kami dalam iman.', author: 'QS. Al-Hasyr: 10' },
+        guestbook: { enabled: true, heading: 'Doa & Kenangan' },
+      };
+    case 'retirement':
+      return {
+        ...common,
+        settings: { language: 'id', openingCopy: 'Dengan hormat, kami mengundang Bapak/Ibu hadir dalam acara pelepasan purnabakti.' },
+        story: { enabled: true, items: [] },
+        gallery: { enabled: true, layout: 'grid', assetIds: [] },
+        guestbook: { enabled: true, heading: 'Pesan & Kesan' },
+      };
+    case 'product-launch':
+      return {
+        ...common,
+        settings: { language: 'id', openingCopy: 'Sesuatu yang baru segera hadir — jadilah yang pertama menyaksikannya.' },
+        gallery: { enabled: true, layout: 'grid', assetIds: [] },
+        guestbook: { enabled: false },
+      };
+    case 'workshop':
+      return {
+        ...common,
+        settings: { language: 'id', openingCopy: 'Kursi terbatas — amankan tempatmu di sesi hands-on ini.' },
+        gallery: { enabled: true, layout: 'grid', assetIds: [] },
+        guestbook: { enabled: false },
+      };
+    case 'gala':
+      return {
+        ...common,
+        settings: { language: 'en', openingCopy: 'We request the pleasure of your company at our black-tie evening.' },
+        gallery: { enabled: true, layout: 'grid', assetIds: [] },
+        gift: { enabled: true, accounts: [] },
+        guestbook: { enabled: true, heading: 'Messages & Pledges' },
+        music: { enabled: true },
+      };
+    case 'shows':
+      return {
+        ...common,
+        settings: { language: 'id', openingCopy: 'Lampu segera redup, tirai segera terbuka — jangan sampai kehabisan kursi.' },
+        gallery: { enabled: true, layout: 'grid', assetIds: [] },
+        guestbook: { enabled: false },
+        music: { enabled: true },
+      };
+    case 'community-event':
+      return {
+        ...common,
+        settings: { language: 'id', openingCopy: 'Dari kita, untuk kita — mari ramaikan acara komunitas ini bersama.' },
+        gallery: { enabled: true, layout: 'masonry', assetIds: [] },
+        guestbook: { enabled: true, heading: 'Pesan untuk Komunitas' },
+      };
+    case 'team-building':
+      return {
+        ...common,
+        settings: { language: 'id', openingCopy: 'Saatnya keluar kantor — ikut ya, jangan cuma jadi wacana!' },
+        gallery: { enabled: true, layout: 'masonry', assetIds: [] },
+        guestbook: { enabled: true, heading: 'Pesan untuk Tim' },
+      };
     case 'corporate':
+    case 'conference':
+    case 'tradeshow':
+    case 'sales-kickoff':
+    case 'networking':
+    case 'investor-meeting':
+    case 'client-vip':
+    case 'employee-appreciation':
       return {
         ...common,
         settings: { language: 'en', openingCopy: 'We cordially invite you to join us at our upcoming event.' },
@@ -317,6 +427,39 @@ export const invitationTemplates: InvitationTemplate[] = [
   make({ id: 135, slug: 'boardroom', name: 'Boardroom', category: 'corporate', styleTags: ['minimal', 'modern'], motif: 'geometric', tier: 'free', paletteId: 'slate', font: 'sans', sample: { eyebrow: 'CORPORATE GATHERING', names: 'NodeX Annual Summit', date: 'Kamis, 19 November 2026' }, tagline: { id: 'Tegas dan profesional untuk acara kantor', en: 'Sharp and professional for company events' } }),
   make({ id: 136, slug: 'gala-awards', name: 'Gala Awards', category: 'corporate', styleTags: ['luxury'], motif: 'deco', tier: 'signature', paletteId: 'gold-noir', font: 'serif', sample: { eyebrow: 'AWARDS NIGHT', names: 'Innovator Awards 2026', date: 'BALLROOM · 05 . 12 . 2026' }, tagline: { id: 'Malam penghargaan berbalut hitam-emas', en: 'An awards night dressed in black and gold' } }),
   make({ id: 137, slug: 'launch-day', name: 'Launch Day', category: 'corporate', styleTags: ['modern', 'bold'], motif: 'waves', tier: 'premium', paletteId: 'ocean', font: 'sans', sample: { eyebrow: 'PRODUCT LAUNCH', names: 'Invitesion 2.0', date: 'Rabu, 14 Oktober 2026' }, tagline: { id: 'Gelombang biru untuk peluncuran produk', en: 'Blue waves for a product launch' } }),
+  // ————— Gender reveal —————
+  make({ id: 148, slug: 'pink-or-blue', name: 'Pink or Blue', category: 'gender-reveal', styleTags: ['playful', 'modern'], motif: 'balloons', tier: 'free', paletteId: 'dusk', font: 'sans', sample: { eyebrow: 'GENDER REVEAL', names: 'Boy or Girl?', date: 'Sabtu, 14 Maret 2026' }, tagline: { id: 'Misteri pink atau biru terjaga sampai detik reveal', en: 'The pink-or-blue mystery kept until the reveal' } }),
+  // ————— Tahlilan & Doa —————
+  make({ id: 149, slug: 'doa-khusyuk', name: 'Doa Khusyuk', category: 'tahlilan', styleTags: ['islamic', 'minimal'], motif: 'crescent', tier: 'free', paletteId: 'sand', font: 'serif', sample: { eyebrow: 'TAHLILAN & DOA BERSAMA', names: 'Alm. H. Soedirman', date: 'Malam ke-40 · Kamis, 5 Maret 2026' }, tagline: { id: 'Teduh dan khidmat untuk majelis doa', en: 'Calm and solemn for a night of prayers' } }),
+  // ————— Purnabakti —————
+  make({ id: 150, slug: 'purnabakti-emas', name: 'Purnabakti Emas', category: 'retirement', styleTags: ['elegant', 'vintage'], motif: 'monogram', tier: 'free', paletteId: 'mocha', font: 'serif', sample: { eyebrow: 'PURNABAKTI', names: 'Bpk. Harsono Wijaya', date: '35 TAHUN PENGABDIAN' }, tagline: { id: 'Penghormatan hangat untuk masa pengabdian', en: 'A warm tribute to years of service' } }),
+  // ————— Launching & Brand —————
+  make({ id: 151, slug: 'ignition', name: 'Ignition', category: 'product-launch', styleTags: ['bold', 'modern'], motif: 'geometric', tier: 'premium', paletteId: 'midnight', font: 'sans', sample: { eyebrow: 'GRAND LAUNCHING', names: 'Astra One', date: 'Rabu, 17 Juni 2026' }, tagline: { id: 'Kembang api biru malam untuk momen peluncuran', en: 'Midnight fireworks for launch night' } }),
+  make({ id: 152, slug: 'grand-opening', name: 'Grand Opening', category: 'product-launch', styleTags: ['modern', 'playful'], motif: 'confetti', tier: 'free', paletteId: 'terracotta', font: 'sans', sample: { eyebrow: 'GRAND OPENING', names: 'Kopi Pelita', date: 'Sabtu, 4 April 2026' }, tagline: { id: 'Hangat dan meriah untuk pembukaan gerai baru', en: 'Warm and festive for a new store opening' } }),
+  // ————— Konferensi & Summit —————
+  make({ id: 153, slug: 'keynote', name: 'Keynote', category: 'conference', styleTags: ['minimal', 'modern'], motif: 'geometric', tier: 'free', paletteId: 'slate', font: 'sans', sample: { eyebrow: 'ANNUAL CONFERENCE', names: 'IndoTech Summit 2027', date: 'Kamis, 22 Januari 2027' }, tagline: { id: 'Slate bersih dan tegas untuk panggung utama', en: 'Clean, sharp slate for the main stage' } }),
+  // ————— Pameran & Expo —————
+  make({ id: 154, slug: 'expo-hall', name: 'Expo Hall', category: 'tradeshow', styleTags: ['modern', 'bold'], motif: 'geometric', tier: 'free', paletteId: 'ocean', font: 'sans', sample: { eyebrow: 'EXPO & TRADESHOW', names: 'Karya Nusantara Expo', date: '15–17 Mei 2026' }, tagline: { id: 'Biru laut modern untuk booth dan panggung expo', en: 'Modern ocean blue for booths and expo stages' } }),
+  // ————— Sales kickoff —————
+  make({ id: 155, slug: 'kickoff-arena', name: 'Kickoff Arena', category: 'sales-kickoff', styleTags: ['bold', 'modern'], motif: 'stars', tier: 'premium', paletteId: 'midnight', font: 'sans', sample: { eyebrow: 'SALES KICKOFF 2027', names: 'One Team, One Target', date: 'Senin, 11 Januari 2027' }, tagline: { id: 'Energi panggung besar untuk membakar semangat tim', en: 'Big-stage energy to fire up the team' } }),
+  // ————— Workshop & Training —————
+  make({ id: 156, slug: 'atelier', name: 'Atelier', category: 'workshop', styleTags: ['minimal', 'boho'], motif: 'botanical', tier: 'free', paletteId: 'sage', font: 'sans', sample: { eyebrow: 'WORKSHOP SERIES', names: 'Kelas Keramik Dasar', date: 'Sabtu, 9 Mei 2026' }, tagline: { id: 'Hijau sage tenang untuk kelas hands-on', en: 'Calm sage green for a hands-on class' } }),
+  // ————— Networking —————
+  make({ id: 157, slug: 'after-hours-mixer', name: 'After Hours Mixer', category: 'networking', styleTags: ['modern', 'bold'], motif: 'stars', tier: 'free', paletteId: 'dusk', font: 'sans', sample: { eyebrow: 'NETWORKING NIGHT', names: 'Founders & Friends', date: 'Jumat, 8 Mei 2026' }, tagline: { id: 'Senja ungu dan bokeh untuk malam relasi', en: 'Purple dusk and bokeh for a night of connections' } }),
+  // ————— Team building —————
+  make({ id: 158, slug: 'offsite-escape', name: 'Offsite Escape', category: 'team-building', styleTags: ['playful', 'modern'], motif: 'botanical', tier: 'free', paletteId: 'sage', font: 'sans', sample: { eyebrow: 'TEAM OFFSITE', names: 'NodeX Goes to Bali', date: '7–9 Agustus 2026' }, tagline: { id: 'Sawah, udara segar, dan tim yang makin solid', en: 'Rice fields, fresh air, and a tighter team' } }),
+  // ————— Investor & RUPS —————
+  make({ id: 159, slug: 'boardroom-charter', name: 'Boardroom Charter', category: 'investor-meeting', styleTags: ['elegant', 'minimal'], motif: 'monogram', tier: 'premium', paletteId: 'slate', font: 'serif', sample: { eyebrow: 'ANNUAL SHAREHOLDERS MEETING', names: 'RUPS Tahunan 2027', date: 'Selasa, 23 Maret 2027' }, tagline: { id: 'Formal presisi untuk rapat pemegang saham', en: 'Precise formality for a shareholders meeting' } }),
+  // ————— Gala & Fundraising —————
+  make({ id: 160, slug: 'velvet-gala', name: 'Velvet Gala', category: 'gala', styleTags: ['luxury', 'elegant'], motif: 'deco', tier: 'signature', paletteId: 'gold-noir', font: 'serif', sample: { eyebrow: 'CHARITY GALA DINNER', names: 'A Night of Giving', date: 'BALLROOM · 12 . 12 . 2026' }, tagline: { id: 'Gala amal berbalut beludru hitam-emas', en: 'A charity gala dressed in black-and-gold velvet' } }),
+  // ————— Klien & VIP —————
+  make({ id: 161, slug: 'velvet-rope', name: 'Velvet Rope', category: 'client-vip', styleTags: ['luxury', 'modern'], motif: 'monogram', tier: 'premium', paletteId: 'gold-noir', font: 'serif', sample: { eyebrow: 'VIP APPRECIATION NIGHT', names: 'For Our Finest Partners', date: 'Kamis, 15 Oktober 2026' }, tagline: { id: 'Eksklusif seperti undangan di balik tali beludru', en: 'Exclusive, like an invite behind the velvet rope' } }),
+  // ————— Apresiasi karyawan —————
+  make({ id: 162, slug: 'bravo-team', name: 'Bravo Team', category: 'employee-appreciation', styleTags: ['playful', 'bold'], motif: 'confetti', tier: 'free', paletteId: 'sunshine', font: 'sans', sample: { eyebrow: 'EMPLOYEE APPRECIATION', names: 'Night of Champions', date: 'Jumat, 18 Desember 2026' }, tagline: { id: 'Kuning ceria untuk merayakan tim terbaik', en: 'Cheerful yellow to celebrate the best team' } }),
+  // ————— Pertunjukan —————
+  make({ id: 163, slug: 'grand-stage', name: 'Grand Stage', category: 'shows', styleTags: ['luxury', 'bold'], motif: 'deco', tier: 'premium', paletteId: 'midnight', font: 'serif', sample: { eyebrow: 'CHARITY CONCERT', names: 'Symphony Under the Stars', date: 'Sabtu, 29 Agustus 2026' }, tagline: { id: 'Panggung megah di bawah langit malam', en: 'A grand stage under the night sky' } }),
+  // ————— Komunitas —————
+  make({ id: 164, slug: 'kampung-fest', name: 'Kampung Fest', category: 'community-event', styleTags: ['playful', 'illustrated'], motif: 'confetti', tier: 'free', paletteId: 'terracotta', font: 'sans', sample: { eyebrow: 'FESTIVAL KOMUNITAS', names: 'Pasar Rakyat Ceria', date: 'Minggu, 26 April 2026' }, tagline: { id: 'Meriah membumi untuk acara warga dan komunitas', en: 'Festive and grounded for community gatherings' } }),
 ];
 
 export const templateCategories = Object.keys(templateCategoryLabels) as TemplateCategory[];

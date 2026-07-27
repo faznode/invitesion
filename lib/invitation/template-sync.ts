@@ -13,7 +13,7 @@ import { getThemeArt } from './theme-art';
  * Jembatan antara katalog kode dan tabel `templates` di database.
  *
  * - Katalog (lib/invitation/templates.ts) adalah sumber kebenaran DESAIN:
- *   47 tema lengkap dengan preset DetailConfig, palet, motif, dan tier.
+ *   63 tema lengkap dengan preset DetailConfig, palet, motif, dan tier.
  * - Tabel `templates` adalah sumber kebenaran IDENTITAS: id integer yang
  *   direferensikan `invitations.template_id` dan `orders.template_id`.
  *
@@ -52,7 +52,7 @@ const CORE_EVENT_TYPES: readonly string[] = [
 ];
 
 /**
- * Kategori katalog (11) → event type inti (6) yang dipahami pipeline
+ * Kategori katalog (27) → event type inti (6) yang dipahami pipeline
  * pembuatan undangan, aturan publish, dan agen desain.
  */
 export const templateEventTypes: Record<TemplateCategory, CoreEventType> = {
@@ -67,6 +67,22 @@ export const templateEventTypes: Record<TemplateCategory, CoreEventType> = {
   reunion: 'corporate',
   'holiday-gathering': 'tasyakuran',
   corporate: 'corporate',
+  'gender-reveal': 'tasyakuran',
+  tahlilan: 'tasyakuran',
+  retirement: 'corporate',
+  'product-launch': 'corporate',
+  conference: 'corporate',
+  tradeshow: 'corporate',
+  'sales-kickoff': 'corporate',
+  workshop: 'corporate',
+  networking: 'corporate',
+  'team-building': 'corporate',
+  'investor-meeting': 'corporate',
+  gala: 'corporate',
+  'client-vip': 'corporate',
+  'employee-appreciation': 'corporate',
+  shows: 'corporate',
+  'community-event': 'tasyakuran',
 };
 
 /**
