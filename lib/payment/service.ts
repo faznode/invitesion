@@ -42,10 +42,16 @@ export function newReference(): string {
  * then fails, we are left with a pending order and no charge — recoverable, and
  * visible. The reverse order would risk a charge with no order to attach it to,
  * which is money taken for nothing.
+ *
+ * `templateId` records which theme this order buys. Entitlement is per
+ * (invitation, template), so the theme must be captured at the moment of sale —
+ * reading it later from the invitation would inherit any theme switch that
+ * happened in between.
  */
 export async function createOrder({
   userId,
   invitationId,
+  templateId,
   price,
   tier,
   description,
@@ -55,6 +61,7 @@ export async function createOrder({
 }: {
   userId: number;
   invitationId: number | null;
+  templateId: number | null;
   price: Money;
   tier: string;
   description: string;
@@ -70,6 +77,7 @@ export async function createOrder({
     .values({
       userId,
       invitationId,
+      templateId,
       tier,
       amount: price.amount,
       currency: price.currency,
@@ -177,7 +185,7 @@ export async function applySettlement(event: SettlementEvent): Promise<SettleOut
       rawPayload: event.raw as object,
     });
 
-    const invitationActivated = await activateInvitation(tx, order.invitationId, paidAt);
+    const invitationActivated = await activateInvitation(tx, order.invitationId, order.templateId, paidAt);
     return { applied: true, orderId: order.id, invitationActivated };
   });
 }
@@ -188,22 +196,34 @@ export async function applySettlement(event: SettlementEvent): Promise<SettleOut
  * Only ever moves a DRAFT forward, and never resets an existing window — a
  * customer who pays for a second thing on an already-published invitation must
  * not have their remaining active period restarted or shortened.
+ *
+ * The payment buys the theme recorded on the order. If the invitation switched
+ * to a different theme while the charge was in flight, settling the old order
+ * must not publish the new theme for free: the entitlement is recorded, and
+ * publishing waits until the themes agree again (or the new theme is paid for).
+ * Orders without a recorded theme (pre-`template_id` rows) keep the old
+ * behaviour and activate unconditionally.
  */
 async function activateInvitation(
   tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
   invitationId: number | null,
+  orderTemplateId: number | null,
   paidAt: Date,
 ): Promise<boolean> {
   if (!invitationId) return false;
 
   const [invitation] = await tx
-    .select({ id: invitations.id, status: invitations.status, publishedAt: invitations.publishedAt, expiresAt: invitations.expiresAt })
+    .select({ id: invitations.id, status: invitations.status, templateId: invitations.templateId, publishedAt: invitations.publishedAt, expiresAt: invitations.expiresAt })
     .from(invitations)
     .where(eq(invitations.id, invitationId))
     .limit(1)
     .for('update');
 
   if (!invitation || invitation.status === 'PUBLISHED') return false;
+
+  if (orderTemplateId !== null && invitation.templateId !== null && invitation.templateId !== orderTemplateId) {
+    return false;
+  }
 
   const publishedAt = invitation.publishedAt ?? paidAt;
   await tx
@@ -257,14 +277,21 @@ export async function confirmManually({
  * The entitlement check for publishing. Asked of the orders table rather than
  * tracked as a flag on the invitation, so there is exactly one place where "has
  * this been bought" can be true and no second copy to drift.
+ *
+ * Entitlement is per (invitation, theme). When `templateId` is passed, only a
+ * PAID order for that same theme counts — switching themes means paying the
+ * full price again. Orders created before themes were recorded (`template_id`
+ * NULL) are grandfathered: they were sold as "this invitation", so they stay
+ * valid for whatever theme the invitation currently uses.
  */
-export async function hasPaidOrder(invitationId: number): Promise<boolean> {
-  const [row] = await db
-    .select({ id: orders.id })
+export async function hasPaidOrder(invitationId: number, templateId?: number | null): Promise<boolean> {
+  const rows = await db
+    .select({ templateId: orders.templateId })
     .from(orders)
-    .where(and(eq(orders.invitationId, invitationId), eq(orders.status, 'PAID')))
-    .limit(1);
-  return Boolean(row);
+    .where(and(eq(orders.invitationId, invitationId), eq(orders.status, 'PAID')));
+  if (rows.length === 0) return false;
+  if (templateId === undefined) return true;
+  return rows.some((row) => row.templateId === null || row.templateId === templateId);
 }
 
 /**

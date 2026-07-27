@@ -9,7 +9,7 @@ import { getLocale } from '@/lib/locale-server';
 import { OwnershipError, requireOwnedInvitation } from '@/lib/invitation/service';
 import { getPublicOrigin } from '@/lib/invitation/public-url';
 import { activationPrice, currencyForLocale, tierFor } from '@/lib/pricing';
-import { createOrder } from '@/lib/payment/service';
+import { createOrder, hasPaidOrder } from '@/lib/payment/service';
 import { ProviderError } from '@/lib/payment/types';
 
 /**
@@ -42,6 +42,15 @@ export async function startCheckout(formData: FormData): Promise<void> {
     redirect('/dashboard/invitations?notice=already-published');
   }
 
+  const checkoutPath = `/dashboard/invitations/${invitationId}/checkout`;
+
+  // Entitlement is per (invitation, theme). If the current theme has already
+  // been paid for, there is nothing to sell — surface the paid state instead of
+  // charging the same pair twice.
+  if (await hasPaidOrder(invitationId, invitation.templateId)) {
+    redirect(`${checkoutPath}?paid=1`);
+  }
+
   // Tier comes from the template the customer picked, not from the request.
   let isPremium = false;
   if (invitation.templateId) {
@@ -57,12 +66,12 @@ export async function startCheckout(formData: FormData): Promise<void> {
   const currency = currencyForLocale(locale === 'en' ? 'en' : 'id');
   const price = activationPrice(isPremium, currency);
   const origin = await getPublicOrigin();
-  const checkoutPath = `/dashboard/invitations/${invitationId}/checkout`;
 
   try {
     const { reference } = await createOrder({
       userId: user.id,
       invitationId,
+      templateId: invitation.templateId ?? null,
       price,
       tier: tierFor(isPremium),
       description: `Aktivasi undangan /${invitation.slug}`,
