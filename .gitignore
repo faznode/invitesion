@@ -39,7 +39,8 @@ next-env.d.ts
 # Docker
 postgres_data/
 .env*.local
-storage/
+# runtime upload dir at repo root only — NOT lib/storage (source code)
+/storage/
 
 # clerk configuration (can include secrets)
 /.clerk/
