@@ -1,0 +1,6 @@
+capture_id,captured_at_wib,competitor,kind,url,summary,lighthouse_ok
+C-WEV-001,2026-10-29T05:21:23.649+07:00,wevitation,marketing,"https://wevitation.com/",raw/wevitation/C-WEV-001.json,true
+C-INV-001,2026-10-29T05:33:19.438+07:00,invitesion,demo,"http://127.0.0.1:3100/i/budi-sari/budi-hartono",raw/invitesion/C-INV-001.json,true
+C-INV-002,2026-10-29T05:34:30.745+07:00,invitesion,demo,"http://127.0.0.1:3100/i/dimas-laras-makassar/nama-panjang",raw/invitesion/C-INV-002.json,true
+C-INV-003,2026-10-29T05:35:45.935+07:00,invitesion,catalog,"http://127.0.0.1:3100/templates/eternal-ivory",raw/invitesion/C-INV-003.json,true
+C-INV-004,2026-10-29T05:37:02.387+07:00,invitesion,marketing,"http://127.0.0.1:3100/",raw/invitesion/C-INV-004.json,true
