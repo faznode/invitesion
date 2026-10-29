@@ -16,6 +16,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync, appendFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { robotsVerdict } from './robots.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const RESEARCH = join(HERE, '..', '..');
@@ -51,22 +52,12 @@ async function polite(origin) {
   writeFileSync(statePath, JSON.stringify(state));
 }
 async function robotsAllows(url) {
-  const { origin, pathname } = new URL(url);
+  const { origin, pathname, search } = new URL(url);
   await polite(origin);
   try {
     const res = await fetch(`${origin}/robots.txt`, { headers: { 'user-agent': ANDROID_UA }, signal: AbortSignal.timeout(10000) });
     if (!res.ok) return { allowed: true, note: `robots.txt ${res.status}` };
-    let applies = false;
-    const rules = [];
-    for (const raw of (await res.text()).split('\n')) {
-      const line = raw.split('#')[0].trim();
-      const [key, ...rest] = line.split(':');
-      const value = rest.join(':').trim();
-      if (/^user-agent$/i.test(key)) applies = value === '*';
-      else if (applies && /^(dis)?allow$/i.test(key) && value) rules.push({ allow: /^allow$/i.test(key), path: value });
-    }
-    const match = rules.filter((r) => pathname.startsWith(r.path.replace(/\*.*$/, ''))).sort((a, b) => b.path.length - a.path.length)[0];
-    return { allowed: !match || match.allow, note: match ? `${match.allow ? 'Allow' : 'Disallow'}: ${match.path}` : 'no matching rule' };
+    return robotsVerdict(await res.text(), pathname + search);
   } catch (error) {
     return { allowed: true, note: `robots.txt unreachable (${error.name})` };
   }

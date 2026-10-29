@@ -3,7 +3,7 @@
 > WHAT: Tokens, type, palette logic, motion, Indonesian copy tone — with file and screenshot evidence. Feeds the `invitesion-style-dna` skill.
 > STATUS: DONE (Phase 1)
 > OWNER: Oracle (research)
-> DEPS: tokens.css, app/layout.tsx, lib/invitation/templates.ts, components/invitation/public-renderer.tsx, raw/invitesion/*/viewport-412.webp
+> DEPS: archive/tokens.vienne-old-brand.css (old root tokens.css: never imported, archived 2026-10-29; re-verify the palette against app/globals.css), app/layout.tsx, lib/invitation/templates.ts, components/invitation/public-renderer.tsx, raw/invitesion/*/viewport-412.webp
 > GREP: style, identity, tokens, typography, palette, motion, copy tone, dna
 > UPDATED: 2026-10-29
 

@@ -3,7 +3,7 @@
 > WHAT: Pinned REA install, exact commands, mission routing table, measurement protocol, limits and substitutes.
 > STATUS: ACTIVE
 > OWNER: Oracle (research)
-> DEPS: SKILLS-LOCK.md (reverse-engineer-anything skill), 00-setup/scripts/capture.mjs, 04-template-benchmarks/protocol.md
+> DEPS: SKILLS-LOCK.md (reverse-engineer-anything skill), _tools/capture/capture.mjs, 04-template-benchmarks/protocol.md
 > GREP: rea, reverse engineering, cdp, lighthouse, har, apk, capture, politeness
 > UPDATED: 2026-10-29
 
@@ -50,10 +50,10 @@ rea identify-flutter-build /abs/app.apk --json      # Flutter vs native/WebView 
 rea inspect-android-package /abs/app.apk --json     # manifest/classes: needs headless JADX + JDK 17 (absent here)
 ```
 
-`00-setup/scripts/capture.mjs` wraps steps 1–4 for one URL and adds what REA deliberately does not do (navigation, cover click, scroll, structure fingerprint, Lighthouse):
+`_tools/capture/capture.mjs` wraps steps 1–4 for one URL and adds what REA deliberately does not do (navigation, cover click, scroll, structure fingerprint, Lighthouse):
 
 ```bash
-node invitation-research/00-setup/scripts/capture.mjs --id C-ENV-003 --competitor enviory \
+node invitation-research/_tools/capture/capture.mjs --id C-ENV-003 --competitor enviory \
   --kind demo --url https://… --open-cover --lighthouse
 # → raw/<competitor>/<id>.json (summary, no copy/PII)   _private/rea/<id>/ (full Evidence)
 # → _private/thumbs/<id>.webp                            _private/lh/<id>.json (full Lighthouse)

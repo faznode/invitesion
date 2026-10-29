@@ -48,14 +48,14 @@ Failures were recorded, not fixed (scope guard).
 
 ## Local run environment (audit only)
 - PostgreSQL 16.15 from AL2023 packages, cluster in the sandbox, port 5433, trust auth on a Unix socket + localhost; database `invitesion`.
-- `pnpm db:migrate` ✔ (all migrations applied), `pnpm db:seed:templates` ✔ (`created=64`), fixture seed `01-codebase-audit/scripts/seed-local-demo.ts` ✔ (2 invitations, 5 stress-test guests each, 2 wishes).
+- `pnpm db:migrate` ✔ (all migrations applied), `pnpm db:seed:templates` ✔ (`created=64`), fixture seed `_tools/setup/seed-local-demo.ts` ✔ (2 invitations, 5 stress-test guests each, 2 wishes).
 - Clerk: no real keys exist for this sandbox. A syntactically valid placeholder pair is passed on the command line only (never written to a file). Effect: public pages render; sign-in/dashboard flows are untestable here → [UNKNOWN] for live auth behaviour.
 
 ## Tools installed (outside the repo)
 Node 24.22.2 (for REA), REA 6.8.0, Chrome for Testing 156.0.8078.4 + system libraries, Lighthouse 12.8.2, PostgreSQL 16.15, skills CLI 1.7.4. Versions and commands: `_rea-playbook.md` §1.
 
 ## Secrets hygiene (R6)
-`.gitignore` rule for `_private/` was added and verified with `git check-ignore` **before** anything was written there. Scanner: `scripts/secrets-scan.py` (tree + full history). Result: 2 low-risk findings (a local-dev credential in an example file, a test-fixture signing secret); no cloud keys, private keys, live Stripe/Clerk keys, tokens or JWTs. Details (file/line/fingerprint, no values): `_private/secrets-report.md`.
+`.gitignore` rule for `_private/` was added and verified with `git check-ignore` **before** anything was written there. Scanner: `_tools/safety/secrets-scan.py` (tree + full history). Result: 2 low-risk findings (a local-dev credential in an example file, a test-fixture signing secret); no cloud keys, private keys, live Stripe/Clerk keys, tokens or JWTs. Details (file/line/fingerprint, no values): `_private/secrets-report.md`.
 
 ## Skills (Step 0.3)
 20 third-party skills vetted and installed project-scoped for Claude Code + Codex; 3 modified for security. See `SKILLS-LOCK.md`, `docs/skills-registry.md`, `skill-vetting-report.md`, catalog snapshot `skill-issue-catalog-2026-10-29.json`.

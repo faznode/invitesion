@@ -10,20 +10,7 @@
  },
  "catalogCandidates": [
   "https://indoinvite.com/tema",
-  "https://indoinvite.com/contoh/undangan-jasa-desain",
-  "https://indoinvite.com/hasil/1952?contoh=1",
-  "https://indoinvite.com/hasil/27032?contoh=1",
-  "https://indoinvite.com/hasil/230197?contoh=1&filter=natal",
-  "https://indoinvite.com/hasil/36769?contoh=1",
-  "https://indoinvite.com/hasil/34719?contoh=1",
-  "https://indoinvite.com/hasil/25426?contoh=1&filter=muslim",
-  "https://indoinvite.com/hasil/38716?contoh=1&filter=muslim",
-  "https://indoinvite.com/hasil/40440?contoh=1&filter=muslim",
-  "https://indoinvite.com/hasil/36799?contoh=1&filter=formal",
-  "https://indoinvite.com/hasil/12810?contoh=1",
-  "https://indoinvite.com/hasil/15686?contoh=1&filter=dewasa",
-  "https://indoinvite.com/hasil/36050?contoh=1&filter=anak",
-  "https://indoinvite.com/hasil/5081?contoh=1&filter=formal"
+  "https://indoinvite.com/contoh/undangan-jasa-desain"
  ],
  "catalog": {
   "url": "https://indoinvite.com/tema",
@@ -43,58 +30,6 @@
   {
    "href": "https://indoinvite.com/contoh/undangan-jasa-desain",
    "label": "Jasa Desain"
-  },
-  {
-   "href": "https://indoinvite.com/hasil/1952?contoh=1",
-   "label": "Undangan Pernikahan 🔥"
-  },
-  {
-   "href": "https://indoinvite.com/hasil/27032?contoh=1",
-   "label": "Lihat Tema Undangan Khitanan"
-  },
-  {
-   "href": "https://indoinvite.com/hasil/230197?contoh=1&filter=natal",
-   "label": "Lihat Tema Undangan Natal"
-  },
-  {
-   "href": "https://indoinvite.com/hasil/36769?contoh=1",
-   "label": "Undangan Aqiqah"
-  },
-  {
-   "href": "https://indoinvite.com/hasil/34719?contoh=1",
-   "label": "Undangan Mepandes"
-  },
-  {
-   "href": "https://indoinvite.com/hasil/25426?contoh=1&filter=muslim",
-   "label": "Lihat Tema Undangan Tasyakuran"
-  },
-  {
-   "href": "https://indoinvite.com/hasil/38716?contoh=1&filter=muslim",
-   "label": "Lihat Tema Undangan Halal Bi Halal"
-  },
-  {
-   "href": "https://indoinvite.com/hasil/40440?contoh=1&filter=muslim",
-   "label": "Lihat Tema Undangan Buka Bersama"
-  },
-  {
-   "href": "https://indoinvite.com/hasil/36799?contoh=1&filter=formal",
-   "label": "Lihat Tema Undangan Peresmian"
-  },
-  {
-   "href": "https://indoinvite.com/hasil/12810?contoh=1",
-   "label": "Undangan 3 Bulanan"
-  },
-  {
-   "href": "https://indoinvite.com/hasil/15686?contoh=1&filter=dewasa",
-   "label": "Lihat Tema Undangan Ultah Dewasa"
-  },
-  {
-   "href": "https://indoinvite.com/hasil/36050?contoh=1&filter=anak",
-   "label": "Lihat Tema Undangan Ultah Anak"
-  },
-  {
-   "href": "https://indoinvite.com/hasil/5081?contoh=1&filter=formal",
-   "label": "Lihat Tema Undangan Wisuda"
   },
   {
    "href": "https://indoinvite.com/preview/contoh-undangan-online-pernikahan",
@@ -295,42 +230,7 @@
   {
    "href": "https://indoinvite.com/preview/contoh-undangan-online-dinner",
    "label": "Contoh Undangan Digital Dinner"
-  },
-  {
-   "href": "https://indoinvite.com/hasil/27302?contoh=1",
-   "label": "Undangan Khitanan"
-  },
-  {
-   "href": "https://indoinvite.com/hasil/230197?contoh=1",
-   "label": "Undangan Natal 🔥"
-  },
-  {
-   "href": "https://indoinvite.com/hasil/25426?contoh=1",
-   "label": "Undangan Tasyakuran"
-  },
-  {
-   "href": "https://indoinvite.com/hasil/38716?contoh=1",
-   "label": "Undangan Halal Bi Halal"
-  },
-  {
-   "href": "https://indoinvite.com/hasil/36799?contoh=1",
-   "label": "Undangan Formal"
-  },
-  {
-   "href": "https://indoinvite.com/hasil/36908?contoh=1",
-   "label": "Undangan Peresmian"
-  },
-  {
-   "href": "https://indoinvite.com/hasil/5081?contoh=1",
-   "label": "Undangan Wisuda"
-  },
-  {
-   "href": "https://indoinvite.com/hasil/36050?contoh=1",
-   "label": "Undangan Ulang Tahun (Anak) 🔥"
-  },
-  {
-   "href": "https://indoinvite.com/hasil/15686?contoh=1",
-   "label": "Undangan Ulang Tahun (Dewasa)"
   }
- ]
+ ],
+ "customerShowcaseDropped": 35
 }

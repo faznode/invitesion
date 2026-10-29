@@ -3,14 +3,14 @@
 > WHAT: How the 52-candidate longlist was found, the scoring rubric, every score with its basis, and the Tier A (deep teardown) / Tier B (profile) split.
 > STATUS: DONE (Phase 2) — 2026-10-29 06:20 WIB
 > OWNER: Oracle (research)
-> DEPS: competitor-longlist.csv, probe-2026-10-29.jsonl, scripts/probe-homepages.py
+> DEPS: competitor-longlist.csv, ../raw/_discovery/probe-2026-10-29.jsonl, ../_tools/discovery/probe-homepages.py
 > GREP: discovery, longlist, rubric, score, shortlist, tier a, tier b
 > UPDATED: 2026-10-29
 
 ## 1. Method (dated 2026-10-29 WIB)
 1. **Keyword sweep (Indonesian):** "website undangan digital pernikahan terbaik 2026", "aplikasi undangan digital … RSVP QR check-in", "undangan digital premium animasi tema eksklusif harga paket", "undangan khitanan aqiqah ulang tahun digital online murah template" → 30+ brand names (WebSearch summaries; brand names verified below).
 2. **Google Play:** four searches ("undangan digital", "undangan pernikahan digital", "undangan online rsvp", "buku tamu digital qr"), 29 unique packages, each listing read once for its public install bracket, rating and update date (≥ 1.1 s spacing).
-3. **Homepage probe** (`scripts/probe-homepages.py`): one GET per candidate with a browser UA, robots.txt honoured (fetched with the same UA, RFC 9309 semantics), ≥ 1.5 s per host; records title, stack hints, and on-page claims (customer counts, prices, template counts) — claims are [CLAIMED]. Raw output: `probe-2026-10-29.jsonl`.
+3. **Homepage probe** (`../_tools/discovery/probe-homepages.py`): one GET per candidate with a browser UA, robots.txt honoured (fetched with the same UA, RFC 9309 semantics), ≥ 1.5 s per host; records title, stack hints, and on-page claims (customer counts, prices, template counts) — claims are [CLAIMED]. Raw output: `probe-2026-10-29.jsonl`.
 4. **Neutral traffic signal:** Tranco top-1M research list (file dated 2026-10-27, downloaded 2026-10-29) [ESTIMATE; global rank; subdomains aggregate to the registrable domain].
 5. **International + Asian archetypes:** WebSearch comparison queries + brief seeds; Korean, Chinese, Vietnamese, Malaysian, Indian, Japanese players verified by probe.
 6. **Reseller ecosystem:** observed through reseller/partner pages (sangmempelai.id "Partner Undangan", Harikita business tiers up to Rp9.999M, INVI.ID packs). Instagram/WhatsApp reseller accounts were **not** scraped (no automated social access, R1/R8) → [UNKNOWN] beyond what partner pages state.

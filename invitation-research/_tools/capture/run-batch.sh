@@ -18,6 +18,6 @@ while IFS=$'\t' read -r id competitor kind url; do
   fi
   extra=()
   [[ "$kind" == demo ]] && extra+=(--open-cover)
-  timeout 420 "$NODE" "$RESEARCH/00-setup/scripts/capture.mjs" --id "$id" --competitor "$competitor" --kind "$kind" --url "$url" --lighthouse "${extra[@]}" 2>&1 | grep -E '^\{' | tail -1 || echo "{\"id\":\"$id\",\"error\":\"capture failed or timed out\"}"
+  timeout 420 "$NODE" "$RESEARCH/_tools/capture/capture.mjs" --id "$id" --competitor "$competitor" --kind "$kind" --url "$url" --lighthouse "${extra[@]}" < /dev/null 2>&1 | grep -E '^\{' | tail -1 || echo "{\"id\":\"$id\",\"error\":\"capture failed or timed out\"}"
 done < "$QUEUE"
 echo "{\"batch\":\"done\",\"queue\":\"$(basename "$QUEUE")\"}"

@@ -7,6 +7,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { robotsVerdict } from '../capture/robots.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const RESEARCH = join(HERE, '..', '..');
@@ -16,26 +17,22 @@ const args = Object.fromEntries(process.argv.slice(2).reduce((p, t, i, a) => (t.
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const DEMO = /\b(demo|preview|pratinjau|contoh|live ?preview|sample|lihat (tema|undangan|demo|contoh)|coba tema|view (design|sample|site)|see (it|example))\b/i;
-const DEMO_HREF = /(demo|preview|sample|contoh|\/u\/|\/inv\/|\/undangan\/|[?&]to=|\/e\/|example|showcase)/i;
+const DEMO_HREF = /(demo|preview|pratinjau|sample|contoh|\/u\/|\/inv\/|\/undangan\/|[?&]to=|\/e\/|example|showcase)/i;
 const CATALOG = /(tema|template|katalog|catalog|desain|design|themes|koleksi|collection|invitations|cards|wedding-website|청첩장|샘플|mẫu)/i;
 const EXCLUDE = /(instagram|facebook|tiktok|youtube|twitter|x\.com|wa\.me|whatsapp|t\.me|linkedin|pinterest|play\.google|apps\.apple|login|masuk|daftar|register|signup|sign-up|blog|artikel|privacy|kebijakan|terms|syarat|faq|karir|career|mailto:|tel:|javascript:)/i;
+// Vendor "result"/showcase pages that may be real customers' invitations (e.g. Indoinvite /hasil/<id>?contoh=1).
+// Never captured (R1), so not stored either: only a count is kept (R3 minimization, Q-O07 decided in session 04).
+const CUSTOMER_SHOWCASE = /(\/hasil\/|[?&]contoh=)/i;
 
 let last = 0;
 async function polite() { const w = last + 1500 - Date.now(); if (w > 0) await sleep(w); last = Date.now(); }
 
 async function robotsAllows(url) {
-  const { origin, pathname } = new URL(url);
+  const { origin, pathname, search } = new URL(url);
   try {
     const res = await fetch(`${origin}/robots.txt`, { headers: { 'user-agent': UA }, signal: AbortSignal.timeout(10000) });
     if (!res.ok) return true;
-    let applies = false; const rules = [];
-    for (const raw of (await res.text()).split('\n')) {
-      const line = raw.split('#')[0].trim(); const [k, ...rest] = line.split(':'); const v = rest.join(':').trim();
-      if (/^user-agent$/i.test(k)) applies = v === '*';
-      else if (applies && /^(dis)?allow$/i.test(k) && v) rules.push({ allow: /^allow$/i.test(k), path: v });
-    }
-    const m = rules.filter((r) => pathname.startsWith(r.path.replace(/\*.*$/, ''))).sort((a, b) => b.path.length - a.path.length)[0];
-    return !m || m.allow;
+    return robotsVerdict(await res.text(), pathname + search).allowed;
   } catch { return true; }
 }
 
@@ -79,8 +76,10 @@ const isCatalog = (l, host) => !EXCLUDE.test(l.href) && new URL(l.href).hostname
 const home = await visit(args.url, 4);
 const host = new URL(args.url).hostname.replace(/^www\./, '');
 const homeLinks = dedupe(home.links ?? []);
+const isShowcase = (l) => CUSTOMER_SHOWCASE.test(l.href);
 let demos = homeLinks.filter(isDemo);
-const catalogs = homeLinks.filter((l) => isCatalog(l, host)).map((l) => l.href.split('#')[0]);
+const catalogs = homeLinks.filter((l) => isCatalog(l, host) && !isShowcase(l)).map((l) => l.href.split('#')[0]);
+const showcaseCatalogLinks = homeLinks.filter((l) => isCatalog(l, host) && isShowcase(l)).length;
 let catalog = null;
 const catalogUrl = args.catalog && args.catalog !== true ? args.catalog : catalogs.find((h) => h !== home.finalUrl && h !== args.url);
 if (catalogUrl) {
@@ -92,7 +91,8 @@ const out = {
   homepage: { url: args.url, finalUrl: home.finalUrl, skipped: home.skipped ?? null, links: homeLinks.length },
   catalogCandidates: [...new Set(catalogs)].slice(0, 15),
   catalog: catalog ? { url: catalogUrl, finalUrl: catalog.finalUrl, skipped: catalog.skipped ?? null, links: (catalog.links ?? []).length } : null,
-  demos: demos.slice(0, 80),
+  demos: demos.filter((l) => !isShowcase(l)).slice(0, 80),
+  customerShowcaseDropped: demos.filter(isShowcase).length + showcaseCatalogLinks,
 };
 const path = join(RESEARCH, 'raw', args.competitor, `discovery-${args.code}.json`);
 mkdirSync(dirname(path), { recursive: true });

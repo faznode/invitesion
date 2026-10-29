@@ -4,7 +4,7 @@
  * competitor demos. All people, numbers and places are fictional.
  *
  *   POSTGRES_URL=postgres://postgres@localhost:5433/invitesion \
- *     npx tsx invitation-research/01-codebase-audit/scripts/seed-local-demo.ts
+ *     npx tsx invitation-research/_tools/setup/seed-local-demo.ts
  */
 import { eq } from 'drizzle-orm';
 import { db, client } from '@/lib/db/drizzle';
