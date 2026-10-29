@@ -2,7 +2,7 @@
  "id": "C-KAT-104",
  "competitor": "katsudoto",
  "kind": "demo",
- "url": "https://juliakevin.katsudoto.id/552440",
+ "url": "https://rdct-35b0ed9377.katsudoto.id/552440",
  "capturedAt": "2026-10-29T11:36:15.074+07:00",
  "robots": {
   "allowed": true,
@@ -72,7 +72,7 @@
    "data"
   ],
   "scriptHosts": [
-   "juliakevin.katsudoto.id",
+   "rdct-35b0ed9377.katsudoto.id",
    "unpkg.com",
    "cdn.jsdelivr.net",
    "vjs.zencdn.net",
@@ -367,7 +367,7 @@
  "lighthouse": {
   "ok": true,
   "lighthouseVersion": "12.8.2",
-  "finalUrl": "https://juliakevin.katsudoto.id/552440",
+  "finalUrl": "https://rdct-35b0ed9377.katsudoto.id/552440",
   "throttling": {
    "rttMs": 150,
    "throughputKbps": 1638.4,

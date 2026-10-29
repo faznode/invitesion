@@ -3,7 +3,7 @@
 > WHAT: Audit bug admin+customer, bikin jalur create invitation, bangun renderer publik /i/.
 > STATUS: DONE (2 keputusan produk masih terbuka)
 > OWNER: Operator
-> DEPS: REBUILD-HANDOFF-A-Z.md, docs/PROJECT_OVERVIEW.md, docs/systems/guest-management.md
+> DEPS: docs/specs/REBUILD-HANDOFF-A-Z.md, docs/PROJECT_OVERVIEW.md, docs/systems/guest-management.md
 > GREP: bug, audit, renderer, /i/, guest slug, metrics, upload, locale, pricing
 > UPDATED: 2026-07-26
 

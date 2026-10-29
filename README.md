@@ -1,119 +1,44 @@
-# Next.js SaaS Starter
+# Invitesion
 
-This is a starter template for building a SaaS application using **Next.js** with support for authentication, Stripe integration for payments, and a dashboard for logged-in users.
+Digital invitation SaaS for Indonesia (weddings, birthdays, aqiqah, corporate and other life events). A customer pays once, gets an invitation plus a self-service panel, and shares a personal link with each guest (`/i/<invitation>/<guest>`). Product decisions live in [`docs/PROJECT_OVERVIEW.md`](docs/PROJECT_OVERVIEW.md); every document is indexed in [`docs/INDEX.md`](docs/INDEX.md).
 
-**Demo: [https://next-saas-start.vercel.app/](https://next-saas-start.vercel.app/)**
+## Surfaces
 
-## Features
+| Surface | Route | Who |
+|---|---|---|
+| Marketing site | `/`, `/pricing`, `/templates`, `/features`, `/event-types`, `/resources` | Visitors |
+| Customer panel | `/dashboard/*` | Signed-in customers (Clerk) |
+| Admin panel | private entry from `ADMIN_ENTRY_PATH` (wrong entry = 404) | Internal team |
+| Guest invitation | `/i/:slug/:guestSlug` | Guests (no login) |
 
-- Marketing landing page (`/`) with animated Terminal element
-- Pricing page (`/pricing`) which connects to Stripe Checkout
-- Dashboard pages with CRUD operations on users/teams
-- Basic RBAC with Owner and Member roles
-- Subscription management with Stripe Customer Portal
-- Email/password authentication with JWTs stored to cookies
-- Global middleware to protect logged-in routes
-- Local middleware to protect Server Actions or validate Zod schemas
-- Activity logging system for any user events
+## Stack
 
-## Tech Stack
+Next.js 15.6 (App Router, canary) · React 19.1 · Tailwind CSS 4 + Radix/shadcn primitives · PostgreSQL with Drizzle ORM (postgres.js) · Clerk for auth (local `users` table keeps identity and roles) · own QRIS (IDR) and Stripe (other currencies) payment rails · S3-compatible storage · Zod · `node:test` via tsx. Details: [`invitation-research/01-codebase-audit/architecture.md`](invitation-research/01-codebase-audit/architecture.md).
 
-- **Framework**: [Next.js](https://nextjs.org/)
-- **Database**: [Postgres](https://www.postgresql.org/)
-- **ORM**: [Drizzle](https://orm.drizzle.team/)
-- **Payments**: [Stripe](https://stripe.com/)
-- **UI Library**: [shadcn/ui](https://ui.shadcn.com/)
-
-## Getting Started
+## Run locally
 
 ```bash
-git clone https://github.com/nextjs/saas-starter
-cd saas-starter
+cp .env.example .env          # fill POSTGRES_URL and the Clerk keys; read the comments in the file
 pnpm install
+pnpm db:migrate && pnpm db:seed:templates
+pnpm dev                      # http://localhost:3000
+pnpm verify                   # typecheck + unit tests + production build
 ```
 
-## Running Locally
+Use `.env`, not `.env.local`. Do not run `pnpm db:setup` (a leftover of the starter template). A reproducible measurement stack (Postgres 16 + production build + seeded demo invitations) is scripted in `invitation-research/_tools/ops/local-stack.sh`.
 
-[Install](https://docs.stripe.com/stripe-cli) and log in to your Stripe account:
+## Repository map
 
-```bash
-stripe login
-```
+| Path | What |
+|---|---|
+| `app/`, `components/`, `lib/`, `middleware.ts` | Product code |
+| `scripts/`, `tests/`, `drizzle.config.ts` | Seeds, payment verification, unit tests, migrations config |
+| `docs/` | Product decisions, systems, audits, specs (`docs/specs/REBUILD-HANDOFF-A-Z.md`), worklogs |
+| `AGENTS.md`, `AGENT_WORKFLOW.md`, `CLAUDE.md` | Rules for coding agents (read `AGENTS.md` first) |
+| `.agents/skills/`, `SKILLS-LOCK.md`, `docs/skills-registry.md` | Vetted agent skills and their pinned versions |
+| `invitation-research/` | Competitor research, benchmarks and the upgrade masterplan ([`invitation-research/README.md`](invitation-research/README.md)) |
+| `archive/` | Retired files kept for reference ([`archive/README.md`](archive/README.md)) |
 
-Use the included setup script to create your `.env` file:
+## License
 
-```bash
-pnpm db:setup
-```
-
-Run the database migrations and seed the database with a default user and team:
-
-```bash
-pnpm db:migrate
-pnpm db:seed
-```
-
-This will create the following user and team:
-
-- User: `test@test.com`
-- Admin seed credentials must be supplied via `ADMIN_SEED_EMAIL` and `ADMIN_SEED_PASSWORD`; never commit them.
-
-You can also create new users through the `/sign-up` route.
-
-Finally, run the Next.js development server:
-
-```bash
-pnpm dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) in your browser to see the app in action.
-
-You can listen for Stripe webhooks locally through their CLI to handle subscription change events:
-
-```bash
-stripe listen --forward-to localhost:3000/api/stripe/webhook
-```
-
-## Testing Payments
-
-To test Stripe payments, use the following test card details:
-
-- Card Number: `4242 4242 4242 4242`
-- Expiration: Any future date
-- CVC: Any 3-digit number
-
-## Going to Production
-
-When you're ready to deploy your SaaS application to production, follow these steps:
-
-### Set up a production Stripe webhook
-
-1. Go to the Stripe Dashboard and create a new webhook for your production environment.
-2. Set the endpoint URL to your production API route (e.g., `https://yourdomain.com/api/stripe/webhook`).
-3. Select the events you want to listen for (e.g., `checkout.session.completed`, `customer.subscription.updated`).
-
-### Deploy to Vercel
-
-1. Push your code to a GitHub repository.
-2. Connect your repository to [Vercel](https://vercel.com/) and deploy it.
-3. Follow the Vercel deployment process, which will guide you through setting up your project.
-
-### Add environment variables
-
-In your Vercel project settings (or during deployment), add all the necessary environment variables. Make sure to update the values for the production environment, including:
-
-1. `BASE_URL`: Set this to your production domain.
-2. `STRIPE_SECRET_KEY`: Use your Stripe secret key for the production environment.
-3. `STRIPE_WEBHOOK_SECRET`: Use the webhook secret from the production webhook you created in step 1.
-4. `POSTGRES_URL`: Set this to your production database URL.
-5. `AUTH_SECRET`: Set this to a random string. `openssl rand -base64 32` will generate one.
-
-## Other Templates
-
-While this template is intentionally minimal and to be used as a learning resource, there are other paid versions in the community which are more full-featured:
-
-- https://achromatic.dev
-- https://shipfa.st
-- https://makerkit.dev
-- https://zerotoshipped.com
-- https://turbostarter.dev
+MIT, see [`LICENSE`](LICENSE).

@@ -1,99 +1,93 @@
-# LATEST: single entry point for resuming the Invitesion research + harness mission
+# LATEST: single entry point for resuming the Invitesion mission
 
-> Overwrite this file at every checkpoint. History: `sessions/` (append-only). Every prompt requirement with its status and path: `prompt-map.md`. Owner briefs (verbatim): `briefs/original-prompt.md`, `briefs/continuation-brief.md` (handoff and timing rules). Folder layout + filing rules + old→new paths: `../README.md`. Phase detail: `../_progress.md`. Decisions/questions: `../_open-questions.md`. Evidence: `../_evidence-index.md`.
+> Overwrite this file at every checkpoint. History: `sessions/` (append-only). Owner briefs (verbatim, in order of authority): `briefs/01-new-instructions.md` (HIGHEST: Steps 0–7 below), `briefs/00-original-prompt.md` (applies where 01 is silent; ignore its scope guard, branch lines and handoff zip/.md line), `briefs/02-session-06-kickoff.md` (working style + resume protocol). Requirement map: `prompt-map.md`. Folder layout + old→new paths: `../README.md`. Phase detail: `../_progress.md`. Decisions/questions: `../_open-questions.md`. Evidence: `../_evidence-index.md`.
 
 | | |
 |---|---|
-| Session | **05** |
-| Start (UTC) | 2026-10-29T18:05:56Z |
-| End (UTC) | ≈ 2026-10-29T18:24Z, checkpoint committed (exact commit time in the session file). No batch running; Chrome left idle on CDP :9222 |
-| Session file | `sessions/session-05-20261029-1805.md` |
-| Base | `develop` @ `22ed99e` (+ platform snapshot `4794846` of sessions 01–02) |
-| Working branch | research git `/vercel/share/work/invitesion.git` (outside the project, never pushed), branch `agent/research-harness`; s05 commit on top of `a39cc47`. **This is the source of truth.** The platform's own project git was re-initialised between s04 and s05 (`master`: `c44e72b` + `82a88bf`); expected and harmless |
-| Owner request this session | Read the whole main prompt, map it against the actual repo, group all files by nature, archive old unrelated files |
+| Session | **06** (in progress) |
+| Start (UTC) | 2026-10-29T20:36:28Z · last checkpoint 22:09Z (Steps 0–2 done; Step 3: ENV re-capture running, batch A waits for it) |
+| Session file | `sessions/session-06-20261029-2036.md` |
+| Branch | `v0/faznode-3b993736` @ `a5e119c` (owner sync of `invitation-research/`) on `develop` @ `22ed99e`. Work lands through the platform's normal commit flow; never push, never rewrite history |
+| Research git | `/vercel/share/work/invitesion.git` (outside the project, worktree = project), checked out on `v0/faznode-3b993736`; used for `status`/`diff` only. The project's own `.git` belongs to the platform (branch `master`, "Initial commit from v0"): ignore it |
+| Resume protocol | On "continue": read this file + the newest session file, run `source /vercel/share/work/tools/env.sh && $GIT_RESEARCH status --short \| head -30 && $GIT_RESEARCH log -5 --oneline`, state in 2–3 lines where you resume, then do §4 in order. **Log each finished task in the session file and this file before starting the next** (the s06 turn that ended at 21:16Z had to be reconstructed) |
 
-## 1. Status per phase
-| Phase | State | ≈% | Where |
-|---|---|---|---|
-| Step 0: REA, clone/baseline, skills, AGENTS.md | DONE | 100 | `00-setup/`, `_rea-playbook.md`, `../SKILLS-LOCK.md`, `../docs/skills-registry.md`, `../AGENTS.md` |
-| 1: own-codebase audit | DONE (1 open check: palette source, §6) | 100 | `01-codebase-audit/`, `raw/invitesion/` |
-| 2: discovery + selection | DONE | 100 | `02-competitor-discovery/`, `raw/_discovery/` |
-| 3: teardowns | PARTIAL: 1/15 dossiers (Enviory v1), dossier template, discovery 15/15 attempted | 18 | `03-teardowns/` |
-| 4: template benchmarks | PARTIAL: protocol v1.1; 34 captures; threshold-grade demos **ENV 6, KAT 6, INV 6**, IDI/IVT/VID/WEV 1; no blueprints/aggregates yet | 24 | `04-template-benchmarks/` (`queues/`), `raw/` |
-| 5: feature matrix + gaps | NOT STARTED | 0 | `05-feature-matrix/`, `06-gap-analysis/` |
-| 6: ideation | NOT STARTED | 0 | `07-ideation/` |
-| 7: harness + custom skills + dogfood ★ | NOT STARTED | 0 | `tools/template-harness/`, `.agents/skills/invitesion-*`, `templates/_harness-samples/` |
-| 8: Rust plan + spike | NOT STARTED | 0 | `08-backend-rust-plan/` |
-| 9: masterplan | NOT STARTED | 0 | `09-masterplan/` |
-Overall ≈ 30 % of the definition of done.
+## 1. Status per step of the new instructions
+| Step | State | Where |
+|---|---|---|
+| Kickoff: briefs saved, repo verified, progress summary | DONE s06 | `briefs/00…02`, `sessions/session-06-…md` § Progress summary |
+| 0: REA re-verification | **DONE s06**: 20 claims → 13 PASS / 5 PARTIAL / 2 FAIL, all fixed; smoke V-REA-001…007; REA drives `capture.mjs`; verdict REA VERIFIED (Android decompilation UNVERIFIED) | `../00-setup/rea-verification.md`, `../_rea-playbook.md` v2 §7 |
+| 1: Orient + review file (per requirement, per competitor evidence level A–D) | **DONE s06**: levels A 3 · B 4 · C 3 · D 5; Wave 1 captures 2/8, dossiers 1/8, intl dossiers 0/5 | `review-20261029.md` |
+| 2: Hygiene (customer-slug redaction, `.env.example`, `_private` rule, commit guard, redo the lost s05 root reorganisation) | **DONE s06**: slugs pseudonymized (62 tokens) + discovery/capture hardened, `.env.example` placeholder, guard runs both privacy checks, root reorganisation redone, review defects fixed | `../00-setup/privacy-hygiene.md`, `../../README.md`, `../../archive/README.md` |
+| 3: Finish research (Phase 3 + 4 to the Wave-1 exit criteria) | PARTIAL: dossiers 3/15 (ENV v1, **KAT v1, INVI v1** s06); captures: IDI 4 (101–104; 104 without Lighthouse), IVT 3, VID 3, WEV 3, KAT 6, INV 6, ENV 6 guest pages complete (111, 114, 115, 116 + **122 rocaille, 123 velora-linear** opened with D-016) + 7 cold-load only (112/113, 117…121); **batch A running since 22:24Z** (9 rows left) | `../03-teardowns/`, `../04-template-benchmarks/`, `../raw/` |
+| 4: Close owner questions Q-O01… with ADRs | NOT STARTED | `../09-masterplan/12-decision-log.md` |
+| 5: Masterplan 00–13 from scratch + supporting folders 05–08 | NOT STARTED | `../09-masterplan/` |
+| 6: Implement P0 must-haves (scope guard lifted after Step 5) | NOT STARTED | `IMPLEMENTATION-LOG.md` |
+| 7: Template harness + `invitesion-*` skills + 3 dogfood templates | NOT STARTED | `tools/template-harness/`, `.agents/skills/invitesion-*`, `templates/_harness-samples/` |
 
-## 2. Original-prompt checklist (row-level detail and paths: `prompt-map.md`)
-- [x] 0.1 REA playbook (6.8.0) · [x] 0.2 clone + baseline · [x] 0.3 20 vetted skills + lock + registry · [x] 0.4 AGENTS.md + CLAUDE.md
-- [x] Phase 1 (9 docs + feature inventory + own captures C-INV-001…004)
-- [x] Phase 2 (longlist 52, rubric, shortlist, tiers)
-- [ ] Phase 3: [x] template · [x] discovery attempted 15/15 · [ ] 15 Tier-A dossiers (**1**) · [ ] api-observed per competitor (1) · [ ] APK metadata (PLO) · [ ] `_flows/` · [ ] Tier-B profiles
-- [ ] Phase 4: [x] protocol v1.1 · [x] summarizer · [ ] ≥ 6 demos × 15 Tier A (**3/15** complete: ENV, KAT, INV) · [ ] 360×800 / in-app browser / long-name / RTL / WIB-WITA-WIT checks · [ ] blueprints · [ ] tier aggregates
-- [ ] Phase 5 · [ ] Phase 6 · [ ] Phase 7 · [ ] Phase 8 · [ ] Phase 9
-- [x] Handoff notes · [ ] Handoff zips current (last set 2026-10-29T03:41Z unless the s05 session file says regenerated) · [ ] Final report
+## 2. Original-prompt checklist
+Current per-requirement verdicts: `review-20261029.md` (s06). Row-level paths: `prompt-map.md` (s05, refreshed s06; its root-level rows for `archive/`, the root `README.md` and `docs/specs/` are true again since the s06 reorganisation).
 
-## 3. Done in session 05 (exact paths)
-- **Prompt:** re-read in full; stored verbatim in `invitation-research/_handoff/briefs/original-prompt.md` + `briefs/continuation-brief.md`. NEW `invitation-research/_handoff/prompt-map.md` (every requirement → ✅/◐/⬜ + path, verified against the tree).
-- **Reorganisation (`git mv`, history kept; Q-D15):** research scripts → `invitation-research/_tools/ops/` (bootstrap-sandbox.sh, make-handoff-zips.sh), `_tools/safety/` (commit-guard.sh, secrets-scan.py, redact-discovery.py), `_tools/discovery/` (probe-homepages.py, discover-demos.mjs, select-demos.py), `_tools/capture/` (capture.mjs, robots.mjs, robots.test.mjs, run-batch.sh, summarize-captures.py), `_tools/setup/` (vet-skills.py, seed-local-demo.ts). Data → `raw/_discovery/` (candidates.txt, probe-2026-10-29.jsonl), `raw/_setup/` (skill-issue-catalog-2026-10-29.json). Queues → `04-template-benchmarks/queues/`. Root: `REBUILD-HANDOFF-A-Z.md` → `docs/specs/`; `artifacts/navigation/*.png` → `docs/worklog/assets/2026-07-18-public-navigation/`.
-- **Archive (Q-D16):** `README.md` (Next.js SaaS Starter boilerplate) → `archive/README.nextjs-saas-starter.md`; `tokens.css` (old "Vienne" brand, never imported) → `archive/tokens.vienne-old-brand.css`; index `archive/README.md`. NEW root `README.md` (repo map + commands). NEW `invitation-research/README.md` (layout, filing rules, ID conventions, old→new path table).
-- **References rewritten** in 26 living files (scripts, queues, `AGENTS.md`, `SKILLS-LOCK.md`, `docs/skills-registry.md`, `_progress.md`, `_evidence-index.md`, `_open-questions.md`, `_rea-playbook.md`, `00-setup/*.md`, `protocol.md`, `shortlist.md`, Enviory dossier) + manual fixes in `01-codebase-audit/{module-map,style-observations,template-system}.md`, `docs/worklog/2026-07-18-public-navigation.md`; `docs/INDEX.md` brought up to date (was 2026-07-14). Session logs 01–04 left untouched (append-only).
-- **Verified:** syntax 14/14 (`bash -n`, `node --check`, `ast.parse`); `robots.test.mjs` 6/6; `redact-discovery.py --check` clean; `select-demos.py --help` loads; `summarize-captures.py` regenerated `04-template-benchmarks/captures-summary.csv` (32 captures); grep finds no stale path outside session logs; product code diff vs HEAD empty.
-- **Captures landed after s04** and registered (`_evidence-index.md` § Session 05): `raw/katsudoto/C-KAT-102…106.json`, `raw/enviory/C-ENV-111…116.json`, `raw/invi/C-INV-111…114.json`, `raw/_captures.csv`.
-- **Live end-to-end test of the moved pipeline:** Chrome via `_tools/ops/bootstrap-sandbox.sh chrome`; queue D via `_tools/capture/run-batch.sh 04-template-benchmarks/queues/queue-tier-a-4.tsv` skipped C-INV-111…114 and captured `raw/invi/C-INV-115.json` + `C-INV-116.json` (Lighthouse OK, not wrappers) → INVI has 6 threshold-grade demos. `captures-summary.csv` regenerated (34).
-- **Handoff zips** regenerated 18:16Z in `/vercel/share/artifacts/` (handoff 620 files / 8.9 MB in the new layout, 0 private entries; private 115 files / 7.6 MB). C-INV-115/116 came after the zips; regenerate at the next phase end.
-- Checkpoint files: `_progress.md` (board, session 05 summary, D-009/D-010), `_open-questions.md` (Q-D15, Q-D16), this file, session 05 log.
+## 3. Done in session 06 (exact paths)
+- Fresh sandbox rebuilt: repo placed into `/vercel/share/v0-project`, research git outside it, scaffold leftovers removed.
+- Briefs: `briefs/00-original-prompt.md`, `briefs/01-new-instructions.md`, `briefs/02-session-06-kickoff.md` (verbatim, SHA-256 in headers); old `briefs/original-prompt.md` removed; `briefs/continuation-brief.md` marked SUPERSEDED.
+- Progress summary + discrepancies: `sessions/session-06-20261029-2036.md`.
+- Step 0: `00-setup/rea-verification.md`; `_rea-playbook.md` v2 (+ §7 verification log); `_tools/capture/capture.mjs` (REA driver, fallback, emulation probes); new `_tools/capture/rea-smoke.mjs`, `_tools/capture/rea-har-smoke.mjs`, `_tools/ops/local-stack.sh`; `raw/_setup/rea-smoke-{viding-home,own-guest-budi-sari,har-own}.json`; `raw/invitesion/C-INV-005{.json,/}` + row in `raw/_captures.csv`; `_evidence-index.md` (V-REA prefix, V-REA-001…007, C-INV-005, P-INV-010, H-INV-007); `_progress.md` (phase board, s06 summary, D-011…D-013).
+- `.gitignore` restored byte-identical from the branch after the platform rewrote it (21:21Z).
+- Step 1: `_handoff/review-20261029.md`.
+- Step 2: `_tools/safety/{slug-rules.json,pseudonymize.mjs,pseudonymize-slugs.py}` (new), `commit-guard.sh` (privacy checks), `discover-demos.mjs` + `capture.mjs` (write tokens only), 18 data files pseudonymized, `00-setup/privacy-hygiene.md`, `.env.example`, `raw/_captures.csv` (stale C-IDI-101 row dropped), `04-template-benchmarks/captures-summary.csv` (regenerated), `prompt-map.md`; root: `README.md` (new), `archive/` (starter README, old tokens, index), `docs/specs/REBUILD-HANDOFF-A-Z.md`, `docs/worklog/assets/2026-07-18-public-navigation/*.png`, reference fixes in `docs/` + `SKILLS-LOCK.md` + `docs/INDEX.md`.
+- Step 3 (started): batch A in the background; `capture.mjs` cover click moved to CDP inside REA's settle window (D-014; "verified on C-VID-102" only meant REA completed 32/32 steps, no gate was opened; superseded by D-016).
+- Step 3 (22:04Z): 9 batch-A captures landed before the 21:57Z restart (C-IDI-102…104, C-IVT-102/103, C-VID-102/103, C-WEV-102/103). `capture.mjs`: cover wording for Viding ("Open the Invitation", verified C-VID-103) and Invitato ("Tap to Open", "Tap the envelope…"), `aria-label` matching (D-016), one Lighthouse retry. New `04-template-benchmarks/queues/queue-env-recapture.tsv` (C-ENV-117/118). Throwaway probes in git-ignored `_private/probes/`.
 
-## 4. NEXT ACTIONS (in order; run from `invitation-research/` unless stated)
-1. `date -u`; create `_handoff/sessions/session-06-YYYYMMDD-HHMM.md`; read this file + the newest session file; `source /vercel/share/work/tools/env.sh && $GIT_RESEARCH status --short | head && $GIT_RESEARCH log -5 --oneline`. **`.gitignore` first:** if `$GIT_RESEARCH diff --stat .gitignore` shows changes, restore with `$GIT_RESEARCH show HEAD:.gitignore > .gitignore` (repo root).
-2. Environment: if `/vercel/share/work/tools/env.sh` is missing → from the repo root `bash invitation-research/_tools/ops/bootstrap-sandbox.sh git` (skip if the git dir exists), `tools`, `chrome` (BACKGROUND), `check > /vercel/share/work/logs/check.txt` and Read it. If env.sh exists but `curl -s 127.0.0.1:9222/json/version` fails → only `chrome` (background).
-3. Resume batch A first so captures accumulate while you write (background; no batch runs at the s05 checkpoint): `source /vercel/share/work/tools/env.sh && bash _tools/capture/run-batch.sh 04-template-benchmarks/queues/queue-tier-a-rr.tsv > /vercel/share/work/logs/batch-a-s06.log 2>&1` → IDI 102–106, IVT 102–104, VID 102–106, WEV 102–106 (finished IDs are skipped). Stop with `pkill -f "queue-tier-a-r[r]"` (TaskStop orphans the loop). Never two batches, or a batch and Chrome discovery, at once.
-4. Verify C-ENV-112/113 (130/148 DOM nodes vs 458–487 for the other four): read `structure.afterOpen` in `raw/enviory/C-ENV-112.json` + `113.json`, and one WebFetch of `https://enviory.com/tema/rocaille` and `/tema/velora-linear` for the official "Full Preview" link (log S-ENV-003). If a `tpl` slug is wrong: add corrected rows **with new IDs** (C-ENV-117/118) to `04-template-benchmarks/queues/queue-tier-a-3.tsv`, capture them, and mark 112/113 superseded in `_evidence-index.md` (evidence stays immutable).
-5. Enviory dossier v2: replace §4.2 provisional numbers in `03-teardowns/enviory/dossier.md` with the guest-page captures (`python3 -B _tools/capture/summarize-captures.py --competitor raw/enviory`, exclude `wrapper=True` and any superseded ID); re-check §10/§12; update `_progress.md` + `_evidence-index.md` (R10).
-6. Katsudoto dossier `03-teardowns/katsudoto/dossier.md` from `03-teardowns/_TEMPLATE-dossier.md`: C-KAT-101…106, S-KAT-001/002, plus one homepage/pricing WebFetch (S-KAT-003). Then the INVI dossier `03-teardowns/invi/dossier.md` (all six guest pages C-INV-111…116 are in, S-INV-001; wrapper C-INV-101 only as §2/§5 evidence).
-7. Write the dossiers IDI, VID, WEV, IVT as their batch-A sets complete (step 3), same template and sources pattern (summarizer `--competitor raw/<dir>`, one homepage/pricing WebFetch each). After each: `_progress.md` + `_evidence-index.md` (R10).
-8. Pending discovery (only while no batch runs): PPO card-detail pattern → whitelist in `_tools/discovery/select-demos.py` (`OFFICIAL`) → `python3 -B _tools/discovery/select-demos.py --only PPO --out 04-template-benchmarks/queues/queue-tier-a-5.tsv`; JOY (1 link); RSV `--catalog https://rsvpify.com/online-invitations/`; BRN sample shape; STM theme demos on `https://sitemu.id/product`; SMO plain-fetch profile only (never bypass); PTF secondary sources; PLO Play listing + APK metadata via REA (never commit the APK). Run `python3 -B _tools/safety/redact-discovery.py --check` after any discovery.
-9. Phase 4 completion: `04-template-benchmarks/tiers.csv`, `blueprints/<id>.md`, `tier-aggregates.csv` (exclude wrappers); add the protocol §3 checks to `_tools/capture/capture.mjs` (360×800, WhatsApp/Instagram UA + audio unlock, long name via `?to=`, RTL, WIB/WITA/WIT) → protocol v2; tune the section detector. Before Phase 7.3, re-verify the palette in `01-codebase-audit/style-observations.md` against `app/globals.css` (§6).
-10. At each phase end: `source /vercel/share/work/tools/env.sh && bash invitation-research/_tools/ops/make-handoff-zips.sh` (repo root) and show both zips from `/vercel/share/artifacts/`. Then continue in prompt order: Phase 5 → 6 → 7 (★ harness) → 8 → 9, using `prompt-map.md` as the deliverables checklist and keeping new files in the layout of `../README.md`.
+## 4. NEXT ACTIONS (in order; run from the repo root unless stated)
+1. **Environment.** `.gitignore` first: if `$GIT_RESEARCH diff --stat .gitignore` shows changes → `$GIT_RESEARCH show HEAD:.gitignore > .gitignore`. If `/vercel/share/work/tools/env.sh` is missing → `bash invitation-research/_tools/ops/bootstrap-sandbox.sh git` (skip if `/vercel/share/work/invitesion.git` exists; `LOCAL_BRANCH=v0/faznode-3b993736`), `tools`, then `check > /vercel/share/work/logs/check.txt` and Read it. Processes die when the platform restarts the sandbox, so check and restart as needed: CDP Chrome `curl -s -m 3 http://127.0.0.1:9222/json/version` (else `bootstrap-sandbox.sh chrome` as a BACKGROUND task); `bash invitation-research/_tools/ops/local-stack.sh check` (Postgres down → `local-stack.sh pg`; app copy/build missing → `local-stack.sh up`; server down → `local-stack.sh start` as a BACKGROUND task).
+2. ~~Step 1~~ DONE s06 21:33Z → `_handoff/review-20261029.md` (its §3 defect list feeds Step 2 below).
+3. ~~Step 2~~ DONE s06 21:41Z → `00-setup/privacy-hygiene.md` (rules, 62 tokens, residual history exposure for the final report), root reorganisation redone. Keep `commit-guard.sh` green before every checkpoint (it now runs both privacy checks).
+4. **Step 3 (research, Wave 1 first).** `queue-env-recapture.tsv` is done (C-ENV-122/123 opened with D-016; C-ENV-117…121 = five documented failure modes, kept). Since 22:24Z batch A runs (`queue-tier-a-rr.tsv`, 9 rows left: IVT-104, VID-104…106, WEV-104…106, IDI-105/106 → `batch-a-s06.log`); if not, debug the click before any further capture. First check: `tail` both logs and `pgrep -f "run-batch.s[h]"`. If a run died, restart whatever has no `{"batch":"done"}` line, one queue at a time (finished IDs are skipped; to stop: TaskStop the parent task first, then `pkill -f "run-batch.s[h]"`): `source /vercel/share/work/tools/env.sh && bash invitation-research/_tools/capture/run-batch.sh invitation-research/04-template-benchmarks/queues/<queue>.tsv >> /vercel/share/work/logs/<log> 2>&1` as a BACKGROUND task (stop with `pkill -f "run-batch.s[h]"`; never two batches at once). When done: `python3 -B invitation-research/_tools/capture/summarize-captures.py`, add the new C-ENV/IDI/IVT/VID/WEV rows to `_evidence-index.md` (session 06 section), and check each summary's `driver` (`rea` expected since C-VID-102; C-IDI-102/C-IVT-102 = `rea+cdp-fallback` from before D-014) and `structure.coverClicked` (expected: ENV-117/118 `[aria] Buka undangan`, IVT-104 "Tap…", VID "Open the Invitation"). If C-ENV-117/118 open (≈ 25 sections), mark C-ENV-112/113 "cold-load only" in the index. While it runs: Enviory dossier v2, KAT + INV dossiers, then IDI/VID/WEV/IVT as their sets land; discovery gaps PPO, JOY, RSV, BRN, STM, SMO, PTF, PLO (only while no batch runs; PLO = store-listing metadata, D-013); international dossiers from public pages; Phase 4 `tiers.csv`, `blueprints/<id>.md`, tier aggregates, protocol v2 checks (360×800, in-app UA audio unlock, benign long name, RTL, WIB/WITA/WIT, font licenses). Wave 1 = dossiers + ≥ 3 captures for the 8 highest-scoring Indonesian Tier A + international dossiers from public pages → then Step 4/5 may start.
+5. **Step 4.** Every Q-O in `_open-questions.md` §B (+ any owner question elsewhere) → ADR in `09-masterplan/12-decision-log.md`, question marked CLOSED with a link. Defaults: Vercel + Jakarta-adjacent edge; keep identity and evolve (ADR-STYLE-001); Indonesian-first copy with externalized strings; no Rust rewrite by default; verified religious texts only; parity ≠ cloning.
+6. **Step 5.** Masterplan `09-masterplan/00-README.md … 13-appendix.md` + `05-feature-matrix/`, `06-gap-analysis/` (incl. `must-have-p0.md`), `07-ideation/`, `08-backend-rust-plan/`, each written whole and evidence-tagged. Inputs already known: H-INV-004/H-INV-007 (guest page ships Clerk's SDK via the root `ClerkProvider`), P-INV-010 (retest middleware with real keys).
+7. **Step 6.** P0 items from `09-masterplan/06-backlog.md`, one per increment, tests green, log in `_handoff/IMPLEMENTATION-LOG.md`. Build/test in the snapshot: `local-stack.sh sync && local-stack.sh deps && local-stack.sh verify` (typecheck + unit tests), then `build`.
+8. **Step 7.** Harness CLI (`new/check/bench/preview/snapshot/report`), gates, custom skills, 3 dogfood templates + deliberate failures.
 
-## 5. Decisions (session 05)
-- Group files by nature: documents in phase folders, scripts in `_tools/`, machine data in `raw/`, queues in `queues/` (Q-D15, D-009). Reason: the owner asked for it, and one rule per kind of file makes new work land in the right place.
-- Keep scripts exactly two levels below `invitation-research/`. Reason: they compute the research root as `../..`, so the move needed no logic change.
-- Archive only what is unused and not part of the current project (Q-D16, D-010). Reason: a LOCKED router, code comments (`next.config.ts` → `docs/AUDIT-2026-07-27.md`) and configs cite the other old-looking files.
-- Product code stays byte-identical (scope guard). Reason: makes "no product change" verifiable with one diff.
-- Store the owner's briefs verbatim in the repo. Reason: paste links can expire, and the handoff must work from the repo alone.
-- Leave session logs 01–04 untouched and resolve their old paths through the path table. Reason: they are append-only history.
-- Re-captures get new IDs instead of overwriting. Reason: evidence stays immutable and traceable.
+## 5. Decisions (session 06)
+- Work on `v0/faznode-3b993736` directly; the research git only shows what this chat changed vs the branch tip (no local commits: they would not persist and would hide the unsynced diff). Reason: kickoff ("work on the existing branch … through the platform's normal commit flow").
+- Briefs get numeric prefixes by authority (`00`, `01`, `02`); superseded copies are removed (still in git history) or bannered.
+- D-011 REA drives every capture visit; custom steps only where REA has no coverage (`_rea-playbook.md` §6).
+- D-012 Own-page measurement builds run without `middleware.ts` while only placeholder Clerk keys exist (P-INV-010).
+- D-013 Android procedure proven on a redistributable APK (F-Droid); competitor APKs only if the vendor publishes one.
+- D-014 ~~Optional cover click = CDP inside REA's settle window~~ (REA has no conditional steps; a failed click aborts the REA visit). **Superseded by D-016 (22:20Z)**: a click from our session during REA's scenario never opened a gate (C-ENV-121).
+- D-015 Identifying slugs pseudonymized everywhere committed; token map private (`../00-setup/privacy-hygiene.md`).
+- D-016 Cover control = first-viewport button/link whose visible text OR `aria-label` matches the cover wording (aria: specific phrases only, so "Buka menu" never matches) or whose whole text/label is "OPEN". It is opened **after REA's scenario** (our 412 @2.625 override re-asserted; REA's scenario only navigates, settles and scrolls) by a **trusted CDP mouse click** at its centre like a visitor's tap (rocaille ignores synthetic `el.click()`; user activation also unlocks audio) once the control has **settled** (hit-testable, opacity ≥ 0.95, stable size; waits ≤ 9 s, because rocaille's cover zooms in for 10+ s); then our own CDP scroll loads the opened page. `el.click()` only as a follow-up when it never settled and is still there. Recorded: `coverClickMethod`, `coverClickLanding` (did the press land inside the control). Evidence with a missed cover is kept and re-captured under a new ID.
 
 ## 6. Open problems, blockers, unverified
-- **Enviory C-ENV-112/113** look incomplete (≈ ⅓ of the DOM of the other guest pages); the theme of all six is [INFERRED] (identical page titles). Step 4.
-- Chrome was left idle on CDP :9222 at the s05 checkpoint. Reuse it if `curl -s 127.0.0.1:9222/json/version` answers; otherwise restart per step 2 (stale locks are cleared automatically).
-- **Palette source:** Phase 1 `style-observations.md` / `template-system.md` cited values from the old `tokens.css`, which no page imports. Re-verify against `app/globals.css` before the style-DNA skill.
-- TBT caveat: the platform's `next dev` ran during captures; re-check outliers before TBT becomes a threshold.
+- Enviory C-ENV-112/113: RESOLVED. Gates with aria-only controls (rocaille photo frame, velora-linear wax seal) and a 10+ s intro; opened by D-016 in C-ENV-122/123. Theme of all six [INFERRED].
+- Pre-D-016 demo captures (C-KAT-101…106, C-INV-111…116, C-VID-102/103, C-WEV-101…103, C-IVT-101…103, C-ENV-111/114–116) clicked synthetically or inside REA's window: their Lighthouse numbers stand (Lighthouse never clicks), but "gate opened" and audio-after-tap are unverified. Re-capture a subset with D-016 before the structure/audio rows of the feature matrix.
+- Cover detection: fixed for Viding, Invitato and aria-only controls. Captures before the fix that missed a gate: C-VID-101/102, C-IVT-102/103, C-ENV-112/113 (C-IVT-101 and C-WEV-101…103 did click "Buka Undangan"; IDI-101…104 found no cover control, likely none on `/preview/` pages [INFERRED]). Viding renders its sections behind the cover, so its structure stands; re-check IVT feature flags before they enter the matrix. `summarize-captures.py` now judges `coverGate` on the before-open pass + the click (the after-open pass alone missed every opened gate) and has a `cover_clicked` column.
+- `sectionCount` is unreliable for Invitato (div-based layout: 0–1) and Indoinvite (one wrapping section: 2); do not compare it across vendors without a per-vendor note.
+- C-IDI-104 has no Lighthouse (CDP timeout during the 21:57Z restart); IDI still has 101–103 (+105/106 pending) for thresholds.
+- Re-capturing the 6 Katsudoto / 6 Enviory queue rows needs `$INVITESION_PRIVATE_DIR/redaction-map.json`; if the private dir was lost, re-run discovery first (it rebuilds the map).
+- Android decompilation UNVERIFIED (needs a full JDK 17+ and the jadx-headless-mcp 0.7.1 JAR in `REA_JADX_MCP_JAR`).
+- P-INV-010: the production middleware hangs with placeholder Clerk keys; unknown whether real keys behave. Own captures therefore lack CSP/locale cookie/Clerk headers.
+- Palette source: Phase 1 `style-observations.md` / `template-system.md` cited `tokens.css` values that no page imports; re-verify against `app/globals.css` before the style-DNA skill.
+- TBT caveat: the platform's `next dev` competes for CPU during captures; record it, re-check outliers before TBT becomes a threshold.
 - Naming hazard: `C-INV-0xx` = our own Invitesion, `C-INV-1xx` = INVI.ID.
-- History (Q-O07): older pushed commits on `v0/faznode-3b993736` still hold 35 Indoinvite showcase links and 58 Katsudoto subdomains; rewriting history is the owner's call.
-- Old-brand naming left in product config (`.env.example` defaults `vienne`, `.claude/launch.json` config `vienne-dev`): debt QA-025, owner's call.
-- Private evidence (thumbnails, Lighthouse JSON) lives only in `/vercel/share/work/invitesion-private`; it is lost if the sandbox is wiped. Regenerate the private zip whenever possible.
-- Repo dependencies are NOT installed (the platform's `node_modules` belong to its scaffold); typecheck/test/build need `CI=true pnpm install --frozen-lockfile` + local Postgres (`00-setup/setup-log.md`).
-- Owner questions open in `../_open-questions.md` §B: Q-O01–Q-O07.
+- Git history (Q-O07): older commits on `v0/faznode-3b993736` still hold 35 Indoinvite showcase links and 58 Katsudoto subdomains; history rewriting is not allowed → list as residual exposure.
+- Private evidence (thumbnails, full Lighthouse JSON) from s01–s05 is gone with the old sandbox; thumbnails are regenerable.
+- The platform rewrites `.gitignore` and kills processes on sandbox restarts (seen s04 and s06 21:16Z): check both at every resume (§4 step 1).
 
 ## 7. Environment notes
-- Persisted: `/vercel/share/v0-project`. `/vercel/share/work/*` (tools, research git, private evidence, logs) and `/tmp` survived every restart so far, but do not rely on it.
-- Rebuild: `bash invitation-research/_tools/ops/bootstrap-sandbox.sh git | tools | chrome | check`, then `source /vercel/share/work/tools/env.sh` (`REA_NODE REA_BIN LH_BIN CHROME_PATH INVITESION_PRIVATE_DIR CDP_HTTP GIT_RESEARCH`).
-- Checks: `"$REA_NODE" --test invitation-research/_tools/capture/robots.test.mjs` (6/6); `python3 -B invitation-research/_tools/safety/redact-discovery.py --check`; before committing: `GIT="$GIT_RESEARCH" bash invitation-research/_tools/safety/commit-guard.sh` (repo root).
-- Always run Python with `-B` (no `__pycache__` next to the tools).
-- Tool quirks: the Bash tool drops output (redirect to a file, then Read it); `diff` is not installed; `rm -rf` is blocked (use the Delete tool); TaskStop does not kill grandchildren (use `pkill -f` with a `[x]` pattern).
-- WIP files: none. Generated files: `04-template-benchmarks/queues/*.tsv`, `04-template-benchmarks/captures-summary.csv`; captures land one at a time in `raw/<competitor>/` (atomic writes).
+- Persisted for sure: `/vercel/share/v0-project`. `/vercel/share/work/*` (tools, REA source, research git, private evidence, Postgres data, app snapshot, logs) survived the 21:16Z process restart but is lost when the sandbox is recycled (it was, before s06).
+- Rebuild: `bash invitation-research/_tools/ops/bootstrap-sandbox.sh git | tools | chrome | check`, then `source /vercel/share/work/tools/env.sh` (`REA_NODE REA_BIN LH_BIN CHROME_PATH INVITESION_PRIVATE_DIR CDP_HTTP GIT_RESEARCH`). REA docs for verification: `git clone https://github.com/morluto/rea /vercel/share/work/rea-src`, read tag `rea-agents-6.8.0`.
+- Own instance: `bash invitation-research/_tools/ops/local-stack.sh up` (pg + sync + deps + db + build), then `local-stack.sh start` in the background → `http://127.0.0.1:3100/i/budi-sari/<guest>` (guests: budi-hartono, nama-panjang, hostile-name, rtl-name, emoji-name; also `/i/dimas-laras-makassar/<guest>`). Postgres `127.0.0.1:5433`, db `invitesion`.
+- REA smoke tests: `"$REA_NODE" invitation-research/_tools/capture/rea-smoke.mjs --label <name> --url <url> [--own]`; `"$REA_NODE" invitation-research/_tools/capture/rea-har-smoke.mjs --url <own page>`.
+- Checks: `"$REA_NODE" --test invitation-research/_tools/capture/robots.test.mjs`; `python3 -B invitation-research/_tools/safety/redact-discovery.py --check`; before any checkpoint: `GIT="$GIT_RESEARCH" bash invitation-research/_tools/safety/commit-guard.sh`.
+- Always run Python with `-B`. Tool quirks: Bash output can be dropped (redirect to a file, then Read it); `diff` is not installed (use Python difflib); `rm -rf` is blocked (Delete tool); TaskStop does not kill grandchildren (`pkill -f` with a `[x]` pattern); Bash cannot read `user_read_only_context/` (use Read/Grep).
 
 ## 8. Do not redo (finished and verified)
-- Skills vetting + install (20 core), `SKILLS-LOCK.md`, REA playbook, the capture pipeline.
-- Phase 1 docs + own captures C-INV-001…004 (unless product code changes); Phase 2 longlist/rubric/tiers.
-- Discovery for IDI, INV, IVT, VID, WEV, ENV, KAT, PPO, JOY; Katsudoto placeholder checks S-KAT-001/002; INV iframe targets S-INV-001.
-- Tools: `robots.mjs` (6/6), `bootstrap-sandbox.sh`, `select-demos.py`, `summarize-captures.py`, `redact-discovery.py`, `make-handoff-zips.sh`, protocol v1.1, dossier template.
-- Enviory dossier v1 §1–3, §5–12 (only §4 waits for step 5).
-- Captures with Lighthouse OK and `wrapper=False`: C-IDI-101, C-IVT-101, C-VID-101, C-WEV-101, C-KAT-101…106, C-ENV-111/114/115/116 (C-ENV-112/113 pending step 4), C-INV-111…116. Wrapper captures C-ENV-101…106 and C-INV-101 stay as evidence; do not re-capture them.
-- **Session 05 reorganisation + archive + prompt map + verbatim briefs.** Do not move files back or re-split `_tools/` by phase.
-- Secrets scan (2026-10-29T03:31Z, 2 LOW, triaged).
+- Skills vetting + install (20 core), `SKILLS-LOCK.md`, Phase 1 docs + C-INV-001…004, Phase 2 longlist/rubric/tiers.
+- **Step 0 REA re-verification (s06)**: claims C01–C20, V-REA-001…007, playbook v2, `capture.mjs` REA driver (+ D-016 cover click after REA's scenario, verified C-ENV-122). Re-run `rea-smoke.mjs` only after an REA version change.
+- **Step 1 review (s06)** `review-20261029.md` and **Step 2 hygiene (s06)**: pseudonymization (run `pseudonymize-slugs.py` only if `--check` fails), `.env.example`, root reorganisation. Do not move `archive/`, `docs/specs/` or `docs/worklog/assets/` files back.
+- Discovery for IDI, INV, IVT, VID, WEV, ENV, KAT, PPO (robots-fixed), JOY (robots-fixed); S-KAT-001/002; S-INV-001.
+- Tools: `robots.mjs` (6/6), `bootstrap-sandbox.sh`, `local-stack.sh`, `select-demos.py`, `summarize-captures.py`, `redact-discovery.py`, protocol v1.1, dossier template.
+- Enviory dossier v1 §1–3, §5–12.
+- Captures with Lighthouse OK and `wrapper=False`: C-IDI-101, C-IVT-101, C-VID-101, C-WEV-101, C-KAT-101…106, C-ENV-111/114/115/116, C-INV-111…116, C-INV-005. Wrappers C-ENV-101…106 and C-INV-101 stay as evidence; do not re-capture.
+- s05 research-folder reorganisation (`_tools/`, `queues/`, `raw/_discovery/`). Do not move files back.

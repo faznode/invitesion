@@ -1,18 +1,18 @@
 # Original prompt → repo state map
 
-> Verified against the working tree on **2026-10-29T18:14Z (session 05)**, after the file reorganisation. Prompt text: `briefs/original-prompt.md` (verbatim copy of ctxt.io/3/mTY6p2bHG); handoff rules: `briefs/continuation-brief.md`.
+> Verified against the working tree on **2026-10-29T18:14Z (session 05)**, after the file reorganisation; rows touched in session 06 are marked (s06). Prompt text: `briefs/00-original-prompt.md` (verbatim, session 06); the newer `briefs/01-new-instructions.md` overrides it where they conflict. Current per-requirement verdicts: `review-20261029.md`.
 > Status: ✅ done · ◐ partial · ⬜ not started. Paths are relative to the repo root. Re-verify a row before relying on it; update this file whenever a row changes state.
 
 ## Variables and rules
 
 | Requirement | Status | Where / evidence |
 |---|---|---|
-| Clone `develop`, work on LOCAL branch `agent/research-harness` | ✅ | Research git `/vercel/share/work/invitesion.git` (outside the project, never pushed), branch `agent/research-harness` on top of `develop` @ `22ed99e`. The platform's own git in the project (`master`) is re-initialised by the platform from time to time; that is allowed (platform auto-commits) |
+| Clone `develop`, work on LOCAL branch `agent/research-harness` | N/A (s06) | Overridden by the kickoff: work on `v0/faznode-3b993736` through the platform's commit flow. Research git `/vercel/share/work/invitesion.git` (outside the project) is checked out on that branch for `status`/`diff` only |
 | RESEARCH_DIR `invitation-research/`, stack auto-detected | ✅ | `invitation-research/01-codebase-audit/architecture.md` |
 | Coverage: ≥ 12 ID profiled / top 10 torn down; ≥ 10 intl profiled / top 5 torn down | ◐ | Longlist 52, Tier A 15, Tier B 37 (`02-competitor-discovery/`); teardowns **1/15** (Enviory) |
 | Language: docs EN, exec summary EN + ID, template copy ID | ◐ | Docs EN ✅; exec summary waits for Phase 9 |
 | R1 normal-visitor observation, fake data, no bypass | ✅ ongoing | Cloudflare challenge never bypassed (S-ENV-002); robots gate `invitation-research/_tools/capture/robots.mjs` (6/6 tests) |
-| R1/R3 real customers' data never stored | ✅ ongoing | `invitation-research/_tools/safety/redact-discovery.py --check` clean; showcase links dropped at collection (Q-D12) |
+| R1/R3 real customers' data never stored | ✅ ongoing (s06) | Showcase links dropped at collection (Q-D12); per-couple slugs pseudonymized (`invitation-research/00-setup/privacy-hygiene.md`); both checks run in `commit-guard.sh`. Residual exposure in git history listed there |
 | R2 clean-room, licenses recorded | ✅ ongoing | Only structure/measurements in `raw/`; competitor thumbnails only in `_private` |
 | R5 evidence tags | ✅ ongoing | `invitation-research/_evidence-index.md` |
 | R6 secrets report in `_private/`, ignore rule first | ✅ | `.gitignore` rule `invitation-research/_private`; report at `$INVITESION_PRIVATE_DIR/secrets-report.md` (2 LOW, triaged) |
@@ -40,7 +40,7 @@
 
 | Requirement | Status | Where |
 |---|---|---|
-| 0.1 Learn REA, pin version, playbook + mission routing table + limits | ✅ | `invitation-research/_rea-playbook.md` (REA 6.8.0) |
+| 0.1 Learn REA, pin version, playbook + mission routing table + limits | ✅ (s06 re-verified) | `invitation-research/_rea-playbook.md` v2 (REA 6.8.0, docs at tag `rea-agents-6.8.0`) + `invitation-research/00-setup/rea-verification.md` |
 | 0.2 Clone + baseline (stack, commands, run attempt) | ✅ | `invitation-research/00-setup/setup-log.md` (typecheck ✔, 49 tests ✔, build ✔ only with Postgres env) |
 | 0.3 Skills: catalog, vetting protocol, ≤ 20 core, SHAs, registry | ✅ | `SKILLS-LOCK.md`, `docs/skills-registry.md`, `invitation-research/00-setup/skill-vetting-report.md`, catalog snapshot `invitation-research/raw/_setup/skill-issue-catalog-2026-10-29.json`, tool `invitation-research/_tools/setup/vet-skills.py` |
 | 0.3 No vetted Rust/Axum skill → write `invitesion-rust-backend` | ⬜ | Phase 7.8 |

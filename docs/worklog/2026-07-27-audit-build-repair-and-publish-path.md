@@ -3,7 +3,7 @@
 > WHAT: Perbaiki compile blocker, kunci sesi, XSS upload, dan implementasi publish/unpublish.
 > STATUS: DONE (9 diperbaiki, 11 terbuka di AUDIT-2026-07-27.md)
 > OWNER: Guardian + Operator
-> DEPS: docs/AUDIT-2026-07-27.md, PROJECT_OVERVIEW.md, REBUILD-HANDOFF-A-Z.md
+> DEPS: docs/AUDIT-2026-07-27.md, PROJECT_OVERVIEW.md, docs/specs/REBUILD-HANDOFF-A-Z.md
 > GREP: audit, build, compile, publish, expires, auth secret, svg, xss, pool, media
 > UPDATED: 2026-07-27
 

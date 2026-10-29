@@ -1,5 +1,7 @@
 # Continuation brief + handoff protocol (verbatim copy)
 
+> **SUPERSEDED (session 06, 2026-10-29):** replaced by `01-new-instructions.md` (highest authority) and `02-session-06-kickoff.md` (working style). Kept as history only; its timing/checkpoint rules no longer apply. The original prompt it cites now lives in `00-original-prompt.md`.
+
 > Source: https://ctxt.io/3/sJeQRv4FG (the owner's first message in the v0 chat that started session 03), stored 2026-10-29 (session 05) so the handoff rules live in the repo. The two links it cites are the original prompt (now `original-prompt.md`) and the pre-v0 agent's checkpoint logs (history only; not needed to resume).
 > Later owner messages in the chat: "continue" (session 04) and, for session 05: "make sure you've read the whole main prompt and mapping with actual repo state, and I want all the files organized (grouped according to their nature). Old files that aren't related to the project can just be archived."
 

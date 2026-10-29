@@ -8,9 +8,11 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { robotsVerdict } from '../capture/robots.mjs';
+import { loadMap, pseudonymizeText, saveMap } from '../safety/pseudonymize.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const RESEARCH = join(HERE, '..', '..');
+const PRIVATE = process.env.INVITESION_PRIVATE_DIR ?? join(RESEARCH, '_private');
 const CDP = process.env.CDP_HTTP ?? 'http://127.0.0.1:9222';
 const UA = 'Mozilla/5.0 (Linux; Android 14; SM-A356E) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36';
 const args = Object.fromEntries(process.argv.slice(2).reduce((p, t, i, a) => (t.startsWith('--') && p.push([t.slice(2), a[i + 1]?.startsWith('--') ? true : a[i + 1] ?? true]), p), []));
@@ -96,5 +98,9 @@ const out = {
 };
 const path = join(RESEARCH, 'raw', args.competitor, `discovery-${args.code}.json`);
 mkdirSync(dirname(path), { recursive: true });
-writeFileSync(path, JSON.stringify(out, null, 1));
+// Identifying slugs (per-couple subdomains, full-preview couple slugs) are tokenized before anything is written;
+// the token map stays private so the queued pages remain capturable (_tools/safety/slug-rules.json).
+const redactionMap = loadMap(PRIVATE);
+writeFileSync(path, pseudonymizeText(JSON.stringify(out, null, 1), redactionMap));
+saveMap(PRIVATE, redactionMap);
 console.log(JSON.stringify({ code: args.code, catalog: catalogUrl ?? null, demos: out.demos.length, file: path.replace(RESEARCH + '/', '') }));

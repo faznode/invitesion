@@ -8,13 +8,17 @@
 > UPDATED: 2026-07-14
 
 ## Root
+- `README.md` — ringkasan repo: produk, stack, cara menjalankan, peta folder
 - `AGENTS.md` — router utama (baca pertama)
 - `AGENT_WORKFLOW.md` — alur kerja baku tiap sesi
+- `archive/README.md` — file pensiun (README starter template, tokens brand lama); tidak dipakai kode
 
 ## Docs inti
 - `docs/PROJECT_OVERVIEW.md` — keputusan terkunci + OPEN ITEMS + arsitektur 3 panel
 - `docs/DATABASE_SCHEMA.md` — skema DB (Drizzle; ORM decision 2026-07-15)
 - `docs/AUDIT-2026-07-27.md` — audit keamanan/performa/deployment, severity + skenario serangan
+- `docs/specs/REBUILD-HANDOFF-A-Z.md` — spesifikasi rebuild A–Z (dipindah dari root, 2026-10-29)
+- `docs/specs/invitation-detail-backend-v1.md` — spesifikasi backend detail undangan v1
 
 ## Sistem (baca sesuai task)
 - `docs/systems/payment.md` — **QRIS (lokal) + Stripe (internasional)**, webhook idempotent, gate bayar. Midtrans dibatalkan 2026-07-27

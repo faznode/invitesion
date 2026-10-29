@@ -2,7 +2,7 @@
  "id": "C-ENV-115",
  "competitor": "enviory",
  "kind": "demo",
- "url": "https://enviory.com/syafira-rafi?tpl=aurelia",
+ "url": "https://enviory.com/rdct-6687484a60?tpl=aurelia",
  "capturedAt": "2026-10-29T11:48:52.185+07:00",
  "robots": {
   "allowed": true,
@@ -503,7 +503,7 @@
  "lighthouse": {
   "ok": true,
   "lighthouseVersion": "12.8.2",
-  "finalUrl": "https://enviory.com/syafira-rafi?tpl=aurelia",
+  "finalUrl": "https://enviory.com/rdct-6687484a60?tpl=aurelia",
   "throttling": {
    "rttMs": 150,
    "throughputKbps": 1638.4,

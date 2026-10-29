@@ -30,7 +30,7 @@ Perbaikan kelengkapan navigasi marketing setelah commit b96e22c.
 - `app/marketing-public-page.tsx` — presentasi detail bersama.
 - `app/{event-types,features,resources}/...` — index dan detail publik.
 - `docs/navigation-route-audit.json` — hasil audit HTTP.
-- `artifacts/navigation/*.png` — bukti visual.
+- `docs/worklog/assets/2026-07-18-public-navigation/*.png` — bukti visual.
 
 ## Test dijalanin
 - `npm run build` — lulus, 128 static pages generated.

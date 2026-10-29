@@ -2,7 +2,7 @@
  "id": "C-ENV-113",
  "competitor": "enviory",
  "kind": "demo",
- "url": "https://enviory.com/syafira-rafi?tpl=velora-linear",
+ "url": "https://enviory.com/rdct-6687484a60?tpl=velora-linear",
  "capturedAt": "2026-10-29T11:45:10.942+07:00",
  "robots": {
   "allowed": true,
@@ -380,7 +380,7 @@
  "lighthouse": {
   "ok": true,
   "lighthouseVersion": "12.8.2",
-  "finalUrl": "https://enviory.com/syafira-rafi?tpl=velora-linear",
+  "finalUrl": "https://enviory.com/rdct-6687484a60?tpl=velora-linear",
   "throttling": {
    "rttMs": 150,
    "throughputKbps": 1638.4,

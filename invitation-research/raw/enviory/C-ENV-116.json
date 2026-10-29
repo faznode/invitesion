@@ -2,7 +2,7 @@
  "id": "C-ENV-116",
  "competitor": "enviory",
  "kind": "demo",
- "url": "https://enviory.com/syafira-rafi?tpl=noctivelle",
+ "url": "https://enviory.com/rdct-6687484a60?tpl=noctivelle",
  "capturedAt": "2026-10-29T11:50:46.973+07:00",
  "robots": {
   "allowed": true,
@@ -503,7 +503,7 @@
  "lighthouse": {
   "ok": true,
   "lighthouseVersion": "12.8.2",
-  "finalUrl": "https://enviory.com/syafira-rafi?tpl=noctivelle",
+  "finalUrl": "https://enviory.com/rdct-6687484a60?tpl=noctivelle",
   "throttling": {
    "rttMs": 150,
    "throughputKbps": 1638.4,

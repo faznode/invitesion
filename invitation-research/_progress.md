@@ -17,10 +17,10 @@
 ## Phase board
 | Phase | Status | Output |
 |---|---|---|
-| Step 0 — setup, REA, skills, AGENTS.md | DONE 2026-10-29 05:25 WIB | `00-setup/`, `_rea-playbook.md`, `SKILLS-LOCK.md`, `docs/skills-registry.md`, `AGENTS.md`, `CLAUDE.md` |
+| Step 0 — setup, REA, skills, AGENTS.md | DONE 2026-10-29 05:25 WIB; **REA re-verified s06** (PARTIAL → all gaps fixed; Android decompilation UNVERIFIED) | `00-setup/` (+ `rea-verification.md`), `_rea-playbook.md` v2, `SKILLS-LOCK.md`, `docs/skills-registry.md`, `AGENTS.md`, `CLAUDE.md` |
 | 1 — own-codebase audit | DONE 2026-10-29 05:50 WIB | `01-codebase-audit/` (9 docs + seed fixture) |
 | 2 — competitor discovery | DONE 2026-10-29 06:20 WIB | `02-competitor-discovery/` (longlist 52, rubric, shortlist, probe data) |
-| 3 — teardowns | PARTIAL (session 04: 1/15 dossiers, Enviory v1; dossier template; customer-showcase links dropped) | `03-teardowns/` |
+| 3 — teardowns | PARTIAL (3/15 dossiers: Enviory v1 (s04), **Katsudoto v1 + INVI v1 (s06)**; dossier template; `_tools/capture/dossier-digest.py` for §4 tables; customer-showcase links dropped) | `03-teardowns/` |
 | 4 — template benchmarks | PARTIAL (session 05: queues B/C/D landed → threshold-grade demos **ENV 6, KAT 6, INV 6**, IDI/IVT/VID/WEV 1 each; 7 wrappers kept as evidence; batch A remainder pending; blueprints + tier aggregates not started) | `04-template-benchmarks/` (+ `queues/`) |
 | 5 — feature matrix + gaps | TODO | `05-feature-matrix/`, `06-gap-analysis/` |
 | 6 — ideation | TODO | `07-ideation/` |
@@ -97,6 +97,18 @@
 6. Background captures from s04 registered: C-KAT-102…106, C-ENV-111…116, C-INV-111…114 (`_evidence-index.md` § Session 05). ENV and KAT now meet the ≥ 6-demo bar; a live run of the relocated pipeline then captured C-INV-115/116, so INVI meets it too (3/15 Tier A). Handoff zips regenerated 18:16Z.
 7. Found: `01-codebase-audit/style-observations.md` and `template-system.md` cited `tokens.css` values, but that file was never imported → re-verify the platform palette against `app/globals.css` before the style-DNA skill (Phase 7.3).
 
+## Session 06 summary (in progress, 2026-10-29 UTC 20:36–)
+1. Fresh sandbox: repo placed from `v0/faznode-3b993736` @ `a5e119c`, research git outside the project, owner briefs saved verbatim (`_handoff/briefs/00…02`). `briefs/01-new-instructions.md` (Steps 0–7) now governs.
+2. **Step 0 done:** REA re-verified against the source (tag `rea-agents-6.8.0`): 20 claims → 13 PASS, 5 PARTIAL, 2 FAIL. The serious one: v1 said `capture_browser_scenario` is MCP-only, but the CLI has it, so the pipeline had bypassed REA for the visit. Verdict + fixes: `00-setup/rea-verification.md`; playbook v2 with a verification log.
+3. `capture.mjs`: REA drives every visit by default (`--driver rea`, CDP fallback recorded in `driver`). Custom steps remain only where REA has no coverage: animation libraries, text features, mobile/touch emulation, Lighthouse.
+4. Smoke tests V-REA-001…007: web PASS (own guest page, viding.co), HAR route PASS after normalisation (REA rejects Playwright's `time: -1` entries), Android static triage PASS on the F-Droid APK, decompilation UNVERIFIED (no JDK 17 + JADX JAR).
+5. `_tools/ops/local-stack.sh`: Postgres 16 + production snapshot + seeded fixture for own-page measurement. With placeholder Clerk keys the middleware never answers (P-INV-010), so measurement builds set `middleware.ts` aside (copy only).
+6. C-INV-005 (own guest page, REA driver): Perf 93, LCP 2.62 s, CLS 0, consistent with C-INV-001.
+7. The platform rewrote `.gitignore` again (Q-D10 recurrence): restored byte-identical from the branch; `.env`, `_private`, `*.pem`, `/storage/` rules active.
+8. H-INV-007: the anonymous guest page loads Clerk's browser SDK (root `ClerkProvider`) → masterplan input (guest-page weight).
+9. **Step 1 done** (`_handoff/review-20261029.md`): evidence levels A 3 (ENV, INV, KAT) · B 4 (IDI, WEV, VID, IVT) · C 3 (PLO, SMO, STM) · D 5 (all international). **Step 2 done**: 62 identifying slugs pseudonymized in 18 files + discovery/capture hardened (D-015), `.env.example` placeholder, commit guard runs both privacy checks, s05 root reorganisation redone (`archive/`, new root `README.md`, `docs/specs/`, `docs/worklog/assets/`), stale C-IDI-101 row dropped, summary regenerated.
+10. Step 3 started: batch A (18 captures) running in the background; first results C-IDI-102, C-IVT-102 (CDP fallback) and C-VID-102 (REA driver after D-014).
+
 ## Decisions log (short; ADRs live in 09-masterplan/decision-log.md)
 - D-001 Measure our own pages with the exact competitor protocol (capture.mjs + Lighthouse) on a production build, not `next dev`.
 - D-002 Use a production-mode placeholder Clerk key for audit builds so the measured page equals what an anonymous guest receives in production.
@@ -108,9 +120,15 @@
 - D-008 (s04) Placeholder status is verified per queued page, never generalized from one sample.
 - D-009 (s05) Files are grouped by nature: phase folders = documents, `_tools/` = scripts, `raw/` = machine data, `queues/` = generated work lists; locations pinned by the prompt or the toolchain never move.
 - D-010 (s05) Archive only files that are both unused and not part of the current project (starter README, old-brand tokens); anything a LOCKED router, product code or config cites stays put.
+- D-011 (s06) REA drives every capture visit (`capture-browser-scenario`); custom steps only where REA has no coverage, each listed in `_rea-playbook.md` §6.
+- D-012 (s06) Own-page measurement builds run without `middleware.ts` while only placeholder Clerk keys exist (P-INV-010); the product code is untouched and the effect is recorded per capture.
+- D-013 (s06) The Android procedure is proven on a redistributable APK (F-Droid client); competitor APKs are analysed only if the vendor publishes one, otherwise store-listing metadata.
+- D-014 (s06) The optional cover click is performed by the capture's CDP session inside REA's settle window: REA 6.8.0 scenarios have no conditional step, and a failed click aborts the rest of the REA visit (C-IDI-102). **Superseded by D-016.**
+- D-016 (s06) Cover control = first-viewport button/link matched by visible text or `aria-label` (or a bare "OPEN"), opened after REA's scenario by a trusted CDP mouse click once it has settled, then scrolled by CDP; `coverClickMethod` + `coverClickLanding` recorded (C-ENV-117…121 document the failure modes, C-ENV-122 the first verified opening).
+- D-015 (s06) Identifying URL slugs are pseudonymized (`rdct-` + 10 hex of SHA-256) in every committed file and written that way by discovery and capture; the token map stays private (`00-setup/privacy-hygiene.md`).
 
 ## Changed files (this run, cumulative)
 See `git status` at the end of each phase; manifest printed in the final handoff.
 
 ## NEXT
-Authoritative ordered list: `_handoff/LATEST.md` §4. In short: resume batch A (background) → verify C-ENV-112/113 → Enviory dossier v2 → KAT and INVI dossiers → dossiers IDI, VID, WEV, IVT as captures land → Phase 4 tiers, blueprints, aggregates.
+Authoritative ordered list: `_handoff/LATEST.md` §4. In short (s06): Step 1 review file → Step 2 hygiene → Step 3 batch A in the background (first item also tests the REA cover click) + dossiers → Step 4 ADRs → Step 5 masterplan.

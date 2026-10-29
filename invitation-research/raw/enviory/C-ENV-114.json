@@ -2,7 +2,7 @@
  "id": "C-ENV-114",
  "competitor": "enviory",
  "kind": "demo",
- "url": "https://enviory.com/syafira-rafi?tpl=velora",
+ "url": "https://enviory.com/rdct-6687484a60?tpl=velora",
  "capturedAt": "2026-10-29T11:47:00.316+07:00",
  "robots": {
   "allowed": true,
@@ -517,7 +517,7 @@
  "lighthouse": {
   "ok": true,
   "lighthouseVersion": "12.8.2",
-  "finalUrl": "https://enviory.com/syafira-rafi?tpl=velora",
+  "finalUrl": "https://enviory.com/rdct-6687484a60?tpl=velora",
   "throttling": {
    "rttMs": 150,
    "throughputKbps": 1638.4,

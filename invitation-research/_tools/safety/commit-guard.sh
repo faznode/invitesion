@@ -19,4 +19,7 @@ raw_kb=$(du -sk invitation-research/raw 2>/dev/null | cut -f1 || echo 0)
 [ "${raw_kb:-0}" -lt 51200 ] || fail "invitation-research/raw is ${raw_kb} KB (limit 50 MB, R7)"
 big=$($GIT diff --cached --name-only --diff-filter=ACMR | while read -r f; do [ -f "$f" ] && [ "$(stat -c %s "$f")" -gt 5242880 ] && echo "$f"; done || true)
 [ -z "$big" ] || fail "staged files over 5 MB: $big"
-echo "commit-guard: OK (private material ignored, raw/ ${raw_kb} KB)"
+SAFETY=$(dirname "$0")
+python3 -B "$SAFETY/redact-discovery.py" --check > /dev/null || fail "customer-showcase links in discovery files (run redact-discovery.py)"
+python3 -B "$SAFETY/pseudonymize-slugs.py" --check > /dev/null || fail "identifying URL slugs in committed files (run pseudonymize-slugs.py)"
+echo "commit-guard: OK (private material ignored, no showcase links or identifying slugs, raw/ ${raw_kb} KB)"

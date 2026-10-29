@@ -19,7 +19,7 @@
 ## Vetting protocol (applied to every skill below)
 
 1. Open the source repo; confirm license, recent maintenance, and that the catalog link points at the files actually installed. Catalog entries marked "Unverified link" on skill-issue.in were treated as untrusted until checked here.
-2. Static scan of every shipped file (`invitation-research/00-setup/scripts/vet-skills.py`) for: code download/execution, environment/secret access, global agent-config edits, hidden unicode / instruction-override text, large encoded blobs. Every flagged line was then read in context, together with the full `SKILL.md`.
+2. Static scan of every shipped file (`invitation-research/_tools/setup/vet-skills.py`) for: code download/execution, environment/secret access, global agent-config edits, hidden unicode / instruction-override text, large encoded blobs. Every flagged line was then read in context, together with the full `SKILL.md`.
 3. Strip or reject anything that downloads and runs remote code without a pin, reads or sends env vars/secrets, edits global agent config, disables safety checks, or hides instructions.
 4. Pin the upstream commit; verify the installed files are byte-identical to the vetted clone (all 20 matched before modifications); record post-modification hashes.
 

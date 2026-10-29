@@ -2,7 +2,7 @@
  "id": "C-KAT-101",
  "competitor": "katsudoto",
  "kind": "demo",
- "url": "https://nicholasarabella.katsudoto.id/731900",
+ "url": "https://rdct-3e2647e153.katsudoto.id/731900",
  "capturedAt": "2026-10-29T11:30:57.009+07:00",
  "robots": {
   "allowed": true,
@@ -72,7 +72,7 @@
    "data"
   ],
   "scriptHosts": [
-   "nicholasarabella.katsudoto.id",
+   "rdct-3e2647e153.katsudoto.id",
    "unpkg.com",
    "cdn.jsdelivr.net",
    "vjs.zencdn.net",
@@ -294,7 +294,7 @@
     "video": 0,
     "iframes": [
      "www.youtube.com",
-     "nicholasarabella.katsudoto.id"
+     "rdct-3e2647e153.katsudoto.id"
     ],
     "canvases": 0,
     "svgs": 12,
@@ -373,7 +373,7 @@
  "lighthouse": {
   "ok": true,
   "lighthouseVersion": "12.8.2",
-  "finalUrl": "https://nicholasarabella.katsudoto.id/731900",
+  "finalUrl": "https://rdct-3e2647e153.katsudoto.id/731900",
   "throttling": {
    "rttMs": 150,
    "throughputKbps": 1638.4,

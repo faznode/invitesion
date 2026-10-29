@@ -2,7 +2,7 @@
  "id": "C-KAT-103",
  "competitor": "katsudoto",
  "kind": "demo",
- "url": "https://thearonan.katsudoto.id/187469",
+ "url": "https://rdct-4d52ff3a45.katsudoto.id/187469",
  "capturedAt": "2026-10-29T11:34:35.020+07:00",
  "robots": {
   "allowed": true,
@@ -72,7 +72,7 @@
    "data"
   ],
   "scriptHosts": [
-   "thearonan.katsudoto.id",
+   "rdct-4d52ff3a45.katsudoto.id",
    "cdn.jsdelivr.net",
    "vjs.zencdn.net",
    "unpkg.com",
@@ -373,7 +373,7 @@
  "lighthouse": {
   "ok": true,
   "lighthouseVersion": "12.8.2",
-  "finalUrl": "https://thearonan.katsudoto.id/187469",
+  "finalUrl": "https://rdct-4d52ff3a45.katsudoto.id/187469",
   "throttling": {
    "rttMs": 150,
    "throughputKbps": 1638.4,

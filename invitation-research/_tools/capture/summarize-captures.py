@@ -19,7 +19,7 @@ RESEARCH = os.path.normpath(os.path.join(HERE, '..', '..'))
 COLUMNS = ['id', 'competitor', 'kind', 'url', 'captured_at', 'lh_ok', 'perf', 'a11y', 'best_practices', 'seo',
            'fcp_ms', 'lcp_ms', 'tbt_ms', 'cls', 'si_ms', 'requests', 'kb_total', 'kb_script', 'kb_image', 'kb_font',
            'kb_css', 'kb_media', 'third_party_hosts', 'libs', 'font_files', 'sections', 'features', 'og_image',
-           'reduced_motion_css', 'dom_nodes', 'wrapper']
+           'reduced_motion_css', 'dom_nodes', 'wrapper', 'cover_clicked']
 # A vendor preview wrapper (small top document + same-origin iframe holding the real invitation) is not the
 # guest page: its numbers must not feed thresholds; re-target the iframe's official URL (protocol §2.1, session 04).
 WRAPPER_MAX_DOM_NODES = 200
@@ -47,9 +47,14 @@ def row(path):
     lh = d.get('lighthouse') or {}
     scores = lh.get('scores') or {}
     metrics = lh.get('metrics') or {}
-    after = (d.get('structure') or {}).get('afterOpen') or {}
+    structure = d.get('structure') or {}
+    after = structure.get('afterOpen') or {}
+    before = structure.get('beforeOpen') or {}
     libs = sorted(k for k, v in (after.get('libs') or {}).items() if v)
-    features = sorted(k for k, v in (after.get('features') or {}).items() if v)
+    # A gate's wording is gone once the cover opens, so judge coverGate on the before-open pass and the click as well.
+    flags = dict(after.get('features') or {})
+    flags['coverGate'] = bool(flags.get('coverGate') or (before.get('features') or {}).get('coverGate') or structure.get('coverClicked'))
+    features = sorted(k for k, v in flags.items() if v)
     return {
         'id': d.get('id'), 'competitor': d.get('competitor'), 'kind': d.get('kind'), 'url': d.get('url'),
         'captured_at': d.get('capturedAt') or d.get('captured_at') or '',
@@ -65,6 +70,7 @@ def row(path):
         'features': ' '.join(features), 'og_image': (after.get('og') or {}).get('image'),
         'reduced_motion_css': after.get('reducedMotionCss'),
         'dom_nodes': after.get('domNodes'), 'wrapper': is_wrapper(d.get('url'), after),
+        'cover_clicked': structure.get('coverClicked') or '',
     }
 
 
