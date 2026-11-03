@@ -1,5 +1,14 @@
-import { CalendarDays, Clock3, Gift, MapPin, Quote as QuoteIcon, Radio } from 'lucide-react';
+import { CalendarDays, CalendarPlus, Clock3, Gift, MapPin, Quote as QuoteIcon, Radio } from 'lucide-react';
+import { Countdown } from '@/components/invitation/countdown';
+import { isFlagOn } from '@/lib/flags';
+import { calendarEventsFromConfig, googleCalendarUrl } from '@/lib/invitation/calendar';
 import type { DetailConfig } from '@/lib/invitation/detail-config';
+import { formatEventDate, formatEventTime } from '@/lib/invitation/event-time';
+import { guestLinkSegment } from '@/lib/invitation/guest-link';
+import { invitationDisplayName, invitationHeadline } from '@/lib/invitation/headline';
+import { palette } from '@/lib/invitation/palettes';
+import { invitationCalendarPath } from '@/lib/invitation/public-path';
+import { rsvpDefaultCount } from '@/lib/invitation/rsvp-rules';
 import type { Guest, Invitation, MediaAsset } from '@/lib/db/schema';
 import { submitGuestMessage, submitRsvp } from '@/app/i/[slug]/actions';
 
@@ -27,64 +36,6 @@ type Props = {
  * single config serves every guest of an invitation.
  */
 
-const palettes: Record<string, { bg: string; ink: string; accent: string; soft: string }> = {
-  ivory: { bg: 'bg-[#faf7f2]', ink: 'text-[#3f3a34]', accent: 'text-[#a1743c]', soft: 'bg-[#f1e9dd]' },
-  'rose-gold': { bg: 'bg-[#fdf6f4]', ink: 'text-[#453437]', accent: 'text-[#b76e79]', soft: 'bg-[#f7e4e3]' },
-  confetti: { bg: 'bg-[#fef8f3]', ink: 'text-[#3b3340]', accent: 'text-[#e2653f]', soft: 'bg-[#fde5d6]' },
-  sage: { bg: 'bg-[#f5f8f4]', ink: 'text-[#34403a]', accent: 'text-[#5f7d63]', soft: 'bg-[#e3ede2]' },
-  sand: { bg: 'bg-[#faf7f0]', ink: 'text-[#403a30]', accent: 'text-[#9a7a4f]', soft: 'bg-[#efe6d5]' },
-  slate: { bg: 'bg-[#f6f7f9]', ink: 'text-[#2b3138]', accent: 'text-[#3f6fa8]', soft: 'bg-[#e5eaf1]' },
-  // Catalog palettes — every paletteId used by lib/invitation/templates.ts is registered here.
-  midnight: { bg: 'bg-[#101526]', ink: 'text-[#e8e9f2]', accent: 'text-[#d3b16a]', soft: 'bg-[#1c2338]' },
-  terracotta: { bg: 'bg-[#faf3ee]', ink: 'text-[#41332c]', accent: 'text-[#bd5f34]', soft: 'bg-[#f3e0d3]' },
-  orchid: { bg: 'bg-[#faf6fb]', ink: 'text-[#3d3242]', accent: 'text-[#8e5a9e]', soft: 'bg-[#efe0f2]' },
-  emerald: { bg: 'bg-[#f2f7f4]', ink: 'text-[#22352b]', accent: 'text-[#1f6f50]', soft: 'bg-[#dcebe2]' },
-  dusk: { bg: 'bg-[#f6f4f9]', ink: 'text-[#33303f]', accent: 'text-[#6a5acd]', soft: 'bg-[#e6e1f2]' },
-  mocha: { bg: 'bg-[#f9f5f1]', ink: 'text-[#3c332c]', accent: 'text-[#8a6248]', soft: 'bg-[#eee2d7]' },
-  ocean: { bg: 'bg-[#f3f8fa]', ink: 'text-[#27353d]', accent: 'text-[#2a7f9e]', soft: 'bg-[#dcedf2]' },
-  blossom: { bg: 'bg-[#fdf5f6]', ink: 'text-[#43333a]', accent: 'text-[#d26d85]', soft: 'bg-[#f8e2e7]' },
-  'gold-noir': { bg: 'bg-[#171310]', ink: 'text-[#f1e9dc]', accent: 'text-[#caa353]', soft: 'bg-[#262019]' },
-  lavender: { bg: 'bg-[#f8f6fc]', ink: 'text-[#3a3547]', accent: 'text-[#7d6bb3]', soft: 'bg-[#ebe5f6]' },
-  mint: { bg: 'bg-[#f3faf6]', ink: 'text-[#2c3b33]', accent: 'text-[#3e8e6b]', soft: 'bg-[#def0e6]' },
-  sunshine: { bg: 'bg-[#fffaf0]', ink: 'text-[#3f3626]', accent: 'text-[#d98e04]', soft: 'bg-[#fdedcb]' },
-};
-
-function palette(id?: string) {
-  return palettes[id ?? ''] ?? palettes.ivory;
-}
-
-/** The headline pair/person differs per event type; config keeps them separate. */
-function headlineFor(invitation: Invitation, config: DetailConfig) {
-  switch (invitation.eventType) {
-    case 'wedding': {
-      const bride = config.couple?.bride?.nickName || config.couple?.bride?.fullName;
-      const groom = config.couple?.groom?.nickName || config.couple?.groom?.fullName;
-      if (!bride && !groom) return null;
-      return config.couple?.displayOrder === 'groom-first' ? [groom, bride] : [bride, groom];
-    }
-    case 'birthday':
-      return [config.birthdayPerson?.nickName || config.birthdayPerson?.fullName].filter(Boolean) as string[];
-    case 'corporate':
-      return [config.corporateProfile?.eventName || config.corporateProfile?.organizationName].filter(Boolean) as string[];
-    default:
-      return [config.ceremonyProfile?.nickName || config.ceremonyProfile?.honoureeName].filter(Boolean) as string[];
-  }
-}
-
-function formatDate(value?: string) {
-  if (!value) return null;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return null;
-  return date.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-}
-
-function formatTime(value?: string) {
-  if (!value) return null;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return null;
-  return `${date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB`;
-}
-
 function Section({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return <section className={`mx-auto w-full max-w-xl px-6 py-12 sm:py-16 ${className}`}>{children}</section>;
 }
@@ -105,9 +56,21 @@ export function PublicInvitationRenderer({
   status,
 }: Props) {
   const tone = palette(config.theme?.paletteId);
-  const names = headlineFor(invitation, config);
+  // Event-local wall clock with WIB / WITA / WIT from the saved offset, whatever zone the server runs in (B-004).
+  const eventZone = config.eventOperations?.timezone;
+  const formatDate = (value?: string) => formatEventDate(value, eventZone);
+  const formatTime = (value?: string) => formatEventTime(value, eventZone);
+  const names = invitationHeadline(invitation.eventType, config);
   const events = config.events ?? [];
   const primaryEvent = events[0];
+  // B-008: countdown and save-the-date only for a future primary event; the calendar file only exists once published.
+  const renderedAt = Date.now();
+  const primaryStartMs = primaryEvent?.startAt ? Date.parse(primaryEvent.startAt) : Number.NaN;
+  const showCountdown = isFlagOn('GUEST_CALENDAR') && Number.isFinite(primaryStartMs) && primaryStartMs > renderedAt;
+  const primaryCalendarEvent =
+    showCountdown && primaryEvent && invitation.status === 'PUBLISHED'
+      ? calendarEventsFromConfig({ slug: invitation.slug, displayName: invitationDisplayName(invitation.eventType, config), events: [primaryEvent] })[0]
+      : undefined;
   const gallery = config.gallery?.enabled !== false ? media.filter((asset) => asset.type === 'photo') : [];
   const canRespond = Boolean(guest) && !readOnly;
 
@@ -170,6 +133,9 @@ export function PublicInvitationRenderer({
       {events.length > 0 && (
         <Section>
           <Heading accent={tone.accent}>Rangkaian Acara</Heading>
+          {showCountdown && primaryEvent && (
+            <Countdown target={primaryStartMs} initialNow={renderedAt} eventTitle={primaryEvent.title} boxClassName={tone.soft} />
+          )}
           <div className="mt-8 space-y-4">
             {events.map((event, index) => (
               <article key={`${event.title}-${index}`} className="rounded-2xl bg-white/70 p-6 shadow-sm">
@@ -214,6 +180,27 @@ export function PublicInvitationRenderer({
               </article>
             ))}
           </div>
+          {showCountdown && primaryCalendarEvent && (
+            <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+              <a
+                href={googleCalendarUrl(primaryCalendarEvent)}
+                target="_blank"
+                rel="noreferrer"
+                className={`inline-flex min-h-11 items-center gap-2 rounded-full border border-current px-5 text-xs font-semibold ${tone.accent}`}
+              >
+                <CalendarPlus className="h-4 w-4" aria-hidden />
+                Simpan ke Google Calendar
+              </a>
+              <a
+                href={invitationCalendarPath(invitation.slug)}
+                download
+                className={`inline-flex min-h-11 items-center gap-2 rounded-full border border-current px-5 text-xs font-semibold ${tone.accent}`}
+              >
+                <CalendarPlus className="h-4 w-4" aria-hidden />
+                Unduh kalender (.ics)
+              </a>
+            </div>
+          )}
         </Section>
       )}
 
@@ -294,7 +281,7 @@ export function PublicInvitationRenderer({
           {canRespond && guest ? (
             <form action={submitRsvp} className="mt-8 space-y-5 rounded-2xl bg-white/70 p-6 shadow-sm">
               <input type="hidden" name="slug" value={invitation.slug} />
-              <input type="hidden" name="guestSlug" value={guest.slug} />
+              <input type="hidden" name="guestSlug" value={guestLinkSegment(guest)} />
 
               <label className="block space-y-1.5">
                 <span className="text-sm font-semibold">Nama</span>
@@ -318,7 +305,7 @@ export function PublicInvitationRenderer({
                   type="number"
                   min={1}
                   max={guest.guestCount || 1}
-                  defaultValue={guest.guestCount || 1}
+                  defaultValue={rsvpDefaultCount(guest)}
                   className="h-11 w-full rounded-lg border border-black/10 bg-white px-3 text-sm"
                 />
                 <span className="block text-xs opacity-60">Maksimal {guest.guestCount || 1} orang untuk undangan ini.</span>
@@ -378,7 +365,7 @@ export function PublicInvitationRenderer({
           {canRespond && guest && (
             <form action={submitGuestMessage} className="mt-8 space-y-4 rounded-2xl bg-white/70 p-6 shadow-sm">
               <input type="hidden" name="slug" value={invitation.slug} />
-              <input type="hidden" name="guestSlug" value={guest.slug} />
+              <input type="hidden" name="guestSlug" value={guestLinkSegment(guest)} />
               <label className="block space-y-1.5">
                 <span className="text-sm font-semibold">Ucapan dari {guest.name}</span>
                 <textarea

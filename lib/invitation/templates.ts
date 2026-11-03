@@ -178,6 +178,10 @@ type TemplateSeed = Omit<InvitationTemplate, 'palette' | 'preset'> & {
  * can actually display today: greetings, quote, events, story, gallery,
  * gift, RSVP, guestbook and music. Anything richer stays in the editor.
  * Business-formal categories share one English base preset.
+ *
+ * No religious text lives here (scripture quotes, prayers): it may only come
+ * from the owner-approved corpus in content/verified-religious-texts (ADR-O04,
+ * B-003), and tests/p0-trust-fixes.test.ts fails any preset that carries it.
  */
 function basePreset(seed: TemplateSeed): Record<string, unknown> {
   const theme = { templateId: seed.id, paletteId: seed.paletteId, cover: { headline: seed.sample.eyebrow } };
@@ -188,7 +192,6 @@ function basePreset(seed: TemplateSeed): Record<string, unknown> {
         ...common,
         settings: { language: 'id', openingCopy: 'Tanpa mengurangi rasa hormat, kami mengundang Bapak/Ibu/Saudara/i untuk hadir di hari bahagia kami.' },
         greetings: { enabled: true },
-        quote: { enabled: true, text: 'Dan segala sesuatu Kami ciptakan berpasang-pasangan agar kamu mengingat kebesaran Allah.', author: 'QS. Az-Zariyat: 49' },
         story: { enabled: true, items: [] },
         gallery: { enabled: true, layout: 'grid', assetIds: [] },
         gift: { enabled: true, accounts: [] },
@@ -224,8 +227,7 @@ function basePreset(seed: TemplateSeed): Record<string, unknown> {
       return {
         ...common,
         settings: { language: 'id', openingCopy: 'Dengan memohon rahmat dan ridha Allah SWT, kami bermaksud menyelenggarakan tasyakuran.' },
-        greetings: { enabled: true, prayer: 'Bismillahirrahmanirrahim' },
-        quote: { enabled: true, text: 'Ya Tuhanku, jadikanlah aku dan anak cucuku orang yang tetap melaksanakan salat.', author: 'QS. Ibrahim: 40' },
+        greetings: { enabled: true },
         gallery: { enabled: true, layout: 'grid', assetIds: [] },
         guestbook: { enabled: true, heading: 'Doa & Ucapan' },
       };
@@ -279,8 +281,7 @@ function basePreset(seed: TemplateSeed): Record<string, unknown> {
       return {
         ...common,
         settings: { language: 'id', openingCopy: 'Dengan memohon rahmat dan maghfirah Allah SWT, kami mengundang Bapak/Ibu/Saudara/i hadir dalam majelis tahlil dan doa bersama.' },
-        greetings: { enabled: true, prayer: 'Bismillahirrahmanirrahim' },
-        quote: { enabled: true, text: 'Ya Tuhan kami, ampunilah kami dan saudara-saudara kami yang telah mendahului kami dalam iman.', author: 'QS. Al-Hasyr: 10' },
+        greetings: { enabled: true },
         guestbook: { enabled: true, heading: 'Doa & Kenangan' },
       };
     case 'retirement':
@@ -380,7 +381,7 @@ export const invitationTemplates: InvitationTemplate[] = [
   make({ id: 108, slug: 'gold-noir-deco', name: 'Gold Noir', category: 'wedding', styleTags: ['luxury', 'vintage'], motif: 'deco', tier: 'signature', paletteId: 'gold-noir', font: 'serif', sample: { eyebrow: 'A NIGHT TO REMEMBER', names: 'Maharani & Bima', date: 'SABTU · 21 . 11 . 2026' }, tagline: { id: 'Art deco hitam-emas ala Gatsby', en: 'Black-and-gold art deco, Gatsby style' } }),
   make({ id: 109, slug: 'blossom-aquarelle', name: 'Blossom Aquarelle', category: 'wedding', styleTags: ['watercolor', 'floral'], motif: 'floral', tier: 'premium', paletteId: 'blossom', font: 'serif', sample: { eyebrow: 'THE WEDDING OF', names: 'Puti & Danu', date: 'Minggu, 3 Oktober 2027' }, tagline: { id: 'Sapuan cat air merah muda yang lembut', en: 'Soft pink watercolor washes' } }),
   make({ id: 110, slug: 'emerald-royale', name: 'Emerald Royale', category: 'wedding', styleTags: ['luxury', 'elegant'], motif: 'rings', tier: 'signature', paletteId: 'emerald', font: 'serif', sample: { eyebrow: 'THE ROYAL WEDDING OF', names: 'Saraswati & Mahesa', date: '01 . 01 . 2027' }, tagline: { id: 'Zamrud megah dengan cincin bersilang', en: 'Regal emerald with interlocking rings' } }),
-  make({ id: 138, slug: 'melati-suci', name: 'Melati Suci', category: 'wedding', styleTags: ['floral', 'islamic', 'elegant'], motif: 'floral', tier: 'free', paletteId: 'mint', font: 'serif', sample: { eyebrow: 'AKAD NIKAH', names: 'Hana & Yusuf', date: 'Sabtu, 12 Juni 2027' }, tagline: { id: 'Melati putih dan doa yang khusyuk', en: 'White jasmine and solemn prayers' }, presetOverrides: { greetings: { enabled: true, prayer: 'Bismillahirrahmanirrahim' } } }),
+  make({ id: 138, slug: 'melati-suci', name: 'Melati Suci', category: 'wedding', styleTags: ['floral', 'islamic', 'elegant'], motif: 'floral', tier: 'free', paletteId: 'mint', font: 'serif', sample: { eyebrow: 'AKAD NIKAH', names: 'Hana & Yusuf', date: 'Sabtu, 12 Juni 2027' }, tagline: { id: 'Melati putih dan doa yang khusyuk', en: 'White jasmine and solemn prayers' }, presetOverrides: { greetings: { enabled: true } } }),
   make({ id: 139, slug: 'batik-kencana', name: 'Batik Kencana', category: 'wedding', styleTags: ['vintage', 'luxury'], motif: 'geometric', tier: 'signature', paletteId: 'midnight', font: 'serif', sample: { eyebrow: 'UNDANGAN NGUNDUH MANTU', names: 'Sekar & Panji', date: 'Minggu, 11 April 2027' }, tagline: { id: 'Parang emas di atas biru malam, klasik Jawa', en: 'Golden parang on midnight blue, a Javanese classic' } }),
   make({ id: 140, slug: 'frangipani-bali', name: 'Frangipani Bali', category: 'wedding', styleTags: ['boho', 'floral'], motif: 'botanical', tier: 'premium', paletteId: 'sand', font: 'sans', sample: { eyebrow: 'PAWIWAHAN', names: 'Ayu & Bagus', date: 'Sabtu, 24 Juli 2027' }, tagline: { id: 'Kamboja putih dan angin pantai pulau dewata', en: 'White frangipani and island sea breeze' } }),
   make({ id: 141, slug: 'bunga-kering', name: 'Bunga Kering', category: 'wedding', styleTags: ['boho', 'vintage', 'floral'], motif: 'floral', tier: 'free', paletteId: 'terracotta', font: 'serif', sample: { eyebrow: 'THE WEDDING OF', names: 'Laras & Bima', date: '19 . 09 . 2027' }, tagline: { id: 'Bunga kering earthy: beige, dusty rose, terakota', en: 'Earthy pressed flowers: beige, dusty rose, terracotta' } }),
@@ -419,10 +420,10 @@ export const invitationTemplates: InvitationTemplate[] = [
   make({ id: 130, slug: 'retro-reunion', name: 'Retro Reunion', category: 'reunion', styleTags: ['vintage', 'bold'], motif: 'confetti', tier: 'free', paletteId: 'sunshine', font: 'sans', sample: { eyebrow: 'REUNI AKBAR', names: 'SMA 3 Angkatan 2010', date: 'Sabtu, 15 Agustus 2026' }, tagline: { id: 'Kuning retro yang bikin kangen masa sekolah', en: 'Retro yellow that brings the school days back' } }),
   make({ id: 131, slug: 'alumni-classic', name: 'Alumni Classic', category: 'reunion', styleTags: ['elegant'], motif: 'monogram', tier: 'premium', paletteId: 'slate', font: 'serif', sample: { eyebrow: 'HOMECOMING', names: 'Alumni FT 2005', date: 'Sabtu, 12 September 2026' }, tagline: { id: 'Klasik berkelas untuk temu alumni', en: 'Classic and classy for an alumni homecoming' } }),
   // ————— Hari raya —————
-  make({ id: 132, slug: 'halal-bihalal', name: 'Halal Bihalal', category: 'holiday-gathering', styleTags: ['islamic'], motif: 'crescent', tier: 'free', paletteId: 'mint', font: 'serif', sample: { eyebrow: 'HALAL BIHALAL', names: 'Keluarga Besar Hartono', date: 'Minggu, 29 Maret 2026' }, tagline: { id: 'Hijau syawal untuk silaturahmi keluarga', en: 'Eid greens for the family gathering' }, presetOverrides: { greetings: { enabled: true, prayer: 'Taqabbalallahu minna wa minkum' }, guestbook: { enabled: true, heading: 'Maaf Lahir & Batin' } } }),
+  make({ id: 132, slug: 'halal-bihalal', name: 'Halal Bihalal', category: 'holiday-gathering', styleTags: ['islamic'], motif: 'crescent', tier: 'free', paletteId: 'mint', font: 'serif', sample: { eyebrow: 'HALAL BIHALAL', names: 'Keluarga Besar Hartono', date: 'Minggu, 29 Maret 2026' }, tagline: { id: 'Hijau syawal untuk silaturahmi keluarga', en: 'Eid greens for the family gathering' }, presetOverrides: { greetings: { enabled: true }, guestbook: { enabled: true, heading: 'Maaf Lahir & Batin' } } }),
   make({ id: 133, slug: 'natal-hangat', name: 'Natal Hangat', category: 'holiday-gathering', styleTags: ['elegant'], motif: 'stars', tier: 'free', paletteId: 'emerald', font: 'serif', sample: { eyebrow: 'CHRISTMAS DINNER', names: 'Keluarga Tobing', date: 'Jumat, 25 Desember 2026' }, tagline: { id: 'Hijau natal dengan kerlip bintang', en: 'Christmas green with twinkling stars' }, presetOverrides: { guestbook: { enabled: true, heading: 'Ucapan Natal & Tahun Baru' } } }),
   make({ id: 134, slug: 'midnight-countdown', name: 'Midnight Countdown', category: 'holiday-gathering', styleTags: ['bold', 'modern'], motif: 'stars', tier: 'premium', paletteId: 'midnight', font: 'sans', sample: { eyebrow: 'NEW YEAR PARTY', names: 'Countdown to 2027', date: '31 . 12 . 2026' }, tagline: { id: 'Hitung mundur bergaya langit tengah malam', en: 'A countdown styled like the midnight sky' } }),
-  make({ id: 147, slug: 'kurma-oasis', name: 'Kurma Oasis', category: 'holiday-gathering', styleTags: ['islamic', 'elegant'], motif: 'crescent', tier: 'free', paletteId: 'mocha', font: 'serif', sample: { eyebrow: 'IFTAR BERSAMA', names: 'Keluarga Besar Ramadhan', date: 'Sabtu, 6 Maret 2027' }, tagline: { id: 'Cokelat kurma hangat untuk buka bersama', en: 'Warm date-palm browns for an iftar gathering' }, presetOverrides: { greetings: { enabled: true, prayer: 'Allahumma laka shumtu wa bika amantu' }, guestbook: { enabled: true, heading: 'Doa & Harapan' } } }),
+  make({ id: 147, slug: 'kurma-oasis', name: 'Kurma Oasis', category: 'holiday-gathering', styleTags: ['islamic', 'elegant'], motif: 'crescent', tier: 'free', paletteId: 'mocha', font: 'serif', sample: { eyebrow: 'IFTAR BERSAMA', names: 'Keluarga Besar Ramadhan', date: 'Sabtu, 6 Maret 2027' }, tagline: { id: 'Cokelat kurma hangat untuk buka bersama', en: 'Warm date-palm browns for an iftar gathering' }, presetOverrides: { greetings: { enabled: true }, guestbook: { enabled: true, heading: 'Doa & Harapan' } } }),
   // ————— Korporat —————
   make({ id: 135, slug: 'boardroom', name: 'Boardroom', category: 'corporate', styleTags: ['minimal', 'modern'], motif: 'geometric', tier: 'free', paletteId: 'slate', font: 'sans', sample: { eyebrow: 'CORPORATE GATHERING', names: 'NodeX Annual Summit', date: 'Kamis, 19 November 2026' }, tagline: { id: 'Tegas dan profesional untuk acara kantor', en: 'Sharp and professional for company events' } }),
   make({ id: 136, slug: 'gala-awards', name: 'Gala Awards', category: 'corporate', styleTags: ['luxury'], motif: 'deco', tier: 'signature', paletteId: 'gold-noir', font: 'serif', sample: { eyebrow: 'AWARDS NIGHT', names: 'Innovator Awards 2026', date: 'BALLROOM · 05 . 12 . 2026' }, tagline: { id: 'Malam penghargaan berbalut hitam-emas', en: 'An awards night dressed in black and gold' } }),

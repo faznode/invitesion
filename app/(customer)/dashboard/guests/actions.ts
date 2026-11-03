@@ -6,6 +6,8 @@ import { redirect } from 'next/navigation';
 import { getUser } from '@/lib/db/queries';
 import { db } from '@/lib/db/drizzle';
 import { guests, invitations } from '@/lib/db/schema';
+import { isFlagOn } from '@/lib/flags';
+import { newGuestLinkToken } from '@/lib/invitation/guest-link';
 
 function slugify(value: string) {
   return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'tamu';
@@ -41,7 +43,8 @@ export async function addGuest(formData: FormData) {
     if (!exists.length) break;
     slug = `${base}-${n}`;
   }
-  await db.insert(guests).values({ invitationId, name, phone: phone || null, category: category || null, guestCount, slug });
+  const linkToken = isFlagOn('OPAQUE_GUEST_LINKS') ? newGuestLinkToken() : null;
+  await db.insert(guests).values({ invitationId, name, phone: phone || null, category: category || null, guestCount, slug, linkToken });
   revalidatePath('/dashboard/guests');
   redirect(guestsPath(invitationId, 'added=1'));
 }

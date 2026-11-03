@@ -83,7 +83,7 @@ export default async function HomePage() {
             <div className={styles.pricingCard}>
               <small>{copy.pricingBadge}</small>
               <h3>{copy.pricingPlan}</h3>
-              <div className={styles.pricingPrice}><strong>Rp0</strong></div>
+              <div className={styles.pricingPrice}><strong>{copy.pricingDraftPrice}</strong></div>
               <p>{copy.pricingPlanBody}</p>
               <ul>{copy.pricingIncluded.map((item) => <li key={item}><Check size={15} />{item}</li>)}</ul>
               <Link href="/sign-up" className={styles.pricingCtaOutline}>

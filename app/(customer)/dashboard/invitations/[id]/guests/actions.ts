@@ -6,6 +6,8 @@ import { redirect } from 'next/navigation';
 import { getUser } from '@/lib/db/queries';
 import { db } from '@/lib/db/drizzle';
 import { analyticsEvents, guests, invitations } from '@/lib/db/schema';
+import { isFlagOn } from '@/lib/flags';
+import { newGuestLinkToken } from '@/lib/invitation/guest-link';
 
 function slugify(value: string) { return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'tamu'; }
 async function context(formData: FormData) {
@@ -18,7 +20,8 @@ export async function addScopedGuest(formData: FormData) {
   const { invitationId, path } = await context(formData); const name=String(formData.get('name')||'').trim(); const phone=String(formData.get('phone')||'').trim(); const category=String(formData.get('category')||'').trim(); const guestCount=Number(formData.get('guestCount')||1);
   if (!name || name.length>150 || (phone && !/^[+0-9()\-\s]{7,30}$/.test(phone)) || !Number.isInteger(guestCount) || guestCount<1 || guestCount>50) redirect(`${path}?error=invalid`);
   const base=slugify(name); let slug=base; for(let n=2;n<100;n++){const found=await db.select({id:guests.id}).from(guests).where(and(eq(guests.invitationId,invitationId),eq(guests.slug,slug))).limit(1);if(!found.length)break;slug=`${base}-${n}`;}
-  await db.insert(guests).values({invitationId,name,phone:phone||null,category:category||null,guestCount,slug}); revalidatePath(path); redirect(`${path}?added=1`);
+  const linkToken = isFlagOn('OPAQUE_GUEST_LINKS') ? newGuestLinkToken() : null;
+  await db.insert(guests).values({invitationId,name,phone:phone||null,category:category||null,guestCount,slug,linkToken}); revalidatePath(path); redirect(`${path}?added=1`);
 }
 export async function updateGuestOperation(formData: FormData) {
   const { invitationId, path }=await context(formData); const guestId=Number(formData.get('guestId')); const operation=String(formData.get('operation'));

@@ -1,18 +1,19 @@
 'use server';
 
-import { and, eq } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { db } from '@/lib/db/drizzle';
 import { analyticsEvents, guestMessages, guests, invitations } from '@/lib/db/schema';
+import { findGuestByLinkSegment } from '@/lib/invitation/public';
 import { guestPath } from '@/lib/invitation/public-url';
-
-const RSVP_STATUSES = ['CONFIRMED', 'DECLINED'] as const;
+import { isRsvpStatus, rsvpAttendance } from '@/lib/invitation/rsvp-rules';
 
 /**
  * Resolves the invitation + guest pair a public form submission refers to, and
- * refuses anything that is not currently open for responses. The guest slug is
- * the only credential, exactly as the canonical URL format intends.
+ * refuses anything that is not currently open for responses. The link's last
+ * segment is the credential: an opaque token, or the slug of a legacy guest
+ * (B-011 rule, `lib/invitation/guest-link.ts`) — the same rule as the page.
  */
 async function openInvitationFor(slug: string, guestSlug: string) {
   const [invitation] = await db.select().from(invitations).where(eq(invitations.slug, slug)).limit(1);
@@ -20,11 +21,7 @@ async function openInvitationFor(slug: string, guestSlug: string) {
   if (invitation.expiresAt && invitation.expiresAt.getTime() < Date.now()) return null;
   if (invitation.status === 'EXPIRED') return null;
 
-  const [guest] = await db
-    .select()
-    .from(guests)
-    .where(and(eq(guests.invitationId, invitation.id), eq(guests.slug, guestSlug)))
-    .limit(1);
+  const guest = await findGuestByLinkSegment(invitation.id, guestSlug);
   if (!guest) return null;
 
   return { invitation, guest };
@@ -39,20 +36,20 @@ export async function submitRsvp(formData: FormData) {
   const context = await openInvitationFor(slug, guestSlug);
   if (!context) redirect(`${guestPath(slug, guestSlug)}?rsvp=closed`);
 
-  if (!(RSVP_STATUSES as readonly string[]).includes(status)) {
+  if (!isRsvpStatus(status)) {
     redirect(`${guestPath(slug, guestSlug)}?rsvp=invalid`);
   }
 
-  // A decline never reserves seats, so the count only applies when attending.
-  const maxPerRsvp = context.guest.guestCount || 1;
-  const guestCount = status === 'CONFIRMED' ? Math.min(Math.max(attending, 1), maxPerRsvp) : 0;
+  // The answer goes to attending_count; guest_count is the host's allowance and is never written here (B-007).
+  const attendingCount = rsvpAttendance(status, attending, context.guest.guestCount);
 
-  await db.update(guests).set({ rsvpStatus: status, guestCount }).where(eq(guests.id, context.guest.id));
+  await db.update(guests).set({ rsvpStatus: status, attendingCount }).where(eq(guests.id, context.guest.id));
   await db.insert(analyticsEvents).values({
     invitationId: context.invitation.id,
     guestId: context.guest.id,
     eventType: 'RSVP',
-    meta: { status, guestCount, source: 'public' },
+    // `guestCount` in event meta has always meant the people attending for this answer; kept for readers.
+    meta: { status, guestCount: attendingCount, source: 'public' },
   });
 
   revalidatePath(guestPath(slug, guestSlug));

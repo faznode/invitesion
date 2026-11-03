@@ -22,11 +22,13 @@
 | 2 — competitor discovery | DONE 2026-10-29 06:20 WIB | `02-competitor-discovery/` (longlist 52, rubric, shortlist, probe data) |
 | 3 — teardowns | PARTIAL (**14/15 dossiers**; s08: Viding, Indoinvite, Satu Momen, PALEO, Barunson, Paperless Post, Joy, RSVPify, Partiful v1 (all but VID/BRN without guest-page measurement, ADR-W1); planning gate met through ADR-W1 at 16:54Z; Sitemu, `_flows/`, Tier-B one-pagers remain as addenda; Enviory v2, Invitato v1, Wevitation v1 (s07); Katsudoto v1 + INVI v1 (s06); dossier template; `_tools/capture/dossier-digest.py` for §4 tables; customer-showcase links dropped) (s08 recount) | `03-teardowns/` |
 | 4 — template benchmarks | PARTIAL (s08 recount after both s07 batches: valid guest-page demos ENV 6 opened/rendered + 7 cold-load only, KAT 6, INV 6, WEV 6, IVT 4/4, VID 3 (104–106 excluded, D-022), **IDI 0** (101–107 are catalog pages, D-020), BRN 3; 64 summaries; `benchmark-exclusions.csv` 26 rows applied by `eligibility.py` (D-023: 44 cold-load / 35 structure eligible; IVT structure 2/4 after the C-IVT-102/103 rows); blueprints + tier aggregates not started) | `04-template-benchmarks/` (+ `queues/`) |
-| 5 — feature matrix + gaps | TODO | `05-feature-matrix/`, `06-gap-analysis/` |
-| 6 — ideation | TODO | `07-ideation/` |
-| 7 — harness + skills + dogfood | TODO | `tools/template-harness/`, `.agents/skills/invitesion-*`, `templates/_harness-samples/` |
-| 8 — Rust plan + spike | TODO | `08-backend-rust-plan/` |
-| 9 — masterplan + handoff | TODO | `09-masterplan/`, zips |
+| 5 — feature matrix + gaps | DONE s08 (187 rows × 16 columns; 68-row upgrade map) | `05-feature-matrix/`, `06-gap-analysis/` |
+| 6 — ideation | DONE s08 (32 scored ideas, top 10) | `07-ideation/` |
+| 7 — harness + skills + dogfood | IN PROGRESS s09 (contract final in `09-masterplan/08-…`; status in `_handoff/IMPLEMENTATION-LOG.md`) | `tools/template-harness/`, `.agents/skills/invitesion-*`, `templates/_harness-samples/` |
+| 8 — Rust plan + spike | DONE s09 (matched rerun of three arms, two rounds; **ADR-A1: keep Next.js**); s08 Rust run never finished | `08-backend-rust-plan/` |
+| 9 — masterplan + handoff | masterplan 00–13 FINAL v1/v2 s09; P0 implementation in progress; handoff per session | `09-masterplan/`, `_handoff/` |
+
+Paths under `_handoff/briefs/` in older summaries below are provenance only: the owner removed stored prompts and transcripts (`64678cf`) and supplies instructions outside the repository; do not restore or recreate them.
 
 ## Step 0 summary (DONE)
 1. Cloned `develop` @ `22ed99e` into local branch `agent/research-harness`; git metadata kept outside the hosted project so nothing can be pushed by the platform.
@@ -123,7 +125,7 @@
 11. **D-022** (17:46–17:49Z): robots.txt fetch failures (5xx/429/network) now mean disallow; C-VID-104…106 excluded; `04-template-benchmarks/benchmark-exclusions.csv` created (24 rows). The planned `studio.viding.co` gate probe was cancelled.
 12. Skills that helped so far: `research` (evidence levels, claim tagging), `reverse-engineer-anything` (REA routing per the playbook).
 
-## Session 08 summary (in progress, 2026-11-03 UTC 16:12–)
+## Session 08 summary (2026-11-03 UTC 16:12–≈17:35; owner-synced as `cde56b2`, prompts removed in `64678cf`)
 1. Owner shared the local-sandbox continuation brief; saved verbatim from raw HTML as `_handoff/briefs/05-local-sandbox-continuation.md` (top authority with owner messages; brief 03 keeps the mission requirements).
 2. Fresh sandbox in a chat not connected to GitHub. Public clone of `v0/faznode-3b993736` @ `2c94140` (= the brief's last verified owner sync; nothing newer); research git outside the project, `checkout-index`, 11 scaffold leftovers deleted → clean; toolchain identical to s06/s07.
 3. Checkpoint recomputed: matches brief 05 §7 exactly (71 paths since `0ddd953`, 64/64/64 captures, 5 dossiers, 24 exclusions). Fresh checks: robots 7/7, privacy `--check`s clean, guard OK.
@@ -136,7 +138,16 @@
 10. **Satu Momen v1** (new reads S-SMO-005 `/harga`, S-SMO-006 reseller page: tiers by active period 7 d–1 y from Rp 79k, admin-built from Rp 129k, custom/corporate with strikethrough discounts, credit-based reseller packages, check-in with greeting screen, Laravel) and **PALEO v1** (S-PLO-003 Play listing: 500K+, 4.5, five-step builder, last update Oct 2025, pricing unknown, developer-declared data sharing). Both level C, no guest-page numbers. **Wave-1 Indonesian dossiers 8/8**, Tier-A 9/15; ADR-W1 now waits only on the five international dossiers.
 11. **International dossiers v1:** Barunson (level B: 3 captures, median Perf 55 / LCP 23.15 s / TBT 0 / 4,461 KiB, fonts 48–55 % of bytes; Korean features read per page from the template area labels, new read S-BRN-005), Paperless Post, Joy, RSVPify, Partiful (level C from preserved s07 reads; RSV prices stay [UNKNOWN], S-RSV-002 never cited). **Planning gate MET through ADR-W1 (16:54Z); strict Wave 1 NOT MET** (IDI, PLO, SMO 0 valid captures). Tier-A 14/15 (Sitemu remains an addendum).
 
-## Decisions log (short; ADRs live in 09-masterplan/decision-log.md)
+12. (17:03–≈17:35Z, reconstructed in s09) Feature matrix, gap analysis and ideation done; spike scaffolding written; Next.js runs recorded; the Rust run was launched but never finished; masterplan drafts 02–07, 10, 11, 13 written.
+
+## Session 09 summary (2026-11-03 UTC 18:16–, new independent sandbox; baseline `64678cf`)
+1. Public clone of `v0/faznode-3b993736` @ `64678cf` (owner's last verified commit, nothing newer; product code identical to `2c94140`); research git outside the project; scaffold backed up, `checkout-index`, 11 leftovers deleted → clean.
+2. Disposable stack (Postgres 16.15, app snapshot, production build without middleware) and spike toolchain pinned to the s08 versions (Rust 1.99.1, k6 v0.54.0).
+3. Spike tooling fixed (**D-025**) and a third arm `next-min` added; matched rerun of `next` / `next-min` / `rust` in two rounds (order reversed), every scenario valid. Round 1 read spike 36 / 242 / 1,156 req/s; server CPU per page ≈ 30 / 4 / 0.3 ms; Postgres saturates first under Rust. Writes consistent on every arm; allowance overwrite and view-dedupe race reproduced on every arm.
+4. **ADR-A1:** keep Next.js; B-014 (cached guest data, one loader call) is the lever; new B-017a (atomic view dedupe); Rust only behind explicit triggers.
+5. Backend plan (`08-backend-rust-plan/README.md`), spike method (`spike/README.md`), masterplan 00, 01 (EN + ID), 08, 09 written; 02, 04, 06 (every P0 complete), 11, 12, 13 reconciled.
+
+## Decisions log (short; ADRs live in 09-masterplan/12-decision-log.md)
 - D-001 Measure our own pages with the exact competitor protocol (capture.mjs + Lighthouse) on a production build, not `next dev`.
 - D-002 Use a production-mode placeholder Clerk key for audit builds so the measured page equals what an anonymous guest receives in production.
 - D-003 (s03) Queue only vendor-official demo URL shapes; exclude customer showcase pages (R1).
@@ -161,9 +172,10 @@
 - D-022 (s07) Robots fetch outcomes follow RFC 9309: 2xx parse, 4xx (not 429) = no rules, 5xx/429/network failure = assume complete disallow (`robotsStatusVerdict()` in `robots.mjs`, all tools, tested). C-VID-104…106 were captured while `studio.viding.co/robots.txt` answered 500 under the old lenient policy: process deviation; files kept (no personal data) but excluded from medians, quantitative claims and Wave-1 counts (`04-template-benchmarks/benchmark-exclusions.csv`, which now lists every exclusion with its decision). No visits to that host while its robots.txt is unreachable.
 - D-023 (s08) Benchmark eligibility is computed, not remembered: `_tools/capture/eligibility.py` applies the curated register (`benchmark-exclusions.csv`, now with an explicit `page_class` column) before any heuristic, separates cold-load (Lighthouse) from structure/interaction eligibility, counts unique themes instead of attempts (median per theme first), keeps Lighthouse cold-load and CDP post-visit measurements in separately named columns (bytes vs KiB explicit), and reports cover detected / click attempted / gate opening / audio playback (never measured) as separate facts. Register errors fail `commit-guard.sh`. Curation on existing evidence: C-IVT-102/103 get `scope=structure` (the s07 Invitato dossier records their closed English covers; the detector could not see them).
 - D-024 (s08) **ADR-W1** (`09-masterplan/12-decision-log.md`): the bounded demo search found no safe public demo for Indoinvite, Satu Momen (public previews render personal data, D-008 stop) or PALEO (app-only), so planning proceeds through the reduced-confidence fallback once dossiers exist for all eight Indonesian and five international competitors. Strict Wave 1 stays reported as NOT MET.
+- D-025 (s09) Load-spike validity is enforced by the tools, not by the reader: k6 thresholds on the measured operation (checks ≥ 99 %, failures < 1 %), setup requests tagged and excluded, the runner fails on any invalid scenario and verifies the database identity before seeding, the sampler uses per-PID deltas and reports host busy/steal, and a database snapshot after every scenario keeps writes, unique guests, view events and allowances apart. Results of different tool versions or environments are never compared (s08 files stay historical).
 
 ## Changed files (this run, cumulative)
 See `git status` at the end of each phase; manifest printed in the final handoff.
 
 ## NEXT
-Authoritative ordered list: `_handoff/LATEST.md` §4. In short (s08, after 16:54Z): planning gate met through ADR-W1 → owner-question ADRs Q-O01…Q-O07 → `05-feature-matrix/` (≥ 150 evidence-linked rows) + `06-gap-analysis/` + `07-ideation/` (≥ 25 scored ideas) + `08-backend-rust-plan/` (measured, stack preserved by default) → masterplan 00–13 final → P0 in dependency order (`_handoff/IMPLEMENTATION-LOG.md`) → harness + skills + dogfood. Research addenda: Sitemu dossier, Tier-B one-pagers, `_flows/`, blueprints and tier aggregates.
+Authoritative ordered list: `_handoff/LATEST.md` §4. In short (s09): P0 in dependency order (`_handoff/IMPLEMENTATION-LOG.md`) → harness + project skills + three dogfood templates → bounded research addenda (Sitemu dossier, Tier-B profiles, `_flows/`, blueprints, tier aggregates) → manual-push handoff against `64678cf`.

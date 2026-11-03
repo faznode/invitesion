@@ -7,19 +7,20 @@ import { db } from '@/lib/db/drizzle';
 import { guests, invitations } from '@/lib/db/schema';
 import { getLocale } from '@/lib/locale-server';
 import { rsvpStatusLabel } from '@/lib/i18n';
+import { guestLinkSegment } from '@/lib/invitation/guest-link';
 import { getPublicOrigin, guestPath, toWhatsAppNumber } from '@/lib/invitation/public-url';
 import { addGuest, markGuestSent } from './actions';
 
 export const dynamic = 'force-dynamic';
 
 /**
- * Personal share link for one guest. The guest slug is the whole point of the
- * canonical URL format, so it is always part of the link (see handoff 1.5).
+ * Personal share link for one guest. Its last segment identifies the guest (handoff 1.5): the opaque token when the
+ * guest has one, else the legacy slug (B-011, `lib/invitation/guest-link.ts`).
  */
-function waUrl(origin: string, invitationSlug: string, guest: { phone: string | null; name: string; slug: string }, en: boolean) {
+function waUrl(origin: string, invitationSlug: string, guest: { phone: string | null; name: string; slug: string; linkToken: string | null }, en: boolean) {
   const number = toWhatsAppNumber(guest.phone);
   if (!number) return null;
-  const link = `${origin}${guestPath(invitationSlug, guest.slug)}`;
+  const link = `${origin}${guestPath(invitationSlug, guestLinkSegment(guest))}`;
   const text = en
     ? `Hi ${guest.name}, we would love to have you at our event. Your personal invitation: ${link}`
     : `Halo ${guest.name}, kami mengundang Anda ke acara kami. Undangan personal Anda: ${link}`;

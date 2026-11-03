@@ -1,9 +1,10 @@
 import 'server-only';
 
-import { and, asc, count, desc, eq, gte, isNull, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gte, isNull, or, sql } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
 import { analyticsEvents, guestMessages, guests, invitations, mediaAssets } from '@/lib/db/schema';
 import { detailConfigSchema, type DetailConfig } from './detail-config';
+import { pickGuestForSegment } from './guest-link';
 
 export type PublicInvitation = Awaited<ReturnType<typeof loadPublicInvitation>>;
 
@@ -25,22 +26,16 @@ export const GUESTBOOK_PAGE_SIZE = 50;
  *   RSVP and guestbook close while guest data is retained.
  * - The guest name is never part of the config; it is injected here from the
  *   guests table so one config can serve every guest.
+ * - `includeDraft` is only for the owner preview (`app/preview/[id]`), which
+ *   checks ownership before calling; public routes never pass it.
  */
-export async function loadPublicInvitation(slug: string, guestSlug?: string) {
+export async function loadPublicInvitation(slug: string, guestSlug?: string, options: { includeDraft?: boolean } = {}) {
   const [invitation] = await db.select().from(invitations).where(eq(invitations.slug, slug)).limit(1);
-  if (!invitation || invitation.status === 'DRAFT') return null;
+  if (!invitation || (invitation.status === 'DRAFT' && !options.includeDraft)) return null;
 
   const expired = invitation.status === 'EXPIRED' || (invitation.expiresAt ? invitation.expiresAt.getTime() < Date.now() : false);
 
-  const guest = guestSlug
-    ? (
-        await db
-          .select()
-          .from(guests)
-          .where(and(eq(guests.invitationId, invitation.id), eq(guests.slug, guestSlug)))
-          .limit(1)
-      )[0] ?? null
-    : null;
+  const guest = guestSlug ? await findGuestByLinkSegment(invitation.id, guestSlug) : null;
 
   // An unknown guest slug is a wrong link, not a different view of the page.
   if (guestSlug && !guest) return null;
@@ -85,6 +80,37 @@ export async function loadPublicInvitation(slug: string, guestSlug?: string) {
     expired,
     readOnly: expired,
   };
+}
+
+/**
+ * The guest a personal link's last segment refers to, under the B-011 rule (`guest-link.ts`): token first, then the
+ * slug of a guest without a token. One indexed query; at most two candidate rows.
+ */
+export async function findGuestByLinkSegment(invitationId: number, segment: string) {
+  if (!segment) return null;
+  const rows = await db
+    .select()
+    .from(guests)
+    .where(
+      and(
+        eq(guests.invitationId, invitationId),
+        or(eq(guests.linkToken, segment), and(isNull(guests.linkToken), eq(guests.slug, segment))),
+      ),
+    )
+    .limit(2);
+  return pickGuestForSegment(rows, segment);
+}
+
+/**
+ * Invitation row + parsed config for guest-facing side routes (calendar file, link-preview image) under the same
+ * visibility rule as the page: drafts are never public. No guest lookup, media or guestbook queries.
+ */
+export async function loadPublishedInvitationSummary(slug: string) {
+  const [invitation] = await db.select().from(invitations).where(eq(invitations.slug, slug)).limit(1);
+  if (!invitation || invitation.status === 'DRAFT') return null;
+  const parsed = detailConfigSchema.safeParse(invitation.config ?? {});
+  const config: DetailConfig = parsed.success ? parsed.data : {};
+  return { invitation, config };
 }
 
 /** A re-render caused by an RSVP redirect is not a new open. */

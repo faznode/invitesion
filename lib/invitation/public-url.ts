@@ -2,22 +2,8 @@ import 'server-only';
 
 import { headers } from 'next/headers';
 
-/**
- * Canonical public URLs for the guest-facing invitation.
- *
- * Format is locked by REBUILD-HANDOFF section 1.5:
- *   /i/:invitationSlug/:guestSlug
- *
- * The guest slug is what makes per-guest personalisation and open tracking
- * possible, so it must never be dropped when building a share link.
- */
-export function guestPath(invitationSlug: string, guestSlug: string) {
-  return `/i/${encodeURIComponent(invitationSlug)}/${encodeURIComponent(guestSlug)}`;
-}
-
-export function invitationPath(invitationSlug: string) {
-  return `/i/${encodeURIComponent(invitationSlug)}`;
-}
+// Path builders live in a client-safe module (the editor needs them); re-exported so server imports keep working.
+export { guestPath, invitationPath, ownerPreviewPath } from './public-path';
 
 /**
  * Absolute origin for links that leave the app (WhatsApp, email).

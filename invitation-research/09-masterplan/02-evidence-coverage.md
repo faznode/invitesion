@@ -1,7 +1,7 @@
 <!-- SUMMARY (first 7 lines — greppable) -->
 # 02-evidence-coverage.md — evidence quality, confidence, gaps, assumptions, exclusions, addenda
 > WHAT: How much each conclusion of this masterplan can be trusted, per competitor and per conclusion type.
-> STATUS: FINAL v1 (s08, 2026-11-03) · evidence cutoff `../_evidence-index.md` session 08 · planning gate met through ADR-W1 (not literally)
+> STATUS: FINAL v2 (s09, 2026-11-03; v1 s08) · evidence cutoff `../_evidence-index.md` session 08 + the s09 spike results · planning gate met through ADR-W1 (not literally)
 > OWNER: Research agent
 > DEPS: ../_evidence-index.md, ../04-template-benchmarks/{captures-summary.csv,benchmark-exclusions.csv,protocol.md}, ../03-teardowns/*/dossier.md, 12-decision-log.md (ADR-W1)
 > GREP: evidence, confidence, coverage, ADR-W1, exclusions, addenda, assumptions
@@ -32,14 +32,14 @@
 ## 3. Confidence per conclusion type
 | Conclusion | Confidence | Why |
 |---|---|---|
-| Our own product (features, defects, architecture) | high | code read at `2c94140`; runtime checks for QA-001 and QA-005 |
+| Our own product (features, defects, architecture) | high | code read at `2c94140`, identical product code at `64678cf`; runtime checks for QA-001, QA-005 (s08 + s09) and QA-003's 200 (s09) |
 | Guest-page performance comparison | medium (lab only) | eligible captures, Lighthouse 12.8.2 mobile; TBT ≠ INP; C-INV-005 omits middleware and clerk-js |
 | "Typical Indonesian premium / DIY guest page" | medium | 5 of the top 8 measured (ADR-W1) |
 | Mass-market DIY leaders (IDI, PLO) guest pages | low | unmeasured |
 | Feature presence for level-C vendors | low-medium | vendor claims and structure-only observations |
 | Prices and packaging | high | public pages read on dated visits |
 | Market size, traffic, conversion | not established | no analytics access (ADR-O06); Tranco and install bands are coarse estimates |
-| Backend capacity (spike) | medium for relative comparison, low for absolute capacity | 2-vCPU sandbox shared with the platform's dev server; fake data; see 09 |
+| Backend capacity (spike) | medium for relative comparison, low for absolute capacity | s09 matched rerun of three arms in two rounds with validity rules (`../08-backend-rust-plan/spike/`); 2-vCPU sandbox, load generator and Postgres on the same host, platform dev server measured idle; fake data; no middleware; s08 Next-only files are historical and not compared; see 09 and ADR-A1 |
 
 ## 4. Exclusions honoured (`04-template-benchmarks/benchmark-exclusions.csv`, 26 rows)
 Wrappers (C-ENV-101…106, C-INV-101), closed-cover structure rows (incl. C-IVT-102/103), Indoinvite catalog pages (C-IDI-101…107), Viding Studio captures (C-VID-104…106: robots.txt answered 500 → disallow, D-022). `eligibility.py` enforces them for every aggregate; the feature-matrix builder and dossier digests use it.

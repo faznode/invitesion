@@ -31,7 +31,9 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   experimental: {
-    ppr: true,
+    // Opt-in per segment: the root layout opts every route in; the public guest pages opt out so a wrong link gets a
+    // real 404 (with PPR the shell's 200 is flushed before the page can call notFound()) — B-011, QA-003.
+    ppr: 'incremental',
     clientSegmentCache: true,
   },
   async headers() {

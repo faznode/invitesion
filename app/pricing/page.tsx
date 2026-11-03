@@ -5,12 +5,12 @@ import MarketingHeader from '../marketing-header';
 import MarketingFooter from '../marketing-footer';
 import { getMarketingCopy } from '../marketing-copy';
 import { getLocale } from '@/lib/locale-server';
+import { tierPriceLabel } from '@/lib/pricing';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
   title: 'Harga Invitesion — Bayar Sekali, Aktif 12 Bulan',
-  description:
-    'Mulai gratis. Upgrade ke tema premium mulai Rp149.000 per undangan. Tidak ada biaya bulanan.',
+  description: `Draf dan pratinjau gratis. Aktifkan undangan dengan Standard ${tierPriceLabel('standard', 'id')} atau Premium ${tierPriceLabel('premium', 'id')}: bayar sekali, aktif 12 bulan, tanpa biaya bulanan.`,
 };
 
 export default async function PricingPage() {
@@ -25,12 +25,12 @@ export default async function PricingPage() {
         <p>{copy.pricingBody}</p>
 
         <div className={styles.pricingCards} style={{ marginTop: 0 }}>
-          {/* Free */}
+          {/* Draft & preview (not a plan: publishing needs Standard or Premium) */}
           <div className={styles.pricingCard}>
             <small>{copy.pricingBadge}</small>
             <h3>{copy.pricingPlan}</h3>
             <div className={styles.pricingPrice}>
-              <strong>Rp0</strong>
+              <strong>{copy.pricingDraftPrice}</strong>
             </div>
             <p>{copy.pricingPlanBody}</p>
             <ul>{copy.pricingIncluded.map(item => <li key={item}><Check size={15}/>{item}</li>)}</ul>

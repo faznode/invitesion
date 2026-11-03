@@ -1,4 +1,4 @@
-import { money, type Currency, type Money } from '@/lib/payment/money';
+import { formatMoney, money, type Currency, type Money } from '@/lib/payment/money';
 
 /**
  * Single place for invitation activation pricing.
@@ -45,6 +45,14 @@ export function activationPrice(isPremium: boolean, currency: Currency = 'IDR'):
  */
 export function currencyForLocale(locale: 'id' | 'en'): Currency {
   return locale === 'id' ? 'IDR' : 'USD';
+}
+
+/**
+ * The price string marketing pages show for a tier (B-002, ADR-O02): the amount checkout charges for the visitor's
+ * locale, formatted the same way. Copy never carries a price literal.
+ */
+export function tierPriceLabel(tier: Tier, locale: 'id' | 'en'): string {
+  return formatMoney(priceFor(tier, currencyForLocale(locale)), locale);
 }
 
 /**

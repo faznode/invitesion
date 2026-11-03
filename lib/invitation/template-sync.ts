@@ -7,6 +7,7 @@ import {
   type InvitationTemplate,
   type TemplateCategory,
 } from './templates';
+import { catalogDefaultConfig } from './template-defaults';
 import { getThemeArt } from './theme-art';
 
 /**
@@ -106,10 +107,8 @@ function toRow(tpl: InvitationTemplate) {
     isPremium: tpl.tier !== 'free',
     // Basis data aset: cover unik per tema + galeri, tersimpan di DB.
     thumbnail: art.cover,
-    defaultConfig: {
-      ...(tpl.preset as Record<string, unknown>),
-      art,
-    } as Record<string, unknown>,
+    // `art` is template-owned; createInvitation sets it aside before the strict schema (B-001).
+    defaultConfig: catalogDefaultConfig(tpl),
   };
 }
 

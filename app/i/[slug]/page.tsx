@@ -2,9 +2,12 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { after } from 'next/server';
 import { PublicInvitationRenderer } from '@/components/invitation/public-renderer';
+import { invitationShareMetadata } from '@/lib/invitation/preview-image';
 import { loadPublicInvitation, trackInvitationView } from '@/lib/invitation/public';
 
 export const dynamic = 'force-dynamic';
+// Rendered whole so an unknown or draft invitation answers 404 rather than 200 (B-011).
+export const experimental_ppr = false;
 
 type Params = { params: Promise<{ slug: string }> };
 
@@ -14,7 +17,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   if (!data) return { title: 'Undangan tidak ditemukan' };
   return {
     title: data.config.settings?.title || 'Undangan Digital',
-    description: data.config.settings?.openingCopy ?? undefined,
+    ...invitationShareMetadata(data.invitation, data.config),
     // A guest link is personal; keep it out of search results.
     robots: { index: false, follow: false },
   };

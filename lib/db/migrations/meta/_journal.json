@@ -64,6 +64,20 @@
       "when": 1785200000000,
       "tag": "0008_widen_template_category",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793732737877,
+      "tag": "0009_guest_attending_count",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793734118857,
+      "tag": "0010_guest_link_token",
+      "breakpoints": true
     }
   ]
 }

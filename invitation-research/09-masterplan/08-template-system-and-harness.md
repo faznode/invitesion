@@ -1,0 +1,82 @@
+<!-- SUMMARY (first 7 lines — greppable) -->
+# 08-template-system-and-harness.md — template contract (manifest v1), tier budgets, quality gates, harness CLI, dogfood plan
+> WHAT: How a template is declared, checked and shipped: the machine-readable manifest, budgets with their provenance, every gate and its honest limit, the CLI, the verified-religious-text rule, and the path from today's palette-only renderer to template system v2 (B-030).
+> STATUS: FINAL v1 (session 09, 2026-11-03). Implementation: `tools/template-harness/` (status per command in `../_handoff/IMPLEMENTATION-LOG.md`).
+> OWNER: Research agent (Architect role)
+> DEPS: ../01-codebase-audit/template-system.md, ../06-gap-analysis/template-catalog-roadmap.md, ../05-feature-matrix/feature-matrix.csv, 06-backlog.md (B-003, B-009, B-012, B-030), 12-decision-log.md (ADR-O04, ADR-O05), C-INV-001…005
+> GREP: template, manifest, harness, budget, gate, reduced motion, 3D, fallback, license, originality, religious, snapshot, dogfood
+> UPDATED: 2026-11-03
+
+## 1. Today (audit, unchanged at `64678cf`)
+A template is a data row in `lib/invitation/templates.ts` (64 entries; tiers free 34 / premium 24 / signature 6; 18 palettes; 27 categories). Guests see **one layout for every template**: `components/invitation/public-renderer.tsx` varies only the palette. Theme art is hot-linked Unsplash; fonts are Manrope + Instrument Serif self-hosted by `next/font`; no audio element, no motion, no 3D, no per-template assets, licenses or budgets. Catalog-created invitations lose their preset (B-001). Three presets carry Qur'an translations of unknown provenance (B-003).
+
+## 2. Contract: `template.manifest.json` (schema v1)
+Machine-readable, validated by `tools/template-harness/schema.ts` (zod, strict: unknown keys fail). Every template directory holds the manifest, its own files (`template.html`, `template.css`, optional `template.js`), and an `assets/` folder.
+
+| Block | Fields (required unless marked optional) | Why |
+|---|---|---|
+| Identity | `schemaVersion: 1`, `id` (kebab slug), `name`, `version` (semver), `niche` (wedding, islamic-wedding, birthday, aqiqah, khitanan, corporate, memorial, …), `tier` (`basic` / `premium` / `signature`), `locales` (≥ 1 of `id`, `en`), `defaultLocale` | catalog, routing, budgets |
+| Sections | ordered list of `{ id, required, slots: [{ key, kind: text / richtext / image / datetime / list, maxLength?, localized? }] }` from the canonical set cover, couple, events, countdown, gallery, gift, rsvp, wishes, quote, closing | editor shows only what the template renders (audit §9.4) |
+| Design tokens | `colors` (`background`, `surface`, `text`, `mutedText`, `accent`, `onAccent`), `typography` (`display`, `body` → font asset ids), `radius`, `spacingScale` | one source of truth, contrast gate |
+| Motion | `level` 0–3 (0 none, 1 fades, 2 choreographed reveals, 3 scroll-linked / 3D), `durationsMs`, `easing`, `reducedMotion: "none" / "fade-only"` | reduced-motion gate |
+| 3D (optional) | `{ asset, fallbackImage, lazy: true, trigger: "interaction" / "visible", maxBytes }` | lazy 3D with fallback gate |
+| Audio (optional) | `{ asset, preload: "none", startsOn: "open-gesture", control: true }` | autoplay policy, pause control |
+| Assets | `[{ id, path, kind: image / font / audio / model / og, bytes, width?, height?, license, source, author, provenance: own-work / licensed / generated, deferred: bool }]` | budgets, licensing, originality |
+| Personalization | `guestName: { slot, maxLength, dir: "auto" }`, `allowedSources: ["guests-table"]` (never a free-text `?to=`) | sanitization gate |
+| Accessibility | `minContrast` (≥ 4.5 body, ≥ 3 large), `lang`, `focusVisible: true` | a11y gate |
+| Budgets | tier defaults (§3); a template may only tighten them | performance gate |
+| Localization | `strings: { key: { id: "…", en: "…" } }` | completeness gate |
+| Religious text (optional) | `quotes: [{ section, corpusId }]` only; text comes from `content/verified-religious-texts/corpus.json` | ADR-O04 |
+| Originality | `originality: { statement, references: [] }` (references = own moodboards; never competitor URLs) | originality gate |
+| OG | `og: { asset }` (1200×630) | OG gate |
+| External scripts | `externalScripts: []` (must be ⊆ the harness allowlist, empty by default) | allowlist gate |
+
+## 3. Tier budgets and their provenance
+Benchmark aggregates are unfinished (tier classification and eligible aggregates are a tracked addendum), so **no competitor-parity threshold is set**. Budgets are internal and anchored on our own lab page C-INV-005 (311 KiB cold load, LCP 2.53 s, a11y 96; limits: lab, no middleware, placeholder Clerk) [ASSUMPTION; revisit when tier aggregates exist or field data arrives].
+
+| Budget (bytes on disk of the template's own files and non-deferred assets) | basic | premium | signature |
+|---|---|---|---|
+| Cold-load total (HTML + CSS + JS + fonts + non-deferred images) | ≤ 320 KiB | ≤ 380 KiB | ≤ 420 KiB |
+| Template JS (non-deferred) | ≤ 8 KiB | ≤ 20 KiB | ≤ 40 KiB |
+| Fonts (≤ 2 families) | ≤ 120 KiB | ≤ 160 KiB | ≤ 160 KiB |
+| Any single image | ≤ 200 KiB | ≤ 250 KiB | ≤ 250 KiB |
+| Deferred audio (after the open gesture) | none | ≤ 1.5 MiB | ≤ 1.5 MiB |
+| Deferred 3D model (after interaction / visible) | none | none | ≤ 900 KiB, fallback image ≤ 120 KiB |
+| Motion level allowed | ≤ 1 | ≤ 2 | ≤ 3 |
+
+Measured from files, not from manifest claims: a declared `bytes` that differs from the file fails `check`. `bench` adds a Lighthouse cold-load run of the generated preview when Chrome and Lighthouse 12.8.2 are installed (`bootstrap-sandbox.sh tools`); otherwise it reports "Lighthouse not run" and never invents a score.
+
+## 4. Gates (`check` = static, `bench` / `snapshot` = browser)
+| Gate | How it is checked | Honest limit |
+|---|---|---|
+| Schema | zod strict parse | — |
+| Tier budgets + correct asset measurement | file sizes, PNG/JPEG/WebP headers for dimensions, declared vs actual bytes | transfer size after compression is measured only by `bench` |
+| Lighthouse (performance, accessibility) | `bench`: Lighthouse 12.8.2 mobile on `dist/preview.html` | lab only; TBT is not INP |
+| Contrast | WCAG 2.2 ratio of text / muted / accent pairs from tokens | computed on tokens, not on rendered pixels over images |
+| Reduced motion | motion level > 0 ⇒ CSS has `@media (prefers-reduced-motion: reduce)` and the manifest declares the fallback | static; behaviour confirmed in `snapshot` with emulated reduced motion |
+| Lazy 3D + fallback | model declared `deferred`, `lazy: true`, fallback image present, model path absent from initial HTML | real-device frame rate not measured |
+| Long names, RTL/Arabic, emoji, timezone labels | preview rendered with fixtures (long Indonesian name, Arabic name, emoji name, hostile markup) into isolated `dir="auto"` / `<bdi>` slots; event times via `Intl` in the event zone with WIB / WITA / WIT labels | visual overflow judged in snapshots |
+| Personalization sanitization (our own pages) | hostile fixture must appear escaped; no raw `<script` / `on*=` from guest data | harness renderer, not the product renderer (product: H-INV-003) |
+| Browser / audio behaviour | `<audio preload="none">`, no `autoplay`, starts on the open gesture, pause control with `aria-pressed` | playback itself is not verified without a device (opening ≠ playback) |
+| Visual snapshots 360×800, 390×844, 412×915 | `snapshot`: headless Chrome screenshots, hashes in the report | images are not committed (git-ignored); hashes and sizes are |
+| Localization completeness | every `strings` key has every declared locale | — |
+| External-script allowlist | no `<script src>` / `@import` / `url(http…)` outside the allowlist (empty) | — |
+| OG image | `og.asset` exists, 1200×630 | — |
+| Asset licensing | every asset has license + source + author; license ∈ allowlist (OFL-1.1, Apache-2.0, MIT, CC0-1.0, CC-BY-4.0, own-work); fonts must be OFL-1.1 / Apache-2.0 | declaration is trusted; provenance review stays human |
+| Originality | no competitor brand, domain or asset reference (list from the research shortlist) in any template file or asset source | cannot prove visual dissimilarity; reviewer sign-off in the report |
+| Religious text | quotes only by `corpusId` present in the corpus with source, edition, permission, verifier, date; inline religious text fails | the corpus starts empty: no quote blocks until the owner approves entries |
+
+## 5. CLI (`pnpm harness <command>`, implemented in `tools/template-harness/`)
+`new <dir> --tier --niche --locale` (scaffold that passes `check`), `check <dir>` (all static gates, exit 1 on failure, JSON + text), `bench <dir>` (budgets + Lighthouse when available), `preview <dir>` (`dist/preview.html` + fixture variants), `snapshot <dir>` (three viewports when Chrome is available), `report <dir>` (writes `GENERATION-REPORT.md` from the latest results). Self-tests in `tests/template-harness.test.ts` prove the happy path and the deliberate failures: oversized asset, unlicensed font, missing reduced motion, unsafe guest input, unverified religious text, external script.
+
+## 6. Dogfood (original work, `templates/_harness-samples/`)
+1. **Basic wedding** — level-1 motion, no audio, two self-hosted fonts.
+2. **Premium Islamic wedding** — audio after the open gesture, Bismillah-free layout; **no quotation block** (corpus empty, ADR-O04).
+3. **Signature 3D / motion** — level-3 motion with reduced-motion fallback, a lazily loaded 3D scene behind an interaction, fallback image.
+Assets are generated or drawn for this repository (`provenance: own-work` / `generated`), fonts only OFL with the license file alongside. Each has a generation report with pass evidence and the deliberate-failure proofs.
+
+## 7. Path into the product (B-030, template system v2)
+1. Generate manifests for the 64 registry entries from `templates.ts` (identity, tier, palette → tokens) so the catalog and the harness share one source; drop the hand-synced palette table in the renderer.
+2. Section components per template family behind the manifest's section list; `DetailConfig` stays the per-invitation content schema (strict; ADR-O01 keeps template-owned keys such as `art` out of it).
+3. `check` in CI for every changed template; `bench` on a nightly runner with Chrome.
+4. Rollback: the manifest is additive; the current renderer stays the fallback for templates without section components.

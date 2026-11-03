@@ -3,8 +3,8 @@ import 'server-only';
 import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
 import { invitations, invitationVersions, templates } from '@/lib/db/schema';
-import { detailConfigSchema } from './detail-config';
 import { resolveUniqueSlug, slugify } from './slug';
+import { presetConfigFromTemplateDefaults } from './template-defaults';
 
 export const EVENT_TYPES = ['wedding', 'birthday', 'aqiqah', 'tasyakuran', 'khitanan', 'corporate'] as const;
 export type EventType = (typeof EVENT_TYPES)[number];
@@ -22,9 +22,10 @@ async function invitationSlugTaken(candidate: string) {
  * Creates a DRAFT invitation for a customer.
  *
  * The template's `defaultConfig` seeds the invitation config so the renderer
- * always has a valid starting shape; an invalid or missing default degrades to
- * an empty config rather than blocking creation. Version 1 is recorded so the
- * revision history has an origin point to roll back to.
+ * always has a valid starting shape. Template-owned keys (`art`) are set aside
+ * before the strict schema check (B-001, ADR-O01); a default that is still
+ * invalid degrades to an empty config rather than blocking creation. Version 1
+ * is recorded so the revision history has an origin point to roll back to.
  */
 export async function createInvitation({
   userId,
@@ -44,8 +45,9 @@ export async function createInvitation({
     const [template] = await db.select().from(templates).where(eq(templates.id, templateId)).limit(1);
     if (template) {
       resolvedTemplateId = template.id;
-      const parsed = detailConfigSchema.safeParse(template.defaultConfig ?? {});
-      if (parsed.success) defaultConfig = parsed.data as Record<string, unknown>;
+      const preset = presetConfigFromTemplateDefaults(template.defaultConfig);
+      if (preset.ok) defaultConfig = preset.config as Record<string, unknown>;
+      else console.warn(`[createInvitation] template ${template.id} defaults rejected: ${preset.issues.join('; ')}`);
     }
   }
 

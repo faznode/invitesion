@@ -6,6 +6,7 @@ import { db } from '@/lib/db/drizzle';
 import { invitations, mediaAssets } from '@/lib/db/schema';
 import { getLocale } from '@/lib/locale-server';
 import { detailConfigSchema } from '@/lib/invitation/detail-config';
+import { ownerPreviewPath } from '@/lib/invitation/public-path';
 import { InvitationEditor } from './editor';
 
 export const dynamic = 'force-dynamic';
@@ -43,7 +44,7 @@ export default async function EditInvitationPage({
   return (
     <InvitationEditor
       invitationId={id}
-      slug={invitation.slug}
+      previewHref={ownerPreviewPath(id)}
       eventType={invitation.eventType}
       locale={locale}
       initialConfig={config}

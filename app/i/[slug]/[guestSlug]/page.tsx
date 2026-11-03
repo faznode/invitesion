@@ -2,9 +2,12 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { after } from 'next/server';
 import { PublicInvitationRenderer } from '@/components/invitation/public-renderer';
+import { invitationShareMetadata } from '@/lib/invitation/preview-image';
 import { loadPublicInvitation, trackInvitationView } from '@/lib/invitation/public';
 
 export const dynamic = 'force-dynamic';
+// Rendered whole, not as a prerendered shell + stream, so an unknown guest link answers 404 rather than 200 (B-011).
+export const experimental_ppr = false;
 
 type Params = {
   params: Promise<{ slug: string; guestSlug: string }>;
@@ -17,6 +20,8 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   if (!data) return { title: 'Undangan tidak ditemukan' };
   return {
     title: data.config.settings?.title || 'Undangan Digital',
+    // Link preview (B-010): per invitation, never per guest — the guest name stays out of shared metadata.
+    ...invitationShareMetadata(data.invitation, data.config),
     robots: { index: false, follow: false },
   };
 }

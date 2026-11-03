@@ -1,7 +1,7 @@
 <!-- SUMMARY (first 7 lines — greppable) -->
 # 11-pricing-growth-roadmap.md — packaging, growth / SEO, ideation highlights, sprint roadmap, 90-day sequence, KPIs, risks
 > WHAT: How the backlog turns into releases over 90 days, with entry / exit criteria, the pricing stance, growth levers and KPIs (definitions only; no invented baselines, ADR-O06).
-> STATUS: FINAL v1 (s08, 2026-11-03)
+> STATUS: FINAL v2 (s09, 2026-11-03; v1 s08): 90-day sequence reconciled with the s09 spike (B-017a in sprint 1, B-014 as the measured lever)
 > OWNER: Research agent
 > DEPS: 06-backlog.md, ../06-gap-analysis/pricing-packaging.md, ../07-ideation/{README.md,top-10.md}, 12-decision-log.md
 > GREP: roadmap, 90-day, sprint, pricing, growth, seo, kpi, risk
@@ -28,8 +28,8 @@ Top-10 ideas mapped: I-06 → B-034 (sprint 4); I-02 → after B-012 (sprint 3);
 ## 4. Recommended 90-day sequence (two-week sprints)
 | Sprint | Days | Scope | Entry criteria | Exit criteria |
 |---|---|---|---|---|
-| 1 | 1–14 | **Trust fixes:** B-001 presets, B-002 prices, B-003 scripture, B-004 time zones, B-005 preview link, B-006 CSV, B-007 allowance | baseline tests green | each item's tests pass; typecheck + test + build green; IMPLEMENTATION-LOG updated |
-| 2 | 15–28 | **Guest table stakes I:** B-008 countdown + calendar, B-010 OG image, B-012 harness budgets, B-015 Clerk off guest pages, B-016 contrast | sprint 1 exit | harness `check` green for the base template; Lighthouse ≥ 90 on the guest fixture with middleware once real keys exist |
+| 1 | 1–14 | **Trust fixes:** B-001 presets, B-002 prices, B-003 scripture, B-004 time zones, B-005 preview link, B-006 CSV, B-007 allowance, B-017a atomic view dedupe (s09 spike finding) | baseline tests green | each item's tests pass; typecheck + test + build green; IMPLEMENTATION-LOG updated |
+| 2 | 15–28 | **Guest table stakes I:** B-008 countdown + calendar, B-010 OG image, B-012 harness budgets, B-014 cached invitation-level render + one loader call (ADR-A1 lever; render ≈ 85–90 % of server CPU per page), B-015 Clerk off guest pages, B-016 contrast | sprint 1 exit | harness `check` green for the base template; spike rerun shows the product page's server CPU per view within 2× of the `next-min` level; Lighthouse ≥ 90 on the guest fixture with middleware once real keys exist |
 | 3 | 29–42 | **Guest table stakes II:** B-009 cover + music, B-023 profiles, B-026 gift block, B-029 captured blocks, B-032 memorial preset | B-012 live | budgets still met; a11y ≥ 95; reduced-motion run clean |
 | 4 | 43–56 | **Host tools:** B-011 opaque links (flag), B-013 rate limits, B-018 wa.me, B-033 import, B-034 analytics + follow-up lists | B-007 live | flag rollout plan; abuse tests pass |
 | 5 | 57–70 | **Day-of + editor:** B-024 QR pass / scanner / greeting screen, B-035 live preview + autosave, B-036 free theme switching | B-011 on for new invitations | desk flow ≤ 3 s per guest in a test; no data loss on autosave |

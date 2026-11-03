@@ -1,0 +1,38 @@
+import { isFlagOn } from '@/lib/flags';
+import { buildIcs, calendarEventsFromConfig } from '@/lib/invitation/calendar';
+import { invitationDisplayName } from '@/lib/invitation/headline';
+import { loadPublishedInvitationSummary } from '@/lib/invitation/public';
+import { getPublicOrigin, invitationPath } from '@/lib/invitation/public-url';
+
+export const dynamic = 'force-dynamic';
+
+/**
+ * Calendar file for every event of a published invitation (B-008). The same file serves every guest, so it carries
+ * no guest data and the guest slug is not part of this URL.
+ */
+export async function GET(_request: Request, { params }: { params: Promise<{ slug: string }> }) {
+  if (!isFlagOn('GUEST_CALENDAR')) return new Response('Not found', { status: 404 });
+
+  const { slug } = await params;
+  const summary = await loadPublishedInvitationSummary(slug);
+  if (!summary) return new Response('Not found', { status: 404 });
+
+  const origin = await getPublicOrigin();
+  const events = calendarEventsFromConfig({
+    slug,
+    displayName: invitationDisplayName(summary.invitation.eventType, summary.config),
+    events: summary.config.events ?? [],
+    publicUrl: origin ? `${origin}${invitationPath(slug)}` : null,
+  });
+  if (events.length === 0) return new Response('Not found', { status: 404 });
+
+  const filename = `undangan-${slug.replace(/[^a-z0-9-]/gi, '').slice(0, 60) || 'acara'}.ics`;
+  return new Response(buildIcs(events), {
+    headers: {
+      'Content-Type': 'text/calendar; charset=utf-8',
+      'Content-Disposition': `attachment; filename="${filename}"`,
+      'Cache-Control': 'public, max-age=300',
+      'X-Robots-Tag': 'noindex',
+    },
+  });
+}

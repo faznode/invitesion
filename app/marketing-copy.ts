@@ -1,4 +1,5 @@
 import type { Locale } from '@/lib/i18n';
+import { tierPriceLabel } from '@/lib/pricing';
 
 export type HeroSlideTheme = 'wedding' | 'rsvp' | 'whatsapp' | 'party';
 export type HeroSlide = { theme: HeroSlideTheme; tag: string; q: string; a: string };
@@ -16,7 +17,7 @@ export const marketingCopy = {
     heroStageAria: 'Pratinjau produk Invitesion',
     heroBody:
       'Buat halaman undangan, sebar tautan personal, dan pantau kehadiran tamu secara real-time. Semua dari satu tempat, tanpa ribet.',
-    heroPrimary: 'Buat undangan gratis',
+    heroPrimary: 'Mulai buat draf gratis',
     heroSecondary: 'Lihat cara kerja',
     heroNote: 'Tanpa kartu kredit · Siap dalam hitungan menit',
 
@@ -68,32 +69,31 @@ export const marketingCopy = {
     pricingTitle: 'Bayar sekali. Aktif 12 bulan.',
     pricingBody:
       'Tidak ada langganan bulanan. Pilih tema yang paling cocok, bayar satu kali, dan undangan kalian aktif selama satu tahun penuh.',
-    pricingBadge: 'GRATIS',
-    pricingPlan: 'Mulai tanpa biaya',
+    pricingBadge: 'COBA DULU',
+    pricingPlan: 'Draf & pratinjau tanpa biaya',
+    pricingDraftPrice: 'Draf gratis',
     pricingPlanBody:
-      'Semua yang dibutuhkan untuk membuat halaman undangan dan mengelola respons tamu.',
+      'Buat draf, pilih tema, dan lihat pratinjaunya dulu. Undangan bisa dibuka tamu setelah diaktifkan dengan paket Standard atau Premium.',
     pricingIncluded: [
       'Halaman undangan personal',
       'RSVP dan daftar tamu',
       'Agenda, lokasi & galeri',
-      'Tautan tamu yang bisa dibagikan',
+      'Pratinjau sebelum membayar',
     ],
-    pricingCta: 'Coba gratis',
+    pricingCta: 'Buat draf gratis',
     pricingNote:
       'Untuk kebutuhan acara khusus, hubungi tim Invitesion setelah event kalian dibuat.',
     tierStandardLabel: 'STANDARD',
-    tierStandardPrice: 'Rp149.000',
     tierStandardPer: 'per undangan · aktif 12 bulan',
     tierStandardDesc: 'Satu tema pilihan, lengkap dengan semua fitur inti.',
     tierStandardItems: [
-      'Semua fitur gratis',
-      '1 tema premium pilihan',
+      'Undangan aktif & bisa dibagikan 12 bulan',
+      '1 tema Standard pilihan',
       'Musik latar & animasi masuk',
       'Galeri foto & video',
       'Amplop digital (ucapan & hadiah)',
     ],
     tierPremiumLabel: 'PREMIUM',
-    tierPremiumPrice: 'Rp299.000',
     tierPremiumPer: 'per undangan · aktif 12 bulan',
     tierPremiumDesc: 'Akses semua tema + ganti tema kapan saja.',
     tierPremiumItems: [
@@ -104,7 +104,7 @@ export const marketingCopy = {
       'Prioritas dukungan',
     ],
     tierCta: 'Mulai sekarang',
-    tierCtaFree: 'Coba gratis dulu',
+    tierCtaFree: 'Buat draf dulu',
 
     // ── Roadmap ─────────────────────────────────────────────────────────────
     roadmapEyebrow: 'DAN TERUS BERKEMBANG',
@@ -123,8 +123,8 @@ export const marketingCopy = {
 
     // ── CTA ────────────────────────────────────────────────────────────────
     ctaTitle: 'Momen istimewa kalian layak dirayakan dengan indah.',
-    ctaBody: 'Mulai gratis. Upgrade ke tema premium kapan pun kalian siap.',
-    ctaButton: 'Buat undangan gratis',
+    ctaBody: 'Mulai dari draf gratis. Bayar sekali saat undangan siap dibagikan.',
+    ctaButton: 'Mulai buat draf gratis',
 
     // ── Footer ──────────────────────────────────────────────────────────────
     footerTagline: 'Undangan digital yang membantu kabar baik sampai dengan baik.',
@@ -168,7 +168,7 @@ export const marketingCopy = {
     heroStageAria: 'Invitesion product preview',
     heroBody:
       'Build your invitation page, share personal links, and watch attendance in real time. All from one place, without the hassle.',
-    heroPrimary: 'Create free invitation',
+    heroPrimary: 'Start a free draft',
     heroSecondary: 'See how it works',
     heroNote: 'No credit card · Ready in minutes',
     introEyebrow: 'INVITATION PLATFORM',
@@ -212,30 +212,29 @@ export const marketingCopy = {
     pricingTitle: 'Pay once. Active for 12 months.',
     pricingBody:
       'No monthly subscription. Pick the theme that fits, pay once, and your invitation stays live for a full year.',
-    pricingBadge: 'FREE',
-    pricingPlan: 'Start at no cost',
-    pricingPlanBody: 'Everything you need to set up an invitation page and manage guest responses.',
+    pricingBadge: 'TRY FIRST',
+    pricingPlan: 'Draft and preview at no cost',
+    pricingDraftPrice: 'Free draft',
+    pricingPlanBody: 'Create a draft, pick a theme and preview it first. Guests can open the invitation once it is activated with Standard or Premium.',
     pricingIncluded: [
       'Personal invitation page',
       'RSVP and guest list',
       'Schedule, venue & gallery',
-      'Shareable guest links',
+      'Preview before you pay',
     ],
-    pricingCta: 'Try it free',
+    pricingCta: 'Start a free draft',
     pricingNote: 'For specialised event needs, talk to the Invitesion team once your event is created.',
     tierStandardLabel: 'STANDARD',
-    tierStandardPrice: 'IDR 149,000',
     tierStandardPer: 'per invitation · active 12 months',
     tierStandardDesc: 'One chosen theme, full feature set.',
     tierStandardItems: [
-      'All free features',
-      '1 premium theme of your choice',
+      'Live, shareable invitation for 12 months',
+      '1 Standard theme of your choice',
       'Background music & entrance animation',
       'Photo & video gallery',
       'Digital envelope (wishes & gifts)',
     ],
     tierPremiumLabel: 'PREMIUM',
-    tierPremiumPrice: 'IDR 299,000',
     tierPremiumPer: 'per invitation · active 12 months',
     tierPremiumDesc: 'All themes unlocked + switch anytime.',
     tierPremiumItems: [
@@ -246,7 +245,7 @@ export const marketingCopy = {
       'Priority support',
     ],
     tierCta: 'Get started',
-    tierCtaFree: 'Try free first',
+    tierCtaFree: 'Start with a draft',
     roadmapEyebrow: 'AND STILL GROWING',
     roadmapTitle: 'More complete, without losing its simplicity.',
     roadmapBody: 'The next features are on their way to help with even more of your special day.',
@@ -260,8 +259,8 @@ export const marketingCopy = {
     ],
     roadmapSoon: 'Coming soon',
     ctaTitle: 'Your special moment deserves to be celebrated beautifully.',
-    ctaBody: 'Start free. Upgrade to a premium theme whenever you are ready.',
-    ctaButton: 'Create free invitation',
+    ctaBody: 'Start with a free draft. Pay once when your invitation is ready to share.',
+    ctaButton: 'Start a free draft',
     footerTagline: 'The invitation platform that helps good news arrive well.',
     footProduct: 'Product',
     footHelp: 'Support',
@@ -291,6 +290,11 @@ export const marketingCopy = {
   },
 } as const satisfies Record<Locale, unknown>;
 
+/** Copy for one locale; tier prices come from `lib/pricing.ts` so they always equal what checkout charges (B-002). */
 export function getMarketingCopy(locale: Locale) {
-  return marketingCopy[locale];
+  return {
+    ...marketingCopy[locale],
+    tierStandardPrice: tierPriceLabel('standard', locale),
+    tierPremiumPrice: tierPriceLabel('premium', locale),
+  };
 }
