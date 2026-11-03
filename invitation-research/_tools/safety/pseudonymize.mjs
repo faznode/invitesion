@@ -46,3 +46,46 @@ export function resolveTokens(text, map) {
     return map[token].label;
   });
 }
+
+export const hasToken = (text) => new RegExp(TOKEN.source).test(String(text ?? ''));
+
+// D-017 (session 07): couple names shown ON a pseudonymized demo would undo its URL token. Same rule as
+// redact-demo-names.py (keep both in step; parity-tested): the Capitalized word runs directly left and right of "&" in
+// the page title (before " — ", " | ", " – " or " - ") become "[name]" in the title, every section heading and both
+// button lists, and an @handle containing one of them (3+ letters) becomes "@[handle]". Structural words stay.
+// D-021 (session 07): applied to every competitor demo, and generic role words ("Wanita & Pria") are not names; they
+// stay visible as evidence of placeholder content.
+const TITLE_SPLIT = /\s+[—|–-]\s+/;
+const NAME = /^[A-ZÀ-ÖØ-Þ][A-Za-zÀ-ÖØ-öø-ÿ'’]+$/;
+const LETTER = 'A-Za-zÀ-ÖØ-öø-ÿ';
+const GENERIC_ROLE_WORDS = new Set(['pria', 'wanita', 'groom', 'bride', 'mempelai', 'nama', 'tamu', 'putra', 'putri', 'perempuan', 'mr', 'mrs', 'miss']);
+
+export function demoNameWords(title) {
+  const head = String(title ?? '').split(TITLE_SPLIT)[0];
+  if (!head.includes('&')) return [];
+  const [left, ...rest] = head.split('&');
+  const words = (text) => text.split(/\s+/).filter(Boolean);
+  const names = [];
+  for (const word of words(left).reverse()) { if (!NAME.test(word)) break; names.push(word); }
+  for (const word of words(rest.join('&'))) { if (!NAME.test(word)) break; names.push(word); }
+  return [...new Set(names)].filter((word) => !GENERIC_ROLE_WORDS.has(word.toLowerCase())).sort((a, b) => b.length - a.length);
+}
+
+export function redactNames(text, words) {
+  if (typeof text !== 'string') return text;
+  let out = text;
+  for (const word of words) out = out.replace(new RegExp(`(?<![${LETTER}])${escapeRegExp(word)}(?![${LETTER}])`, 'gi'), '[name]');
+  const lowered = words.filter((word) => word.length >= 3).map((word) => word.toLowerCase());
+  return out.replace(/@[A-Za-z0-9_.]+/g, (handle) => (lowered.some((word) => handle.toLowerCase().includes(word)) ? '@[handle]' : handle));
+}
+
+export function redactDemoNames(structure) {
+  const after = structure?.afterOpen ?? {};
+  const before = structure?.beforeOpen ?? {};
+  const words = demoNameWords(after.title);
+  if (!words.length) return structure;
+  after.title = redactNames(after.title, words);
+  for (const section of after.sections ?? []) section.heading = redactNames(section.heading, words);
+  for (const block of [after, before]) if (Array.isArray(block.buttons)) block.buttons = block.buttons.map((button) => redactNames(button, words));
+  return structure;
+}

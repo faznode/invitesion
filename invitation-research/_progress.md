@@ -5,7 +5,7 @@
 > OWNER: Oracle (research agent)
 > DEPS: _evidence-index.md, _open-questions.md, _rea-playbook.md
 > GREP: progress, checkpoint, phase, resume, next
-> UPDATED: 2026-10-29
+> UPDATED: 2026-11-01
 
 ## How to resume
 0. **Start at `_handoff/LATEST.md`** (session entry point: status, NEXT ACTIONS, environment rebuild via `_tools/ops/bootstrap-sandbox.sh`). Steps 2–4 below describe the session 01–02 sandbox, which no longer exists; they are kept for the Postgres/audit-build recipe.
@@ -20,8 +20,8 @@
 | Step 0 — setup, REA, skills, AGENTS.md | DONE 2026-10-29 05:25 WIB; **REA re-verified s06** (PARTIAL → all gaps fixed; Android decompilation UNVERIFIED) | `00-setup/` (+ `rea-verification.md`), `_rea-playbook.md` v2, `SKILLS-LOCK.md`, `docs/skills-registry.md`, `AGENTS.md`, `CLAUDE.md` |
 | 1 — own-codebase audit | DONE 2026-10-29 05:50 WIB | `01-codebase-audit/` (9 docs + seed fixture) |
 | 2 — competitor discovery | DONE 2026-10-29 06:20 WIB | `02-competitor-discovery/` (longlist 52, rubric, shortlist, probe data) |
-| 3 — teardowns | PARTIAL (3/15 dossiers: Enviory v1 (s04), **Katsudoto v1 + INVI v1 (s06)**; dossier template; `_tools/capture/dossier-digest.py` for §4 tables; customer-showcase links dropped) | `03-teardowns/` |
-| 4 — template benchmarks | PARTIAL (session 05: queues B/C/D landed → threshold-grade demos **ENV 6, KAT 6, INV 6**, IDI/IVT/VID/WEV 1 each; 7 wrappers kept as evidence; batch A remainder pending; blueprints + tier aggregates not started) | `04-template-benchmarks/` (+ `queues/`) |
+| 3 — teardowns | PARTIAL (3/15 dossiers: **Enviory v2 (s07, direct guest pages)**, Katsudoto v1 + INVI v1 (s06); dossier template; `_tools/capture/dossier-digest.py` for §4 tables; customer-showcase links dropped) | `03-teardowns/` |
+| 4 — template benchmarks | PARTIAL (valid demos as of s07 start: ENV 6 opened/rendered + 7 cold-load only, KAT 6, INV 6, IVT 4/4, IDI 3, VID 3, WEV 3; **s07 batch** `queue-tier-a-s07.tsv` adds IDI 105–107, VID/WEV 104–106; blueprints + tier aggregates not started) | `04-template-benchmarks/` (+ `queues/`) |
 | 5 — feature matrix + gaps | TODO | `05-feature-matrix/`, `06-gap-analysis/` |
 | 6 — ideation | TODO | `07-ideation/` |
 | 7 — harness + skills + dogfood | TODO | `tools/template-harness/`, `.agents/skills/invitesion-*`, `templates/_harness-samples/` |
@@ -109,6 +109,19 @@
 9. **Step 1 done** (`_handoff/review-20261029.md`): evidence levels A 3 (ENV, INV, KAT) · B 4 (IDI, WEV, VID, IVT) · C 3 (PLO, SMO, STM) · D 5 (all international). **Step 2 done**: 62 identifying slugs pseudonymized in 18 files + discovery/capture hardened (D-015), `.env.example` placeholder, commit guard runs both privacy checks, s05 root reorganisation redone (`archive/`, new root `README.md`, `docs/specs/`, `docs/worklog/assets/`), stale C-IDI-101 row dropped, summary regenerated.
 10. Step 3 started: batch A (18 captures) running in the background; first results C-IDI-102, C-IVT-102 (CDP fallback) and C-VID-102 (REA driver after D-014).
 
+## Session 07 summary (in progress, 2026-11-01 UTC 16:47–)
+1. Owner shared the standalone continuation brief; saved verbatim from raw HTML as `_handoff/briefs/03-standalone-continuation-brief.md`, now the governing instruction (older briefs = provenance).
+2. Fresh sandbox again. `v0/faznode-3b993736` is still `0ddd953` (no commit on any branch since 2026-10-29T23:26Z); the `invitesion-cn` mirror behind it is private, so later mirror work is unverifiable. Workspace rebuilt with the s06 pattern (research git outside the project, `checkout-index`, scaffold leftovers deleted); toolchain identical to s06 (REA 6.8.0 still npm latest, Lighthouse 12.8.2, Chrome 156.0.8078.4).
+3. Reconciliation (brief §7): `_handoff/review-20261101.md`. Snapshot contents match the brief; Wave 1 not met (captures 6/8, dossiers 2/8, intl 0/5).
+4. Privacy defect fixed (**D-017**): 19 committed summaries showed demo-couple names next to the tokenized URLs; `_tools/safety/redact-demo-names.py` + guard check; residual exposure in `a5e119c`/`0ddd953` recorded.
+5. Batch A resumed as `queues/queue-tier-a-s07.tsv` (9 missing rows + C-IDI-107 for the tahlilan demo whose C-IDI-104 run lacks Lighthouse): 10/10 `rea` + Lighthouse OK by 17:14. Opening verdict per row from `coverGate` before → after: IVT-104 and WEV-104…106 opened, VID-104…106 undetermined, IDI-105…107 no cover.
+6. Dossiers: Enviory **v2** (direct guest pages) and Invitato **v1** (names-free).
+7. **D-019** applied after the batch: Invitato template slugs tokenized (10 files, 4 tokens), names redacted (6 fields), `redactDemoNames()` at capture time with 23/23 parity.
+8. First international captures: C-BRN-101…103 (Barunson vendor sample previews, 17:30–17:32). Visitor reads S-BRN-001…004, S-PPO-001/002, S-JOY-001, S-RSV-001, S-PTF-001. Process deviation S-RSV-002 (reader fetch after a Cloudflare challenge): content excluded.
+9. **D-020:** Indoinvite `/preview/*` = SEO article + 493-theme catalog; catalog previews render a real event → 0 IDI guest-page captures, Wave-1 captures 5/8 (PLO, SMO, IDI), dossiers 3/8, intl 0/5.
+10. **D-021:** demo-couple names redacted in every competitor demo capture (Wevitation titles), parity 58/58. **Wevitation dossier v1** (S-WEV-001…005): Wave-1 dossiers 4/8.
+11. Skills that helped so far: `research` (evidence levels, claim tagging), `reverse-engineer-anything` (REA routing per the playbook).
+
 ## Decisions log (short; ADRs live in 09-masterplan/decision-log.md)
 - D-001 Measure our own pages with the exact competitor protocol (capture.mjs + Lighthouse) on a production build, not `next dev`.
 - D-002 Use a production-mode placeholder Clerk key for audit builds so the measured page equals what an anonymous guest receives in production.
@@ -126,9 +139,15 @@
 - D-014 (s06) The optional cover click is performed by the capture's CDP session inside REA's settle window: REA 6.8.0 scenarios have no conditional step, and a failed click aborts the rest of the REA visit (C-IDI-102). **Superseded by D-016.**
 - D-016 (s06) Cover control = first-viewport button/link matched by visible text or `aria-label` (or a bare "OPEN"), opened after REA's scenario by a trusted CDP mouse click once it has settled, then scrolled by CDP; `coverClickMethod` + `coverClickLanding` recorded (C-ENV-117…121 document the failure modes, C-ENV-122 the first verified opening).
 - D-015 (s06) Identifying URL slugs are pseudonymized (`rdct-` + 10 hex of SHA-256) in every committed file and written that way by discovery and capture; the token map stays private (`00-setup/privacy-hygiene.md`).
+- D-017 (s07) Couple names displayed on a pseudonymized demo (title, section headings, button labels of a capture summary whose `url` carries an `rdct-` token) are replaced by `[name]`, structural headings kept; `redact-demo-names.py --check` runs in `commit-guard.sh`, and capture applies the same rule at write time. Why: the s06 pass tokenized URLs but left the names beside them.
+- D-018 (s07) Follow-up captures always get a NEW id (C-IDI-107 re-captures the tahlilan demo of C-IDI-104, which lacks Lighthouse) and go into a new queue file (`queue-tier-a-s07.tsv`), so failure evidence is never overwritten and no queue is edited while a batch may read it.
+- D-019 (s07) Invitato template previews are not synthetic placeholders (designs named after client couples, at least one tied to a real wedding): the couple part of `invitato.net/template-<couple>/` is tokenized (rule `ivt-template-couple`) and their names are redacted (D-017 rule); applied only after the batch stopped. `redactDemoNames()` now also runs at capture time (parity with the Python fixer 23/23).
+- D-020 (s07) Indoinvite `/preview/contoh-undangan-online-<event>` pages are SEO article + catalog pages, not demos: C-IDI-101…107 stay as catalog-page evidence but are never used as guest-page benchmarks. Catalog previews (`/s/<account>/undangan/<themeId>?…&contoh=1`) render real events (S-IDI-003) and are never captured; account ids and preview URLs stay out of committed files. IDI joins PLO/SMO in the "no public placeholder demo" question (ADR if unresolved).
+- D-021 (s07) Demo-couple names are redacted in **every competitor demo capture**, not only tokenized ones: a page alone cannot prove its couple is a placeholder (Invitato showed vendor demos can be real couples). Generic role words ("Wanita & Pria", "Groom & Bride") are not names and stay as evidence of placeholder content. Same rule at capture time (`capture.mjs`) and in `redact-demo-names.py --check` (guard); parity JS vs Python 58/58. Applied to C-WEV-101…106 (one title each).
+- D-022 (s07) Robots fetch outcomes follow RFC 9309: 2xx parse, 4xx (not 429) = no rules, 5xx/429/network failure = assume complete disallow (`robotsStatusVerdict()` in `robots.mjs`, all tools, tested). C-VID-104…106 were captured while `studio.viding.co/robots.txt` answered 500 under the old lenient policy: process deviation; files kept (no personal data) but excluded from medians, quantitative claims and Wave-1 counts (`04-template-benchmarks/benchmark-exclusions.csv`, which now lists every exclusion with its decision). No visits to that host while its robots.txt is unreachable.
 
 ## Changed files (this run, cumulative)
 See `git status` at the end of each phase; manifest printed in the final handoff.
 
 ## NEXT
-Authoritative ordered list: `_handoff/LATEST.md` §4. In short (s06): Step 1 review file → Step 2 hygiene → Step 3 batch A in the background (first item also tests the REA cover click) + dossiers → Step 4 ADRs → Step 5 masterplan.
+Authoritative ordered list: `_handoff/LATEST.md` §4. In short (s07, 17:36 UTC): dossiers WEV → VID (incl. one gate probe on `studio.viding.co`) → IDI (catalog + visitor-read dossier, no guest-page benchmark) → placeholder-demo search for IDI/SMO/PLO (ADR if none is public) → international dossiers BRN, PPO, RSV, JOY, PTF → ADRs → Wave-1 gate → masterplan.

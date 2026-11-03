@@ -1,6 +1,8 @@
 # Original prompt → repo state map
 
-> Verified against the working tree on **2026-10-29T18:14Z (session 05)**, after the file reorganisation; rows touched in session 06 are marked (s06). Prompt text: `briefs/00-original-prompt.md` (verbatim, session 06); the newer `briefs/01-new-instructions.md` overrides it where they conflict. Current per-requirement verdicts: `review-20261029.md`.
+> **Session 07 (2026-11-01): the governing instruction is now `briefs/03-standalone-continuation-brief.md`, and its requirement-by-requirement reconciliation (status, artifacts, evidence, missing criteria, dependencies, next action) lives in `review-20261101.md` §1. Read that first; the rows below map the ORIGINAL prompt and are kept as history.** Notable changes from brief 03: ideation minimum 25 ideas (not 40); no handoff zips; Wave-1 gate per brief §14; product implementation authorized after the masterplan.
+>
+> Verified against the working tree on **2026-10-29T18:14Z (session 05)**, after the file reorganisation; rows touched in session 06 are marked (s06). Prompt text: `briefs/00-original-prompt.md` (verbatim, session 06); the newer `briefs/01-new-instructions.md` overrides it where they conflict. Per-requirement verdicts of s06: `review-20261029.md`.
 > Status: ✅ done · ◐ partial · ⬜ not started. Paths are relative to the repo root. Re-verify a row before relying on it; update this file whenever a row changes state.
 
 ## Variables and rules

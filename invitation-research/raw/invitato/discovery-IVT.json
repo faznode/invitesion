@@ -9,32 +9,32 @@
   "links": 17
  },
  "catalogCandidates": [
-  "https://invitato.net/template-aliflakshita/?code=DUMMY-P0001",
-  "https://invitato.net/template-sekaraby/?code=DUMMY-P0001",
-  "https://invitato.net/template-vamankezia/?code=DUMMY-P0001",
-  "https://invitato.net/template-clarissasandro/?code=DUMMY-P0001"
+  "https://invitato.net/template-rdct-d1992d6927/?code=DUMMY-P0001",
+  "https://invitato.net/template-rdct-7497f9926d/?code=DUMMY-P0001",
+  "https://invitato.net/template-rdct-db8bbf4542/?code=DUMMY-P0001",
+  "https://invitato.net/template-rdct-def02db760/?code=DUMMY-P0001"
  ],
  "catalog": {
-  "url": "https://invitato.net/template-aliflakshita/?code=DUMMY-P0001",
-  "finalUrl": "https://invitato.net/template-aliflakshita/?code=DUMMY-P0001",
+  "url": "https://invitato.net/template-rdct-d1992d6927/?code=DUMMY-P0001",
+  "finalUrl": "https://invitato.net/template-rdct-d1992d6927/?code=DUMMY-P0001",
   "skipped": null,
   "links": 0
  },
  "demos": [
   {
-   "href": "https://invitato.net/template-aliflakshita/?code=DUMMY-P0001",
+   "href": "https://invitato.net/template-rdct-d1992d6927/?code=DUMMY-P0001",
    "label": "Live Preview"
   },
   {
-   "href": "https://invitato.net/template-sekaraby/?code=DUMMY-P0001",
+   "href": "https://invitato.net/template-rdct-7497f9926d/?code=DUMMY-P0001",
    "label": "Live Preview"
   },
   {
-   "href": "https://invitato.net/template-vamankezia/?code=DUMMY-P0001",
+   "href": "https://invitato.net/template-rdct-db8bbf4542/?code=DUMMY-P0001",
    "label": "Live Preview"
   },
   {
-   "href": "https://invitato.net/template-clarissasandro/?code=DUMMY-P0001",
+   "href": "https://invitato.net/template-rdct-def02db760/?code=DUMMY-P0001",
    "label": "Live Preview"
   }
  ]

@@ -7,7 +7,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { robotsVerdict } from '../capture/robots.mjs';
+import { robotsStatusVerdict, robotsUnreachable, robotsVerdict } from '../capture/robots.mjs';
 import { loadMap, pseudonymizeText, saveMap } from '../safety/pseudonymize.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -33,9 +33,8 @@ async function robotsAllows(url) {
   const { origin, pathname, search } = new URL(url);
   try {
     const res = await fetch(`${origin}/robots.txt`, { headers: { 'user-agent': UA }, signal: AbortSignal.timeout(10000) });
-    if (!res.ok) return true;
-    return robotsVerdict(await res.text(), pathname + search).allowed;
-  } catch { return true; }
+    return (robotsStatusVerdict(res.status) ?? robotsVerdict(await res.text(), pathname + search)).allowed;
+  } catch { return robotsUnreachable('network').allowed; }
 }
 
 function connect(wsUrl) {

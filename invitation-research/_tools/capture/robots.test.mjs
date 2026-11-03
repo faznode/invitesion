@@ -1,7 +1,17 @@
 // node --test invitation-research/_tools/capture/robots.test.mjs
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { robotsVerdict } from './robots.mjs';
+import { robotsStatusVerdict, robotsUnreachable, robotsVerdict } from './robots.mjs';
+
+test('fetch status: 2xx parses, 4xx allows, 429/5xx and network failures disallow (RFC 9309, D-022)', () => {
+  assert.equal(robotsStatusVerdict(200), null);
+  assert.equal(robotsStatusVerdict(404).allowed, true);
+  assert.equal(robotsStatusVerdict(410).allowed, true);
+  assert.equal(robotsStatusVerdict(429).allowed, false);
+  assert.equal(robotsStatusVerdict(500).allowed, false);
+  assert.equal(robotsStatusVerdict(503).allowed, false);
+  assert.equal(robotsUnreachable('TimeoutError').allowed, false);
+});
 
 test('wildcard rules no longer swallow every path (session-03 false positive)', () => {
   const txt = 'User-agent: *\nAllow: /\nDisallow: /*?sort=\nDisallow: /account/\n';

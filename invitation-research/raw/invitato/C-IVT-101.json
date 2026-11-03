@@ -2,7 +2,7 @@
  "id": "C-IVT-101",
  "competitor": "invitato",
  "kind": "demo",
- "url": "https://invitato.net/template-sekaraby/?code=DUMMY-P0001",
+ "url": "https://invitato.net/template-rdct-7497f9926d/?code=DUMMY-P0001",
  "capturedAt": "2026-10-29T11:24:54.078+07:00",
  "robots": {
   "allowed": true,
@@ -214,7 +214,7 @@
    ]
   },
   "afterOpen": {
-   "title": "The Wedding of Sekar & Aby by Invitato",
+   "title": "The Wedding of [name] & [name] by Invitato",
    "lang": "id",
    "generator": "Gatsby 5.13.3",
    "viewport": "width=device-width, initial-scale=1, shrink-to-fit=no",
@@ -368,7 +368,7 @@
  "lighthouse": {
   "ok": true,
   "lighthouseVersion": "12.8.2",
-  "finalUrl": "https://invitato.net/template-sekaraby/?code=DUMMY-P0001",
+  "finalUrl": "https://invitato.net/template-rdct-7497f9926d/?code=DUMMY-P0001",
   "throttling": {
    "rttMs": 150,
    "throughputKbps": 1638.4,

@@ -15,7 +15,7 @@ import { spawnSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { robotsVerdict } from './robots.mjs';
+import { robotsStatusVerdict, robotsUnreachable, robotsVerdict } from './robots.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const RESEARCH = join(HERE, '..', '..');
@@ -66,7 +66,7 @@ const url = new URL(args.url);
 let robots = { allowed: true, note: 'own instance' };
 if (!args.own) {
   const res = await fetch(`${url.origin}/robots.txt`, { headers: { 'user-agent': ANDROID_UA }, signal: AbortSignal.timeout(10000) }).catch(() => null);
-  robots = res?.ok ? robotsVerdict(await res.text(), url.pathname + url.search) : { allowed: true, note: `robots.txt ${res ? res.status : 'unreachable'}` };
+  robots = res ? (robotsStatusVerdict(res.status) ?? robotsVerdict(await res.text(), url.pathname + url.search)) : robotsUnreachable('network');
   if (!robots.allowed) { console.log(JSON.stringify({ label: args.label, skipped: 'robots.txt disallows', robots })); process.exit(0); }
   await sleep(1500);
 }

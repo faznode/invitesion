@@ -2,7 +2,7 @@
  "id": "C-IVT-103",
  "competitor": "invitato",
  "kind": "demo",
- "url": "https://invitato.net/template-vamankezia/?code=DUMMY-P0001",
+ "url": "https://invitato.net/template-rdct-db8bbf4542/?code=DUMMY-P0001",
  "capturedAt": "2026-10-30T04:48:57.326+07:00",
  "robots": {
   "allowed": true,
@@ -254,7 +254,7 @@
    ]
   },
   "afterOpen": {
-   "title": "The Wedding of Kezia & Vaman by @invitato.id",
+   "title": "The Wedding of [name] & [name] by @invitato.id",
    "lang": "en",
    "generator": "Gatsby 5.13.1",
    "viewport": "width=device-width, initial-scale=1, shrink-to-fit=no",
@@ -379,7 +379,7 @@
  "lighthouse": {
   "ok": true,
   "lighthouseVersion": "12.8.2",
-  "finalUrl": "https://invitato.net/template-vamankezia/?code=DUMMY-P0001",
+  "finalUrl": "https://invitato.net/template-rdct-db8bbf4542/?code=DUMMY-P0001",
   "throttling": {
    "rttMs": 150,
    "throughputKbps": 1638.4,

@@ -22,8 +22,8 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync, appendFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { robotsVerdict } from './robots.mjs';
-import { loadMap, pseudonymizeText, resolveTokens, saveMap } from '../safety/pseudonymize.mjs';
+import { robotsStatusVerdict, robotsUnreachable, robotsVerdict } from './robots.mjs';
+import { hasToken, loadMap, pseudonymizeText, redactDemoNames, resolveTokens, saveMap } from '../safety/pseudonymize.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const RESEARCH = join(HERE, '..', '..');
@@ -77,10 +77,9 @@ async function robotsAllows(url) {
   await polite(origin);
   try {
     const res = await fetch(`${origin}/robots.txt`, { headers: { 'user-agent': ANDROID_UA }, signal: AbortSignal.timeout(10000) });
-    if (!res.ok) return { allowed: true, note: `robots.txt ${res.status}` };
-    return robotsVerdict(await res.text(), pathname + search);
+    return robotsStatusVerdict(res.status) ?? robotsVerdict(await res.text(), pathname + search);
   } catch (error) {
-    return { allowed: true, note: `robots.txt unreachable (${error.name})` };
+    return robotsUnreachable(error.name);
   }
 }
 
@@ -424,6 +423,9 @@ const summary = {
   structure: { coverClicked: observed.coverClicked, coverClickMethod: observed.coverClickMethod, coverClickLanding: observed.coverClickLanding, beforeOpen: { sectionCount: observed.beforeOpen.sectionCount, features: observed.beforeOpen.features, buttons: observed.beforeOpen.buttons.slice(0, 10) }, afterOpen: observed.afterOpen },
   lighthouse: lh, files, screenshot: own ? 'viewport-412.webp (public, own product)' : '_private/thumbs (competitor, not committed)',
 };
+// D-017: a summary whose written URL carries a redaction token must not show the demo couple's names either.
+// D-021: the same for every competitor demo, since a page alone cannot prove that its couple is a placeholder.
+if (hasToken(pseudonymizeText(String(args.url), redactionMap)) || (summary.kind === 'demo' && !own)) redactDemoNames(summary.structure);
 writeFileSync(summaryPath, pseudonymizeText(JSON.stringify(summary, null, 1), redactionMap));
 const indexPath = join(RESEARCH, 'raw', '_captures.csv');
 if (!existsSync(indexPath)) writeFileSync(indexPath, 'capture_id,captured_at_wib,competitor,kind,url,summary,lighthouse_ok\n');

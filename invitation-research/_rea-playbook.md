@@ -108,6 +108,8 @@ Own pages: `bash invitation-research/_tools/ops/local-stack.sh up`, then `local-
 ## 5. Politeness and ethics (R1, R2, R8)
 
 - `capture.mjs`, `rea-smoke.mjs` and discovery check `robots.txt` through `robots.mjs`: the `User-agent: *` group (longest-match Allow/Disallow) applies to our generic Chrome UA, and a `Disallow: /` for user-initiated AI agents (ChatGPT-User, Claude-User, Perplexity-User) is treated as a block. Training-crawler groups (GPTBot, ClaudeBot, CCBot, Google-Extended) do not apply: nothing here trains a model.
+- **Fetch outcome first (D-022, s07, RFC 9309 §2.3.1.3–4):** `robotsStatusVerdict()` / `robotsUnreachable()` in `robots.mjs`, used by all three tools: 2xx → parse; 4xx (except 429) → no rules, allowed; 5xx, 429 or a network failure → **assume complete disallow**. Before s07 the tools treated every non-2xx as allowed; C-VID-104…106 were captured that way while `studio.viding.co/robots.txt` answered 500 and are excluded from benchmarks (`04-template-benchmarks/benchmark-exclusions.csv`).
+- **After a bot challenge** (Cloudflare or similar) there is no fallback route: no reader tool, no other client; record [UNKNOWN] (S-RSV-002, s07).
 - Requests to one origin are spaced ≥ 1.5 s (well under 1 request/second); one page at a time; Lighthouse runs are spaced the same way; never two capture batches at once.
 - No logins, purchases, form submissions, RSVP/wish posts, captcha or paywall bypass, anti-bot evasion (a Cloudflare challenge ends the attempt), watermark removal or automated signups.
 - Competitor HTML/CSS/JS/images/fonts/audio/copy never enter the repo; only measurements, structure blueprints and our own words. Full REA Evidence, thumbnails and Lighthouse JSON of competitors stay in `$INVITESION_PRIVATE_DIR`.

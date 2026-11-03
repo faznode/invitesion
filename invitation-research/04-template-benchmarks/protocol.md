@@ -13,7 +13,7 @@ Never run two captures, or a capture and discovery, at the same time: Lighthouse
 ## 2. What one capture does (v1, as implemented)
 | Step | Setting |
 |---|---|
-| Politeness | `robots.txt` fetched with the Android UA; disallow → capture skipped and logged. ≥ 1.5 s between requests the tool makes to one origin. One navigation per pass, no forms, no login (R1, R8). |
+| Politeness | `robots.txt` fetched with the Android UA; disallow → capture skipped and logged. A robots.txt answering 5xx/429 or not reachable counts as disallow, a 4xx as no rules (RFC 9309, D-022). ≥ 1.5 s between requests the tool makes to one origin. One navigation per pass, no forms, no login (R1, R8). Captures excluded from aggregates are listed in `benchmark-exclusions.csv`. |
 | Browser | Chrome for Testing 156.0.8078.4 (Playwright build 1248), headless, CDP on 127.0.0.1:9222, fresh profile per sandbox. |
 | Emulation (structure pass) | Android Chrome UA, `Accept-Language: id-ID,id;q=0.9,en;q=0.6`, viewport **412×915**, DPR 2.625, mobile, HTTP cache disabled. |
 | Interaction | Wait for `load` (≤ 45 s) + settle (default 5 s) → fingerprint "before open" → with `--open-cover` click the first element whose text matches `buka undangan / open invitation / lihat undangan / buka` and wait 2.5 s → 14 scroll steps of 0.85 viewport with 700 ms pauses → back to top → fingerprint "after open". |

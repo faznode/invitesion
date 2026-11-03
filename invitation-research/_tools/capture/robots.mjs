@@ -8,6 +8,19 @@
 
 const AI_USER_AGENTS = /^(chatgpt-user|claude-user|perplexity-user)\b/i;
 
+// Fetch outcome before any parsing (RFC 9309 §2.3.1.3–2.3.1.4, session 07 / D-022): 2xx → parse the body (fetch() has
+// already followed redirects); 4xx "unavailable" → no rules, allowed; 5xx "unreachable" → assume complete disallow.
+// 429 is treated like 5xx (Google does the same). The RFC's 30-day fallback to "unavailable" is never used here.
+/** @returns {null | { allowed: boolean, note: string }} null = parse the body with robotsVerdict */
+export function robotsStatusVerdict(status) {
+  if (status >= 200 && status < 300) return null;
+  if (status >= 400 && status < 500 && status !== 429) return { allowed: true, note: `robots.txt ${status} (unavailable: no rules)` };
+  return { allowed: false, note: `robots.txt ${status} (unreachable: assume disallow, RFC 9309)` };
+}
+
+/** Network failure while fetching robots.txt: unreachable, so assume complete disallow (RFC 9309 §2.3.1.4). */
+export const robotsUnreachable = (reason) => ({ allowed: false, note: `robots.txt unreachable (${reason}): assume disallow, RFC 9309` });
+
 function parseGroups(text) {
   const groups = [];
   let current = null;

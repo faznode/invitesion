@@ -213,7 +213,7 @@
    ]
   },
   "afterOpen": {
-   "title": "Thea & Ronan | Katsudoto",
+   "title": "[name] & [name] | Katsudoto",
    "lang": "en",
    "generator": null,
    "viewport": "width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no",
@@ -258,7 +258,7 @@
      "tag": "section",
      "id": "",
      "cls": "kat-page__side-to-side",
-     "heading": "Thea & Ronan",
+     "heading": "[name] & [name]",
      "h": 915
     }
    ],

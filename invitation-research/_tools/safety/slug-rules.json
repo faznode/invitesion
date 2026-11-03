@@ -13,6 +13,11 @@
    "id": "env-full-preview",
    "why": "Enviory full-preview pages use a couple slug (enviory.com/<slug>?tpl=<theme>)",
    "pattern": "(?<=enviory\\.com/)(?!rdct-[0-9a-f]{10}(?![A-Za-z0-9-]))[A-Za-z0-9-]+(?=\\?tpl=)"
+  },
+  {
+   "id": "ivt-template-couple",
+   "why": "Invitato live previews are portfolio designs named after couples (invitato.net/template-<couple>/) and the vendor ties at least one to a real wedding, so they are not synthetic placeholders (D-019, session 07)",
+   "pattern": "(?:(?<=invitato\\.net/template-)|(?<=invitato\\.id/template-))(?!rdct-[0-9a-f]{10}(?![A-Za-z0-9-]))[A-Za-z0-9-]+"
   }
  ]
 }
