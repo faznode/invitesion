@@ -95,14 +95,15 @@ flowchart LR
 - **SEO / sharing:** OG image/title/description present; Lighthouse SEO 82–91 (no `noindex` penalty seen, unlike Enviory). [OBSERVED]
 
 ### 4.6 Against our own guest page (same protocol)
-| | Invitato (median of 4) | Invitesion C-INV-005 |
+| | Invitato (median of 4) | Invitesion C-INV-005 (one run; local production build, no middleware) |
 |---|---|---|
-| Perf / LCP / TBT / CLS | 37.5 / 18.94 s / 918 ms / 0 | 93 / 2.62 s / 209 ms / 0 |
-| Transfer at load (LH) | 7,192 KB | 321 KB |
+| Perf / LCP / TBT / CLS (Lighthouse lab) | 37.5 / 18.94 s / 918 ms / 0 | 93 / 2.62 s / 209 ms / 0 |
+| INP | not measured | not measured |
+| Transfer at cold load (Lighthouse) | 7,192 KiB | 321 KiB |
 | Accessibility (automated) | 83 | 96 |
 | Personal QR pass, livestream embed, ID/EN switch, countdown, calendar, gifts incl. physical gift | present | QR pass F-026 missing; livestream F-024 full (link out); language F-034 missing; F-005, F-012 missing; F-023 partial |
 
-We are ≈ 22× lighter at load; Invitato's lead is guest operations, not page quality. [OBSERVED] / interpretation [INFERRED, high]
+**Scope (s08 correction, brief 05 Task C):** same lab protocol (Lighthouse cold load; Invitato = median of its four official previews, ours = one C-INV-005 run): ours transfers **≈ 22× less at load** (321 vs 7,192 KiB) with better Perf, LCP and TBT; CLS ties at 0; INP was not measured. C-INV-005 is a local production build without `middleware.ts` (placeholder Clerk keys, D-012, P-INV-010), so production auth, middleware, CSP and locale-cookie behaviour are not covered. Invitato's lead is guest operations, not lab page weight. [OBSERVED] / interpretation [INFERRED, high]
 
 ## 5. Tech fingerprint
 | Layer | Finding | Confidence |

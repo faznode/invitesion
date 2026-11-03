@@ -70,7 +70,7 @@ All six are guest pages, not wrappers (711–1,435 DOM nodes, no same-origin con
 - **Video stack on every page**: Video.js (icon font + ≈ 203 KB from the Video.js CDN, which Lighthouse attributes to Brightcove) on all six, plus YouTube embeds on five costing 1.1–1.7 MB on cold load. [OBSERVED]
 - C-KAT-105 has CLS 0.57; the rest ≤ 0.07. [OBSERVED]
 - After the click the document stays one viewport tall (`docHeight` 915) with 1 top-level section: either the invitation scrolls inside an inner container or the gate never opened (synthetic click, see above). Section counts are not comparable with other vendors until a D-016 re-capture settles it. [OBSERVED] / mechanism [UNKNOWN]
-- Our guest page under the same protocol: C-INV-005 Perf 93, LCP 2.62 s; C-INV-001 Perf 94, 323 KB over 19 requests. That is **≈ 18× lighter** than the KAT median. [OBSERVED]
+- Our guest page under the same protocol, by measurement source (s08 correction, brief 05 Task C; the v1 sentence put Lighthouse scores beside CDP bytes without saying so): **Lighthouse cold load** C-INV-005 Perf 93, LCP 2.62 s, 321 KiB / 26 requests vs the KAT median of six (Perf 27.5, LCP 15.35 s, TBT 4,192 ms, 5,984 KiB) → **≈ 18.6× less transfer at load**; **CDP whole visit** (pre-s06 driver on both sides) C-INV-001 323 KiB / 19 requests vs the KAT median 5,732 KiB → ≈ 17.8×. Lab only: INP was not measured, and C-INV-005 is a local production build without `middleware.ts` (placeholder Clerk keys, D-012, P-INV-010). [OBSERVED]
 
 ### 4.2 Structure and interactions
 - Section sequence (vendor placeholder, structure only): cover + guest greeting → countdown → couple + parents + social handles → quote → portrait gallery → events (holy matrimony, reception, venue, dress code) → live streaming → rundown → our story (3 chapters) → Instagram filter → wedding gift (bank accounts + **transfer-proof upload**) → video footage → thank-you. [OBSERVED S-KAT-001]
@@ -115,7 +115,7 @@ No endpoints were recorded from normal page use; RSVP, wishes and gift-proof for
 
 ## 10. Strengths, weaknesses, complaints
 - Strengths: the broadest wedding-ops suite in Tier A (invitation + metered WhatsApp blast + QR/selfie check-in + auto thank-you + planner); table and souvenir management; guest sessions and pax limits; long track record (claimed 8 years); rich motion themes. [CLAIMED/OBSERVED as tagged above]
-- Weaknesses: the heaviest guest pages measured so far (median 5.7 MB, LCP 15.4 s, TBT 4.2 s, Perf 28); zoom blocked and `lang="en"` on Indonesian pages; no reduced-motion CSS; A11y 74–82; Video.js on every page and YouTube on most; Rp 300–700k is 2.4–9× Enviory, with many features sold separately. [OBSERVED]
+- Weaknesses: the heaviest guest pages measured so far (median 5,732 KiB over the CDP visit / 5,984 KiB at Lighthouse cold load, LCP 15.4 s, TBT 4.2 s, Perf 28); zoom blocked and `lang="en"` on Indonesian pages; no reduced-motion CSS; A11y 74–82; Video.js on every page and YouTube on most; Rp 300–700k is 2.4–9× Enviory, with many features sold separately. [OBSERVED]
 - User complaints: not researched yet. [UNKNOWN]
 
 ## 11. Patterns to learn from (principle level, R2: no visual cloning)

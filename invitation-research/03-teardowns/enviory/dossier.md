@@ -117,14 +117,15 @@ Two layout families share one engine:
 - **Sharing / SEO:** OG image, title and description present on guest pages; `noindex` by design. [OBSERVED / CLAIMED S-ENV-001]
 
 ### 4.6 Against our own guest page (same protocol)
-| | Enviory (median of 6 themes) | Invitesion C-INV-005 (own guest page, REA driver, 2026-10-30) |
+| | Enviory (median of 6 themes) | Invitesion C-INV-005 (own guest page, REA driver, 2026-10-30; local production build, no middleware) |
 |---|---|---|
-| Perf / LCP / TBT / CLS | 42 / 13.87 s / 920 ms / 0 | 93 / 2.62 s / 209 ms / 0 |
-| Transfer at load (LH) / requests | 2,404 KB / 39 | 321 KB / 18 |
+| Perf / LCP / TBT / CLS (Lighthouse lab) | 42 / 13.87 s / 920 ms / 0 | 93 / 2.62 s / 209 ms / 0 |
+| INP | not measured | not measured |
+| Transfer / requests at cold load (Lighthouse) | 2,404 KiB / 39 | 321 KiB / 26 |
 | Accessibility (automated) | 100 | 96 |
 | Cover gate, music, countdown, calendar, map facade, section nav, gift tabs + QRIS, guest-count stepper | present (as observed above) | absent (F-003, F-004 config-only, F-005, F-022 missing; `01-codebase-audit/feature-inventory.csv`) |
 
-We are ≈ 7.5× lighter at load and much faster; Enviory delivers a far richer guest experience and a perfect automated a11y score. The counter-move is to add the experience **inside** a weight budget, not to copy the weight. [OBSERVED both] / interpretation [INFERRED, high]
+**Scope (s08 correction, brief 05 Task C):** lab measurements under one protocol (Lighthouse cold load; Enviory = median of six themes, ours = one C-INV-005 run). Ours transfers **≈ 7.5× less at load** (321 vs 2,404 KiB; 26 vs 39 requests, where v2 wrote 18 = C-INV-005's CDP request count, a different source) with better Perf (93 vs 42), LCP (2.62 vs 13.87 s) and TBT (209 vs 920 ms); CLS ties at 0. INP was not measured, so "faster" is limited to these lab metrics. C-INV-005 is a local production build without `middleware.ts` (placeholder Clerk keys, D-012, P-INV-010): real-key auth, middleware, CSP and locale-cookie behaviour are not covered. "KB" elsewhere in this dossier means KiB (1,024 bytes). Enviory delivers a far richer guest experience and a perfect automated a11y score. The counter-move is to add the experience **inside** a weight budget, not to copy the weight. [OBSERVED both] / interpretation [INFERRED, high]
 
 ## 5. Tech fingerprint
 | Layer | Finding | Confidence |

@@ -69,7 +69,7 @@ All six are the iframe targets on `demo.invi.id` (558–1,210 DOM nodes, normal 
 - **CLS 1.00 on two of six demos** (C-INV-114, C-INV-115): the opening sequence or late fonts shift the whole viewport. [OBSERVED] / cause [INFERRED, medium]
 - Google Maps embeds on every page (≈ 460 KB where Lighthouse lists it among the top third parties) and YouTube (≈ 1 MB) on three; images range 0.3–8.2 MB. [OBSERVED]
 - SEO 66 on all six demos; which audits fail was not extracted (likely `noindex` on demos). [OBSERVED score] / cause [UNKNOWN]
-- Our guest page under the same protocol: C-INV-005 Perf 93, LCP 2.62 s, 296 KB; INVI's median is **≈ 10× heavier** in CDP bytes with ≈ 18× the TBT (C-INV-005 209 ms). [OBSERVED]
+- Our guest page under the same protocol, by measurement source (s08 precision, brief 05 Task C): **CDP whole visit** C-INV-005 296 KiB / 18 requests vs INVI's median 3,053 KiB → **≈ 10× heavier** (visit drivers differ: REA for ours, pre-s06 CDP for INVI); **Lighthouse cold load** 321 vs 3,936 KiB → ≈ 12.3×; lab TBT 209 vs 3,686 ms (≈ 18×; TBT is not INP, which was not measured). C-INV-005 is a local production build without `middleware.ts` (placeholder Clerk keys, D-012, P-INV-010). [OBSERVED]
 
 ### 4.2 Structure and interactions
 - Detected on all six: cover gate, guest name from the link, countdown, digital gift with copy button, maps, music control, verse block, **WIB time labels**, wishes; RSVP on 5/6 (one 11-field form), live streaming on 5/6, love story and gallery on 4/6, add-to-calendar on 3/6. [OBSERVED feature pass]

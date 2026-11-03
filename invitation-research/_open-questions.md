@@ -5,7 +5,7 @@
 > OWNER: Oracle (research agent)
 > DEPS: _progress.md
 > GREP: open questions, decision, owner, blocked, assumption
-> UPDATED: 2026-10-29
+> UPDATED: 2026-11-03 (s08: §B decided as ADR-O01…O07)
 
 ## A. Decisions taken without asking (reversible)
 | ID | Date (WIB) | Decision | Why | How to reverse |
@@ -28,6 +28,8 @@
 | Q-D16 | 2026-10-29 (s05) | **Archive policy:** archive only files that are unused *and* not part of the current project: the Next.js-starter `README.md` (replaced by a real one) and the never-imported old-brand `tokens.css` → `archive/` with provenance. Kept in place: `AGENT_WORKFLOW.md` (LOCKED router dependency), July docs/worklogs, `docs/AUDIT-2026-07-27.md` (cited by `next.config.ts`), `.claude/launch.json`, every prompt- or toolchain-pinned path. Product code untouched (scope guard) | Moving files that code, configs or a LOCKED router cite would leave stale references or edit product code | `git mv archive/<file> <original path>` |
 
 ## B. Questions only the owner can answer
+> **Session 08 (2026-11-03):** all seven were decided autonomously under brief 05 §16 as **ADR-O01…O07** in `09-masterplan/12-decision-log.md` (safe, reversible defaults with revisit triggers). They stay listed here because the owner can override any of them. Verified facts: Q-O01 is a live defect (the strict schema rejects `art`, so catalog-created invitations start from `{}`); Q-O02's conflict is still on the homepage and `/pricing`.
+
 | ID | Question | Why it matters | Default if unanswered |
 |---|---|---|---|
 | Q-O01 | Is the strict `detailConfigSchema` meant to reject `defaultConfig.art`, or should `art` move out of the invitation config? | Today every new invitation loses its theme (P0) | Treat as bug; plan moves `art` to a separate column/table |

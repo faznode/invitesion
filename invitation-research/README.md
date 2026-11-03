@@ -1,7 +1,7 @@
 # invitation-research/
 
 Research, benchmarks and plans for the Invitesion competitor-research + template-harness mission.
-**Resume from `_handoff/LATEST.md`.** Every requirement of the original prompt, with its status and location, is in `_handoff/prompt-map.md`.
+**Resume from `_handoff/LATEST.md`** (current status: its §1; governing briefs: `_handoff/briefs/05-…` over `03-…`). Per-requirement status: `_handoff/review-20261101.md`. `_handoff/prompt-map.md` maps the original prompt and is kept as history.
 
 ## Layout (grouped by nature)
 
@@ -11,7 +11,7 @@ Research, benchmarks and plans for the Invitesion competitor-research + template
 | `_progress.md` · `_evidence-index.md` · `_open-questions.md` · `_rea-playbook.md` | Mission control (names and location fixed by the prompt) | phase board + history · evidence IDs · decisions and owner questions · REA cheat-sheet |
 | `_tools/` | Executable tooling only | `ops/` sandbox bootstrap, handoff zips · `safety/` commit guard, secrets scan, discovery redaction · `discovery/` homepage probe, demo discovery, demo selection · `capture/` capture pipeline, robots.txt gate (+ test), batch runner, summarizer · `setup/` skill vetting, local demo seed |
 | `00-setup/` … `09-masterplan/` | Phase deliverables (documents) | `00` setup log, skill vetting report · `01` codebase audit · `02` longlist + shortlist · `03` dossiers + dossier template · `04` protocol, captures summary, `queues/` (capture work queues). `05-` … `09-` are created on first use |
-| `raw/` | Collected evidence (machine data, cap 50 MB; 3.4 MB on 2026-10-29) | `<competitor>/` discovery + capture JSON per source · `invitesion/` our own captures · `_discovery/` cross-competitor homepage probe · `_setup/` skill-catalog snapshot · `_captures.csv` capture log |
+| `raw/` | Collected evidence (machine data, cap 50 MB; 4.5 MB on 2026-11-03) | `<competitor>/` discovery + capture JSON per source · `invitesion/` our own captures · `_discovery/` cross-competitor homepage probe · `_setup/` skill-catalog snapshot · `_captures.csv` capture log |
 | `_private/` | Git-ignored, never committed | secrets report, competitor thumbnails, Lighthouse JSON. In the sandbox it lives at `$INVITESION_PRIVATE_DIR` (`/vercel/share/work/invitesion-private`) |
 
 Filing rules: documents go in a phase folder, scripts in `_tools/<group>/`, machine-collected data in `raw/`, generated queues in `04-template-benchmarks/queues/`. Scripts resolve the research root as two levels above their own folder, so keep them exactly two levels deep.
@@ -20,9 +20,11 @@ Filing rules: documents go in a phase folder, scripts in `_tools/<group>/`, mach
 
 ```bash
 source /vercel/share/work/tools/env.sh            # after: bash invitation-research/_tools/ops/bootstrap-sandbox.sh git|tools|chrome|check
-"$REA_NODE" --test invitation-research/_tools/capture/robots.test.mjs           # 6/6
+"$REA_NODE" --test invitation-research/_tools/capture/robots.test.mjs           # 7/7
 python3 -B invitation-research/_tools/safety/redact-discovery.py --check         # privacy check after any discovery
-python3 -B invitation-research/_tools/capture/summarize-captures.py              # -> 04-template-benchmarks/captures-summary.csv
+python3 -B invitation-research/_tools/capture/summarize-captures.py --strict     # -> 04-template-benchmarks/captures-summary.csv (with eligibility)
+python3 -B invitation-research/_tools/capture/eligibility.py --report            # eligibility per capture + coverage (unique themes) per competitor
+python3 -B invitation-research/_tools/capture/test_eligibility.py                # offline regression tests (eligibility, sources, redaction)
 bash invitation-research/_tools/capture/run-batch.sh invitation-research/04-template-benchmarks/queues/<queue>.tsv   # background only
 bash invitation-research/_tools/safety/commit-guard.sh                           # before every commit
 ```

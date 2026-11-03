@@ -39,7 +39,7 @@
 - Lighthouse never clicks: all six runs are valid **cold-load** samples. Post-visit bytes (CDP) are reported separately. C-WEV-101 predates the REA driver (s04), so compare its numbers with care.
 
 ### 4.2 Cold-load measurements (Lighthouse 12.8.2 mobile, simulate Slow 4G / 4× CPU, 412×915 @2.625)
-| Capture | Theme | Perf | A11y | BP | SEO | LCP s | FCP s | TBT ms | CLS | Transfer KB (LH) |
+| Capture | Theme | Perf | A11y | BP | SEO | LCP s | FCP s | TBT ms | CLS | Transfer KiB (LH) |
 |---|---|---|---|---|---|---|---|---|---|---|
 | C-WEV-101 | timeless-snapshot | 37 | 88 | 96 | 92 | 8.55 | 3.63 | 1,038 | 0.002 | 4,185 |
 | C-WEV-102 | mildness | 32 | 82 | 100 | 92 | 20.86 | 4.63 | 1,303 | 0.001 | 4,246 |
@@ -52,7 +52,7 @@
 [OBSERVED C-WEV-101…106]. Time to Interactive 16.6–38.5 s (median 18.8 s). TBT sits near 1 s on every theme because the script payload is the same everywhere (§4.3).
 
 ### 4.3 After the visit (CDP, unthrottled, cold cache)
-| Capture | CDP KB | Images KB | JS KB | CSS KB | Fonts KB | Media KB | Requests | DOM nodes | Lazy images |
+| Capture | CDP KiB | Images KiB | JS KiB | CSS KiB | Fonts KiB | Media KiB | Requests | DOM nodes | Lazy images |
 |---|---|---|---|---|---|---|---|---|---|
 | C-WEV-101 | 3,439 | 1,545 | 1,344 | 251 | 266 | 0 | 76 | 804 | 0 of 18 |
 | C-WEV-102 | 4,817 | 2,946 | 1,331 | 219 | 295 | 0 | 64 | 558 | 0 of 19 |
@@ -79,14 +79,15 @@
 - **SEO / sharing:** Lighthouse SEO 92–100; `og:image` present but no `og:title` / `og:description` (link previews fall back to the page title). [OBSERVED]
 
 ### 4.6 Against our own guest page (same protocol)
-| | Wevitation (median of 6) | Invitesion C-INV-005 |
+| | Wevitation (median of 6 themes) | Invitesion C-INV-005 (one run; local production build, no middleware) |
 |---|---|---|
-| Perf / LCP / TBT / CLS | 40 / 17.41 s / 982 ms / 0.002 | 93 / 2.62 s / 209 ms / 0 |
-| Transfer at load (LH) | 3,448 KB | 321 KB |
+| Perf / LCP / TBT / CLS (Lighthouse lab) | 40 / 17.41 s / 982 ms / 0.002 | 93 / 2.62 s / 209 ms / 0 |
+| INP | not measured | not measured |
+| Transfer at cold load (Lighthouse) | 3,448 KiB | 321 KiB |
 | Accessibility (automated) | 86 | 96 |
 | Cover gate, countdown, add to calendar, QR pass, IG-story template, gift registry, WIB labels | present | F-003, F-005, F-012, F-026, F-027 missing; F-023 partial; F-033 broken |
 
-We are ≈ 11× lighter at load and faster on every Core Web Vital; Wevitation's lead is guest-side features and day-of operations, not page quality. [OBSERVED] / interpretation [INFERRED, high]
+**Scope of this comparison (s08 correction, brief 05 Task C).** Same lab protocol on both sides (Lighthouse 12.8.2 mobile, simulated Slow 4G + 4× CPU, cold load); Wevitation = median of six themes, ours = one run of C-INV-005. On those recorded measurements our page transfers **≈ 10.7× less at load** (321 vs 3,448 KiB) and scores better on Perf (93 vs 40), LCP (2.62 vs 17.41 s) and TBT (209 vs 982 ms); CLS is 0 vs 0.002, both well inside the 0.1 "good" band. **INP was not measured** (Lighthouse navigation mode cannot measure it, and TBT is only a lab proxy), so nothing here supports "faster on every Core Web Vital" or any field-experience claim. C-INV-005 is a local production build measured **without `middleware.ts`**, because placeholder Clerk keys made the middleware hang (D-012, P-INV-010): it does not establish real-key authentication, middleware, CSP, locale-cookie or full production behaviour. Wevitation's lead is guest-side features and day-of operations, not lab page weight. [OBSERVED lab runs] / interpretation [INFERRED, medium]
 
 ## 5. Tech fingerprint
 | Layer | Finding | Confidence |

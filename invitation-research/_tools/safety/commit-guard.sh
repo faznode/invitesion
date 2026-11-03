@@ -23,4 +23,5 @@ SAFETY=$(dirname "$0")
 python3 -B "$SAFETY/redact-discovery.py" --check > /dev/null || fail "customer-showcase links in discovery files (run redact-discovery.py)"
 python3 -B "$SAFETY/pseudonymize-slugs.py" --check > /dev/null || fail "identifying URL slugs in committed files (run pseudonymize-slugs.py)"
 python3 -B "$SAFETY/redact-demo-names.py" --check > /dev/null || fail "demo-couple names in pseudonymized captures (run redact-demo-names.py, D-017)"
-echo "commit-guard: OK (private material ignored, no showcase links, identifying slugs or demo names, raw/ ${raw_kb} KB)"
+python3 -B "$SAFETY/../capture/eligibility.py" --check > /dev/null || fail "benchmark-exclusions.csv or a capture has eligibility errors (run eligibility.py --check, D-023)"
+echo "commit-guard: OK (private material ignored, no showcase links, identifying slugs or demo names, exclusion register valid, raw/ ${raw_kb} KB)"
