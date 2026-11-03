@@ -1,10 +1,8 @@
 # Original prompt → repo state map
 
-> **Session 08 (2026-11-03): top authority (with explicit owner messages) is `briefs/05-local-sandbox-continuation.md`; `briefs/03-standalone-continuation-brief.md` keeps the complete mission requirements. Current status: `LATEST.md` §1, with per-requirement rows in `review-20261101.md` (`(s08)` marks). Every row below is history (original prompt, s05–s06 verification) and is not updated any more.**
+> **Historical requirement mapping, not an agent instruction.** The owner keeps prompts and raw response transcripts outside this repository. Current status: `LATEST.md` §1, with per-requirement rows in `review-20261101.md` (`(s08)` marks). Rows below retain session 05–06 verification history. Requirement revisions included a minimum of 25 ideas, no required handoff ZIPs, the documented Wave-1 planning gate, and product implementation after the masterplan.
 >
-> **Session 07 (2026-11-01): the governing instruction is now `briefs/03-standalone-continuation-brief.md`, and its requirement-by-requirement reconciliation (status, artifacts, evidence, missing criteria, dependencies, next action) lives in `review-20261101.md` §1. Read that first; the rows below map the ORIGINAL prompt and are kept as history.** Notable changes from brief 03: ideation minimum 25 ideas (not 40); no handoff zips; Wave-1 gate per brief §14; product implementation authorized after the masterplan.
->
-> Verified against the working tree on **2026-10-29T18:14Z (session 05)**, after the file reorganisation; rows touched in session 06 are marked (s06). Prompt text: `briefs/00-original-prompt.md` (verbatim, session 06); the newer `briefs/01-new-instructions.md` overrides it where they conflict. Per-requirement verdicts of s06: `review-20261029.md`.
+> Verified against the working tree on **2026-10-29T18:14Z (session 05)**, after the file reorganisation; rows touched in session 06 are marked (s06). Per-requirement verdicts of s06: `review-20261029.md`.
 > Status: ✅ done · ◐ partial · ⬜ not started. Paths are relative to the repo root. Re-verify a row before relying on it; update this file whenever a row changes state.
 
 ## Variables and rules

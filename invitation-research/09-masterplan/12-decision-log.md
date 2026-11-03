@@ -3,7 +3,7 @@
 > WHAT: ADRs with context, options, decision, consequences, confidence and revisit triggers. Short decisions D-001… live in `../_progress.md`; this file holds the decisions the masterplan depends on.
 > STATUS: **DRAFT / PROVISIONAL** (masterplan not final). Evidence cutoff 2026-11-03T16:57Z (session 08). ADR-W1 **decided**, fallback met → planning gate met through ADR-W1 (16:54Z). Owner-question ADRs **ADR-O01…O07 accepted autonomously** (brief 05 §16: safe, reversible defaults with revisit triggers; the owner can override any of them)
 > OWNER: Architect (research agent acting autonomously, brief 03 §5.1)
-> DEPS: ../_handoff/briefs/05-local-sandbox-continuation.md §12–§16, ../_handoff/review-20261101.md §2, ../_open-questions.md §B, ../_evidence-index.md, ../04-template-benchmarks/benchmark-exclusions.csv, ../03-teardowns/*/dossier.md; code at `2c94140`: lib/invitation/{detail-config,create,template-sync,templates}.ts, lib/pricing.ts, app/{page,pricing/page}.tsx, app/marketing-copy.ts, app/globals.css, app/layout.tsx
+> DEPS: ../_handoff/review-20261101.md §2, ../_open-questions.md §B, ../_evidence-index.md, ../04-template-benchmarks/benchmark-exclusions.csv, ../03-teardowns/*/dossier.md; owner instructions supplied outside the repository; code at `2c94140`: lib/invitation/{detail-config,create,template-sync,templates}.ts, lib/pricing.ts, app/marketing-copy.ts, app/globals.css, app/layout.tsx
 > GREP: adr, decision, wave 1, ADR-W1, planning gate, reduced confidence, fallback, revisit
 > UPDATED: 2026-11-03
 

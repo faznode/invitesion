@@ -1,8 +1,6 @@
 # LATEST: single entry point for resuming the Invitesion mission
 
-> **Owner import, 2026-11-04 (Asia/Jakarta):** the source snapshot `faznode/invitesion-k5@e8285a0cedb028c1192273efeaecb038695b1ebb` and the owner-supplied raw log were synchronized into the original repository. **Mandatory continuation reading:** [log index and checkpoint limits](logs/README.md), then [the complete log, all three exports](logs/session-08-20261103-v0-worked-for.txt). The log extends beyond some status rows below: draft masterplan chapters and Next.js spike results exist, while the final Rust scenarios were only started; completed Rust results and a comparative verdict are not established. Reconcile actual files before following the older next-action list. Imported Git history and another sandbox's live processes are not implied by this snapshot transfer.
-
-> Overwrite this file at every checkpoint. History: `sessions/` (append-only). **Governing instructions (session 08 onward): `briefs/05-local-sandbox-continuation.md`** (independent local copy, manual-push handoff; highest precedence after explicit owner messages) **over `briefs/03-standalone-continuation-brief.md`** (complete mission requirements). Older briefs `00`–`02` are provenance only. **Current status source: §1 of this file.** Per-requirement detail: `review-20261101.md` (rows marked `(s08)` were re-verified on 2026-11-03; unmarked rows carry their s07 state). Folder layout: `../README.md`. Phase board + decisions: `../_progress.md`. Questions: `../_open-questions.md`. Evidence: `../_evidence-index.md`.
+> Technical progress records are retained in `sessions/`. The owner supplies agent instructions and raw response transcripts outside this repository. Historical brief numbers below identify earlier requirements, not files to load. **Current status source: §1 of this file.** Per-requirement detail: `review-20261101.md` (rows marked `(s08)` were re-verified on 2026-11-03; unmarked rows carry their s07 state). Folder layout: `../README.md`. Phase board + decisions: `../_progress.md`. Questions: `../_open-questions.md`. Evidence: `../_evidence-index.md`.
 
 | | |
 |---|---|
@@ -19,7 +17,7 @@
 ## 1. Status per brief area (detail: `review-20261101.md` §1–§2)
 | Area | State | Where |
 |---|---|---|
-| Workspace, brief 05 saved, checkpoint recomputed | DONE s08 (checkpoint = brief 05 §7 exactly: 71 paths, 64/64/64 captures, 5 dossiers, 24 exclusions) | `sessions/session-08-…`, `briefs/05-…` |
+| Workspace and checkpoint recomputed | DONE s08 (initial checkpoint: 71 paths, 64/64/64 captures, 5 dossiers, 24 exclusions) | `sessions/session-08-…` |
 | Task A: repair active handoff records | DONE s08 | this file; `review-20261101.md` rows `(s08)`; `../_progress.md`; `prompt-map.md` header; `../README.md` |
 | Task B: benchmark eligibility (B1), measurement-source separation (B2), offline regression tests (B3) | **DONE s08** (D-023): 19 offline tests, mutation-checked; guard validates the register | `../_tools/capture/eligibility.py`, `summarize-captures.py` (schema v2), `dossier-digest.py`, `test_eligibility.py`, `../04-template-benchmarks/benchmark-exclusions.csv` (26 rows), protocol v1.2 §2.2 |
 | Task C: tighten performance conclusions | **DONE s08**: WEV/ENV/IVT/KAT/INV comparisons rescoped (lab only, INP not measured, C-INV-005 limits); ENV request count and KAT source mix fixed | `../03-teardowns/*/dossier.md` §4 |
@@ -43,7 +41,7 @@
 
 ## 3. Done in session 08 (exact paths)
 - Workspace from the public clone (`bootstrap-sandbox.sh git`, `checkout-index`, 11 scaffold leftovers deleted); toolchain restored (`bootstrap-sandbox.sh tools`).
-- `briefs/05-local-sandbox-continuation.md` (verbatim from raw HTML); `sessions/session-08-20261103-1612.md`.
+- Technical progress record: `sessions/session-08-20261103-1612.md`.
 - Task A: this file rewritten; `review-20261101.md` living rows marked `(s08)` + discrepancy 12; `../_progress.md` phase rows 3–4, session-07 heading, session-08 summary, NEXT; `prompt-map.md` header; `../README.md` (status pointers, robots 7/7, raw size).
 - Task B1–B3: new `../_tools/capture/eligibility.py` + `test_eligibility.py`; rewritten `summarize-captures.py` (schema v2) and `dossier-digest.py`; `../04-template-benchmarks/benchmark-exclusions.csv` (`page_class` column, C-IVT-102/103 rows); `captures-summary.csv` regenerated; `../_tools/safety/commit-guard.sh` (+ register check); `../04-template-benchmarks/protocol.md` v1.2; D-023 in `../_progress.md`; review row 13 + discrepancy 13.
 - Task C: `../03-teardowns/{wevitation,enviory,invitato,katsudoto,invi}/dossier.md` comparison paragraphs and tables.

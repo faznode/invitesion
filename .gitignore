@@ -64,3 +64,7 @@ __v0_jsx-dev-runtime.ts
 .vercel/
 node_modules
 .next/
+
+# Owner keeps agent prompts and raw response transcripts outside the repository.
+/invitation-research/_handoff/briefs/
+/invitation-research/_handoff/logs/

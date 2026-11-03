@@ -1,13 +1,13 @@
 # invitation-research/
 
 Research, benchmarks and plans for the Invitesion competitor-research + template-harness mission.
-**Resume from `_handoff/LATEST.md`** (current status: its §1; governing briefs: `_handoff/briefs/05-…` over `03-…`). Per-requirement status: `_handoff/review-20261101.md`. `_handoff/prompt-map.md` maps the original prompt and is kept as history.
+**Resume from `_handoff/LATEST.md`** (current status: its §1). The owner supplies agent instructions and raw response transcripts outside this repository. Per-requirement status: `_handoff/review-20261101.md`. `_handoff/prompt-map.md` records the historical requirement mapping.
 
 ## Layout (grouped by nature)
 
 | Path | Nature | Contents |
 |---|---|---|
-| `_handoff/` | Resume material | `LATEST.md` (single entry point, overwritten each checkpoint) · `prompt-map.md` (prompt requirement → repo state) · `briefs/` (verbatim owner briefs) · `sessions/` (append-only session logs) |
+| `_handoff/` | Progress records | `LATEST.md` (current checkpoint) · `prompt-map.md` (historical requirement mapping) · `sessions/` (technical progress records); agent prompts and raw response transcripts are kept outside the repository |
 | `_progress.md` · `_evidence-index.md` · `_open-questions.md` · `_rea-playbook.md` | Mission control (names and location fixed by the prompt) | phase board + history · evidence IDs · decisions and owner questions · REA cheat-sheet |
 | `_tools/` | Executable tooling only | `ops/` sandbox bootstrap, handoff zips · `safety/` commit guard, secrets scan, discovery redaction · `discovery/` homepage probe, demo discovery, demo selection · `capture/` capture pipeline, robots.txt gate (+ test), batch runner, summarizer · `setup/` skill vetting, local demo seed |
 | `00-setup/` … `09-masterplan/` | Phase deliverables (documents) | `00` setup log, skill vetting report · `01` codebase audit · `02` longlist + shortlist · `03` dossiers + dossier template · `04` protocol, captures summary, `queues/` (capture work queues). `05-` … `09-` are created on first use |
