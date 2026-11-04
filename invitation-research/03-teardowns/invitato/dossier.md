@@ -138,7 +138,7 @@ No public app found (no Play listing in the longlist probe). The day-of "QR App"
 ## 10. Strengths, weaknesses, complaints
 - **Strengths:** end-to-end guest operations (Meta-verified WhatsApp sending, staged human follow-ups, seating, one-time personal QR passes downloadable from the invitation, scan/search/manual check-in, gift-envelope labels and gift logging, greeting screen, doorprize, post-event report); strict vs flexi validation by event type; ID/EN invitations; in-house design studio; strong social proof. [CLAIMED/OBSERVED as tagged]
 - **Weaknesses:** very heavy pages (7.2 MB median at load, up to 49 MB per visit with video; zero lazy loading), LCP 14.5–47.8 s, automated a11y 82–85 with unnamed buttons and missing alt text, no reduced-motion support, inner scroll container, an asset hosted on `raw.githubusercontent.com`, no self-serve path (cost and lead time), only four live previews published, two-state RSVP only. [OBSERVED/INFERRED]
-- **User complaints:** not researched yet. [UNKNOWN]
+- **User complaints:** s14: the homepage serves a client-side shell in static HTML, so a store link cannot be determined (S-IVT-002); no independent review source was read. [UNKNOWN]
 
 ## 11. Patterns to learn from (principle level, no visual cloning)
 | Learn (principle) | Avoid | Our counter-move |

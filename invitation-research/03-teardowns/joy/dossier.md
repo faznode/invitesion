@@ -54,7 +54,7 @@ Free for the couple; monetized through registry (cash funds), prints and hotel b
 ## 10. Strengths, weaknesses, public complaints
 - **Strengths:** the whole wedding guest journey (address collection → save the date → invitation → RSVP → registry → travel) in one free product; companion app. [CLAIMED]
 - **Weaknesses:** US-centric commerce (registry, hotel blocks) with no direct Indonesian analogue. [INFERRED]
-- **Public complaints:** not researched. [UNKNOWN]
+- **Public complaints:** s14: no store link in the homepage's static HTML (S-JOY-002); Trustpilot is restricted under D-030 (S-JOY-003, Q-O08 residual). [UNKNOWN]
 
 ## 11. Patterns to learn, to avoid, and our counter-move
 | Learn (principle) | Avoid | Our counter-move |

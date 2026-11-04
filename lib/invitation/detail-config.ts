@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { FAMILY_IDS } from './families';
 
 /**
  * Typed contract for the invitation detail editor.
@@ -259,6 +260,9 @@ export const detailConfigSchema = z
       .object({
         templateId: z.number().int().positive().optional(),
         paletteId: optionalText(50),
+        // B-030 design family. `.catch` instead of a hard failure: the read path drops a whole section that fails, so a
+        // retired family id must fall back to the legacy layout without taking the palette and cover with it.
+        familyId: z.enum(FAMILY_IDS).optional().catch(undefined),
         cover: z
           .object({
             imageUrl: z.string().url().max(500).optional(),

@@ -23,8 +23,11 @@ Filing rules: documents go in a phase folder, scripts in `_tools/<group>/`, mach
 |---|---|---|---|
 | Visitor reads (robots first, paced) | `_tools/discovery/probe-homepages.py`, `discover-demos.mjs`, `profile-reads.py` | public pages | `raw/_discovery/`, `raw/<competitor>/discovery-*.json` |
 | Capture | `_tools/capture/capture.mjs` via `run-batch.sh` (robots gate `robots.mjs`) | a queue in `04-template-benchmarks/queues/` | `raw/<competitor>/C-*.json`, `raw/_captures.csv` |
-| Summary + eligibility | `_tools/capture/summarize-captures.py`, `eligibility.py` | raw captures, `04-template-benchmarks/benchmark-exclusions.csv` | `04-template-benchmarks/captures-summary.csv` |
-| Benchmark pack | `_tools/capture/benchmark-pack.py` | captures summary, raw captures | `04-template-benchmarks/{blueprints,tiers,tier-aggregates}.csv`, `benchmark-pack.md` tables |
+| Profile check (before v2 captures) | `_tools/capture/verify-profiles.mjs` | a local 127.0.0.1 probe page | `raw/_setup/profile-verification-*.json` |
+| Summary + eligibility | `_tools/capture/summarize-captures.py`, `eligibility.py` (rules 1–8: exclusions, provisional evidence, measurement populations = profile + own build) | raw captures, `04-template-benchmarks/{benchmark-exclusions,benchmark-provisional}.csv` | `04-template-benchmarks/captures-summary.csv` |
+| Benchmark pack | `_tools/capture/benchmark-pack.py` | captures summary, raw captures | `04-template-benchmarks/{blueprints,tiers,tier-aggregates}.csv`, `sensitivity/`, `viewport/`, `benchmark-pack.md` tables (`--markdown`, `--compare`, `--viewport-markdown`) |
+| Lighthouse host speed | `_tools/capture/lighthouse-environment.py` | full Lighthouse reports (own: committed; competitors: private, sandbox-only) | `04-template-benchmarks/viewport/lighthouse-environment.csv` (merged; never erases values) |
+| Dossier tables | `_tools/capture/dossier-digest.py` | raw captures of one measurement population (exit 2 on a mixed population) | Markdown on stdout |
 | Feature matrix | `05-feature-matrix/build-matrix.py` | `features.csv`, `assessments/*.csv`, raw captures, evidence index | `feature-matrix.csv`, `feature-matrix-long.csv`, `coverage-summary.md` |
 | Ideas | `07-ideation/score-ideas.py` | `07-ideation/ideas.csv` | ranking (stdout), `--check` |
 | Load spike | `08-backend-rust-plan/spike/run-spike.sh`, `summarize-spike.py` | local stack | `spike/results/<set>/` + `summary.md` |
@@ -34,9 +37,10 @@ Filing rules: documents go in a phase folder, scripts in `_tools/<group>/`, mach
 
 ```bash
 source /vercel/share/work/tools/env.sh                                          # sandbox toolchain (bootstrap-sandbox.sh tools)
-"$REA_NODE" --test invitation-research/_tools/capture/robots.test.mjs           # 8 tests
-python3 -B invitation-research/_tools/capture/test_eligibility.py               # 19 tests
-python3 -B invitation-research/_tools/capture/test_benchmark_pack.py            # 13 tests
+"$REA_NODE" --test invitation-research/_tools/capture/robots.test.mjs invitation-research/_tools/capture/capture-profile.test.mjs
+python3 -B invitation-research/_tools/discovery/test_profile_reads.py           # robots matcher + D-030 (28 tests)
+python3 -B invitation-research/_tools/capture/test_eligibility.py               # 38 tests (s14)
+python3 -B invitation-research/_tools/capture/test_benchmark_pack.py            # 22 tests (s14)
 python3 -B invitation-research/_tools/capture/benchmark-pack.py --check         # pack files match the captures
 python3 -B invitation-research/05-feature-matrix/build-matrix.py --check        # 187 rows, 0 errors
 python3 -B invitation-research/07-ideation/score-ideas.py --check               # 32 ideas
@@ -50,7 +54,7 @@ Capture batches run in the background only: `bash invitation-research/_tools/cap
 
 ## ID conventions
 
-- Captures `C-<CODE>-NNN`. Naming hazard: `C-INV-0xx` = **our own Invitesion** (`raw/invitesion/`), `C-INV-1xx` = **INVI.ID** competitor (`raw/invi/`).
+- Captures `C-<CODE>-NNN`. Naming hazard: `C-INV-0xx` = **our own Invitesion** (`raw/invitesion/`), `C-INV-1xx` / `2xx` = **INVI.ID** competitor (`raw/invi/`). `C-<CODE>-2xx` are protocol v2 captures.
 - Sources `S-<CODE>-NNN` · decisions `D-NNN` · questions `Q-D…` (decided autonomously) and `Q-O…` (owner) · modules `M-NNN` · features `F-NNN` · quality findings `QA-NNN` · matrix rows `FM-NNN` · gaps `G-NNN` · backlog `B-NNN` · ideas `I-NN` · implementation entries `E-NNN` · requirements `RQ-…`.
 - Evidence tags: `[OBSERVED]` `[CLAIMED]` `[ESTIMATE]` `[INFERRED]` `[UNKNOWN]`; flow targets are `PROPOSED`.
 

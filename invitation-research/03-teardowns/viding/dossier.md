@@ -133,7 +133,7 @@ None found on the six pages read and none in the longlist (installs "—"). [UNK
 ## 10. Strengths, weaknesses, public complaints
 - **Strengths:** the broadest event-operations bundle in the set (invitation → QR guest book with on-site devices and crew → greeting screen → table management → cinematic multi-platform livestream with recording); split invitations; WhatsApp automation with a block-risk claim; a canvas editor; theme preview with colour variations; multi-locale marketing. [OBSERVED/CLAIMED as tagged]
 - **Weaknesses (measured on the legacy generation):** median 3,084 KiB and LCP 12.58 s at cold load (six themes); almost no lazy loading (2 of 53–220 images on one theme); zoom blocked; `lang="en"`; automated a11y 74–82; English-first marketing for an Indonesian audience. The newer Studio generation cannot be assessed while its robots.txt is unreachable. [OBSERVED]
-- **Public complaints:** not researched in this pass (no store listing or review site read). [UNKNOWN]
+- **Public complaints:** s14 checked the vendor's own homepage for a store listing: none is linked in its static HTML (S-VID-007), and no other public review source was read. [UNKNOWN] Would resolve: a vendor-linked store listing or a public review page that robots and D-030 allow.
 
 ## 11. Patterns to learn, to avoid, and our counter-move
 | Learn (principle) | Avoid | Our counter-move |

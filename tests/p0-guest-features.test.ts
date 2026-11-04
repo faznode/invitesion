@@ -191,8 +191,8 @@ const weddingConfig = {
 test('B-010: the preview image uses the page palette, names and the event-zone date', () => {
   for (const id of paletteIds) {
     const hex = paletteHex(id);
-    const classes = palette(id);
-    assert.ok(classes.bg.includes(hex.bg) && classes.ink.includes(hex.ink) && classes.accent.includes(hex.accent), id);
+    const style = palette(id).style as Record<string, string>;
+    assert.ok(style['--inv-bg'] === hex.bg && style['--inv-ink'] === hex.ink && style['--inv-accent'] === hex.accent, id);
   }
   assert.deepEqual(paletteHex('unknown'), paletteHex('ivory'));
   const model = previewImageModel('wedding', weddingConfig);
@@ -232,5 +232,5 @@ test('B-010: share metadata points at the 1200×630 image and the opening copy, 
   const route = source('app/i/[slug]/og.png/route.tsx');
   assert.match(route, /loadPublishedInvitationSummary\(slug\)/);
   assert.doesNotMatch(route, /\bguests\b|guestSlug/);
-  assert.match(source('components/invitation/public-renderer.tsx'), /import \{ palette \} from '@\/lib\/invitation\/palettes'/);
+  assert.match(source('components/invitation/guest-view.ts'), /import \{ palette \} from '@\/lib\/invitation\/palettes'/);
 });

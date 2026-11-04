@@ -15,7 +15,19 @@ const UNITS = [
  * is identical (no hydration mismatch) and the boxes keep a fixed size while the numbers change (no layout shift).
  * `role="timer"` is not announced on every tick; the label carries the whole-day summary for screen readers.
  */
-export function Countdown({ target, initialNow, eventTitle, boxClassName }: { target: number; initialNow: number; eventTitle: string; boxClassName: string }) {
+export function Countdown({
+  target,
+  initialNow,
+  eventTitle,
+  boxClassName,
+  labelClassName,
+}: {
+  target: number;
+  initialNow: number;
+  eventTitle: string;
+  boxClassName: string;
+  labelClassName: string;
+}) {
   const [now, setNow] = useState(initialNow);
 
   useEffect(() => {
@@ -34,7 +46,7 @@ export function Countdown({ target, initialNow, eventTitle, boxClassName }: { ta
           <span className="block font-serif text-2xl tabular-nums sm:text-3xl" aria-hidden>
             {String(parts[unit.key]).padStart(2, '0')}
           </span>
-          <span className="mt-1 block text-xs uppercase tracking-widest opacity-70" aria-hidden>
+          <span className={`mt-1 block text-xs uppercase tracking-widest ${labelClassName}`} aria-hidden>
             {unit.label}
           </span>
         </div>

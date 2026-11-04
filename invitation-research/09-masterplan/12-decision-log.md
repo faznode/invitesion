@@ -70,6 +70,7 @@ s12 wrote these two decisions in `../02-competitor-discovery/robots-applicabilit
 - **D-031, Enviory G1 / G2:** G1 (robots applicability) is resolved as not applicable; G2 (the 2026-10-29 challenge followed by browser captures of the same route) stays open as Q-O09. Until it is answered, C-ENV-111…123 are provisional: retained with provenance, excluded from unconditional benchmark results, coverage counts and aggregates, and reported only in separately labelled sensitivity results; no new request to the demo route. **Revisit:** the owner or the independent reviewer answers Q-O09.
 
 ### Session 13 decisions referenced by the masterplan (full text in `../_progress.md`)
+- **D-033, own builds as populations (s14):** for our own pages the product build is part of the measurement population (`22ed99e` pre-P0 baseline vs `0b5eb1b` measured in s13 on a slower host), so no median, retry count, coverage figure or digest pools two builds, and a build comparison needs both builds interleaved on one host (`../_progress.md` D-033). D-032 amended: the pilot theme is re-captured with new IDs; the pilot keeps its provenance.
 - **D-032, measurement profiles:** protocol v2 measures each theme at 412×915, 360×800, 390×844 and 412×915 with reduced motion in one session; every profile is its own population (never pooled with another profile or with v1.2), and v2 results are paired per theme against the same-session 412 control (`../04-template-benchmarks/protocol.md` §2.3, `viewport/`). The Lighthouse channel is verified per capture against the profile's screen; the CDP channel by the page's own report, and an unverified CDP emulation removes structure, layout and motion evidence only. The pilot exposed a re-apply defect (REA's disconnect wipes the emulation; Chrome ignores an identical re-send), fixed by clear-then-set and covered by a local CDP-after-REA verification channel. **Revisit:** REA gains a mobile / touch flag for its scenario environment (then the before-open window can match the profile too), or a Chrome or REA upgrade changes the disconnect behaviour (re-run `verify-profiles.mjs`).
 
 ---
@@ -133,3 +134,28 @@ Brief 05 §16 makes these routine decisions: choose safe, reversible options, re
 - **Decision:** (a). (b) is deferred behind explicit triggers; (c) is rejected (no measured need, duplicates every domain rule, cannot render the React template system).
 - **Consequences:** B-014 (cached invitation-level render with per-guest parts rendered per request, one loader call for the database, no Clerk / locale cookie on `/i/*`) is the performance lever, measured against the spike (target ≤ 2 × the `next-min` server CPU); B-017a makes view tracking atomic; B-007 and B-011 stay P0; telemetry (`../08-backend-rust-plan/README.md` §6) precedes any further performance claim; the spike stays as test equipment, not product code; the project skill `invitesion-rust-backend` (no vetted third-party Rust skill is locked) records the triggers, the measurement method and the rules for an incremental service, so a future agent does not start a rewrite without them.
 - **Revisit:** telemetry after B-014 shows guest-page CPU dominating cost or p95 above the SLO while the database has headroom; a non-React hot path appears (venue QR check-in with offline sync, webhook fan-out, bulk WhatsApp sending); the database stops being the limit (pooler, replicas) and runtime CPU is what remains.
+
+## Owner decisions (session 14, 2026-11-04 ≈ 14:58Z)
+
+Answers to the three gate questions in `../_handoff/sessions/session-14-20261104-1420.md`. They are owner direction, not research findings.
+
+### ADR-O08 — Start implementation while research rows stay open
+- **Status:** ACCEPTED (owner) · **Confidence:** n/a (owner direction).
+- **Context [OBSERVED]:** the gate (`../_handoff/acceptance-matrix.md` §9) was closed on RQ-DEMO-01 and RQ-VER-03 (BLOCKED) and on four PARTIAL rows (RQ-COMP-04, RQ-COMP-05, RQ-OWN-02, RQ-BENCH-05). The session instruction forbids entering implementation by silent waiver.
+- **Decision:** implementation starts now, with the open rows kept open and listed. CPU-heavy work keeps its order: the running v2 batch, output regeneration and the RQ-OWN-02 same-host comparison first; then B-016, the design harness and three families, with B-014 step 2 in parallel.
+- **Consequences:** the gate reads "not passed; implementation authorized by ADR-O08", never "passed". Claims that depend on an open row (own-build comparisons, B-012 budgets, public-review themes) stay qualified until the row closes.
+- **Revisit:** an open row's result contradicts an implementation decision, for example the same-host comparison shows the current build slower than `22ed99e`.
+
+### ADR-O09 — Self-review under owner authority for RQ-VER-03
+- **Status:** ACCEPTED (owner) · **Confidence:** lower than an independent review, by construction.
+- **Context:** `AGENTS.md` asks for a Guardian review in a separate session (author ≠ reviewer). No second session exists in this sandbox; s14 prepared `../_handoff/review-request-s14.md`.
+- **Decision:** the owner gave the author authority to review its own work ("do your best"). The review follows `../_handoff/review-request-s14.md` and `docs/review/review-personas.md` and is recorded as a self-review under owner authority, never as an independent review or a Guardian approval.
+- **Consequences:** RQ-VER-03 closes as "self-reviewed under ADR-O09" once the review record exists with its findings and fixes. An independent review stays recommended before release-facing claims and supersedes this one if it happens.
+- **Revisit:** the owner or a teammate runs an independent review.
+
+### ADR-O10 — RQ-DEMO-01 is qualified by availability
+- **Status:** ACCEPTED (owner) · **Confidence:** as ADR-W1 (reduced for IDI, PLO and SMO).
+- **Context [OBSERVED]:** strict Wave 1 needs ≥ 3 valid official demos for each of the top-8 Indonesian competitors. IDI, PLO and SMO publish none that is safe (s08 bounded search: IDI catalogs and real-event accounts, SMO previews show personal data, PLO is app-only), and signup or purchase is not allowed.
+- **Decision:** the requirement is qualified by availability: 4 / 8 strict, 5 / 8 counting the provisional ENV themes (D-028). It no longer blocks the gate.
+- **Consequences:** comparisons involving IDI, PLO or SMO stay marked as not demo-backed. The ADR-W1 trigger stays open, and the s08 search is not repeated without new evidence.
+- **Revisit:** a vendor publishes a placeholder demo, or the owner supplies consented sample invitations.

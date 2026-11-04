@@ -115,7 +115,7 @@ None identified for the mobile-card service in the pages read. [UNKNOWN]
 ## 10. Strengths, weaknesses, public complaints
 - **Strengths:** the closest foreign analogue to the Indonesian scroll invitation (contacts, gallery, directions, guestbook, gift money); paper ↔ mobile integration; card-paid gift money with automatic per-side payout; per-area editability; almost no main-thread work (TBT 0); zoom allowed. [OBSERVED/CLAIMED as tagged]
 - **Weaknesses:** 2.4–2.8 MB of Korean web fonts and 23 render-blocking stylesheets (FCP 12.7–19.5 s on simulated Slow 4G); no lazy loading; SEO 42 without OG tags; `image-alt` failures; jQuery 1.12.4 on IIS; a gift upsell that cannot be switched off. [OBSERVED / CLAIMED]
-- **Public complaints:** not researched. [UNKNOWN]
+- **Public complaints:** the mobile-card homepage links no store listing in its static HTML (S-BRN-006, s14); Korean review sources were not read. [UNKNOWN]
 
 ## 11. Patterns to learn, to avoid, and our counter-move
 | Learn (principle) | Avoid | Our counter-move |

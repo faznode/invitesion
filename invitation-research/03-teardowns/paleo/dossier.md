@@ -76,7 +76,7 @@ No endpoints observed. See `api-observed.md`.
 ## 10. Strengths, weaknesses, public complaints
 - **Strengths:** large install base with a 4.5 rating; the shortest guided creation flow described in the set (five steps, "under 5 minutes"); mobile-native editing; data deletion offered. [OBSERVED/CLAIMED as tagged]
 - **Weaknesses:** no web catalog or sample, so web discovery depends on the store; about a year without an app update; opaque pricing; developer-declared sharing of location and personal data with third parties; corrupted homepage copy. [OBSERVED]
-- **Public complaints:** Play reviews not read in this pass. [UNKNOWN]
+- **Public complaints (s14, S-PLO-005, paraphrased, no names):** Google Play listing 4.5★ from 1.66K reviews (500K+ installs); the listing was last updated 2025-10-29. The three reviews shown first (Apr–Jun 2024, positive) value the low price compared with social-media and marketplace sellers, a quick builder that suits beginners, and the number of themes. No complaint is visible in that sample, so complaint themes stay [UNKNOWN]; the visible reviews are more than two years old and not a representative sample. [OBSERVED listing, CLAIMED by reviewers]
 
 ## 11. Patterns to learn, to avoid, and our counter-move
 | Learn (principle) | Avoid | Our counter-move |

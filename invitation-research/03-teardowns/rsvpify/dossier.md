@@ -58,7 +58,7 @@ Freemium by guest count (100), tiered plans up to custom Enterprise, and transac
 ## 10. Strengths, weaknesses, public complaints
 - **Strengths:** the deepest operations stack in the set (forms, ticketing, seating, check-in with badges, dashboards); enterprise trust signals; an AI/MCP surface. [CLAIMED]
 - **Weaknesses:** generic corporate-event focus rather than culturally specific invitations; pricing hidden behind bot protection. [OBSERVED access] / focus [INFERRED, medium]
-- **Public complaints:** not researched. [UNKNOWN]
+- **Public complaints:** s14: the homepage answered 403 (S-RSV-003, origin stopped, no other client) and Trustpilot is restricted under D-030 (S-RSV-004); no public review source is reachable within the research boundaries. [UNKNOWN]
 
 ## 11. Patterns to learn, to avoid, and our counter-move
 | Learn (principle) | Avoid | Our counter-move |

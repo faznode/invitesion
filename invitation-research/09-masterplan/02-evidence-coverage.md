@@ -64,7 +64,7 @@ These were "addenda that do not block planning" until s10. They are required del
 | Sample blueprints, tier classification, per-tier aggregates | **done s10** | `../04-template-benchmarks/benchmark-pack.md` |
 | Viding to six valid demos | **done s10** (C-VID-107…109) | Viding dossier §4 |
 | Sitemu dossier (rank 10) | **blocked** (D-026) | owner answer to Q-O08 (RQ-COMP-02) |
-| Public complaints per dossier (§10) | **open**: researched for WEV only | public review sources per vendor (RQ-COMP-05) |
+| Public complaints per dossier (§10) | **partial** (s14): themes for WEV, IDI, PLO, PTF from store listings (first-shown reviews only, low confidence); the other 11 dossiers name the source checked and why it was unreadable | forum / blog search per vendor; Trustpilot after Q-O08 (RQ-COMP-05) |
 | Protocol-v2 captures (360×800, 390×844, reduced motion) | **open** | `run-batch.sh` with a v2 protocol (RQ-BENCH-05) |
 | In-app browsers, audio playback, INP | **open** (external) | device lab or field data |
 | Our current guest page after P0 | **open** | new C-INV captures on the current build (RQ-OWN-02) |

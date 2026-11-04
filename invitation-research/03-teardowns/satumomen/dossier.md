@@ -92,7 +92,7 @@ None linked from `/tema` or `/harga`; none in the longlist. [OBSERVED absence] /
 ## 10. Strengths, weaknesses, public complaints
 - **Strengths:** full feature set on every tier (claimed); an event-day check-in system with a greeting screen and head count; a page-based editor with reorderable pages and layouts; the most complete reseller packaging in the set (instant branded site, credits, domains); adjacent products (print, 3D video); broad event categories including seminars, schools and corporate events. [CLAIMED/OBSERVED as tagged]
 - **Weaknesses:** public previews show real people's data (S-SMO-004); a 7-day Basic window from purchase; watermark on standard tiers [INFERRED]; inconsistent tier naming; font family only "via developer tools" [CLAIMED]; no app; non-browser clients blocked. [OBSERVED unless tagged]
-- **Public complaints:** not researched. [UNKNOWN]
+- **Public complaints:** s14: the homepage links no store listing (S-SMO-007), and no independent review source was read. [UNKNOWN]
 
 ## 11. Patterns to learn, to avoid, and our counter-move
 | Learn (principle) | Avoid | Our counter-move |

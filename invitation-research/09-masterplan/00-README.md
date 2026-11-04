@@ -11,10 +11,11 @@
 The masterplan is **verified but not complete**. Open required criteria, each with its unblock path in the acceptance matrix:
 - **RQ-COMP-02** — no longer blocked: Sitemu (Tier A rank 10) has a v1 dossier since s12 (level C), read after the robots applicability audit replaced D-026 with D-030 (verified s13). Q-O08 keeps only a residual (Canva, undocumented legacy-name mapping).
 - **RQ-DEMO-01 BLOCKED** — strict Wave 1 (≥ 3 valid demos for each of the top-8 Indonesian competitors) is **4 / 8 unconditional** (5 / 8 if the provisional Enviory captures are admitted, D-031 / Q-O09): Indoinvite, PALEO and Satu Momen have no safely usable public demo. ADR-W1 let planning proceed with reduced confidence; it is not that evidence.
-- **RQ-COMP-04 / RQ-COMP-05 PARTIAL** — 11 of 21 Tier-B one-pagers are substantive; public complaints are researched for 1 of 14 Tier-A dossiers.
+- **RQ-COMP-04 / RQ-COMP-05 PARTIAL** — 13 of 21 Tier-B one-pagers are substantive (s12; Sonett's rendered read is still movable). Every Tier-A dossier's §10 now names its public-review source (s14): paraphrased themes for Wevitation, Indoinvite, PALEO and Partiful (the reviews each store listing shows first, not a representative sample); for the other 11 the checked sources were unreadable or absent (no store link, a client-side shell, a 403, Trustpilot restricted under D-030); forum and blog sources are not yet searched.
+- **RQ-OWN-02 PARTIAL** — our current build (`0b5eb1b`) was measured in s13 (C-INV-006…015) on a slower, variable host, so it is a separate population from the pre-P0 baseline (D-033); a same-host comparison of both builds is still needed before any own number is quoted as current.
 - **RQ-BENCH-05 PARTIAL** — only the 412×915 cold load was measured; 360×800, 390×844, reduced motion, in-app browsers, audio and INP are unresolved.
-- **RQ-MP-06 / RQ-MP-15 PARTIAL** — P0 and the next-phase P1 items carry the full evidence-to-rollback chain; the remaining P1 / P2 items do not yet have acceptance criteria, verification and rollback.
-- Independent Guardian review (RQ-VER-03) has not happened.
+- **RQ-MP-06 / RQ-MP-15** — no longer partial: s12 wrote acceptance, verification and rollback for the remaining 26 P1 and 26 P2 items, s13 added rollout, and the s14 table scan found every cell filled.
+- Independent Guardian review (RQ-VER-03) has not happened; its scope is in `../_handoff/review-request-s14.md`.
 
 ## Reading order (verified s10)
 1. `01-executive-summary.md` — the decision in two pages, in English and Bahasa Indonesia.

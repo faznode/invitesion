@@ -240,6 +240,80 @@ class MeasurementProfiles(unittest.TestCase):
         self.assertEqual(RESULTS['C-WEV-104']['profile'], elig.V1_PROFILE)  # no measurement block = protocol v1.2
 
 
+class PopulationBoundaries(unittest.TestCase):
+    """Rule 8 (s14): one profile and, for our own pages, one product build per pooled statistic, in every consumer."""
+    BASELINE, LATER = IDS('C-INV', ('001', '002', '003', '004', '005')), [f'C-INV-{n:03d}' for n in range(6, 16)]
+
+    def digest(self, competitor, ids):
+        return subprocess.run([sys.executable, '-B', DIGEST, '--competitor', competitor] + ids, capture_output=True, text=True)
+
+    def test_10_own_builds_and_profiles_are_separate_populations(self):
+        self.assertEqual({RESULTS[c]['measurement_population'] for c in self.BASELINE}, {'v1-412 own@22ed99e'})
+        self.assertEqual({RESULTS[c]['measurement_population'] for c in IDS('C-INV', ('006', '007'))}, {'v1-412 own@0b5eb1b'})
+        self.assertEqual(RESULTS['C-INV-008']['measurement_population'], 'v2-412 own@0b5eb1b')
+        for cid in IDS('C-INV', range(201, 205)):  # naming hazard: C-INV-2xx are INVI.ID captures, not our page
+            self.assertEqual((BY_ID[cid]['competitor'], RESULTS[cid]['own_build']), ('invi', ''), cid)
+            self.assertEqual(RESULTS[cid]['measurement_population'], RESULTS[cid]['profile'], cid)
+        self.assertEqual(RESULTS['C-VID-204']['measurement_population'], 'v2-412-rm')
+
+    def test_10b_v12_population_is_v1_profile_plus_the_pre_p0_build(self):
+        in_v12 = {c['id'] for c in CAPTURES if elig.v12_population(c['id'], c['competitor'], elig.capture_profile(c))}
+        self.assertTrue(set(self.BASELINE) <= in_v12)
+        self.assertFalse(set(self.LATER) & in_v12)
+        self.assertFalse({c for c in in_v12 if RESULTS[c]['profile'] != elig.V1_PROFILE})
+        self.assertEqual(in_v12, {c for c, ev in RESULTS.items() if ev['profile'] == elig.V1_PROFILE and ev['own_build'] in ('', '22ed99e')})
+
+    def test_10c_retry_numbering_never_crosses_a_build(self):
+        theme = RESULTS['C-INV-006']['theme_key']
+        self.assertEqual(theme, RESULTS['C-INV-005']['theme_key'])  # same guest URL, re-measured on a later build
+        self.assertEqual((RESULTS['C-INV-006']['theme_attempt'], RESULTS['C-INV-006']['theme_attempts']), (1, 1))
+        self.assertEqual((RESULTS['C-INV-005']['theme_attempt'], RESULTS['C-INV-005']['theme_attempts']), (2, 2))  # with C-INV-001
+
+    def test_10d_coverage_counts_one_build_of_our_page(self):
+        own = elig.coverage(CAPTURES, RESULTS)['invitesion']
+        self.assertEqual((own['captures'], own['coldload_n']), (5, 3))  # C-INV-001…005; cold-load: 001, 002, 005
+        later = elig.coverage(CAPTURES, RESULTS, build='0b5eb1b')['invitesion']
+        self.assertEqual((later['captures'], later['coldload_n']), (2, 2))  # C-INV-006 / 007 in v1-412
+
+    def test_10e_unregistered_own_build_is_its_own_population(self):
+        new = copy.deepcopy(BY_ID['C-INV-006'])
+        new['id'] = 'C-INV-099'
+        ev = elig.evaluate(new, None)
+        self.assertEqual((ev['own_build'], ev['measurement_population']), ('unknown', 'v1-412 own@unknown'))
+        self.assertTrue(any(level == 'warning' and 'without a registered build' in m for level, m in ev['findings']))
+        self.assertFalse(elig.v12_population('C-INV-099', 'invitesion', elig.V1_PROFILE))
+
+    def test_10f_digest_rejects_mixed_profiles_with_exit_status_2(self):
+        run = self.digest('wevitation', ['C-WEV-104', 'C-WEV-201'])
+        self.assertEqual(run.returncode, 2, run.stderr)
+        self.assertIn('measurement populations v1-412, v2-412', run.stderr)
+        self.assertEqual(run.stdout, '', 'no table may be printed for a rejected population')
+
+    def test_10g_digest_rejects_mixed_own_builds_with_exit_status_2(self):
+        run = self.digest('invitesion', ['C-INV-005', 'C-INV-006'])
+        self.assertEqual(run.returncode, 2, run.stderr)
+        self.assertIn('v1-412 own@0b5eb1b, v1-412 own@22ed99e', run.stderr)
+
+    def test_10h_digest_single_population_succeeds_and_names_its_viewport(self):
+        v1 = self.digest('wevitation', ['C-WEV-104'])
+        self.assertEqual(v1.returncode, 0, v1.stderr)
+        self.assertIn('412×915, cold cache', v1.stdout)
+        narrow = self.digest('invitesion', ['C-INV-009', 'C-INV-013'])
+        self.assertEqual(narrow.returncode, 0, narrow.stderr)
+        self.assertIn('measurement population v2-360 own@0b5eb1b', narrow.stdout)
+        self.assertIn('360×800, cold cache', narrow.stdout)
+        reduced = self.digest('viding', ['C-VID-204'])
+        self.assertEqual(reduced.returncode, 0, reduced.stderr)
+        self.assertIn('412×915, prefers-reduced-motion: reduce', reduced.stdout)
+
+    def test_10i_feature_matrix_derives_from_the_v12_population_only(self):
+        matrix = load_script('build_matrix', '../../05-feature-matrix/build-matrix.py')
+        derived, stats = matrix.derive(list(matrix.RAW_DIRS))
+        self.assertEqual((stats['invitesion']['cold'], stats['invitesion']['cold_themes']), (3, 2))  # baseline build only
+        cited = {cid for cell in derived.values() for cid in cell['evidence']}
+        self.assertFalse({c for c in cited if not elig.v12_population(c, BY_ID[c]['competitor'], elig.capture_profile(BY_ID[c]))})
+
+
 def write_provisional(directory, rows, columns=elig.PROVISIONAL_COLUMNS):
     path = os.path.join(directory, 'provisional.csv')
     with open(path, 'w', newline='', encoding='utf-8') as handle:

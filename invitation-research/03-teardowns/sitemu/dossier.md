@@ -66,7 +66,7 @@ None linked from the pages read. [OBSERVED absence on 5 pages; an app elsewhere 
 ## 10. Strengths, weaknesses, user complaints
 - **Strengths:** a genuinely free lane; a clear seven-step paid flow with online payment and a human fallback; done-for-you production for people who do not want to edit; "Tanpa Foto", Adat, Khitan, Video and 3D as first-class filters; a transparent custom ladder with stated turnaround. [OBSERVED]
 - **Weaknesses:** discount anchors and an unsubstantiated "from" price; numbered themes with no identity; expiry (3 months free, 1 year paid); RSVP missing from the free tier; manual production makes turnaround queue-dependent. [OBSERVED]
-- **Public complaints:** not yet researched [UNKNOWN] (RQ-COMP-05).
+- **Public complaints:** the vendor's pages link no store listing (S-STM-008, s12), and no other public review source was read. [UNKNOWN] (RQ-COMP-05, availability-qualified)
 
 ## 11. Patterns worth learning (principle level), what to avoid, our counter-move
 - **Learn:**

@@ -111,11 +111,15 @@ def main():
     for level, cid, message in register.problems:
         print(f'{level.upper()} {cid} {message}', file=sys.stderr)
     captures = [load(args.competitor, capture_id) for capture_id in args.ids]
-    profiles = sorted({eligibility.capture_profile(c) for c in captures})
-    if len(profiles) > 1:
-        print(f'ERROR: the captures span measurement profiles {", ".join(profiles)}; a median pools one profile only '
-              '(D-032). Run once per profile.', file=sys.stderr)
+    populations = sorted({eligibility.measurement_population(c['id'], c.get('competitor'), eligibility.capture_profile(c))
+                          for c in captures})
+    if len(populations) > 1:
+        print(f'ERROR: the captures span measurement populations {", ".join(populations)}; a median pools one profile and, '
+              'for our own pages, one product build (D-032, eligibility.py rule 8). Run once per population.', file=sys.stderr)
         return 2
+    profile = eligibility.capture_profile(captures[0])
+    screen = eligibility.PROFILES.get(profile, eligibility.PROFILES[eligibility.V1_PROFILE])
+    viewport = f"{screen['width']}×{screen['height']}" + (', prefers-reduced-motion: reduce' if screen['motion'] == 'reduce' else '')
     results = eligibility.evaluate_all(captures, register)
     for ev in results.values():
         if args.sensitivity:
@@ -133,12 +137,13 @@ def main():
     struct_n = sum(ev['structure_eligible'] for _, _, ev, _ in items)
     population = 'SENSITIVITY population (provisional evidence admitted; never quote as unconditional)' if args.sensitivity \
         else 'unconditional population (provisional evidence excluded)'
-    print(f'<!-- dossier-digest.py: {args.competitor} {len(items)} capture(s); {population}; cold-load eligible {cold_n}, '
+    print(f'<!-- dossier-digest.py: {args.competitor} {len(items)} capture(s); measurement population {populations[0]}; '
+          f'{population}; cold-load eligible {cold_n}, '
           f'structure eligible {struct_n}; register {os.path.relpath(args.register, RESEARCH)} ({register.rows} rows, '
           f'provisional {register.provisional_rows} rows) -->')
     if args.sensitivity:
         print('> **SENSITIVITY RESULT.** Includes provisional evidence (eligibility.py rule 7). Not an unconditional figure.\n')
-    table('Cold load (Lighthouse 12.8.2, simulated Slow 4G + 4× CPU, 412×915, cold cache; Lighthouse never clicks)',
+    table(f'Cold load (Lighthouse 12.8.2, simulated Slow 4G + 4× CPU, {viewport}, cold cache; Lighthouse never clicks)',
           COLD_COLUMNS, items, 'coldload_eligible', 'coldload_reasons')
     table('After the visit (our CDP session, unthrottled: load + scenario + cover click + scroll; not Lighthouse)',
           VISIT_COLUMNS, items, 'structure_eligible', 'structure_reasons',
@@ -168,7 +173,8 @@ def main():
             'lhThirdParties': [f"{t.get('entity')} {round((t.get('bytes') or 0) / 1024)} KiB/{round(t.get('blockingMs') or 0)} ms" for t in (lh.get('thirdParties') or [])[:5]],
             'lhFontDisplayIssues': lh.get('fontDisplayIssues'), 'cdpProtocols': net.get('protocols'),
         }, ensure_ascii=False))
+    return 0
 
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())

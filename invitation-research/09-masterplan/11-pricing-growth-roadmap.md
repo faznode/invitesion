@@ -38,7 +38,7 @@ Top-10 ideas mapped: I-06 → B-034 (sprint 4); I-02 → after B-012 (sprint 3);
 s09 implemented items from sprints 1, 2 and 4 out of the original order; the table keeps the plan and shows the state beside it.
 
 **Next-phase order (s10 handoff; chains in `06-backlog.md`):**
-1. Re-measure our guest page on the current build (RQ-OWN-02: new C-INV captures with protocol v1.2) so B-012's internal budgets start from the post-P0 page, not `22ed99e`.
+1. Compare our guest page across builds on one host (RQ-OWN-02): s13 measured the current build `0b5eb1b` (C-INV-006…015), but on a slower, variable host, so B-012's internal budgets move off `22ed99e` only after interleaved same-host runs of both builds (D-033).
 2. **B-012** finish: run the product guest page through the harness budgets and gates, and add CI for `check`.
 3. **B-017a** atomic view dedupe (small, data integrity of host analytics).
 4. **B-009** cover + music (largest remaining table-stakes gap; needs B-012).

@@ -53,7 +53,7 @@ Free for hosts; ticket sales are the visible revenue line; fees [UNKNOWN].
 ## 10. Strengths, weaknesses, public complaints
 - **Strengths:** the lowest-friction creation and RSVP in the set; group texting; social layer (guest list, comments). [CLAIMED]
 - **Weaknesses for our market:** casual US social events, not ceremony-centred invitations with family, religious and gift sections. [INFERRED, medium]
-- **Public complaints:** not researched. [UNKNOWN]
+- **Public complaints (s14, S-PTF-003, paraphrased, no names):** Google Play listing 4.9★ from 27K reviews (500K+). Of the three reviews shown first (Aug–Sep 2026): one reviewer withholds the fifth star over re-invite limits (50 contacts from past events plus 50 from attended events, and people who left an event cannot be invited again); one reports frequent crashes, heavy mobile-data use and notifications that stopped arriving; a positive one asks to keep received greeting cards on the profile. Trustpilot is restricted under D-030 (S-PTF-004). Not a representative sample. [CLAIMED by reviewers]
 
 ## 11. Patterns to learn, to avoid, and our counter-move
 | Learn (principle) | Avoid | Our counter-move |

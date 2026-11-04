@@ -71,7 +71,7 @@ One row per structure-eligible theme (unconditional 31 = 29 competitor + 2 own; 
 ## 6. Demo coverage (strict vs revised obligations, unique samples vs attempts)
 | Vendor (rank) | Attempts (captures) | Cold-load unique themes | Structure unique themes | Verified-open themes | ≥ 3 valid (Wave 1) | ≥ 6 for the top-6 Indonesian (where safely available) |
 |---|---|---|---|---|---|---|
-| Indoinvite (1) | 7 (catalog pages) | 0 | 0 | 0 | ��� unavailable (D-020, S-IDI-003) | ❌ unavailable |
+| Indoinvite (1) | 7 (catalog pages) | 0 | 0 | 0 | ❌ unavailable (D-020, S-IDI-003) | ❌ unavailable |
 | PALEO (2) | 0 | 0 | 0 | 0 | ❌ unavailable (app-only) | ❌ unavailable |
 | Satu Momen (3) | 0 | 0 | 0 | 0 | ❌ unavailable (personal data, S-SMO-004) | ❌ unavailable |
 | Wevitation (4) | 7 (1 marketing) | 6 | 6 | 3 | ✅ | ✅ 6 |

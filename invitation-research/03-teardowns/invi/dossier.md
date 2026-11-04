@@ -114,7 +114,7 @@ No app link on the pages read; store search not done. [UNKNOWN]
 ## 10. Strengths, weaknesses, complaints
 - Strengths: the widest niche coverage in Tier A (wedding, birthday, khitan, aqiqah, walimatussafar); the cheapest unit economics for resellers, with white label, client accounts and custom domains; exports in four formats; reduced-motion CSS, zoom allowed, `lang="id"` and WIB labels on guest pages; real `<audio>` with gesture unlock. [OBSERVED/CLAIMED as tagged above]
 - Weaknesses: Elementor weight (≈ 760 KB JS, median TBT 3.7 s, Perf 30, LCP 20.4 s); CLS 1.00 on 2/6 demos; GTM on guest pages; unverified commercial display fonts; SEO 66 on demos; conflicting theme counts; the CMS version is public. [OBSERVED]
-- User complaints: only the vendor's own testimonials were seen (positive, 2024). Independent reviews not researched yet. [UNKNOWN]
+- User complaints: only the vendor's own testimonials were seen (positive, 2024). s14: the homepage links no store listing (S-INV-004), and no independent review source was read. [UNKNOWN]
 
 ## 11. Patterns to learn from (principle level, R2: no visual cloning)
 | Steal-worthy principle | Avoid | Our counter-move |

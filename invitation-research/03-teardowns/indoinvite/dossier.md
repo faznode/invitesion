@@ -120,7 +120,7 @@ Android `com.indoinvite.apps`: 500K+ installs, 4.9★, updated 2026-10-14 [ESTIM
 ## 10. Strengths, weaknesses, public complaints
 - **Strengths:** price leadership; the broadest event and faith coverage observed; done-for-you production at mass-market prices; all themes on every tier; guest-side revenue; broad payment methods; a well-rated Android app with 500K+ installs; a large programmatic SEO footprint. [OBSERVED/ESTIMATE as tagged]
 - **Weaknesses:** sample previews expose **real customers' events** (names, parents, organiser contacts) as public examples [OBSERVED S-IDI-003]; catalog pages of 2.36 MB HTML and ≈ 36,200 nodes on one ≈ 97,000 px page [OBSERVED]; a legacy jQuery stack on the one guest page seen [OBSERVED]; theme-count claims disagree with the catalog (300–400 vs 493) [OBSERVED]; self-editing locked below Pro [OBSERVED]; thumbnails from a staging-named bucket [INFERRED, medium].
-- **Public complaints:** not researched (Play reviews not read in this pass). [UNKNOWN]
+- **Public complaints (s14, S-IDI-008, paraphrased, no names):** Google Play listing 4.8★ from 3.42K reviews (500K+ installs). The three reviews the static listing shows first (Jul–Oct 2026, all positive) praise the theme variety, easy WhatsApp sharing, fast loading, a responsive admin with fast production, and the absence of an active-period limit. No complaint is visible in that sample; the full list needs Play's dynamic loader, which this research does not use, so complaint themes stay [UNKNOWN]. Three first-shown reviews are not a representative sample. [OBSERVED listing, CLAIMED by reviewers]
 
 ## 11. Patterns to learn, to avoid, and our counter-move
 | Learn (principle) | Avoid | Our counter-move |

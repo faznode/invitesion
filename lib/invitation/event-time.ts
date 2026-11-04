@@ -56,6 +56,20 @@ export function formatEventDate(value?: string | null, fallbackZone?: string | n
   }).format(resolved.date);
 }
 
+export type EventDateParts = { weekday: string; day: string; month: string; monthShort: string; year: string };
+
+/** Weekday, day, month and year in the event's zone, for date tiles; null for a missing / invalid value. */
+export function eventDateParts(value?: string | null, fallbackZone?: string | null): EventDateParts | null {
+  const resolved = resolve(value, fallbackZone);
+  if (!resolved) return null;
+  const parts = (options: Intl.DateTimeFormatOptions) =>
+    Object.fromEntries(
+      new Intl.DateTimeFormat('id-ID', { timeZone: resolved.timeZone, ...options }).formatToParts(resolved.date).map((part) => [part.type, part.value]),
+    );
+  const long = parts({ weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  return { weekday: long.weekday, day: long.day, month: long.month, monthShort: parts({ month: 'short' }).month.replace('.', ''), year: long.year };
+}
+
 /** "08.00 WIB" in the event's zone, or null for a missing / invalid value. */
 export function formatEventTime(value?: string | null, fallbackZone?: string | null): string | null {
   const resolved = resolve(value, fallbackZone);

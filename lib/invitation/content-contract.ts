@@ -44,7 +44,7 @@ export const RENDER_CAPABILITIES = {
     rendered: ['organizationName', 'eventName'],
     storedOnly: ['eventCategory', 'contactName', 'contactPhone', 'contactEmail', 'logoUrl', 'description', 'dressCode', 'agenda', 'speakers'],
   },
-  theme: { rendered: ['paletteId', 'cover.imageUrl', 'cover.headline'], storedOnly: [], hostOnly: ['templateId'] },
+  theme: { rendered: ['paletteId', 'familyId', 'cover.imageUrl', 'cover.headline'], storedOnly: [], hostOnly: ['templateId'] },
   events: { rendered: ['title', 'startAt', 'endAt', 'venueName', 'address', 'mapUrl', 'note'], storedOnly: [] },
   music: { rendered: [], storedOnly: ['enabled', 'assetUrl', 'title', 'autoplay'] },
   greetings: { rendered: ['enabled', 'prayer'], storedOnly: [] },

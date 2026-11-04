@@ -60,7 +60,7 @@ Not covered by the pages read. [UNKNOWN]
 ## 10. Strengths, weaknesses, public complaints
 - **Strengths:** design catalogue depth; multi-channel delivery with per-guest channel reminders; co-hosts; surveys; password protection; print bridge. [CLAIMED]
 - **Weaknesses:** coin pricing makes the total cost hard to predict; premium features behind an unlock. [OBSERVED pricing] / perception [INFERRED, medium]
-- **Public complaints:** not researched. [UNKNOWN]
+- **Public complaints:** s14: no store link in the homepage's static HTML (S-PPO-003); Trustpilot is restricted under D-030 (S-PPO-004, Q-O08 residual). [UNKNOWN]
 
 ## 11. Patterns to learn, to avoid, and our counter-move
 | Learn (principle) | Avoid | Our counter-move |

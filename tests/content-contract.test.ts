@@ -1,7 +1,7 @@
 // Content contract (s11): the render-capability map agrees with the renderer, the editor notices are derived from it,
 // stored configs are read leniently per section, and guest pages get no locale cookie (B-014 step 1).
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import {
@@ -17,7 +17,16 @@ import { viewLockKey } from '../lib/invitation/view-tracking';
 import { mirrorsLocaleCookie } from '../lib/locale-cookie';
 
 const source = (path: string) => readFileSync(join(process.cwd(), path), 'utf8');
-const guestPageSource = source('components/invitation/public-renderer.tsx') + source('lib/invitation/headline.ts');
+// Every file that renders guest-page content, design families included (B-030): a family that reads a stored-only
+// field must fail here exactly like the legacy layout would.
+const guestPageFiles = [
+  'components/invitation/public-renderer.tsx',
+  'components/invitation/guest-view.ts',
+  'components/invitation/guest-blocks.tsx',
+  ...readdirSync(join(process.cwd(), 'components/invitation/families')).map((file) => `components/invitation/families/${file}`),
+  'lib/invitation/headline.ts',
+];
+const guestPageSource = guestPageFiles.map(source).join('\n');
 const ITEM_ALIAS: Partial<Record<ContentSection, string>> = { events: 'event', gift: 'account', story: 'item' };
 const chain = (section: string, path: string) => new RegExp(`${[section, ...path.split('.')].join('\\??\\.')}\\b`);
 const referenced = (section: ContentSection, path: string) =>

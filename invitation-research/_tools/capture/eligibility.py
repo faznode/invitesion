@@ -22,6 +22,9 @@ Rules, in order of authority:
      every consumer uses by default) and kept in the sensitivity population (`*_eligible_sensitivity`), which applies the
      exclusion register only. The two populations are reported separately and never merged. A provisional row is not an
      exclusion: the exclusion register stays final curation, one row per capture, and both files apply independently.
+  8. Measurement populations (s13 profiles, s14 builds): every pooled statistic holds `measurement_population` constant,
+     i.e. one measurement profile and, for our own pages, one product build (OWN_BUILDS). Retry numbering, coverage,
+     tier files (v12_population), viewport outputs and dossier digests never cross that boundary.
 """
 import argparse
 import csv
@@ -66,18 +69,39 @@ def capture_profile(capture):
     return (capture.get('measurement') or {}).get('profile') or V1_PROFILE
 
 
-# Own captures of the pre-P0 build `22ed99e` (s01: C-INV-001…004; s06: C-INV-005). The feature matrix's Invitesion column
-# and the own rows of the v1.2 tier files describe this build. Later own captures measure another build on another host
-# (C-INV-006…015: the s13 current build, Lighthouse benchmarkIndex 820–1,252 vs ≈ 1,450) and are reported apart
-# (benchmark-pack.md §7), because pooling them by theme would mix builds and hosts.
-OWN_BASELINE_CAPTURES = frozenset(f'C-INV-00{n}' for n in range(1, 6))
+# Our own captures by product build. Each build is its own measurement population: pooling them by theme (medians, retry
+# numbering, coverage, digests) would mix builds and hosts (benchmark-pack.md §7).
+#   22ed99e  pre-P0 baseline (s01: C-INV-001…004; s06: C-INV-005), Lighthouse benchmarkIndex 1,415.5–1,470. The feature
+#            matrix's Invitesion column and the own rows of the v1.2 tier files describe this build.
+#   0b5eb1b  product source of the s13 local stack (C-INV-006…015; Next build Y_wUSREB6X9C-MrUv69rO, production build
+#            without middleware, D-012) on a 2-vCPU sandbox, benchmarkIndex 820–1,251.5 with three slow-CPU warnings. The ten
+#            committed reports share one JS chunk set that differs from C-INV-005's on the same URL (s14 check).
+# A new own capture needs a row here before it is reported; until then it is its own population `own@unknown` (warning).
+OWN_BASELINE_BUILD = '22ed99e'
+OWN_BUILDS = {**{f'C-INV-{n:03d}': OWN_BASELINE_BUILD for n in range(1, 6)},
+              **{f'C-INV-{n:03d}': '0b5eb1b' for n in range(6, 16)}}
+OWN_BASELINE_CAPTURES = frozenset(cid for cid, build in OWN_BUILDS.items() if build == OWN_BASELINE_BUILD)
+UNKNOWN_BUILD = 'unknown'
+
+
+def own_build(capture_id, competitor):
+    """Product build of one of our own captures ('' for competitors; C-INV-1xx / 2xx are INVI.ID, not ours)."""
+    if competitor != 'invitesion':
+        return ''
+    return OWN_BUILDS.get(capture_id, UNKNOWN_BUILD)
+
+
+def measurement_population(capture_id, competitor, profile):
+    """Population key that every pooled statistic must hold constant: the measurement profile, plus the product build for
+    our own pages, e.g. 'v1-412', 'v2-360', 'v1-412 own@22ed99e', 'v2-412 own@0b5eb1b'."""
+    profile = profile or V1_PROFILE
+    build = own_build(capture_id, competitor)
+    return f'{profile} own@{build}' if build else profile
 
 
 def v12_population(capture_id, competitor, profile):
     """The protocol v1.2 measurement population: profile v1-412, and for our own pages the pre-P0 baseline build only."""
-    if (profile or V1_PROFILE) != V1_PROFILE:
-        return False
-    return competitor != 'invitesion' or capture_id in OWN_BASELINE_CAPTURES
+    return measurement_population(capture_id, competitor, profile) in (V1_PROFILE, f'{V1_PROFILE} own@{OWN_BASELINE_BUILD}')
 
 
 # Guest personalisation parameters do not identify a theme. Every other query parameter (e.g. Enviory's `tpl`) does.
@@ -299,6 +323,10 @@ def evaluate(capture, rule=None, provisional=None):
     if blocked and not (rule and rule['scope'] == 'all'):
         findings.append(('error', 'robots.txt disallowed or unreachable at capture time, but no scope=all register row (D-022)'))
     profile = capture_profile(capture)
+    build = own_build(capture.get('id'), capture.get('competitor'))
+    if build == UNKNOWN_BUILD:
+        findings.append(('warning', 'own capture without a registered build (eligibility.OWN_BUILDS): reported as its own '
+                                    'population, never pooled with a known build'))
     measurement = capture.get('measurement') or {}
     unverified, cdp_unverified = [], []
     if profile not in PROFILES:
@@ -341,6 +369,7 @@ def evaluate(capture, rule=None, provisional=None):
         if provisional else []
     return {
         'population': 'own' if capture.get('competitor') == 'invitesion' else 'competitor', 'profile': profile,
+        'own_build': build, 'measurement_population': measurement_population(capture.get('id'), capture.get('competitor'), profile),
         'page_class': page_class, 'page_class_source': source, 'wrapper_heuristic': wrapper_heuristic,
         'exclusion_scope': rule['scope'] if rule else '', 'exclusion_decision': rule['decision'] if rule else '',
         'provisional': bool(provisional),
@@ -364,14 +393,15 @@ def load_captures(raw_glob=None):
 
 
 def evaluate_all(captures, register):
-    """Evaluate every capture; number retries per theme in capture order (1 = first attempt)."""
+    """Evaluate every capture; number retries per theme and measurement population in capture order (1 = first attempt).
+    A re-measure of another build or profile is a new population, not a retry."""
     results = {}
     for capture in captures:
         results[capture['id']] = evaluate(capture, register.rules.get(capture['id']), register.provisional.get(capture['id']))
     by_theme = {}
     for capture in sorted(captures, key=lambda c: (c.get('capturedAt') or '', c['id'])):
         ev = results[capture['id']]
-        by_theme.setdefault((capture.get('competitor'), ev['theme_key'], ev['profile']), []).append(capture['id'])
+        by_theme.setdefault((capture.get('competitor'), ev['theme_key'], ev['measurement_population']), []).append(capture['id'])
     for ids in by_theme.values():
         for attempt, cid in enumerate(ids, start=1):
             results[cid]['theme_attempt'], results[cid]['theme_attempts'] = attempt, len(ids)
@@ -393,14 +423,15 @@ def theme_median(samples, value):
             sum(len(v) for v in by_theme.values()))
 
 
-def coverage(captures, results, sensitivity=False, profile=V1_PROFILE):
+def coverage(captures, results, sensitivity=False, profile=V1_PROFILE, build=OWN_BASELINE_BUILD):
     """Unique-theme coverage per competitor in one measurement profile (default: the v1.2 population Wave 1 is defined
-    on); `sensitivity=True` counts the population that includes provisional evidence."""
+    on); our own pages count for one product build only (default: the pre-P0 baseline). `sensitivity=True` counts the
+    population that includes provisional evidence."""
     suffix = '_sensitivity' if sensitivity else ''
     table = {}
     for capture in captures:
         ev = results[capture['id']]
-        if ev['profile'] != profile:
+        if ev['profile'] != profile or (ev['own_build'] and ev['own_build'] != build):
             continue
         entry = table.setdefault(capture.get('competitor'), {'captures': 0, 'coldload': set(), 'structure': set(),
                                                              'verified_open': set(), 'coldload_n': 0, 'structure_n': 0})

@@ -9,7 +9,8 @@
 Every capture stays in the CSV (raw evidence is never dropped); `coldload_eligible` / `structure_eligible` and
 `eligibility_reasons` say what it may support in the unconditional population (eligibility.py, brief 05 B1);
 `provisional` + `*_eligible_sensitivity` describe the sensitivity population that also admits provisional evidence
-(eligibility.py rule 7, D-031). Measurement sources are never mixed (B2):
+(eligibility.py rule 7, D-031). `measurement_population` (profile, plus `own@<build>` for our own pages) and `own_build`
+name the population a row may be pooled with (eligibility.py rule 8, s14). Measurement sources are never mixed (B2):
   lh_*          Lighthouse cold load (12.8.2, simulated Slow 4G + 4x CPU, 412x915, own cold Chrome; Lighthouse never clicks)
   cdp_visit_*   our CDP session over the whole visit: load + REA scenario + cover click + scroll (unthrottled)
   *_bytes       exact bytes; *_kib = bytes / 1024, rounded (older dossiers wrote "KB" for these KiB values)
@@ -28,7 +29,7 @@ import sys
 import eligibility
 
 RESEARCH = eligibility.RESEARCH
-COLUMNS = ['id', 'competitor', 'population', 'kind', 'page_class', 'page_class_source', 'url', 'theme_key',
+COLUMNS = ['id', 'competitor', 'population', 'measurement_population', 'own_build', 'kind', 'page_class', 'page_class_source', 'url', 'theme_key',
            'theme_attempt', 'theme_attempts', 'captured_at', 'visit_driver',
            'coldload_eligible', 'structure_eligible', 'exclusion_scope', 'exclusion_decision', 'eligibility_reasons',
            'provisional', 'provisional_decision', 'coldload_eligible_sensitivity', 'structure_eligible_sensitivity',
@@ -65,7 +66,8 @@ def row(d, ev):
     flags = {k: v for k, v in (after.get('features') or {}).items() if k != 'coverGate'}
     reasons = [f'cold-load: {r}' for r in ev['coldload_reasons']] + [f'structure: {r}' for r in ev['structure_reasons']]
     out = {
-        'id': d.get('id'), 'competitor': d.get('competitor'), 'population': ev['population'], 'kind': d.get('kind'),
+        'id': d.get('id'), 'competitor': d.get('competitor'), 'population': ev['population'],
+        'measurement_population': ev['measurement_population'], 'own_build': ev['own_build'], 'kind': d.get('kind'),
         'page_class': ev['page_class'], 'page_class_source': ev['page_class_source'], 'url': d.get('url'),
         'theme_key': ev['theme_key'], 'theme_attempt': ev['theme_attempt'], 'theme_attempts': ev['theme_attempts'],
         'captured_at': d.get('capturedAt') or d.get('captured_at') or '', 'visit_driver': ev['visit_driver'],

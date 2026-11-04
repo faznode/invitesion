@@ -171,7 +171,7 @@ None. Hosts check guests in on the web at `enviory.com/checkin` with a dashboard
 ## 10. Strengths, weaknesses, complaints
 - **Strengths:** coherent premium art direction (18 named, mood-scripted themes); name-first instant preview, also reachable from the demo guest page; reverse trial; QR check-in in every tier including the trial; per-audience variants on one link; full Midtrans rail coverage; xlsx export. On the guest page: **automated a11y 100**, no third-party scripts besides fonts, a click-to-load map, a sticky section navigation, a three-state RSVP with a guest-count stepper and a combined wishes submit, gift tabs incl. QRIS, a music pause control, reduced-motion CSS. [OBSERVED/CLAIMED as tagged above]
 - **Weaknesses:** image weight (median 2.4 MB at load; rocaille 6.4 MB before any tap and 27.5 MB once opened and scrolled); slow and unstable LCP behind long cover intros (median 13.9 s, rocaille 4.4–56.4 s); text-less cover controls (photo frame, wax seal labelled only "OPEN") that depend on a settled, trusted tap; English section titles in an Indonesian product (velora-linear); 10-photo gallery cap; weddings only; no official WhatsApp blast; digital envelope capped at 2 accounts; non-browser clients get a Cloudflare challenge, so in-app browsers need verification (protocol v2). [OBSERVED/INFERRED]
-- **User complaints:** not researched yet (no Play listing; X/forums are next). [UNKNOWN]
+- **User complaints:** the marketing homepage links no store listing (S-ENV-005, s14; the demo guest route stays untouched under D-031). X needs a login, which this research does not use, and forums were not searched. [UNKNOWN]
 
 ## 11. Patterns to learn from (principle level, no visual cloning)
 | Learn (principle) | Avoid | Our counter-move |

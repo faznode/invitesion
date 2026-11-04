@@ -3,9 +3,11 @@
 
     python3 -B invitation-research/_tools/capture/test_benchmark_pack.py
 """
+import csv
 import importlib.util
 import os
 import sys
+import tempfile
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -112,6 +114,47 @@ class Viewport(unittest.TestCase):
     def test_v1_tier_files_ignore_v2_captures(self):
         tiers, _, _ = bp.build(self.rows())
         self.assertEqual([t['theme_key'] for t in tiers], ['b'])
+
+
+class OwnBuilds(unittest.TestCase):
+    """eligibility.py rule 8 (s14): each build of our own page is a separate population in every output."""
+
+    @staticmethod
+    def own(cid, profile='v1-412', lh_kib=311):
+        return row(cid, competitor='invitesion', theme='own', population='own', profile=profile, lh_kib=lh_kib, perf=90)
+
+    def test_later_own_builds_never_enter_the_tier_files(self):
+        _, aggregates, _ = bp.build([row('C-X-1', theme='a', lh_kib=4000), self.own('C-INV-005'), self.own('C-INV-006', lh_kib=999)])
+        own = next(a for a in aggregates if a['population'] == 'own' and a['metric'] == 'lh_kib' and a['tier'] == 'all')
+        self.assertEqual((own['n_captures'], own['best'], own['best_theme_capture']), (1, 311.0, 'C-INV-005'))
+        self.assertEqual(own['confidence'], 'own pages, build 22ed99e (not a market sample)')
+
+    def test_viewport_reports_each_own_build_apart(self):
+        rows = [self.own('C-INV-008', 'v2-412', 300), self.own('C-INV-099', 'v2-412', 900), row('C-X-1', theme='a', profile='v2-412', lh_kib=4000)]
+        aggregates, paired, _ = bp.build_viewport(rows)
+        kib = {a['population']: a for a in aggregates if a['metric'] == 'lh_kib'}
+        self.assertEqual(sorted(kib), ['competitor', 'own@0b5eb1b', 'own@unknown'])
+        self.assertEqual([(p, kib[p]['n_captures'], kib[p]['median']) for p in ('own@0b5eb1b', 'own@unknown')],
+                         [('own@0b5eb1b', 1, 300.0), ('own@unknown', 1, 900.0)])
+        self.assertEqual(kib['own@0b5eb1b']['confidence'], 'own pages, build 0b5eb1b (not a market sample)')
+        self.assertFalse([p for p in paired if p['population'] == 'own'])
+
+    def test_an_edited_population_makes_the_summary_stale(self):
+        with open(bp.SUMMARY, encoding='utf-8') as handle:
+            rows = list(csv.DictReader(handle))
+        next(r for r in rows if r['id'] == 'C-INV-006')['measurement_population'] = 'v1-412 own@22ed99e'
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, 'captures-summary.csv')
+            with open(path, 'w', newline='', encoding='utf-8') as handle:
+                writer = csv.DictWriter(handle, fieldnames=list(rows[0]))
+                writer.writeheader()
+                writer.writerows(rows)
+            saved, bp.SUMMARY = bp.SUMMARY, path
+            try:
+                _, stale = bp.load_rows()
+            finally:
+                bp.SUMMARY = saved
+        self.assertEqual(stale, ["C-INV-006: measurement_population summary='v1-412 own@22ed99e' recomputed='v1-412 own@0b5eb1b'"])
 
 
 class RealData(unittest.TestCase):

@@ -116,7 +116,7 @@ No endpoints were recorded from normal page use; RSVP, wishes and gift-proof for
 ## 10. Strengths, weaknesses, complaints
 - Strengths: the broadest wedding-ops suite in Tier A (invitation + metered WhatsApp blast + QR/selfie check-in + auto thank-you + planner); table and souvenir management; guest sessions and pax limits; long track record (claimed 8 years); rich motion themes. [CLAIMED/OBSERVED as tagged above]
 - Weaknesses: the heaviest guest pages measured so far (median 5,732 KiB over the CDP visit / 5,984 KiB at Lighthouse cold load, LCP 15.4 s, TBT 4.2 s, Perf 28); zoom blocked and `lang="en"` on Indonesian pages; no reduced-motion CSS; A11y 74–82; Video.js on every page and YouTube on most; Rp 300–700k is 2.4–9× Enviory, with many features sold separately. [OBSERVED]
-- User complaints: not researched yet. [UNKNOWN]
+- User complaints: s14: the homepage links no store listing (S-KAT-005), and no independent review source was read. [UNKNOWN]
 
 ## 11. Patterns to learn from (principle level, R2: no visual cloning)
 | Steal-worthy principle | Avoid | Our counter-move |

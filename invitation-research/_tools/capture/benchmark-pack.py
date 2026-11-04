@@ -6,6 +6,7 @@
     python3 -B invitation-research/_tools/capture/benchmark-pack.py --markdown # print the aggregate tables
 
     python3 -B invitation-research/_tools/capture/benchmark-pack.py --compare  # aggregates that change with provisional evidence
+    python3 -B invitation-research/_tools/capture/benchmark-pack.py --viewport-markdown  # protocol v2 tables for benchmark-pack.md §7
 
 Input: 04-template-benchmarks/captures-summary.csv (summarize-captures.py) for the numbers; eligibility is recomputed
 with eligibility.py from raw/ and the exclusion register, and the run fails if the summary disagrees (stale summary).
@@ -52,6 +53,17 @@ def output_path(name, sensitivity=False):
 def eligibility_keys(sensitivity=False):
     suffix = '_sensitivity' if sensitivity else ''
     return 'coldload_eligible' + suffix, 'structure_eligible' + suffix
+
+
+def own_label(build):
+    return f'own pages, build {build} (not a market sample)'
+
+
+def viewport_population(row):
+    """'competitor', or 'own@<build>': each build of our own page is its own population (eligibility.py rule 8)."""
+    if row['population'] != 'own':
+        return row['population']
+    return f"own@{eligibility.own_build(row['id'], row['competitor']) or eligibility.UNKNOWN_BUILD}"
 
 SIGNATURE_LIBS = {'scrollTrigger', 'three'}
 LEVEL2_LIBS = {'gsap', 'aos', 'animateCss', 'lottie', 'anime'}
@@ -131,6 +143,9 @@ def load_rows():
                 stale.append(f"{row['id']}: summary lacks column {key}")
             elif truthy(row[key]) != bool(ev[key]):
                 stale.append(f"{row['id']}: {key} summary={row[key]} recomputed={ev[key]}")
+        if row.get('measurement_population') != ev['measurement_population']:
+            stale.append(f"{row['id']}: measurement_population summary={row.get('measurement_population')!r} "
+                         f"recomputed={ev['measurement_population']!r}")
     if len(rows) != len(results):
         stale.append(f'summary has {len(rows)} rows, raw/ has {len(results)} captures')
     return rows, stale
@@ -193,7 +208,7 @@ def build(rows, sensitivity=False):
                     'source': source, 'n_themes': len(values), 'n_vendors': len(vendors), 'n_captures': sum(len(c) for _, c in values.values()),
                     'median': round(statistics.median(nums), 3), 'p75': round(percentile(nums, 0.75 if direction == 'low' else 0.25), 3),
                     'best': round(values[best_key][0], 3), 'best_theme_capture': values[best_key][1][0],
-                    'confidence': confidence(len(values), len(vendors)) if population == 'competitor' else 'own pages (not a market sample)',
+                    'confidence': confidence(len(values), len(vendors)) if population == 'competitor' else own_label(eligibility.OWN_BASELINE_BUILD),
                 })
     blueprints = []
     for (competitor, theme), entry in sorted(themes.items()):
@@ -236,12 +251,13 @@ PAIRED_SUMMARY_FIELDS = ['population', 'metric', 'direction', 'comparison', 'n_p
 
 def build_viewport(rows):
     """Protocol v2 outputs (unconditional population): per-profile aggregates and per-theme paired deltas against the
-    same-session v2-412 control. Profiles are never pooled; a delta exists only when both profiles of a theme are eligible."""
+    same-session v2-412 control. Profiles are never pooled; a delta exists only when both profiles of a theme are eligible.
+    Our own rows are labelled `own@<build>` and each build is aggregated on its own."""
     rows = [r for r in rows if r.get('profile') in V2_PROFILES]
     cold_key, struct_key = eligibility_keys()
     profile_aggregates, paired, summary = [], [], []
-    for population in ('competitor', 'own'):
-        sel = [r for r in rows if r['population'] == population]
+    for population in sorted({viewport_population(r) for r in rows}, key=lambda p: (p != 'competitor', p)):
+        sel = [r for r in rows if viewport_population(r) == population]
         for metric, column, direction, source in VIEWPORT_METRICS:
             key = cold_key if source == 'lighthouse' else struct_key
             per_profile = {p: theme_values([r for r in sel if r['profile'] == p], column, key) for p in V2_PROFILES}
@@ -258,7 +274,7 @@ def build_viewport(rows):
                     'n_themes': len(values), 'n_vendors': len(vendors), 'n_captures': sum(len(c) for _, c in values.values()),
                     'median': round(statistics.median(nums), 3), 'p75': round(percentile(nums, 0.75 if direction == 'low' else 0.25), 3),
                     'best': round(values[best_key][0], 3), 'best_theme_capture': values[best_key][1][0],
-                    'confidence': confidence(len(values), len(vendors)) if population == 'competitor' else 'own pages (not a market sample)',
+                    'confidence': confidence(len(values), len(vendors)) if population == 'competitor' else own_label(population.split('@', 1)[1]),
                 })
             control = per_profile[V2_CONTROL]
             deltas = {p: [] for p in V2_PROFILES if p != V2_CONTROL}
@@ -312,6 +328,32 @@ def markdown(aggregates, metrics=('perf', 'a11y', 'lcp_ms', 'tbt_ms', 'cls', 'lh
     return '\n'.join(lines)
 
 
+def viewport_markdown(profile_aggregates, summary, metrics=('perf', 'lcp_ms', 'tbt_ms', 'cls', 'lh_kib', 'layout_overflow_px',
+                                                            'layout_small_targets', 'motion_running_after')):
+    """Markdown for benchmark-pack.md §7: per-profile medians (themes in brackets) and paired deltas against v2-412,
+    one block per population. Numbers come straight from build_viewport(); nothing is pooled across populations."""
+    lines = []
+    for population in sorted({a['population'] for a in profile_aggregates}, key=lambda p: (p != 'competitor', p)):
+        rows = {(a['metric'], a['profile']): a for a in profile_aggregates if a['population'] == population}
+        lines += [f'**{population}**: median per profile (themes)', '',
+                  '| Metric (direction) | ' + ' | '.join(V2_PROFILES) + ' |', '|---|' + '---|' * len(V2_PROFILES)]
+        for metric in metrics:
+            present = [rows[(metric, p)] for p in V2_PROFILES if (metric, p) in rows]
+            if not present:
+                continue
+            cells = [f"{rows[(metric, p)]['median']:g} ({rows[(metric, p)]['n_themes']})" if (metric, p) in rows else '—' for p in V2_PROFILES]
+            arrow = '↓' if present[0]['direction'].startswith('lower') else '↑'
+            lines.append(f'| {metric} ({arrow}) | ' + ' | '.join(cells) + ' |')
+        paired = [s for s in summary if s['population'] == population and s['metric'] in metrics]
+        if paired:
+            lines += ['', f'**{population}**: paired deltas against the same-session `{V2_CONTROL}` capture of each theme', '',
+                      '| Comparison | Metric | Pairs | Median delta | Worse / better / same |', '|---|---|---|---|---|']
+            lines += [f"| {s['comparison']} | {s['metric']} | {s['n_pairs']} | {s['median_delta']:g} | {s['n_worse']} / {s['n_better']} / {s['n_same']} |"
+                      for s in sorted(paired, key=lambda s: (metrics.index(s['metric']), s['comparison']))]
+        lines.append('')
+    return '\n'.join(lines)
+
+
 def compare(unconditional, sensitivity, population='competitor'):
     """Markdown table of the aggregates that differ once provisional evidence is admitted (or exist in only one set)."""
     index = lambda records: {(a['tier'], a['metric']): a for a in records if a['population'] == population}
@@ -334,6 +376,7 @@ def main():
     ap.add_argument('--markdown', action='store_true', help='unconditional aggregate tables (add --sensitivity for the other set)')
     ap.add_argument('--sensitivity', action='store_true', help='with --markdown: the set that includes provisional evidence')
     ap.add_argument('--compare', action='store_true', help='aggregates that change when provisional evidence is admitted')
+    ap.add_argument('--viewport-markdown', action='store_true', help='protocol v2 per-profile medians and paired deltas (§7)')
     args = ap.parse_args()
     rows, stale = load_rows()
     if stale:
@@ -355,6 +398,9 @@ def main():
         return 0
     if args.compare:
         print(compare(aggregates, s_aggregates))
+        return 0
+    if args.viewport_markdown:
+        print(viewport_markdown(v_aggregates, v_summary))
         return 0
     if args.check:
         bad = [name for name, text in files.items()
