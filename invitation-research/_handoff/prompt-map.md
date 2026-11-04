@@ -104,7 +104,7 @@
 | Requirement | Status | Where |
 |---|---|---|
 | `_progress.md` + `_evidence-index.md` after every dossier and phase | ✅ ongoing | `invitation-research/` |
-| Handoff manifest + `invitesion-handoff.zip` + `invitesion-private.zip` after each phase | ◐ | Tool `invitation-research/_tools/ops/make-handoff-zips.sh`; last set 2026-10-29T03:41Z (before sessions 04–05): regenerate at the next phase end |
+| Handoff manifest + `invitesion-handoff.zip` + `invitesion-private.zip` after each phase | ◐ | Tool `invitation-research/_tools/ops/make-handoff-zips.sh`; last set 2026-10-29T03:41Z (before sessions 04–05): regenerate at the next phase end. **s10:** requirement removed by a later owner revision (header); the script is archived as `archive/make-handoff-zips.sh` and handoffs use `invitation-research/_tools/ops/make-handoff-patch.sh` (patch + manifest) |
 | Handoff notes (`_handoff/LATEST.md` + `sessions/`) | ✅ | `invitation-research/_handoff/` |
 | DoD: ≥ 10 ID + ≥ 5 intl teardowns | ◐ 1/15 | |
 | DoD: ≥ 150-row feature matrix; upgrade map tied to M-IDs | ⬜ | |

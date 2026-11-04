@@ -4,7 +4,7 @@ import { runLighthouse, takeSnapshots } from './browser';
 import { formatCheck, runChecks } from './gates';
 import { runProofs } from './proofs';
 import { defaultOutDir, writePreview } from './render';
-import { writeReport } from './report';
+import { reportStatus, writeReport } from './report';
 import { scaffoldTemplate } from './scaffold';
 
 /**
@@ -15,7 +15,8 @@ import { scaffoldTemplate } from './scaffold';
  *   snapshot <dir>            headless Chrome at 360×800, 390×844, 412×915 (+ fixtures, reduced motion)
  *   bench <dir>               budgets + Lighthouse cold load when Chrome and Lighthouse are installed
  *   prove <dir>               deliberate-failure proofs (each must be caught)
- *   report <dir>              all of the above → <dir>/GENERATION-REPORT.md
+ *   report <dir>              all of the above → <dir>/GENERATION-REPORT.md; exit 0 PASS, 3 INCOMPLETE (browser
+ *                             checks missing or invalid), 1 FAIL
  */
 function option(args: string[], name: string, fallback?: string) {
   const index = args.indexOf(`--${name}`);
@@ -71,8 +72,9 @@ async function main() {
     const proofs = runProofs(dir);
     writeReport(dir, { check, snapshots, lighthouse, proofs, generatedAt: new Date().toISOString().replace(/\.\d{3}Z$/, 'Z') });
     writeFileSync(join(outDir, 'results.json'), JSON.stringify({ check, snapshots, lighthouse, proofs }, null, 2));
-    console.log(`${formatCheck(check)}\nproofs caught ${proofs.filter((proof) => proof.caught).length}/${proofs.length}\nlighthouse ${lighthouse.ran ? `perf ${lighthouse.performance} a11y ${lighthouse.accessibility}` : `not run (${lighthouse.reason})`}\nsnapshots ${snapshots.shots.length}\nreport: ${join(dir, 'GENERATION-REPORT.md')}`);
-    process.exit(check.ok && proofs.every((proof) => proof.caught) ? 0 : 1);
+    const { status, detail } = reportStatus({ check, snapshots, lighthouse, proofs });
+    console.log(`${formatCheck(check)}\nproofs caught ${proofs.filter((proof) => proof.caught).length}/${proofs.length}\nlighthouse ${lighthouse.ran ? `perf ${lighthouse.performance} a11y ${lighthouse.accessibility}` : `no valid result (${lighthouse.reason})`}\nsnapshots ${snapshots.shots.length}/${snapshots.expected}\nstatus ${status}: ${detail}\nreport: ${join(dir, 'GENERATION-REPORT.md')}`);
+    process.exit(status === 'PASS' ? 0 : status === 'INCOMPLETE' ? 3 : 1);
   }
   console.log(`unknown command ${command}`);
   process.exit(2);

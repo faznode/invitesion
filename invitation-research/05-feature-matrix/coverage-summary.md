@@ -10,7 +10,7 @@
 | PALEO (`PLO`) | 22 | 1 | 3 | 161 | 26 | 0 | 0 / 0 |
 | Satu Momen (`SMO`) | 45 | 9 | 4 | 129 | 58 | 0 | 0 / 0 |
 | Wevitation (`WEV`) | 49 | 13 | 6 | 119 | 68 | 10 | 6 (6 themes) / 6 (6 themes) |
-| Viding (`VID`) | 43 | 10 | 4 | 130 | 57 | 11 | 3 (3 themes) / 3 (3 themes) |
+| Viding (`VID`) | 43 | 11 | 3 | 130 | 57 | 11 | 6 (6 themes) / 6 (6 themes) |
 | Enviory (`ENV`) | 71 | 4 | 8 | 104 | 83 | 10 | 13 (6 themes) / 6 (6 themes) |
 | Invitato (`IVT`) | 49 | 8 | 12 | 118 | 69 | 10 | 4 (4 themes) / 2 (2 themes) |
 | INVI.ID (`INV`) | 46 | 10 | 6 | 125 | 62 | 9 | 6 (6 themes) / 6 (6 themes) |

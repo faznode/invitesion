@@ -48,6 +48,15 @@ test('explicit opt-out of user-initiated AI agents is honoured', () => {
   assert.match(v.note, /AI-agent opt-out/);
 });
 
+test('legacy Anthropic agent tokens count as an AI-agent opt-out (D-026); training crawlers do not', () => {
+  const legacy = 'User-agent: *\nAllow: /\n\nUser-agent: Claude-Web\nDisallow: /\n\nUser-agent: anthropic-ai\nDisallow: /\n';
+  const v = robotsVerdict(legacy, '/product');
+  assert.equal(v.allowed, false);
+  assert.match(v.note, /AI-agent opt-out \(Claude-Web/);
+  const trainingOnly = 'User-agent: *\nAllow: /\n\nUser-agent: ClaudeBot\nUser-agent: GPTBot\nDisallow: /\n';
+  assert.equal(robotsVerdict(trainingOnly, '/').allowed, true);
+});
+
 test('empty Disallow allows everything', () => {
   assert.equal(robotsVerdict('User-agent: *\nDisallow:\n', '/anything').allowed, true);
 });

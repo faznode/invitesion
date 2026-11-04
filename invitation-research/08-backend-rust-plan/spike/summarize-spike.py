@@ -14,7 +14,7 @@ Reads k6 --summary-export JSON, sample-proc.py JSON, db-snapshot JSON and the st
 Session 09 rules: a row whose status is not ok is printed as FAILED with no numbers; latency, request counts and
 bytes come from the op-tagged sub-metrics (setup requests are reported separately, never mixed in); dropped
 iterations in the open-model scenario are shown because they mean the target did not sustain the offered rate.
-The s08 files directly under results/ (Next only, no Rust) are historical and are not read by this script.
+The s08 files in results/s08-20261103-historical/ (Next only, no Rust) are historical and are not read by this script.
 """
 import argparse
 import json

@@ -8,7 +8,7 @@
 > UPDATED: 2026-10-29
 
 ## Run log (how the numbers were produced)
-1. Production build of `22ed99e` with local Postgres 16 and placeholder Clerk keys passed on the command line (never written to disk); seeded 64 templates + fixture `scripts/seed-local-demo.ts` (2 published weddings: `budi-sari` WIB, `dimas-laras-makassar` WITA; 5 stress guests each: normal, 80-char long name, hostile HTML, Arabic RTL, emoji).
+1. Production build of `22ed99e` with local Postgres 16 and placeholder Clerk keys passed on the command line (never written to disk); seeded 64 templates + fixture `invitation-research/_tools/setup/seed-local-demo.ts` (then at `scripts/`, moved in session 05; 2 published weddings: `budi-sari` WIB, `dimas-laras-makassar` WITA; 5 stress guests each: normal, 80-char long name, hostile HTML, Arabic RTL, emoji).
 2. First attempt with a `pk_test_` key: every browser navigation got `307 → https://<instance>.clerk.accounts.dev/v1/client/handshake` with `x-clerk-auth-reason: dev-browser-missing` [OBSERVED H-INV-005]. curl without browser headers did not trigger it. Rebuilt with a production-mode placeholder key → `200`, `x-clerk-auth-status: signed-out`.
 3. Served with `TZ=UTC` (how Vercel functions run) on `:3100`; captured with `capture.mjs` (REA 6.8.0 + CDP 412×915 @2.625, Android UA) and Lighthouse 12.8.2 mobile simulate (150 ms RTT, 1.6 Mbps, 4× CPU).
 4. The clerk-js bundle the production page requests (`clerk-js@6/dist/clerk.browser.js`) cannot resolve in the sandbox; its size was measured from the public CDN: **325,247 B raw / 70,709 B brotli** [OBSERVED H-INV-004]. Add it to every guest-page weight below.
@@ -50,7 +50,7 @@ JS dominates guest-page weight: 195 KB of script for a page with zero client int
 | QA-022 | P2 | Privacy | Gift account numbers render for anyone with `/i/:slug` (no guest link) and sit in the RSC payload | renderer | M-013 |
 | QA-023 | P2 | Privacy | Per-guest open tracking without any guest-facing notice | public.ts | M-012 |
 | QA-024 | P2 | Content | Marketing feature pages describe modules that are config-only (ticketing, seating, check-in, reminders) [INFERRED medium] | M-002 vs feature-inventory.csv | M-002 |
-| QA-025 | P3 | Debt | Two `slugify` implementations; dashboard `any` types in editor; tokens named for an old brand ("Vienne"); stale comments ("63 tema") | code | M-015, M-018, M-036 |
+| QA-025 | P3 | Debt | Two `slugify` implementations; dashboard `any` types in editor; tokens named for an old brand ("Vienne"); stale comments ("63 tema"). *s10 correction:* the "Vienne" tokens lived only in the never-imported file now at `archive/tokens-old-brand.css`; the live naming debt is the deprecated `orange-*` alias in `app/globals.css`, and there are three `slugify` definitions (`lib/invitation/slug.ts` + two local copies) | code | M-015, M-018, M-036 |
 | QA-026 | P3 | UX | Editor advertises SVG uploads; storage rejects SVG (correctly) → confusing error | editor.tsx:86, storage/index.ts:29 | M-018 |
 | QA-027 | P3 | Data | RSVP deadline, `settings.linkSlug`, `revision_count` (max 3) exist but are never enforced/used | grep | M-009, M-014 |
 

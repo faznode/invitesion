@@ -5,7 +5,7 @@
 > OWNER: Oracle (research)
 > DEPS: raw/_captures.csv (machine index of C- IDs), _rea-playbook.md
 > GREP: evidence, capture, observed, source, C-, H-, P-, S-
-> UPDATED: 2026-11-01
+> UPDATED: 2026-11-03
 
 ## ID scheme
 | Prefix | Meaning | Where the artefact lives |
@@ -145,3 +145,37 @@ Background queues B → C → D (started s04) finished after the s04 checkpoint,
 | S-SMO-006 | 16:47:56 | `/reseller-undangan-digital-website` (same method; HTTP 200, 88,134 bytes) | 13 claimed features (reorderable pages, page layouts, colour/font size, unlimited guest names, music + SoundCloud, RSVP form builder, envelope, countdown + Google Calendar reminder, maps, unlimited gallery, QR check-in, "Layar Sapa" greeting screen + head count); reseller packages Lite 250,000 (6 mo, 100 credits, 20/invitation), Pro 1,000,000 (1 y, 300, 15), Enterprise 3,000,000 → 2,800,000 (3 y, 600, 10) |
 | S-PLO-003 | 16:47:59–16:48:02 | `https://play.google.com/robots.txt` (HTTP 200) → listing `/store/apps/details?id=id.paleo.undangandigital&hl=id&gl=ID` (allowed; HTTP 200, 1,175,002 bytes) | 500K+ installs, 4.5 (1.66K reviews), content rating 3+, Events, v1.7.1 updated 29 Oct 2025; no ads / in-app-purchase labels; five-step builder description, single/multi-page themes; "What's new" (couple order, hide guest book, share text, prewedding video); developer-declared data sharing (location, personal info + 5 types); developer is an individual (name not recorded) → `03-teardowns/paleo/dossier.md` |
 | S-BRN-005 | 16:51:52–16:51:56 | `mcard.barunsoncard.com/robots.txt` re-check (one redirect to `/CustomErrors/404`, HTTP 200 HTML → no rules, `robots.mjs` verdict allowed) + one re-read of `/preview/1205` (vendor placeholder per S-BRN-003; HTTP 200, 27,492 bytes) | Per-page Korean reading the detector cannot do: template area labels cover → main → invitation text → greeting → couple/parents contacts → host → gallery → video → directions → guestbook → gift-money transfer → gift → share; ceremony date/time/venue fields; first-birthday baby-info areas; five Nanum font options + vertical alignment shipped in the page; no RSVP area label; scripts jQuery 1.12.4, Swiper, PhotoSwipe, Kakao SDK, `sns.js`, `preview.js`. Sample names not recorded → `03-teardowns/barunson/dossier.md` |
+
+## Session 10 additions (2026-11-03; times UTC)
+Method for every S- row below: `_tools/discovery/profile-reads.py` (Android UA, plain GET, robots.txt first under RFC 9309 + D-022, ≥ 3 s per origin, never demo/preview/customer pages, no forms, no login). Facts only in `raw/_discovery/profile-reads-2026-11-03.jsonl` (targets `raw/_discovery/profile-targets-2026-11-03{,-pass2}.tsv`); page text stayed in `$INVITESION_PRIVATE_DIR` and is not committed. Profiles: `03-teardowns/tier-b-profiles.md`.
+
+| ID | When | What | Result |
+|---|---|---|---|
+| S-STM-001…005 | 20:52–20:53 | `sitemu.id` robots.txt + seven pages (homepage, `/product`, free, bespoke, FAQ, one theme page, privacy policy) | **Withdrawn (D-026):** robots.txt has `Disallow: /` groups for the legacy Anthropic agent tokens `Claude-Web` and `anthropic-ai` (plus `Content-Signal: ai-train=no`); the reads happened before the tool checked AI-agent groups. Page text, the facts file and the draft dossier were deleted unused; `03-teardowns/sitemu/dossier.md` records the block |
+| S-HRK-001 | 20:52 | `harikita.id` robots.txt + three pages | **Withdrawn (D-026)**, same legacy-token opt-out; content discarded unused |
+| S-UVR-001 | 20:53 | `undanganvirtual.com` robots.txt (200, 17 lines) + `/`, `/katalog`, `/katalog/pernikahan` | Quota packages 79k / 99k / 149k, token activation after payment (QRIS / VA / e-wallet), 56 themes by event type |
+| S-JNV-001 | 20:53 | `janiva.id` robots.txt (200) + `/`, `/tema`, one theme page | 7-day free trial, price by theme class 79k / 149k / 249k, 6 months active, lifetime +100k, 14 themes |
+| S-SAN-001 | 20:53 | `sannubari.com` robots.txt (200; AI search/citation crawlers explicitly allowed) + `/`, `/services/`, `/harga/` | Done-for-you 100k / 200k, express +100k, add-ons; price page dated 2026-10-23 |
+| S-SMP-001 | 20:53 | `sangmempelai.id` robots.txt (HTML → no rules) + `/`, `/pilihan-tema`, `/undangan-video` | 49k web invitation vs 350k anchor, video 75k, QR check-in, "active forever while our site runs"; `lang="zxx"` |
+| S-BRS-001 | 20:53 | `bridestory.com` robots.txt (200) + homepage | Marketplace homepage only ("SayYes RSVP" product) |
+| S-MMO-001 | 20:53 | `memowedding.com` robots.txt (200) + homepage | "Coming Soon" page linking the Android app |
+| S-WNK-001 | 20:53 | `webnikah.com` robots.txt (200) + homepage | Free builder, claimed 252,582 couples; homepage lists customers' names (not recorded; text deleted) |
+| S-PAC-001 | 20:54 | `punyaacara.id` robots.txt (200) + `/`, `/undangan/wedding` | Per-template one-time prices from 25k, regional tags, Midtrans |
+| S-WDW-001 | 20:54 | `wedew.id` robots.txt (200) + `/`, `/harga`, `/tema` | Free-forever starter; 50k / 125k / 250k / 500k / 1,000k packages metered by guests, WhatsApp sends and reception apps; app ids |
+| S-ZOL-001 | 20:54 | `zola.com` robots.txt (200) + `/`, save-the-date shop (`/wedding-planning/website/designs` skipped: robots disallow) | Free website + registry funnel; paper $0.59–$3.09 per card |
+| S-TKN-001 | 20:54 | `theknot.com` robots.txt (200) + `/` (+ two auto-followed marketplace pages, not used) | Free planning tools, no-fee cash funds, 3 free paper samples; claims 30M couples |
+| S-EVT-001 | 20:54 | `evite.com` robots.txt (200) + `/`, `/invites/design-your-own/`, `/lp/features` | RSVP tracking, messaging, host tools; Webflow, Stripe, PayPal |
+| S-GRV-001 | 20:54 | `greenvelope.com` robots.txt → **403**, homepage → **403** | Origin stopped, no fallback |
+| S-MTD-001 | 20:54 | `minted.com` robots.txt (200) + homepage → **403** | Origin stopped, no fallback |
+| S-CNV-001 | 20:54 | `canva.com` robots.txt (200; legacy Anthropic tokens + `Perplexity-User` groups) + page → **403** | No content obtained; also an AI-agent opt-out (D-026) |
+| S-INE-001 | 20:54 | `invitee.my` robots.txt (HTML → no rules) + `/`, `/themes`, `/pricing` | RM 0 / 29 / 59 / 99 by events and languages; DuitNow QR e-gifts; QR check-in |
+| S-SNT-001 | 20:55 | `sonett.kr` robots.txt + homepage | **Withdrawn (D-026)**, legacy-token opt-out; content discarded unused |
+| S-EQX-001 | 20:55 | `eqxiu.com` robots.txt (200) + homepage | Compressed body the tool could not decode; not re-requested |
+| S-BHP-001 | 20:55 | `biihappy.com` robots.txt (200) + homepage | Community + iWedding / invitePro / M-Invite product lines |
+| S-WMG-001 | 20:55 | `wedmegood.com` robots.txt (200; legacy Anthropic tokens) + homepage → **403** | No content obtained |
+| S-BHP-002, S-TKN-002, S-ZOL-002, S-EVT-002 | 20:58 | Pass 2 (`--no-follow`): `/iwedding`, `/gs/wedding-websites`, `/wedding-planning/website`, `/pro/` | iWedding features (QR gifts, Zalo sharing); The Knot website builder (FAQ, reminder templates); Zola 600+ templates, custom domain, password; Evite Pro $249.99/year |
+
+### Session 10, second turn (2026-11-04; times UTC)
+| ID | When | What | Result |
+|---|---|---|---|
+| C-VID-107…109 | 01:38–01:42 | Official Viding previews `viding.co/theme/preview/166`, `/164`, `/163` (D-VID list), `run-batch.sh` → `capture.mjs --open-cover --lighthouse`, REA driver, trusted click; `viding.co/robots.txt` 200, `User-Agent: *` `Allow: /`, no AI-agent group (re-read 01:37) | All three valid (cold load + structure). Lighthouse Perf 57 / 53 / 53, LCP 10.7 / 11.9 / 13.2 s, 2,151 / 2,263 / 3,621 KiB; opening verified on 107 and 109, gate persisted on 108; audio playback not measured. Demo names redacted at capture; commit guard clean. Viding now has 6 cold-load themes (benchmark pack §6) |

@@ -1,11 +1,11 @@
 <!-- SUMMARY (first 7 lines — greppable) -->
 # GENERATION-REPORT.md — Melati (`basic-wedding-melati` v1.0.0)
 > WHAT: Harness run for this template: static gates, measured bytes vs tier budget, Lighthouse lab run, visual snapshots, deliberate-failure proofs.
-> STATUS: PASS (generated 2026-11-03T19:42:50Z by `pnpm harness report`)
+> STATUS: PASS: static gates, proofs, Lighthouse and every planned snapshot are valid (generated 2026-11-04T01:35:32Z by `pnpm harness report`)
 > OWNER: template author + Guardian review
 > DEPS: template.manifest.json, tools/template-harness/, invitation-research/09-masterplan/08-template-system-and-harness.md
 > GREP: generation report, harness, budget, lighthouse, snapshot, proof
-> UPDATED: 2026-11-03
+> UPDATED: 2026-11-04
 
 ## Summary
 | Tier | Niche | Motion level | Audio | 3D | Locales |
@@ -44,12 +44,12 @@
 ## Lighthouse (`harness bench`, lab, mobile, simulated throttling)
 | Lighthouse | Performance | Accessibility | LCP | TBT (not INP) | CLS | Transfer weight |
 |---|---|---|---|---|---|---|
-| 12.8.2 | 0 | 100 | 0 ms | 0 ms | 0 | 48.6 KiB |
+| 12.8.2 | 100 | 100 | 1351 ms | 0 ms | 0 | 48.6 KiB |
 
 Served by the harness static server on 127.0.0.1 (no CDN, no compression): transfer weight ≈ bytes on disk. One run; not a field measurement.
 
 ## Visual snapshots (`harness snapshot`)
-Google Chrome for Testing 156.0.8078.4. Images are written outside the repository (not committed); hashes identify them.
+Google Chrome for Testing 156.0.8078.4. 8 of 8 planned screenshots. Images are written outside the repository (not committed); hashes identify them.
 
 | Viewport | Fixture | Reduced motion | Bytes | SHA-256 (first 16) |
 |---|---|---|---|---|
@@ -98,4 +98,4 @@ Original layout and copy written for this repository: a single-column ivory card
 - Lab measurements on one sandbox host; no device, no in-app browser, no field data. TBT is not INP.
 - Audio playback and 3D frame rate are not verified without a device (opening ≠ playback).
 - Snapshot images and the Lighthouse JSON are written to `$TMPDIR/invitesion-harness/basic-wedding-melati/`, never to the repository.
-- Budgets are internal (anchored on our own lab page C-INV-005), not competitor parity; tier aggregates are unfinished.
+- Budgets are internal (anchored on our own lab page C-INV-005), not competitor parity; the competitor tier aggregates (`invitation-research/04-template-benchmarks/benchmark-pack.md`) do not support a parity threshold yet.

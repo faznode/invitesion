@@ -1,11 +1,11 @@
 <!-- SUMMARY (first 7 lines — greppable) -->
 # 07-ideation — 32 scored ideas, top-10 specifications, differentiation thesis
 > WHAT: Brief 03 §16: at least 25 original ideas scored 1–5 on impact, uniqueness, feasibility, effort and risk (direction defined), observed demand kept apart from proposals, top 10 specified, thesis + three pillars.
-> STATUS: DONE s08 (2026-11-03)
+> STATUS: Verified s10 (2026-11-04; v1 s08): `score-ideas.py --check` exit 0 (32 ideas, top 10 specified); the competitor speed range quoted in `top-10.md` follows the s10 matrix rebuild.
 > OWNER: Research agent
 > DEPS: ../05-feature-matrix/, ../06-gap-analysis/upgrade-map.csv, ../03-teardowns/*/dossier.md §11
 > GREP: ideation, idea, score, thesis, pillar, differentiation
-> UPDATED: 2026-11-03
+> UPDATED: 2026-11-04
 
 ## Files
 | File | Content |

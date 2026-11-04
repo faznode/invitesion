@@ -1,6 +1,6 @@
 # Katsudoto (KAT): Tier A teardown dossier
 
-> **Status: v1, session 06 (2026-10-30 WIB).** All 12 sections have evidence; §4 rests on six vendor-placeholder demos (C-KAT-101…106, threshold-grade). Not done yet: the creator flow (no signup, R1), the Buku Tamu Digital and Wedding Planner prices, Play Store metadata (§7) and user complaints (§10).
+> **Status: v1, session 06 (2026-10-30 WIB).** Evidence level **B** (`../../09-masterplan/02-evidence-coverage.md` §2; line added s10). All 12 sections have evidence; §4 rests on six vendor-placeholder demos (C-KAT-101…106, threshold-grade). Not done yet: the creator flow (no signup, R1), the Buku Tamu Digital and Wedding Planner prices, Play Store metadata (§7) and user complaints (§10).
 >
 > Evidence used: **S-KAT-001** (`/desain` + one linked sample, 2026-10-29 10:40 WIB), **S-KAT-002** (one robots-checked fetch per queued demo, 11:23 WIB), **D-KAT** (discovery, 10:31 WIB), **C-KAT-101…106** (batch captures, 2026-10-29 10:2x–11:39 WIB, protocol v1.1), **S-KAT-003** (homepage `https://katsudoto.id/` read as a visitor + `robots.txt` = allow all, 2026-10-30 05:11 WIB), **S-KAT-004** (`/v2/package` and `/undangan-lite` read as a visitor, 05:12 WIB), plus the Phase 2 longlist row. All prices are IDR as displayed on those dates. Demo pages are vendor placeholders (S-KAT-001/002), not customer invitations; their per-couple subdomains are pseudonymized (D-015).
 

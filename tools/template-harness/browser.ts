@@ -64,18 +64,19 @@ export function serve(root: string): Promise<{ server: Server; origin: string }>
 }
 
 export type Snapshot = { viewport: string; fixture: string; reducedMotion: boolean; file: string; bytes: number; sha256: string };
-export type SnapshotRun = { ran: boolean; reason?: string; chrome?: string; shots: Snapshot[] };
+/** `expected` is the planned shot count: a run is complete only when every planned shot exists. */
+export type SnapshotRun = { ran: boolean; reason?: string; chrome?: string; expected: number; shots: Snapshot[] };
 
 export async function takeSnapshots(outDir: string): Promise<SnapshotRun> {
-  const chrome = findChrome();
-  if (!chrome) return { ran: false, reason: 'Chrome not found (set CHROME_PATH or run bootstrap-sandbox.sh tools)', shots: [] };
-  const version = spawnSync(chrome, ['--version'], { encoding: 'utf8' }).stdout.trim();
-  const { server, origin } = await serve(outDir);
   const plan: Array<{ width: number; height: number; fixture: string; reducedMotion: boolean }> = [
     ...SNAPSHOT_VIEWPORTS.map((viewport) => ({ ...viewport, fixture: 'default', reducedMotion: false })),
     ...['long-name', 'rtl', 'emoji', 'hostile'].map((fixture) => ({ width: 390, height: 844, fixture, reducedMotion: false })),
     { width: 390, height: 844, fixture: 'default', reducedMotion: true },
   ];
+  const chrome = findChrome();
+  if (!chrome) return { ran: false, reason: 'Chrome not found (set CHROME_PATH or run bootstrap-sandbox.sh tools)', expected: plan.length, shots: [] };
+  const version = spawnSync(chrome, ['--version'], { encoding: 'utf8' }).stdout.trim();
+  const { server, origin } = await serve(outDir);
   const shots: Snapshot[] = [];
   try {
     for (const item of plan) {
@@ -109,9 +110,11 @@ export async function takeSnapshots(outDir: string): Promise<SnapshotRun> {
   } finally {
     server.close();
   }
-  return { ran: shots.length > 0, reason: shots.length ? undefined : 'Chrome produced no screenshots', chrome: version, shots };
+  const reason = shots.length === plan.length ? undefined : `Chrome produced ${shots.length} of ${plan.length} planned screenshots`;
+  return { ran: shots.length > 0, reason, chrome: version, expected: plan.length, shots };
 }
 
+/** `ran` is true only for a valid measurement; otherwise `reason` says why no number is reported. */
 export type LighthouseRun = {
   ran: boolean;
   reason?: string;
@@ -123,6 +126,44 @@ export type LighthouseRun = {
   cls?: number;
   totalByteWeight?: number;
 };
+
+export type LighthouseReport = {
+  runtimeError?: { code?: string; message?: string };
+  categories?: Record<string, { score?: number | null } | undefined>;
+  audits?: Record<string, { numericValue?: number } | undefined>;
+};
+
+/**
+ * A report with a runtime error, a null performance score or no LCP is not a measurement: Lighthouse still writes the
+ * JSON, and reading `score ?? 0` turned such a run into "performance 0, LCP 0 ms" beside a PASS (melati, 2026-11-03).
+ */
+export function lighthouseFromReport(report: LighthouseReport, version: string): LighthouseRun {
+  const runtimeError = report.runtimeError;
+  if (runtimeError?.code) {
+    return { ran: false, version, reason: `invalid Lighthouse result: runtime error ${runtimeError.code}${runtimeError.message ? ` (${runtimeError.message})` : ''}` };
+  }
+  const performance = report.categories?.performance?.score;
+  if (typeof performance !== 'number') return { ran: false, version, reason: 'invalid Lighthouse result: no performance score' };
+  const lcp = report.audits?.['largest-contentful-paint']?.numericValue;
+  if (typeof lcp !== 'number' || lcp <= 0) return { ran: false, version, reason: 'invalid Lighthouse result: no LCP recorded' };
+  const numeric = (id: string) => {
+    const value = report.audits?.[id]?.numericValue;
+    return typeof value === 'number' ? value : undefined;
+  };
+  const accessibility = report.categories?.accessibility?.score;
+  const tbt = numeric('total-blocking-time');
+  const cls = numeric('cumulative-layout-shift');
+  return {
+    ran: true,
+    version,
+    performance: Math.round(performance * 100),
+    accessibility: typeof accessibility === 'number' ? Math.round(accessibility * 100) : undefined,
+    lcpMs: Math.round(lcp),
+    tbtMs: tbt === undefined ? undefined : Math.round(tbt),
+    cls: cls === undefined ? undefined : Math.round(cls * 1000) / 1000,
+    totalByteWeight: numeric('total-byte-weight'),
+  };
+}
 
 export async function runLighthouse(outDir: string): Promise<LighthouseRun> {
   const chrome = findChrome();
@@ -145,19 +186,7 @@ export async function runLighthouse(outDir: string): Promise<LighthouseRun> {
       });
     });
     if (code !== 0 || !existsSync(output)) return { ran: false, reason: `Lighthouse exited ${code}`, version };
-    const report = JSON.parse(readFileSync(output, 'utf8'));
-    const score = (id: string) => Math.round((report.categories?.[id]?.score ?? 0) * 100);
-    const numeric = (id: string) => report.audits?.[id]?.numericValue as number | undefined;
-    return {
-      ran: true,
-      version,
-      performance: score('performance'),
-      accessibility: score('accessibility'),
-      lcpMs: Math.round(numeric('largest-contentful-paint') ?? 0),
-      tbtMs: Math.round(numeric('total-blocking-time') ?? 0),
-      cls: Math.round((numeric('cumulative-layout-shift') ?? 0) * 1000) / 1000,
-      totalByteWeight: numeric('total-byte-weight'),
-    };
+    return lighthouseFromReport(JSON.parse(readFileSync(output, 'utf8')) as LighthouseReport, version);
   } finally {
     server.close();
   }

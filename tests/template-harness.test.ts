@@ -6,11 +6,13 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
+import { lighthouseFromReport, type LighthouseRun, type SnapshotRun } from '../tools/template-harness/browser';
 import { contrastRatio, imageInfo, solidPng } from '../tools/template-harness/files';
 import { runChecks } from '../tools/template-harness/gates';
 import { TIER_BUDGETS } from '../tools/template-harness/policy';
 import { PROOFS, runProofs } from '../tools/template-harness/proofs';
 import { renderTemplate, RenderError } from '../tools/template-harness/render';
+import { reportStatus } from '../tools/template-harness/report';
 import { scaffoldTemplate } from '../tools/template-harness/scaffold';
 import { manifestSchema } from '../tools/template-harness/schema';
 
@@ -97,4 +99,65 @@ test('harness: image headers, contrast and budget table', () => {
     { basic: [320, 8, 120, 200, 1], premium: [380, 20, 160, 250, 2], signature: [420, 40, 160, 250, 3] },
     'budgets equal masterplan 08 §3',
   );
+});
+
+const VALID_LIGHTHOUSE_REPORT = {
+  categories: { performance: { score: 0.98 }, accessibility: { score: 1 } },
+  audits: {
+    'largest-contentful-paint': { numericValue: 1361.4 },
+    'total-blocking-time': { numericValue: 12.6 },
+    'cumulative-layout-shift': { numericValue: 0.0004 },
+    'total-byte-weight': { numericValue: 84_992 },
+  },
+};
+
+test('harness: a Lighthouse report without a valid measurement is never scored', () => {
+  assert.deepEqual(lighthouseFromReport(VALID_LIGHTHOUSE_REPORT, '12.8.2'), {
+    ran: true,
+    version: '12.8.2',
+    performance: 98,
+    accessibility: 100,
+    lcpMs: 1361,
+    tbtMs: 13,
+    cls: 0,
+    totalByteWeight: 84_992,
+  });
+  const invalid = {
+    runtimeError: {
+      ...VALID_LIGHTHOUSE_REPORT,
+      runtimeError: { code: 'NO_LCP', message: 'The page did not display content that qualifies as a Largest Contentful Paint.' },
+      categories: { performance: { score: null }, accessibility: { score: 1 } },
+    },
+    nullPerformanceScore: { ...VALID_LIGHTHOUSE_REPORT, categories: { performance: { score: null }, accessibility: { score: 1 } } },
+    missingPerformanceCategory: { ...VALID_LIGHTHOUSE_REPORT, categories: { accessibility: { score: 1 } } },
+    zeroLcp: { ...VALID_LIGHTHOUSE_REPORT, audits: { ...VALID_LIGHTHOUSE_REPORT.audits, 'largest-contentful-paint': { numericValue: 0 } } },
+    missingLcp: { ...VALID_LIGHTHOUSE_REPORT, audits: { 'total-blocking-time': { numericValue: 0 } } },
+  };
+  for (const [name, report] of Object.entries(invalid)) {
+    const run = lighthouseFromReport(report, '12.8.2');
+    assert.equal(run.ran, false, name);
+    assert.match(run.reason ?? '', /^invalid Lighthouse result/, name);
+    assert.equal(run.performance, undefined, `${name}: no score may be reported`);
+    assert.equal(run.lcpMs, undefined, `${name}: no LCP may be reported`);
+  }
+  assert.match(lighthouseFromReport(invalid.runtimeError, '12.8.2').reason ?? '', /NO_LCP/);
+});
+
+test('harness: the report says PASS only when every static and browser check is valid', () => {
+  const shot = { viewport: '390×844', fixture: 'default', reducedMotion: false, file: '/tmp/x.png', bytes: 1, sha256: '0'.repeat(64) };
+  const allShots: SnapshotRun = { ran: true, chrome: 'Chrome', expected: 2, shots: [shot, shot] };
+  const validLighthouse: LighthouseRun = lighthouseFromReport(VALID_LIGHTHOUSE_REPORT, '12.8.2');
+  const ok = { check: { ok: true }, proofs: [{ caught: true }], snapshots: allShots, lighthouse: validLighthouse };
+  assert.equal(reportStatus(ok).status, 'PASS');
+
+  const invalidLighthouse = reportStatus({ ...ok, lighthouse: lighthouseFromReport({ categories: { performance: { score: null } } }, '12.8.2') });
+  assert.equal(invalidLighthouse.status, 'INCOMPLETE');
+  assert.match(invalidLighthouse.detail, /no performance score/);
+  assert.equal(reportStatus({ ...ok, lighthouse: { ran: false, reason: 'Chrome Lighthouse not installed' } }).status, 'INCOMPLETE');
+  assert.equal(reportStatus({ ...ok, snapshots: { ...allShots, shots: [shot], reason: 'Chrome produced 1 of 2 planned screenshots' } }).status, 'INCOMPLETE');
+  assert.equal(reportStatus({ ...ok, snapshots: { ran: false, reason: 'Chrome not found', expected: 2, shots: [] } }).status, 'INCOMPLETE');
+
+  assert.equal(reportStatus({ ...ok, check: { ok: false } }).status, 'FAIL');
+  assert.equal(reportStatus({ ...ok, proofs: [{ caught: true }, { caught: false }] }).status, 'FAIL');
+  assert.equal(reportStatus({ ...ok, check: { ok: false }, lighthouse: { ran: false, reason: 'missing' } }).status, 'FAIL', 'a static failure outranks a missing browser check');
 });

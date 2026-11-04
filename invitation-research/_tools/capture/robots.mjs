@@ -3,10 +3,11 @@
 // follows RFC 9309 / Google: `*` wildcards and a trailing `$` anchor are honoured, the longest
 // matching pattern wins, and a tie goes to Allow.
 // Policy on top of the standard: we are an AI agent acting for a user, so a site that disallows
-// `/` for user-initiated AI agents (ChatGPT-User, Claude-User, Perplexity-User) is treated as
-// opted out of automated observation, even though `*` would allow it.
+// `/` for user-initiated AI agents (ChatGPT-User, Claude-User, Perplexity-User, and since D-026 the
+// legacy Anthropic tokens Claude-Web and anthropic-ai) is treated as opted out of automated
+// observation, even though `*` would allow it. Mirrors ai_agent_optout() in _tools/discovery/profile-reads.py.
 
-const AI_USER_AGENTS = /^(chatgpt-user|claude-user|perplexity-user)\b/i;
+const AI_USER_AGENTS = /^(chatgpt-user|claude-user|perplexity-user|claude-web|anthropic-ai)\b/i;
 
 // Fetch outcome before any parsing (RFC 9309 §2.3.1.3–2.3.1.4, session 07 / D-022): 2xx → parse the body (fetch() has
 // already followed redirects); 4xx "unavailable" → no rules, allowed; 5xx "unreachable" → assume complete disallow.

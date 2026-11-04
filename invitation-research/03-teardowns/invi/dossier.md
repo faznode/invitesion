@@ -1,6 +1,6 @@
 # INVI.ID (INV): Tier A teardown dossier
 
-> **Status: v1, session 06 (2026-10-30 WIB).** All 12 sections have evidence; §4 rests on six official demo guest pages (C-INV-111…116, threshold-grade). Naming hazard: `C-INV-1xx` = INVI.ID, `C-INV-0xx` = our own Invitesion. Not done yet: the creator dashboard (no signup, R1), store search (§7), user complaints beyond the vendor's own testimonials (§10).
+> **Status: v1, session 06 (2026-10-30 WIB).** Evidence level **B** (`../../09-masterplan/02-evidence-coverage.md` §2; line added s10). All 12 sections have evidence; §4 rests on six official demo guest pages (C-INV-111…116, threshold-grade). Naming hazard: `C-INV-1xx` = INVI.ID, `C-INV-0xx` = our own Invitesion. Not done yet: the creator dashboard (no signup, R1), store search (§7), user complaints beyond the vendor's own testimonials (§10).
 >
 > Evidence used: **D-INV** (discovery, 66 official demos, 2026-10-29 ≈ 06:25 WIB), **C-INV-101** (theme-page wrapper, s04), **S-INV-001** (iframe targets of the theme pages, 11:25 WIB), **C-INV-111…116** (guest-page captures, 2026-10-29 11:53–11:59 WIB and 2026-10-30 01:19–01:21 WIB), **S-INV-002** (homepage `https://invi.id/` read as a visitor + one plain fetch of its HTML for prices and links + `robots.txt`, 2026-10-30 05:11 WIB), **S-INV-003** (`/reseller/` read as a visitor, 05:12 WIB), plus the Phase 2 longlist row. All prices are IDR as displayed on those dates. Testimonials on the vendor's pages name real customers: summarized only, never copied (R1/R3).
 

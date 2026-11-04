@@ -1,7 +1,7 @@
 <!-- SUMMARY (first 7 lines — greppable) -->
 # 12-decision-log.md — architecture and research decisions (ADRs) for the Invitesion masterplan
 > WHAT: ADRs with context, options, decision, consequences, confidence and revisit triggers. Short decisions D-001… live in `../_progress.md`; this file holds the decisions the masterplan depends on.
-> STATUS: **FINAL v1** (session 09, 2026-11-03; masterplan final). ADR-W1 **decided** (s08), fallback met → planning gate met through ADR-W1 (reduced confidence, not literal Wave 1). Owner-question ADRs **ADR-O01…O07 accepted autonomously** in s08 as safe, reversible defaults with revisit triggers (the owner can override any of them). **ADR-A1** (s09): keep the Next.js stack, measured.
+> STATUS: Verified s10 (2026-11-04; v1 s09). ADR-W1 **decided** (s08), fallback met → planning gate met through ADR-W1 (reduced confidence, not literal Wave 1). ADR-W1 is the historical authorization to plan with reduced confidence; it is **not** the missing evidence and does not close any research requirement (strict Wave 1 stays NOT MET, RQ-DEMO-01). Owner-question ADRs **ADR-O01…O07 accepted autonomously** in s08 as safe, reversible defaults with revisit triggers (the owner can override any of them). **ADR-A1** (s09): keep the Next.js stack, measured. s10 additions: Viding coverage 3 → 6 themes, D-026 / D-027, open owner question Q-O08 (§ "Session 10 decisions").
 > OWNER: Architect (research agent acting autonomously, brief 03 §5.1)
 > DEPS: ../_handoff/review-20261101.md §2, ../_open-questions.md §B, ../_evidence-index.md, ../04-template-benchmarks/benchmark-exclusions.csv, ../03-teardowns/*/dossier.md; owner instructions supplied outside the repository; code at `2c94140`: lib/invitation/{detail-config,create,template-sync,templates}.ts, lib/pricing.ts, app/marketing-copy.ts, app/globals.css, app/layout.tsx
 > GREP: adr, decision, wave 1, ADR-W1, planning gate, reduced confidence, fallback, revisit
@@ -35,7 +35,7 @@ Strict Wave 1 (brief 03 §14, brief 05 §14): a dossier **and at least three val
 Proceed to planning through ADR-W1 once its fallback requirements are met:
 1. Dossiers for all eight Indonesian competitors (IDI, PLO and SMO from public, non-personal evidence: marketing, pricing, catalog structure, store listings).
 2. Dossiers for all five international competitors.
-3. At least three valid demos wherever enough permitted official demos exist (met: WEV 6, ENV 6 themes, INV 6, IVT 4, VID 3).
+3. At least three valid demos wherever enough permitted official demos exist (met: WEV 6, ENV 6 themes, INV 6, IVT 4, VID 3; **s10:** VID 6 with C-VID-107…109).
 4. Where fewer exist: all safely available eligible samples plus this exception (IDI, PLO, SMO: 0 each).
 5. Confidence limits recorded per affected conclusion (below and in each dossier).
 6. Exclusions fully respected (`benchmark-exclusions.csv`, enforced by `eligibility.py`).
@@ -57,6 +57,11 @@ Proceed to planning through ADR-W1 once its fallback requirements are met:
 |---|---|
 | Strict Wave 1 | **NOT MET** (valid demos 5/8 Indonesian: IDI, PLO, SMO have 0; dossiers 8/8; international dossiers 5/5) |
 | Planning gate | **MET through ADR-W1** at 2026-11-03T16:54Z (not met literally). Fallback items: 1 ✅ eight Indonesian dossiers (IDI, SMO, PLO labelled "no guest-page measurement"); 2 ✅ five international dossiers (`../03-teardowns/{barunson,paperlesspost,joy,rsvpify,partiful}/`); 3 ✅ ≥ 3 valid demos for WEV, ENV, INV, IVT, VID; 4 ✅ IDI, PLO, SMO at 0 with this exception; 5 ✅ confidence limits above and in each dossier; 6 ✅ exclusions enforced by `eligibility.py` + guard; 7 ✅ no invalid sample counted |
+| s10 re-check (2026-11-04) | Strict Wave 1 still **NOT MET** (5 / 8). The revised obligation of six valid demos for the six highest-ranked Indonesian competitors is met wherever safely available (WEV 6, VID 6, ENV 6) and unavailable for IDI, PLO and SMO (same reasons as above; no equivalent search repeated). Reported as strict and qualified coverage in `../_handoff/acceptance-matrix.md` (RQ-DEMO-01 BLOCKED, RQ-DEMO-02 qualified) |
+
+### Session 10 decisions referenced by the masterplan (full text in `../_progress.md`)
+- **D-026:** a robots.txt group for a user-initiated AI agent, including the legacy Anthropic tokens `Claude-Web` and `anthropic-ai`, is an explicit AI-agent opt-out: no request is made and content fetched before the check is deleted unused. Effect: Sitemu (Tier A) and Harikita, Sonett, WedMeGood and Canva (Tier B) are blocked. **Revisit:** owner answer to **Q-O08** (`../_open-questions.md`), or the site adds an explicit allow group.
+- **D-027:** benchmark tiers are assigned from observed structure with the template manifest's own definitions; no competitor-parity threshold is derived from them. **Revisit:** when the basic and signature tiers reach high confidence.
 
 ---
 

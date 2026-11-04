@@ -34,7 +34,7 @@ Success metrics name what to measure; **no baseline or target number is invented
 - **Smallest experiment:** the toggle on the basic template only; count activations.
 
 ### 3. I-02 "Ringan" promise: published speed and weight budget (proposed · 25)
-- **Problem:** competitor guest pages weigh 2.4–7.2 MB at cold load with LCP above 13 s (FM-157, FM-160); guests on WhatsApp in-app browsers and prepaid data feel it.
+- **Problem:** competitor guest pages weigh 2.4–7.2 MB at cold load with LCP medians above 12.5 s (FM-157, FM-160); guests on WhatsApp in-app browsers and prepaid data feel it.
 - **Segment:** every guest; hosts choosing a vendor.
 - **Experience:** each template page states its budget (e.g. weight at first load) and the harness enforces it; marketing explains why it matters with our own measured numbers and their limits.
 - **Differentiation:** nobody publishes a budget; we already measure 311 KiB (C-INV-005).

@@ -17,7 +17,7 @@
 | Payments | QRIS (own EMVCo payload + provider adapter) and Stripe (REST + own signature check) | No SDKs; idempotent settlement |
 | Storage | Local disk (dev) / S3-compatible (prod) with own SigV4 | Originals only, no image pipeline |
 | Validation | Zod 3 (`detailConfigSchema`, strict) | — |
-| Tests | node:test via tsx, 49 cases | No CI in the repo (`.github/` absent) |
+| Tests | node:test via tsx, 49 cases | No CI in the repo (no `.github` directory; still true at `7a00a6d`) |
 | Hosting (inferred) | Vercel: `vercel-build` runs migrations + template seed on production builds; middleware reads `x-vercel-ip-country` | [INFERRED high] |
 
 ## 2. Runtime shape

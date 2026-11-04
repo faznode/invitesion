@@ -33,7 +33,7 @@ flowchart LR
 | Font flag `serif`/`sans` | `templates.ts` | No (renderer always uses `font-serif` headings + body sans) |
 | `settings.fontFamily` | config schema | No |
 | Motif (arch, floral, deco…) | catalog CSS | No |
-| Platform tokens (oklch rose editorial, spacing, easing) | `app/globals.css` (the old root `tokens.css` was never imported; archived 2026-10-29 as `archive/tokens.vienne-old-brand.css`) | Marketing site only |
+| Platform tokens (hex rose editorial: `--primary` `#e80053`, `brand-*` scale; no spacing or easing tokens) | `app/globals.css` (s10 correction: the oklch, spacing and easing tokens belonged to the old root `tokens.css`, never imported, archived 2026-10-29 as `archive/tokens-old-brand.css`) | Marketing site and dashboard |
 The two palette tables must be kept in sync by hand (comment in templates.ts) — drift risk.
 
 ## 5. Assets

@@ -130,7 +130,7 @@ Two layout families share one engine:
 ## 5. Tech fingerprint
 | Layer | Finding | Confidence |
 |---|---|---|
-| Front end | Next.js (REA `next-runtime` fingerprint, `next` globals on guest pages), React implied, **Turbopack** chunks, Tailwind; guest pages ship 15–17 first-party chunks (≈ 272–300 KB JS) | high [OBSERVED C-ENV-101…123] |
+| Front end | Next.js (REA `next-runtime` fingerprint, `next` globals on guest pages), React implied, **Turbopack** chunks, Tailwind; guest pages ship 15–17 first-party chunks (≈ 272–300 KB JS) | high [OBSERVED C-ENV-101…106, C-ENV-111…123] |
 | Edge / CDN | Cloudflare (`server: cloudflare`), HTTP/3 on every guest-page request | high [OBSERVED S-ENV-002, C-ENV-*] |
 | Origin hosting | Unknown behind Cloudflare | [UNKNOWN] |
 | Analytics | Google Tag Manager on the preview wrapper and marketing pages; **none on guest pages** under this method | high [OBSERVED] |

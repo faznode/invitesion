@@ -80,7 +80,12 @@ step_deps() {
 step_db() {
   (cd "$APP" && pnpm db:migrate > "$LOGS/app-migrate.log" 2>&1) || { echo "db: migrate FAILED (see $LOGS/app-migrate.log)"; return 1; }
   (cd "$APP" && pnpm db:seed:templates > "$LOGS/app-seed-templates.log" 2>&1) || { echo "db: template seed FAILED"; return 1; }
-  (cd "$APP" && npx tsx invitation-research/_tools/setup/seed-local-demo.ts > "$LOGS/app-seed-demo.log" 2>&1) || { echo "db: fixture seed FAILED"; return 1; }
+  # The fixture insert is not idempotent and $PGDATA survives sandbox restarts, so seed it only once.
+  if psql -h 127.0.0.1 -p "$PGPORT" -U postgres -d invitesion -tAc "SELECT 1 FROM invitations WHERE slug = 'budi-sari'" 2>/dev/null | grep -q 1; then
+    echo "db: fixture already present (budi-sari), not re-seeded"
+  else
+    (cd "$APP" && npx tsx invitation-research/_tools/setup/seed-local-demo.ts > "$LOGS/app-seed-demo.log" 2>&1) || { echo "db: fixture seed FAILED"; return 1; }
+  fi
   echo "db: migrated + seeded ($(tail -1 "$LOGS/app-seed-templates.log" | cut -c1-80))"
 }
 

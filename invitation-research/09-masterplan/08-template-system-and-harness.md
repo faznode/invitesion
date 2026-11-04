@@ -1,14 +1,14 @@
 <!-- SUMMARY (first 7 lines — greppable) -->
 # 08-template-system-and-harness.md — template contract (manifest v1), tier budgets, quality gates, harness CLI, dogfood plan
 > WHAT: How a template is declared, checked and shipped: the machine-readable manifest, budgets with their provenance, every gate and its honest limit, the CLI, the verified-religious-text rule, and the path from today's palette-only renderer to template system v2 (B-030).
-> STATUS: FINAL v1 (session 09, 2026-11-03). Implementation: `tools/template-harness/` (status per command in `../_handoff/IMPLEMENTATION-LOG.md`).
+> STATUS: Verified s10 (2026-11-04; v1 s09). **Implementation status:** the harness CLI, its self-tests and three sample reports exist (all PASS with valid Lighthouse results after the s10 report-validity fix, §6); the product renderer is not a harness template, so no product guest page is gated and no CI runs the gates (B-012 partly delivered, B-030 open). Budgets are internal, not competitor parity (§3). Per-command status: `../_handoff/IMPLEMENTATION-LOG.md`.
 > OWNER: Research agent (Architect role)
-> DEPS: ../01-codebase-audit/template-system.md, ../06-gap-analysis/template-catalog-roadmap.md, ../05-feature-matrix/feature-matrix.csv, 06-backlog.md (B-003, B-009, B-012, B-030), 12-decision-log.md (ADR-O04, ADR-O05), C-INV-001…005
+> DEPS: ../01-codebase-audit/template-system.md, ../06-gap-analysis/template-catalog-roadmap.md, ../05-feature-matrix/feature-matrix.csv, ../04-template-benchmarks/benchmark-pack.md, 06-backlog.md (B-003, B-009, B-012, B-030), 12-decision-log.md (ADR-O04, ADR-O05), C-INV-001…005
 > GREP: template, manifest, harness, budget, gate, reduced motion, 3D, fallback, license, originality, religious, snapshot, dogfood
-> UPDATED: 2026-11-03
+> UPDATED: 2026-11-04
 
-## 1. Today (audit, unchanged at `64678cf`)
-A template is a data row in `lib/invitation/templates.ts` (64 entries; tiers free 34 / premium 24 / signature 6; 18 palettes; 27 categories). Guests see **one layout for every template**: `components/invitation/public-renderer.tsx` varies only the palette. Theme art is hot-linked Unsplash; fonts are Manrope + Instrument Serif self-hosted by `next/font`; no audio element, no motion, no 3D, no per-template assets, licenses or budgets. Catalog-created invitations lose their preset (B-001). Three presets carry Qur'an translations of unknown provenance (B-003).
+## 1. Today (audit baseline `64678cf`; s09 changes marked)
+A template is a data row in `lib/invitation/templates.ts` (64 entries; tiers free 34 / premium 24 / signature 6; 18 palettes, now in `lib/invitation/palettes.ts` since E-010; 27 categories). Guests see **one layout for every template**: `components/invitation/public-renderer.tsx` varies only the palette. Theme art is hot-linked Unsplash; fonts are Manrope + Instrument Serif self-hosted by `next/font`; no audio element, no motion, no 3D, no per-template assets, licenses or budgets. At the baseline, catalog-created invitations lost their preset and three presets carried Qur'an translations of unknown provenance; both were fixed in s09 (B-001, B-003; the verified corpus `content/verified-religious-texts/` is empty).
 
 ## 2. Contract: `template.manifest.json` (schema v1)
 Machine-readable, validated by `tools/template-harness/schema.ts` (zod, strict: unknown keys fail). Every template directory holds the manifest, its own files (`template.html`, `template.css`, optional `template.js`), and an `assets/` folder.
@@ -32,7 +32,7 @@ Machine-readable, validated by `tools/template-harness/schema.ts` (zod, strict: 
 | External scripts | `externalScripts: []` (must be ⊆ the harness allowlist, empty by default) | allowlist gate |
 
 ## 3. Tier budgets and their provenance
-Benchmark aggregates are unfinished (tier classification and eligible aggregates are a tracked addendum), so **no competitor-parity threshold is set**. Budgets are internal and anchored on our own lab page C-INV-005 (311 KiB cold load, LCP 2.53 s, a11y 96; limits: lab, no middleware, placeholder Clerk) [ASSUMPTION; revisit when tier aggregates exist or field data arrives].
+**No competitor-parity threshold is set.** The s10 benchmark pack (`../04-template-benchmarks/benchmark-pack.md`, D-027) now classifies 37 competitor themes into basic 3 (Barunson only, low confidence), premium 26 and signature 8, and its §5 forbids reading the aggregates as parity thresholds. Budgets therefore stay **internal**, anchored on our own pre-P0 lab page C-INV-005 (311 KiB cold load, LCP 2.53 s, a11y 96; limits: lab, no middleware, placeholder Clerk) with headroom per tier [ASSUMPTION; revisit when the basic and signature tiers reach high confidence or field data arrives].
 
 | Budget (bytes on disk of the template's own files and non-deferred assets) | basic | premium | signature |
 |---|---|---|---|
@@ -51,7 +51,7 @@ Measured from files, not from manifest claims: a declared `bytes` that differs f
 |---|---|---|
 | Schema | zod strict parse | — |
 | Tier budgets + correct asset measurement | file sizes, PNG/JPEG/WebP headers for dimensions, declared vs actual bytes | transfer size after compression is measured only by `bench` |
-| Lighthouse (performance, accessibility) | `bench`: Lighthouse 12.8.2 mobile on `dist/preview.html` | lab only; TBT is not INP |
+| Lighthouse (performance, accessibility) | `bench`: Lighthouse 12.8.2 mobile on the generated `preview.html` (`$TMPDIR/invitesion-harness/<id>/`, outside the repo); a run with a runtime error, no performance score or no LCP is reported as **no valid result**, never as a score (s10 fix) | lab only; TBT is not INP |
 | Contrast | WCAG 2.2 ratio of text / muted / accent pairs from tokens | computed on tokens, not on rendered pixels over images |
 | Reduced motion | motion level > 0 ⇒ CSS has `@media (prefers-reduced-motion: reduce)` and the manifest declares the fallback | static; behaviour confirmed in `snapshot` with emulated reduced motion |
 | Lazy 3D + fallback | model declared `deferred`, `lazy: true`, fallback image present, model path absent from initial HTML | real-device frame rate not measured |
@@ -67,13 +67,23 @@ Measured from files, not from manifest claims: a declared `bytes` that differs f
 | Religious text | quotes only by `corpusId` present in the corpus with source, edition, permission, verifier, date; inline religious text fails | the corpus starts empty: no quote blocks until the owner approves entries |
 
 ## 5. CLI (`pnpm harness <command>`, implemented in `tools/template-harness/`)
-`new <dir> --tier --niche --locale` (scaffold that passes `check`), `check <dir>` (all static gates, exit 1 on failure, JSON + text), `bench <dir>` (budgets + Lighthouse when available), `preview <dir>` (`dist/preview.html` + fixture variants), `snapshot <dir>` (three viewports when Chrome is available), `report <dir>` (writes `GENERATION-REPORT.md` from the latest results). Self-tests in `tests/template-harness.test.ts` prove the happy path and the deliberate failures: oversized asset, unlicensed font, missing reduced motion, unsafe guest input, unverified religious text, external script.
+`new <dir> --tier --niche --locale` (scaffold that passes `check`), `check <dir>` (all static gates, exit 1 on failure, JSON + text), `bench <dir>` (budgets + Lighthouse when available), `preview <dir>` (`preview.html` + fixture variants in `$TMPDIR/invitesion-harness/<id>/`), `snapshot <dir>` (three viewports + four fixtures + reduced motion when Chrome is available), `report <dir>` (writes `GENERATION-REPORT.md`; STATUS is PASS only when static gates, proofs, a valid Lighthouse result and every planned snapshot are present, INCOMPLETE when a browser check is missing or invalid, FAIL otherwise; exit 0 / 3 / 1). Self-tests in `tests/template-harness.test.ts` prove the happy path and the deliberate failures: oversized asset, unlicensed font, missing reduced motion, unsafe guest input, unverified religious text, external script.
 
 ## 6. Dogfood (original work, `templates/_harness-samples/`)
 1. **Basic wedding** — level-1 motion, no audio, two self-hosted fonts.
 2. **Premium Islamic wedding** — audio after the open gesture, Bismillah-free layout; **no quotation block** (corpus empty, ADR-O04).
 3. **Signature 3D / motion** — level-3 motion with reduced-motion fallback, a lazily loaded 3D scene behind an interaction, fallback image.
 Assets are generated or drawn for this repository (`provenance: own-work` / `generated`), fonts only OFL with the license file alongside. Each has a generation report with pass evidence and the deliberate-failure proofs.
+
+**Reports at s10** (`templates/_harness-samples/*/GENERATION-REPORT.md`, regenerated 2026-11-04 with Chrome for Testing 156.0.8078.4 and Lighthouse 12.8.2 after the validity fix; the s09 basic report that said PASS with performance 0 / LCP 0 ms was invalid and is superseded):
+
+| Sample | Status | Lighthouse perf / a11y | LCP | CLS | Transfer | Snapshots |
+|---|---|---|---|---|---|---|
+| basic-wedding-melati | PASS | 100 / 100 | 1,351 ms | 0 | 48.6 KiB | 8 / 8 |
+| premium-islamic-zamrud | PASS | 100 / 100 | 1,358 ms | 0 | 83 KiB | 8 / 8 |
+| signature-cincin-3d | PASS (first report for this sample) | 100 / 95 | 1,203 ms | 0.013 | 40.7 KiB | 8 / 8 |
+
+Limits: one lab run each on the harness's static server (no CDN, no compression), sample pages rather than product guest pages, no device or field data.
 
 ## 7. Path into the product (B-030, template system v2)
 1. Generate manifests for the 64 registry entries from `templates.ts` (identity, tier, palette → tokens) so the catalog and the harness share one source; drop the hand-synced palette table in the renderer.

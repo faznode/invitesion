@@ -1,6 +1,6 @@
 # Wevitation (WEV): Tier A teardown dossier
 
-> **Status: v1, session 07 (2026-11-01).** All 12 sections have evidence. §4 rests on six official demos (C-WEV-101…106, `wevitation.com/demo/<theme>`, linked from the vendor's homepage catalogue of 16). **All six opened** (`features.coverGate` true → false): C-WEV-101 was captured in s04 before the REA driver, C-WEV-102/103 in s06 with the pre-D-016 click, C-WEV-104…106 in s07 with the D-016 trusted tap. The homepage capture C-WEV-001 (s01) is a marketing page and stays out of the guest-page medians.
+> **Status: v1, session 07 (2026-11-01).** Evidence level **A/B** (`../../09-masterplan/02-evidence-coverage.md` §2; line added s10). All 12 sections have evidence. §4 rests on six official demos (C-WEV-101…106, `wevitation.com/demo/<theme>`, linked from the vendor's homepage catalogue of 16). **All six opened** (`features.coverGate` true → false): C-WEV-101 was captured in s04 before the REA driver, C-WEV-102/103 in s06 with the pre-D-016 click, C-WEV-104…106 in s07 with the D-016 trusted tap. The homepage capture C-WEV-001 (s01) is a marketing page and stays out of the guest-page medians.
 >
 > **Privacy (D-021):** the demo titles name a couple by first names on non-tokenized URLs; the names are redacted in the committed summaries and none appears here. No account, form, checkout or WhatsApp flow was used. Play-review authors, the developer's personal name and contact numbers are not recorded.
 >

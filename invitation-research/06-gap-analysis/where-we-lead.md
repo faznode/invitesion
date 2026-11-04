@@ -1,18 +1,18 @@
 <!-- SUMMARY (first 7 lines — greppable) -->
 # where-we-lead.md — advantages to protect, with their evidence and their threats
 > WHAT: The strengths the masterplan must preserve (brief 03 §15 "Protect existing advantages rather than replacing them indiscriminately").
-> STATUS: DONE s08 (2026-11-03)
+> STATUS: Verified s10 (2026-11-04; v1 s08). §1 competitor medians follow the s10 matrix rebuild (Viding six themes: performance 53, LCP 12.58 s, TBT 416 ms). Our column is the **pre-P0** build (`22ed99e`) and has not been re-measured (RQ-OWN-02).
 > OWNER: Research agent
 > DEPS: ../05-feature-matrix/feature-matrix-long.csv (derived rows), ../_tools/capture/dossier-digest.py outputs, ../01-codebase-audit/quality-audit.md
 > GREP: lead, strength, protect, performance, accessibility, privacy, budget
-> UPDATED: 2026-11-03
+> UPDATED: 2026-11-04
 
 ## 1. Measured leads (Lighthouse 12.8.2 mobile, simulated Slow 4G + 4× CPU, 412×915, cold cache; eligible captures, median per theme)
 | Metric | Invitesion (C-INV-001/002/005) | Competitor medians | Best competitor | Matrix row |
 |---|---|---|---|---|
-| Performance score | **94** | KAT 28, INV 30, IVT 38, WEV 40, ENV 42, VID 50, BRN 55 | BRN 55 | FM-156 |
-| LCP | **2.53 s** (Partial: just above the 2.5 s control point) | ENV 13.87 s … BRN 23.15 s | ENV 13.87 s | FM-157 |
-| TBT (not INP) | **184 ms** | VID 594 … KAT 4,192 ms; **BRN 0 ms** | BRN | FM-158 |
+| Performance score | **94** | KAT 28, INV 30, IVT 38, WEV 40, ENV 42, VID 53, BRN 55 | BRN 55 | FM-156 |
+| LCP | **2.53 s** (Partial: just above the 2.5 s control point) | VID 12.58 s, ENV 13.87 s … BRN 23.15 s | VID 12.58 s | FM-157 |
+| TBT (not INP) | **184 ms** | VID 416 … KAT 4,192 ms; **BRN 0 ms** | BRN | FM-158 |
 | Transfer at cold load | **311 KiB** | ENV 2,404 … IVT 7,192 KiB | ENV | FM-160 |
 | Accessibility score | **96** | KAT 77 … WEV 86; **ENV 100** | ENV | FM-163 |
 | Third-party entities | **0** | ENV 1, IVT 2, VID 5, BRN 5, KAT 8, WEV 9, INV 9 | ENV | FM-179 |
