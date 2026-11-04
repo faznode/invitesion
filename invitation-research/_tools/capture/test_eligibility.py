@@ -141,11 +141,15 @@ class Eligibility(unittest.TestCase):
         self.assertFalse(ev['coldload_eligible'] or ev['structure_eligible'])
 
     def test_3_structure_only_exclusions_keep_cold_load(self):
-        structure_rows = IDS('C-ENV', (112, 113, 117, 118, 119, 120, 121)) + IDS('C-IVT', (102, 103))
-        for cid in structure_rows:
+        # The exclusion register's own semantics, read in the sensitivity population: the ENV rows are also provisional
+        # (D-031), which removes them from the unconditional population independently (ProvisionalEvidence below).
+        for cid in IDS('C-ENV', (112, 113, 117, 118, 119, 120, 121)):
+            self.assertTrue(RESULTS[cid]['coldload_eligible_sensitivity'], cid)
+            self.assertFalse(RESULTS[cid]['structure_eligible_sensitivity'], cid)
+        for cid in IDS('C-IVT', (102, 103)):
             self.assertTrue(RESULTS[cid]['coldload_eligible'], cid)
             self.assertFalse(RESULTS[cid]['structure_eligible'], cid)
-        env = elig.coverage(CAPTURES, RESULTS)['enviory']
+        env = elig.coverage(CAPTURES, RESULTS, sensitivity=True)['enviory']
         self.assertEqual((env['coldload_n'], len(env['coldload']), env['structure_n'], len(env['structure'])), (13, 6, 6, 6))
 
     def test_3b_curated_row_beats_the_wrapper_heuristic(self):
@@ -153,7 +157,7 @@ class Eligibility(unittest.TestCase):
             ev = RESULTS[cid]
             self.assertTrue(ev['wrapper_heuristic'])
             self.assertEqual(ev['page_class'], 'guest_page')
-            self.assertTrue(ev['coldload_eligible'])
+            self.assertTrue(ev['coldload_eligible_sensitivity'])
         uncurated = elig.evaluate(BY_ID['C-ENV-117'], None)
         self.assertEqual((uncurated['page_class'], uncurated['coldload_eligible']), ('wrapper', False))
 
@@ -197,6 +201,143 @@ class Eligibility(unittest.TestCase):
         self.assertTrue(RESULTS['C-ENV-118']['cover_detected'] and not RESULTS['C-ENV-118']['click_attempted'])
         self.assertEqual({ev['audio_playback'] for ev in RESULTS.values()}, {'not_measured'})
         self.assertTrue(set(ev['gate_opening'] for ev in RESULTS.values()) <= set(elig.GATE_OPENINGS))
+
+
+class MeasurementProfiles(unittest.TestCase):
+    """Protocol v2 (s13): each profile is its own population; the CDP emulation check gates structure evidence only (D-032)."""
+
+    def test_9_a_v2_lighthouse_run_must_match_its_own_profile(self):
+        lh = BY_ID['C-WEV-202']['lighthouse']  # profile v2-360
+        self.assertEqual(elig.lighthouse_status(lh, 'v2-360'), (True, ''))
+        ok, reason = elig.lighthouse_status(lh, 'v2-390')
+        self.assertFalse(ok)
+        self.assertIn('width=360', reason)
+        self.assertIn('height=800', reason)
+        self.assertFalse(elig.lighthouse_status(lh, elig.V1_PROFILE)[0])
+
+    def test_9b_unverified_cdp_emulation_excludes_structure_only(self):
+        pilot = BY_ID['C-WEV-201']  # pilot before the clear + set fix: the page saw DPR 1 and an 800 x 600 screen
+        self.assertIs(pilot['measurement']['emulation_verified'], False)
+        ev = RESULTS['C-WEV-201']
+        self.assertEqual((ev['profile'], ev['coldload_eligible'], ev['structure_eligible']), ('v2-412', True, False))
+        self.assertTrue(any(r.startswith('CDP emulation not verified for profile v2-412') for r in ev['structure_reasons']))
+        verified = copy.deepcopy(pilot)
+        verified['measurement'].update(emulation_verified=True, emulation_mismatches=[])
+        ev = elig.evaluate(verified, None)
+        self.assertEqual((ev['coldload_eligible'], ev['structure_eligible']), (True, True))
+
+    def test_9c_an_unknown_profile_is_an_error_and_excludes_both(self):
+        odd = copy.deepcopy(BY_ID['C-WEV-201'])
+        odd['measurement']['profile'] = 'v2-375'
+        ev = elig.evaluate(odd, None)
+        self.assertEqual((ev['coldload_eligible'], ev['structure_eligible']), (False, False))
+        self.assertTrue(any(level == 'error' and 'v2-375' in message for level, message in ev['findings']))
+
+    def test_9d_profiles_are_separate_themes_for_retry_counting(self):
+        pilot = IDS('C-WEV', range(201, 205))
+        self.assertEqual(len({(RESULTS[c]['theme_key'], RESULTS[c]['profile']) for c in pilot}), 4)
+        self.assertTrue(all(RESULTS[c]['theme_attempts'] == 1 for c in pilot))
+        self.assertEqual(RESULTS['C-WEV-104']['profile'], elig.V1_PROFILE)  # no measurement block = protocol v1.2
+
+
+def write_provisional(directory, rows, columns=elig.PROVISIONAL_COLUMNS):
+    path = os.path.join(directory, 'provisional.csv')
+    with open(path, 'w', newline='', encoding='utf-8') as handle:
+        writer = csv.DictWriter(handle, fieldnames=columns, extrasaction='ignore')
+        writer.writeheader()
+        writer.writerows(rows)
+    return path
+
+
+def provisional_row(cid, decision='D-099', question='Q-O99', reason='fixture'):
+    return {'capture_id': cid, 'decision': decision, 'question': question, 'reason': reason, 'evidence': 'fixture',
+            'revisit_when': 'never'}
+
+
+class ProvisionalEvidence(unittest.TestCase):
+    """D-031 / Q-O09 (s13): provisional captures leave the unconditional population and stay in the sensitivity one."""
+    G2 = IDS('C-ENV', range(111, 124))
+
+    def test_8_committed_provisional_register_is_exactly_the_g2_captures(self):
+        self.assertEqual(sorted(REGISTER.provisional), self.G2)
+        self.assertEqual(REGISTER.provisional_rows, len(self.G2))
+        for cid, row in REGISTER.provisional.items():
+            self.assertEqual((row['decision'], row['question'], row['valid']), ('D-031', 'Q-O09', True), cid)
+        for cid in IDS('C-ENV', range(101, 107)):  # wrappers captured before the challenge: D-006, not provisional
+            self.assertFalse(RESULTS[cid]['provisional'], cid)
+            self.assertFalse(RESULTS[cid]['coldload_eligible_sensitivity'] or RESULTS[cid]['structure_eligible_sensitivity'], cid)
+
+    def test_8b_provisional_rows_leave_only_the_unconditional_population(self):
+        for cid in self.G2:
+            ev, plain = RESULTS[cid], elig.evaluate(BY_ID[cid], REGISTER.rules.get(cid))
+            self.assertTrue(ev['provisional'])
+            self.assertEqual((ev['coldload_eligible'], ev['structure_eligible']), (False, False), cid)
+            self.assertIn('provisional (D-031, Q-O09)', ev['coldload_reasons'])
+            self.assertIn('provisional (D-031, Q-O09)', ev['structure_reasons'])
+            self.assertEqual((ev['coldload_eligible_sensitivity'], ev['structure_eligible_sensitivity']),
+                             (plain['coldload_eligible'], plain['structure_eligible']), cid)
+            self.assertEqual(ev['structure_reasons_sensitivity'], plain['structure_reasons'], cid)
+        for cid, ev in RESULTS.items():
+            if not ev['provisional']:
+                self.assertEqual((ev['coldload_eligible'], ev['structure_eligible']),
+                                 (ev['coldload_eligible_sensitivity'], ev['structure_eligible_sensitivity']), cid)
+
+    def test_8c_coverage_is_reported_for_both_populations(self):
+        unconditional = elig.coverage(CAPTURES, RESULTS)
+        sensitivity = elig.coverage(CAPTURES, RESULTS, sensitivity=True)
+        env = unconditional['enviory']
+        self.assertEqual((env['coldload_n'], len(env['coldload']), env['structure_n'], len(env['structure'])), (0, 0, 0, 0))
+        self.assertEqual(len(sensitivity['enviory']['coldload']), 6)
+        for competitor in unconditional:
+            if competitor != 'enviory':
+                self.assertEqual(unconditional[competitor], sensitivity[competitor], competitor)
+
+    def test_8d_invalid_provisional_rows_are_errors_and_still_exclude(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = write_provisional(tmp, [
+                provisional_row('C-WEV-101', question='Q-9'),        # malformed question id
+                provisional_row('C-WEV-102', decision=''),           # empty decision
+                provisional_row('C-WEV-103', reason=''),             # empty reason
+                provisional_row('C-ZZZ-999'),                        # unknown capture
+                provisional_row('WEV-104'),                          # malformed capture id
+                provisional_row('C-WEV-105'), provisional_row('C-WEV-105'),  # duplicate
+            ])
+            register = elig.load_register(known_ids=set(BY_ID), provisional_path=path)
+        messages = {}
+        for level, cid, message in register.problems:
+            messages.setdefault((level, cid), []).append(message)
+        for cid, fragment in [('C-WEV-101', 'is not a Q-ONN'), ('C-WEV-102', 'is not a D-NNN id'), ('C-WEV-103', 'empty reason'),
+                              ('C-ZZZ-999', 'unknown capture id'), ('WEV-104', 'invalid capture_id'), ('C-WEV-105', 'duplicate row')]:
+            self.assertTrue(any(fragment in m for m in messages.get(('error', cid), [])), cid)
+        results = elig.evaluate_all(CAPTURES, register)
+        for cid in ('C-WEV-101', 'C-WEV-102', 'C-WEV-103', 'C-WEV-105'):
+            self.assertFalse(results[cid]['coldload_eligible'], cid)
+            self.assertTrue(results[cid]['coldload_eligible_sensitivity'], cid)
+        self.assertTrue(any(level == 'error' and 'provisional register missing' in message for level, _, message in
+                            elig.load_register(provisional_path=os.path.join(tempfile.gettempdir(), 'absent-provisional.csv')).problems))
+
+    def test_8e_summary_rows_carry_both_populations(self):
+        env = summarize.row(BY_ID['C-ENV-122'], RESULTS['C-ENV-122'])
+        self.assertEqual((env['provisional'], env['provisional_decision'], env['coldload_eligible'], env['coldload_eligible_sensitivity'],
+                          env['structure_eligible_sensitivity']), (True, 'D-031 / Q-O09', False, True, True))
+        self.assertIn('provisional (D-031, Q-O09)', env['eligibility_reasons'])
+        wev = summarize.row(BY_ID['C-WEV-104'], RESULTS['C-WEV-104'])
+        self.assertEqual((wev['provisional'], wev['coldload_eligible'], wev['coldload_eligible_sensitivity']), (False, True, True))
+
+    def test_8f_digest_masks_provisional_values_unless_sensitivity_is_asked(self):
+        ids = ['C-ENV-122', 'C-ENV-123']
+        plain = subprocess.run([sys.executable, '-B', DIGEST, '--competitor', 'enviory'] + ids, capture_output=True, text=True, check=True)
+        self.assertIn('No eligible capture: no median', plain.stdout)
+        self.assertNotIn('SENSITIVITY RESULT', plain.stdout)
+        for line in (l for l in plain.stdout.splitlines() if l.startswith('| C-ENV-12')):
+            self.assertNotRegex(line.split('|', 4)[4], r'\d', 'provisional rows print no numbers in the unconditional digest')
+        sens = subprocess.run([sys.executable, '-B', DIGEST, '--competitor', 'enviory', '--sensitivity'] + ids,
+                              capture_output=True, text=True, check=True)
+        self.assertIn('SENSITIVITY RESULT', sens.stdout)
+        self.assertIn('Median of 2 theme(s)', sens.stdout)
+        rows = [l for l in sens.stdout.splitlines() if l.startswith('| C-ENV-12')]
+        self.assertEqual(len(rows), 4)
+        self.assertTrue(all('| yes (provisional: D-031 / Q-O09) |' in l for l in rows))
 
 
 class Privacy(unittest.TestCase):
@@ -287,7 +428,9 @@ class MeasurementSources(unittest.TestCase):
         self.assertAlmostEqual(elig.theme_median(wev, lambda c: c['lighthouse']['metrics']['lcpMs'])[0], 17407.6, delta=0.1)
         self.assertAlmostEqual(elig.theme_median(wev, lambda c: c['lighthouse']['metrics']['tbtMs'])[0], 981.75)
         self.assertAlmostEqual(median_lh / lh_kib(BY_ID['C-INV-005']), 10.74, delta=0.005)
-        env = [(RESULTS[c]['theme_key'], c) for c in BY_ID if c.startswith('C-ENV') and RESULTS[c]['coldload_eligible']]
+        self.assertEqual([c for c in BY_ID if c.startswith('C-ENV') and RESULTS[c]['coldload_eligible']], [],
+                         'Enviory has no unconditional cold-load sample while Q-O09 is open (D-031)')
+        env = [(RESULTS[c]['theme_key'], c) for c in BY_ID if c.startswith('C-ENV') and RESULTS[c]['coldload_eligible_sensitivity']]
         get = lambda path: (lambda cid: path(BY_ID[cid]['lighthouse']))
         self.assertEqual(elig.theme_median(env, get(lambda l: l['scores']['performance']))[:2], (42, 6))
         self.assertAlmostEqual(elig.theme_median(env, get(lambda l: l['metrics']['lcpMs']))[0] / 1000, 13.87, delta=0.005)

@@ -32,7 +32,7 @@ Machine-readable, validated by `tools/template-harness/schema.ts` (zod, strict: 
 | External scripts | `externalScripts: []` (must be ⊆ the harness allowlist, empty by default) | allowlist gate |
 
 ## 3. Tier budgets and their provenance
-**No competitor-parity threshold is set.** The s10 benchmark pack (`../04-template-benchmarks/benchmark-pack.md`, D-027) now classifies 37 competitor themes into basic 3 (Barunson only, low confidence), premium 26 and signature 8, and its §5 forbids reading the aggregates as parity thresholds. Budgets therefore stay **internal**, anchored on our own pre-P0 lab page C-INV-005 (311 KiB cold load, LCP 2.53 s, a11y 96; limits: lab, no middleware, placeholder Clerk) with headroom per tier [ASSUMPTION; revisit when the basic and signature tiers reach high confidence or field data arrives].
+**No competitor-parity threshold is set.** The s10 benchmark pack (`../04-template-benchmarks/benchmark-pack.md`, D-027) now classifies 31 competitor themes into basic 3 (Barunson only, low confidence), premium 20 and signature 8 in the unconditional population (s13, D-031; 37 with premium 26 when the provisional Enviory themes are admitted), and its §5 forbids reading the aggregates as parity thresholds. Budgets therefore stay **internal**, anchored on our own pre-P0 lab page C-INV-005 (311 KiB cold load, LCP 2.53 s, a11y 96; limits: lab, no middleware, placeholder Clerk) with headroom per tier [ASSUMPTION; revisit when the basic and signature tiers reach high confidence or field data arrives].
 
 | Budget (bytes on disk of the template's own files and non-deferred assets) | basic | premium | signature |
 |---|---|---|---|

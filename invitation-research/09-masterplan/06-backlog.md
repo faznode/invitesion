@@ -108,7 +108,7 @@ Scales: impact 1–5; effort S ≤ 2 dev-days, M ≤ 2 weeks, L > 2 weeks; risk 
 
 ### B-012 Guest-page budgets enforced by the template harness (G-065)
 - **Problem:** our one measured advantage (guest-page speed and weight) has no guard; motion, music and 3D (B-009, B-030) can erase it, and nothing records asset licenses.
-- **Evidence:** lab lead Perf 94 / LCP 2.53 s / 311 KiB vs eligible competitor medians Perf 28–55, LCP 12.6–23.1 s, 2,404–7,192 KiB (C-INV-005 limits; FM-156/157/160); no license or byte record for any template asset (template-system audit §5).
+- **Evidence:** lab lead Perf 94 / LCP 2.53 s / 311 KiB vs eligible competitor medians Perf 28–55, LCP 12.6–23.1 s, 3,084–7,192 KiB (unconditional population, s13; 2,404–7,192 KiB with the provisional Enviory themes, D-031) (C-INV-005 limits; FM-156/157/160); no license or byte record for any template asset (template-system audit §5).
 - **Modules / paths:** new `tools/template-harness/`, `templates/_harness-samples/`, `content/verified-religious-texts/`, `tests/template-harness.test.ts`; contract in `08-template-system-and-harness.md`.
 - **Acceptance:** `harness bench` fails a template that exceeds its tier budget (weight, image, font, JS) and `check` fails missing reduced-motion support, unlicensed fonts and unsafe personalization; budgets are **internal**, anchored on our own pre-P0 page (C-INV-005) with headroom per tier, and are not competitor-parity thresholds (`../04-template-benchmarks/benchmark-pack.md` §5, `08-template-system-and-harness.md`); a report says PASS only when every static gate, proof, Lighthouse result and planned snapshot is valid (INCOMPLETE otherwise).
 - **Tests:** harness self-tests with deliberate failures (oversized asset, unlicensed font, missing reduced motion, hostile name, invalid Lighthouse result).
@@ -191,7 +191,7 @@ These four items are the next implementation step after B-009 / B-012 (`11-prici
 | B-041 | Server-side entitlement check on theme changes: the config PATCH accepts any `theme.templateId` / `paletteId` from the owner, so a Standard invitation can take a Premium look while checkout prices the DB template (QA-026, found s09 while doing B-005) | G-042 | S / M | — (precedes B-036) |
 
 ## P2 (later)
-G-016 licensed self-hosted art · G-018 guest UI i18n · G-020 observability · G-029 map facade · G-035 share button + story image · G-036 elder mode (idea I-05; promote if the B-030 tokens make it S) · G-038 WhatsApp API blast · G-041 section order / font / colour · G-044 co-hosts and ushers · G-045 seating / souvenir / gift logging · G-046 version history UI · G-047 passcode · G-048 custom slug / domain · G-050 receipts · G-052 reseller workspace · G-053 coupons / affiliate · G-054 assisted setup · G-055 print / e-card export · G-056 AI copy with safeguards · G-057 video invitations · G-061 help centre · G-062 admin CMS via manifests · G-063 audience variants · G-064 host PWA.
+G-016 licensed self-hosted art · G-018 guest UI i18n · G-020 observability · G-029 map facade · G-035 share button + story image · G-036 elder mode (idea I-05; promote if the B-030 tokens make it S) · G-038 WhatsApp API blast · G-041 section order / font / colour · G-044 co-hosts and ushers · G-045 seating / souvenir / gift logging · G-046 version history UI · G-047 passcode · G-048 custom slug / domain · G-050 receipts · G-052 reseller workspace · G-053 coupons / affiliate · G-054 assisted setup · G-055 print / e-card export · G-056 AI copy with safeguards · G-057 video invitations · G-061 help centre · G-062 admin CMS via manifests · G-063 audience variants · G-064 host PWA · G-021 accounts only on personal links (delivered with B-026) · G-068 PROTECT unlimited editing, 12-month period, free drafting (keep; no code change). *(s13: G-021 and G-068 were missing from this list although `upgrade-map.csv` marks them P2 and the chain table below covers them; 26 P2 items in total.)*
 
 ## Chains for the remaining P1 and P2 items (s12, RQ-MP-06 / RQ-MP-15)
 Each row completes the chain for an item that had evidence, problem, modules and paths, effort, risk and dependencies, but no acceptance, verification or rollback:
@@ -204,6 +204,78 @@ Rules that apply to every row:
 - **Content contract:** a field moves from stored-only to `rendered` in `lib/invitation/content-contract.ts` in the same change that renders it (enforced by `tests/content-contract.test.ts`).
 - **Scoping and scripture:** every dashboard query is scoped to the session owner. No religious text is generated or hardcoded (ADR-O04: approved corpus only).
 - **Verification here:** "Verification" names checks runnable in this sandbox. Checks needing real Clerk keys, a PJP sandbox or legal review are marked **EXT**.
+
+**Rollout (added s13).** The s12 rows give rollback but state rollout only where a flag is named (14 of 52), and the owner's chain definition requires both. Rollout classes:
+- **Dark behind a flag** (`lib/flags.ts`, default off): enable on the disposable fixture invitation, run the row's verification, then the owner enables it.
+- **Render-when-filled**: ships directly after verification. Existing invitations look unchanged until the host fills the new fields, because empty fields render nothing.
+- **Per-invitation opt-in or new-only default**: existing invitations keep today's behaviour.
+- **Direct after verification**: additive, read-only, copy or security changes with no behaviour change for existing invitations.
+- **Gated by an external step** (EXT): legal text, PJP contract, staffing, hosting or real-key checks before any exposure.
+
+| Item | Rollout |
+|---|---|
+| B-013 | Flag; limits first, moderation enforcement for new wishes only (existing wishes keep their visibility) |
+| B-017 | Direct; additive migration. On a large production table use `CREATE INDEX CONCURRENTLY` in a hand-written migration so writes are not blocked |
+| B-018 | Direct; one call site at a time, the old builder deleted last |
+| B-019 | Flag for new uploads; a resumable backfill job for existing media later; the renderer falls back to originals throughout |
+| B-020 | Tests land first; the owner enables the workflow by pushing (EXT) |
+| B-021 | Flag; enabled after the owner approves the text (depends on B-031) |
+| B-022 | Direct copy change |
+| B-023 | Render-when-filled |
+| B-024 | Flag, then per-invitation opt-in |
+| B-025 | Direct for the lightbox; layouts only where `gallery.layout` is set |
+| B-026 | New-only default: new invitations default on, existing ones keep today's visibility |
+| B-027 | Per-feature flags |
+| B-028 | Flag; the moderation toggle is enforced or removed in the same release |
+| B-029 | Render-when-filled |
+| B-030 | Per-invitation opt-in: a family is chosen explicitly; invitations without one keep the legacy layout |
+| B-031 | Soft-delete window first, hard delete after it; policy published after professional review (EXT) |
+| B-032 | New memorial invitations only |
+| B-033 | Flag |
+| B-034 | Direct (read-only) |
+| B-035 | Flag, after the signed-in check with real keys (EXT) |
+| B-036 | After B-041; rule change behind the same entitlement check |
+| B-037 | Flag |
+| B-038 | Report-only period first, then the enforced header |
+| B-039 | Rail flag; PJP sandbox first; contract EXT |
+| B-040 | Flag, after the owner's decision (EXT) |
+| B-041 | Direct (security fix) |
+| G-016 | Per template; old URLs remain the fallback until every asset ships |
+| G-018 | Dictionary first; the invitation language defaults to Indonesian |
+| G-020 | Instrumentation in a non-production environment first; vendor EXT |
+| G-021 | With B-026 |
+| G-029 | Direct; the static map link stays |
+| G-035 | Direct; hideable |
+| G-036 | Per-device opt-in toggle |
+| G-038 | Provider flag after the owner's decision (EXT) |
+| G-041 | Per family; only contract-declared options are offered |
+| G-044 | Per-invitation role grants (opt-in) |
+| G-045 | Flag |
+| G-046 | Direct (UI); restore touches config only |
+| G-047 | Per-invitation opt-in |
+| G-048 | Opt-in; the old slug keeps redirecting; domains need hosting (EXT) |
+| G-050 | Direct for new payments; earlier payments on request |
+| G-052 | Workspace flag |
+| G-053 | Admin-created coupons only; none active by default |
+| G-054 | Operational pilot after staffing and an owner-consent flow (EXT) |
+| G-055 | Per-invitation export link (opt-in) |
+| G-056 | Flag, off by default |
+| G-057 | Only after B-030 families exist; offered as a separate product |
+| G-061 | Each article published only after the B-022 claim check |
+| G-062 | Read-only manifests first; publishing gated by review |
+| G-063 | Per-invitation opt-in; single variant by default |
+| G-064 | After web-dashboard parity; same APIs and authorisation |
+| G-068 | Not applicable (protects existing behaviour; no change ships) |
+
+**s13 chain verification (RQ-MP-06 / RQ-MP-15).** Programmatic check against `../06-gap-analysis/upgrade-map.csv`:
+- P1: 26 chain rows = the 26 P1 items that lacked a full chain.
+- P2: 26 rows = the 26 P2 gaps in the map.
+- No empty cell in either table.
+- Every referenced gap carries `competitor_evidence` and `current_behavior`.
+- Four P2 gaps (G-054, G-055, G-057, G-064) lacked `module_ids` / `paths`; s13 filled them with existing modules and explicitly proposed paths marked "(new)".
+- Rollout was missing for 38 rows; the table above adds it.
+
+Content was not rewritten: acceptance, verification and rollback cells are s12's text.
 
 ### P1
 | Item (gap) | Proposed behaviour | Acceptance | Verification | Rollback |

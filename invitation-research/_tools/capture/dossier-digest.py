@@ -76,7 +76,8 @@ def table(title, columns, items, eligible_key, reasons_key, extra=None):
     print('| Capture | Theme key | Eligible | ' + ' | '.join(c[0] for c in extra + columns) + ' |')
     print('|' + '---|' * (len(extra) + len(columns) + 3))
     for capture_id, d, ev, values in items:
-        mark = 'yes' if ev[eligible_key] else 'no: ' + '; '.join(ev[reasons_key])
+        provisional = f" (provisional: {ev['provisional_decision']})" if ev.get('provisional') else ''
+        mark = 'yes' + provisional if ev[eligible_key] else 'no: ' + '; '.join(ev[reasons_key])
         if ev.get('masked'):
             cells = ['·'] * (len(extra) + len(columns))
         else:
@@ -100,6 +101,8 @@ def main():
     parser.add_argument('--register', default=eligibility.REGISTER_PATH)
     parser.add_argument('--show-excluded', action='store_true',
                         help='print values of scope=all and non-guest-page rows (never feed them into a dossier median)')
+    parser.add_argument('--sensitivity', action='store_true',
+                        help='admit provisional evidence (eligibility.py rule 7); every table is labelled SENSITIVITY')
     parser.add_argument('ids', nargs='+')
     args = parser.parse_args()
 
@@ -108,9 +111,19 @@ def main():
     for level, cid, message in register.problems:
         print(f'{level.upper()} {cid} {message}', file=sys.stderr)
     captures = [load(args.competitor, capture_id) for capture_id in args.ids]
+    profiles = sorted({eligibility.capture_profile(c) for c in captures})
+    if len(profiles) > 1:
+        print(f'ERROR: the captures span measurement profiles {", ".join(profiles)}; a median pools one profile only '
+              '(D-032). Run once per profile.', file=sys.stderr)
+        return 2
     results = eligibility.evaluate_all(captures, register)
     for ev in results.values():
-        ev['masked'] = not args.show_excluded and (ev['exclusion_scope'] == 'all' or ev['page_class'] != 'guest_page')
+        if args.sensitivity:
+            for key in ('coldload', 'structure'):
+                ev[f'{key}_eligible'] = ev[f'{key}_eligible_sensitivity']
+                ev[f'{key}_reasons'] = ev[f'{key}_reasons_sensitivity']
+        hidden = ev['exclusion_scope'] == 'all' or ev['page_class'] != 'guest_page' or (ev['provisional'] and not args.sensitivity)
+        ev['masked'] = not args.show_excluded and hidden
     items = [(d['id'], d, results[d['id']], measurements(d)) for d in captures]
     for capture_id, _, ev, _ in items:
         for level, message in ev['findings']:
@@ -118,8 +131,13 @@ def main():
 
     cold_n = sum(ev['coldload_eligible'] for _, _, ev, _ in items)
     struct_n = sum(ev['structure_eligible'] for _, _, ev, _ in items)
-    print(f'<!-- dossier-digest.py: {args.competitor} {len(items)} capture(s); cold-load eligible {cold_n}, structure eligible '
-          f'{struct_n}; register {os.path.relpath(args.register, RESEARCH)} ({register.rows} rows) -->')
+    population = 'SENSITIVITY population (provisional evidence admitted; never quote as unconditional)' if args.sensitivity \
+        else 'unconditional population (provisional evidence excluded)'
+    print(f'<!-- dossier-digest.py: {args.competitor} {len(items)} capture(s); {population}; cold-load eligible {cold_n}, '
+          f'structure eligible {struct_n}; register {os.path.relpath(args.register, RESEARCH)} ({register.rows} rows, '
+          f'provisional {register.provisional_rows} rows) -->')
+    if args.sensitivity:
+        print('> **SENSITIVITY RESULT.** Includes provisional evidence (eligibility.py rule 7). Not an unconditional figure.\n')
     table('Cold load (Lighthouse 12.8.2, simulated Slow 4G + 4× CPU, 412×915, cold cache; Lighthouse never clicks)',
           COLD_COLUMNS, items, 'coldload_eligible', 'coldload_reasons')
     table('After the visit (our CDP session, unthrottled: load + scenario + cover click + scroll; not Lighthouse)',

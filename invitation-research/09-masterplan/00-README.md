@@ -9,8 +9,8 @@
 
 ## Completion status
 The masterplan is **verified but not complete**. Open required criteria, each with its unblock path in the acceptance matrix:
-- **RQ-COMP-02 BLOCKED** — Sitemu (Tier A rank 10) has no dossier: its robots.txt opts out of the agent tokens this research honours (D-026, owner question Q-O08).
-- **RQ-DEMO-01 BLOCKED** — strict Wave 1 (≥ 3 valid demos for each of the top-8 Indonesian competitors) is 5 / 8: Indoinvite, PALEO and Satu Momen have no safely usable public demo. ADR-W1 let planning proceed with reduced confidence; it is not that evidence.
+- **RQ-COMP-02** — no longer blocked: Sitemu (Tier A rank 10) has a v1 dossier since s12 (level C), read after the robots applicability audit replaced D-026 with D-030 (verified s13). Q-O08 keeps only a residual (Canva, undocumented legacy-name mapping).
+- **RQ-DEMO-01 BLOCKED** — strict Wave 1 (≥ 3 valid demos for each of the top-8 Indonesian competitors) is **4 / 8 unconditional** (5 / 8 if the provisional Enviory captures are admitted, D-031 / Q-O09): Indoinvite, PALEO and Satu Momen have no safely usable public demo. ADR-W1 let planning proceed with reduced confidence; it is not that evidence.
 - **RQ-COMP-04 / RQ-COMP-05 PARTIAL** — 11 of 21 Tier-B one-pagers are substantive; public complaints are researched for 1 of 14 Tier-A dossiers.
 - **RQ-BENCH-05 PARTIAL** — only the 412×915 cold load was measured; 360×800, 390×844, reduced motion, in-app browsers, audio and INP are unresolved.
 - **RQ-MP-06 / RQ-MP-15 PARTIAL** — P0 and the next-phase P1 items carry the full evidence-to-rollback chain; the remaining P1 / P2 items do not yet have acceptance criteria, verification and rollback.
@@ -29,7 +29,7 @@ The masterplan is **verified but not complete**. Open required criteria, each wi
 | 00 | this file | where things are, completion status | verified | — |
 | 01 | `01-executive-summary.md` | thesis, top decisions, 90-day plan (EN + ID) | verified | medium (planning under ADR-W1, not literal Wave 1) |
 | 02 | `02-evidence-coverage.md` | what the evidence covers, gates, exclusions, assumptions, gaps | verified | high on what is missing |
-| 03 | `03-market-and-competitors.md` | landscape, 14 Tier-A profiles (Sitemu blocked), Tier-B summary, insights | verified | medium; level-C competitors rest on public claims |
+| 03 | `03-market-and-competitors.md` | landscape, 15 Tier-A profiles (Sitemu v1 since s12), Tier-B summary, insights | verified (s13 reconciled) | medium; level-C competitors rest on public claims; Enviory guest-page numbers provisional (D-031) |
 | 04 | `04-current-state.md` | our product today: strengths, defects, debt, posture; shipped P0 | verified | high for code; own lab numbers are pre-P0 |
 | 05 | `05-feature-matrix-and-gaps.md` | 187-row matrix, 68-row upgrade map | verified | medium–high |
 | 06 | `06-backlog.md` | prioritized backlog B-001… with P0 ≤ 12 | verified, **open: P1 / P2 chains** | high for P0 and next-phase items |

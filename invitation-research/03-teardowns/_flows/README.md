@@ -21,7 +21,7 @@
 - A step counts as one screen or one deliberate action. Competitor step counts are claims unless an ID with a capture is given.
 - No step behind a signup, payment, form or login was performed (`../../_rea-playbook.md` §5); those steps are claims by construction.
 - Invitesion "today" means the code at `7a00a6d`: the s09 P0 changes are listed separately from the `22ed99e` audit baseline in each file.
-- Sitemu is absent (D-026 opt-out, `../sitemu/dossier.md`); blocked Tier-B vendors are absent for the reasons in `../tier-b-profiles.md`.
+- Sitemu was absent while blocked (D-026, s10–s11). Its v1 dossier (s12, D-030) documents three creator lanes in §2 (free self-serve, paid done-for-you after payment, bespoke via a WhatsApp brief), all from marketing pages [OBSERVED / CLAIMED]; they are **not yet folded into these flow files**. Blocked Tier-B vendors are absent for the reasons in `../tier-b-profiles.md`. Enviory guest-flow rows rest on provisional captures (D-031).
 
 ## Cross-flow findings
 1. **Every competitor's creator flow is a claim past the catalog**; the only partly observed creator innovation is Enviory's try-with-your-names entry on its demo pages (C-ENV-122/123 button label).

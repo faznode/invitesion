@@ -14,7 +14,7 @@ FM-002,IDI,Full,CLAIMED,curated,S-IDI-006,Guest name in the link on every tier
 FM-002,SMO,Full,OBSERVED,curated,S-SMO-004,Guest-name slot in the salutation (structure only)
 FM-002,WEV,Full,CLAIMED,curated,S-WEV-001,
 FM-002,VID,Full,CLAIMED,curated,S-VID-002,
-FM-002,ENV,Full,OBSERVED,curated,C-ENV-111;S-ENV-001;C-ENV-114;C-ENV-115;C-ENV-116,Family A cover shows a guest salutation line
+FM-002,ENV,Full,OBSERVED,curated,C-ENV-111;S-ENV-001,Family A cover shows a guest salutation line
 FM-002,IVT,Full,CLAIMED,curated,S-IVT-002,
 FM-002,INV,Full,OBSERVED,curated,C-INV-111;C-INV-112;C-INV-114;C-INV-113;C-INV-115;C-INV-116,Guest name on the cover on 6/6
 FM-002,KAT,Full,OBSERVED,curated,S-KAT-001,Cover with a guest greeting
@@ -23,7 +23,7 @@ FM-003,PLO,Full,CLAIMED,curated,S-PLO-003,
 FM-003,SMO,Full,OBSERVED,curated,S-SMO-004,"""Open Invitation"" cover"
 FM-003,WEV,Full,OBSERVED,curated,C-WEV-101;C-WEV-104;C-WEV-105;C-WEV-106;C-WEV-102;C-WEV-103,All six demos opened (coverGate true -> false); the dialog has no accessible name
 FM-003,VID,Full,MEASURED,derived,C-VID-103;C-VID-107;C-VID-108;C-VID-109,keyword detector: 4/6 structure-eligible theme(s)
-FM-003,ENV,Full,OBSERVED,curated,C-ENV-122;C-ENV-111;C-ENV-114;C-ENV-115;C-ENV-116;C-ENV-123,"role=dialog named ""Buka undangan""; some controls are text-less (B-ENV-001)"
+FM-003,ENV,Full,OBSERVED,curated,C-ENV-122;C-ENV-111,"role=dialog named ""Buka undangan""; some controls are text-less (B-ENV-001)"
 FM-003,IVT,Full,OBSERVED,curated,C-IVT-101;C-IVT-104,"""Buka Undangan"" / ""Tap to Open"""
 FM-003,INV,Full,OBSERVED,curated,C-INV-111;C-INV-112;C-INV-114;C-INV-113;C-INV-115;C-INV-116,"""Buka Undangan"" on 6/6 (pre-D-016 synthetic click)"
 FM-003,KAT,Full,OBSERVED,curated,C-KAT-101;C-KAT-102;C-KAT-103;C-KAT-104;C-KAT-105;C-KAT-106,"""Open Invitation"" on 6/6; opening unverified (pre-D-016 click)"
@@ -34,7 +34,7 @@ FM-004,PLO,Full,CLAIMED,curated,S-PLO-003,Autoplay backsound
 FM-004,SMO,Full,CLAIMED,curated,S-SMO-006,
 FM-004,WEV,Full,OBSERVED,curated,C-WEV-104;C-WEV-105;C-WEV-101;C-WEV-102;C-WEV-103;C-WEV-106,MP3 audio element with a start offset; playback not measured
 FM-004,VID,Full,CLAIMED,curated,S-VID-002;C-VID-103;C-VID-101;C-VID-102;C-VID-107;C-VID-108;C-VID-109,Music on all tiers; two audio elements on the demos; playback not measured
-FM-004,ENV,Full,OBSERVED,curated,C-ENV-111;C-ENV-122;C-ENV-114;C-ENV-115;C-ENV-116;C-ENV-123,Looping MP3 without autoplay; playback not measured
+FM-004,ENV,Full,OBSERVED,curated,C-ENV-111;C-ENV-122,Looping MP3 without autoplay; playback not measured
 FM-004,IVT,Full,OBSERVED,curated,C-IVT-101;C-IVT-104,Looping MP3 without autoplay; playback not measured
 FM-004,INV,Full,OBSERVED,curated,C-INV-111;C-INV-114;C-INV-112;C-INV-113;C-INV-115;C-INV-116,Real MP3 audio element; playback after a real tap unverified
 FM-004,KAT,Full,OBSERVED,curated,C-KAT-101;C-KAT-102,Music through the Video.js / YouTube stack; no audio element
@@ -62,7 +62,7 @@ FM-008,IDI,Full,CLAIMED,curated,S-IDI-006,Every tier
 FM-008,SMO,Full,OBSERVED,curated,S-SMO-004;S-SMO-006,
 FM-008,WEV,Full,OBSERVED,curated,C-WEV-101;C-WEV-104;C-WEV-102;C-WEV-103;C-WEV-105;C-WEV-106,6/6 demos
 FM-008,VID,Full,OBSERVED,curated,C-VID-101;C-VID-102;C-VID-103;C-VID-107;C-VID-108;C-VID-109,
-FM-008,ENV,Full,OBSERVED,curated,C-ENV-111;C-ENV-114;C-ENV-115;C-ENV-116,
+FM-008,ENV,Full,OBSERVED,curated,C-ENV-111,
 FM-008,IVT,Full,OBSERVED,curated,C-IVT-101;C-IVT-104,
 FM-008,INV,Full,OBSERVED,curated,C-INV-111;C-INV-114;C-INV-112;C-INV-113;C-INV-115;C-INV-116,6/6
 FM-008,KAT,Full,OBSERVED,curated,C-KAT-101;C-KAT-102;C-KAT-103;C-KAT-104;C-KAT-105;C-KAT-106,6/6
@@ -70,7 +70,7 @@ FM-009,invitesion,Full,CODE,curated,F-030,
 FM-010,invitesion,Full,CODE,curated,F-029;C-INV-001;C-INV-002;C-INV-005,Three presets carry Qur'an translations of unknown provenance (QA-015; ADR-O04)
 FM-010,PLO,Full,CLAIMED,curated,S-PLO-003,The builder starts by picking a quote
 FM-010,SMO,Full,OBSERVED,curated,S-SMO-004,Qur'an verse blocks on the previews checked
-FM-010,ENV,Full,OBSERVED,curated,C-ENV-111;C-ENV-114;C-ENV-115;C-ENV-116,"Quote block with a Qur'an citation marker (""QS. ..."")"
+FM-010,ENV,Full,OBSERVED,curated,C-ENV-111,"Quote block with a Qur'an citation marker (""QS. ..."")"
 FM-010,IVT,Full,OBSERVED,curated,C-IVT-101;C-IVT-104,Quote block with a Qur'an citation marker
 FM-010,INV,Full,OBSERVED,curated,C-INV-111;C-INV-114;C-INV-112;C-INV-113;C-INV-115;C-INV-116,Verse block on 6/6
 FM-010,KAT,Full,OBSERVED,curated,S-KAT-001;C-KAT-101;C-KAT-105;C-KAT-106,Quote section; verse marker on 2/6
@@ -88,7 +88,7 @@ FM-013,IDI,Full,CLAIMED,curated,S-IDI-006,Premium only
 FM-013,PLO,Full,CLAIMED,curated,S-PLO-003,
 FM-013,WEV,Full,OBSERVED,curated,C-WEV-104;C-WEV-101;C-WEV-102;C-WEV-103;C-WEV-105;C-WEV-106,5/6 demos
 FM-013,VID,Full,OBSERVED,curated,C-VID-103;C-VID-107;C-VID-108;C-VID-109,"""Our story"" section"
-FM-013,ENV,Full,OBSERVED,curated,C-ENV-111;C-ENV-122;C-ENV-114;C-ENV-115;C-ENV-116,
+FM-013,ENV,Full,OBSERVED,curated,C-ENV-111;C-ENV-122,
 FM-013,IVT,Full,OBSERVED,curated,C-IVT-101;C-IVT-104,
 FM-013,INV,Full,OBSERVED,curated,C-INV-111;C-INV-114;C-INV-115;C-INV-116,4/6
 FM-013,KAT,Full,OBSERVED,curated,S-KAT-001;C-KAT-101;C-KAT-102;C-KAT-103;C-KAT-104;C-KAT-105;C-KAT-106,Story in three chapters
@@ -98,7 +98,7 @@ FM-014,PLO,Full,CLAIMED,curated,S-PLO-003,Prewedding gallery
 FM-014,SMO,Full,CLAIMED,curated,S-SMO-006,No upload limit
 FM-014,WEV,Full,OBSERVED,curated,C-WEV-104;C-WEV-101;C-WEV-102;C-WEV-103;C-WEV-105;C-WEV-106,6/6 demos
 FM-014,VID,Full,OBSERVED,curated,C-VID-103,
-FM-014,ENV,Partial,OBSERVED,curated,C-ENV-111;S-ENV-001;C-ENV-114;C-ENV-115;C-ENV-116;C-ENV-122;C-ENV-123,Gallery capped at 10 photos
+FM-014,ENV,Partial,OBSERVED,curated,C-ENV-111;S-ENV-001,Gallery capped at 10 photos
 FM-014,IVT,Full,CLAIMED,curated,S-IVT-003;C-IVT-101;C-IVT-104,Unlimited gallery
 FM-014,INV,Partial,CLAIMED,curated,S-INV-002;C-INV-111;C-INV-113;C-INV-114;C-INV-116,Gallery capped at 10 (Plus) / 20 (Premium)
 FM-014,KAT,Full,OBSERVED,curated,C-KAT-101;S-KAT-004;C-KAT-102;C-KAT-103;C-KAT-104;C-KAT-105;C-KAT-106,25 / 35 / unlimited photos by tier
@@ -131,7 +131,7 @@ FM-019,IDI,Full,CLAIMED,curated,S-IDI-006,Every tier
 FM-019,SMO,Full,OBSERVED,curated,S-SMO-004,Maps link
 FM-019,WEV,Full,OBSERVED,curated,C-WEV-104,Map navigation control
 FM-019,VID,Full,OBSERVED,curated,C-VID-103,Location button
-FM-019,ENV,Full,OBSERVED,curated,C-ENV-111;C-ENV-114;C-ENV-115;C-ENV-116,Directions button
+FM-019,ENV,Full,OBSERVED,curated,C-ENV-111,Directions button
 FM-019,IVT,Full,OBSERVED,curated,C-IVT-101;C-IVT-104,Location button
 FM-019,INV,Full,OBSERVED,curated,C-INV-111;C-INV-114;C-INV-112;C-INV-113;C-INV-115;C-INV-116,6/6
 FM-019,BRN,Full,OBSERVED,curated,S-BRN-005,Directions area
@@ -143,7 +143,7 @@ FM-021,IDI,Full,CLAIMED,curated,S-IDI-006,Save-to-calendar on every tier
 FM-021,SMO,Full,CLAIMED,curated,S-SMO-006,Google Calendar reminder with the countdown
 FM-021,WEV,Full,OBSERVED,curated,C-WEV-104;C-WEV-101;C-WEV-102;C-WEV-103;C-WEV-105;C-WEV-106,"""Simpan Tanggal"" on 6/6"
 FM-021,VID,Full,OBSERVED,curated,C-VID-103;C-VID-107;C-VID-108;C-VID-109,"""Save the Date"" button"
-FM-021,ENV,Full,OBSERVED,curated,C-ENV-111;C-ENV-114;C-ENV-115;C-ENV-116,Add-to-calendar button
+FM-021,ENV,Full,OBSERVED,curated,C-ENV-111,Add-to-calendar button
 FM-021,IVT,Full,OBSERVED,curated,C-IVT-101;C-IVT-104,Remind-me / add-to-calendar
 FM-021,INV,Full,OBSERVED,curated,C-INV-111;C-INV-112;C-INV-114;C-INV-115,3/6
 FM-021,KAT,Full,OBSERVED,curated,C-KAT-101;C-KAT-102;C-KAT-103;C-KAT-104;C-KAT-105;C-KAT-106,6/6
@@ -152,7 +152,7 @@ FM-022,IDI,Full,OBSERVED,curated,S-IDI-003;S-IDI-006,
 FM-022,SMO,Full,CLAIMED,curated,S-SMO-006,
 FM-022,WEV,Full,OBSERVED,curated,C-WEV-104;C-WEV-101;C-WEV-102;C-WEV-103;C-WEV-105;C-WEV-106,
 FM-022,VID,Full,OBSERVED,curated,C-VID-103;C-VID-107;C-VID-108;C-VID-109,
-FM-022,ENV,Full,OBSERVED,curated,C-ENV-111;C-ENV-122;C-ENV-114;C-ENV-115;C-ENV-116;C-ENV-123,
+FM-022,ENV,Full,OBSERVED,curated,C-ENV-111;C-ENV-122,
 FM-022,IVT,Full,OBSERVED,curated,C-IVT-101;C-IVT-104,
 FM-022,INV,Full,OBSERVED,curated,C-INV-111;C-INV-114;C-INV-112;C-INV-113;C-INV-115;C-INV-116,5/6 (one 11-field form)
 FM-022,KAT,Full,OBSERVED,curated,C-KAT-101;C-KAT-102;C-KAT-104;C-KAT-105;C-KAT-106,4/6
@@ -186,7 +186,7 @@ FM-030,PLO,Full,CLAIMED,curated,S-PLO-003,Guest book
 FM-030,SMO,Full,CLAIMED,curated,S-SMO-006,
 FM-030,WEV,Full,OBSERVED,curated,C-WEV-104;C-WEV-101;C-WEV-102;C-WEV-103;C-WEV-105;C-WEV-106,
 FM-030,VID,Full,OBSERVED,curated,C-VID-103;C-VID-107;C-VID-108;C-VID-109,300-character limit
-FM-030,ENV,Full,OBSERVED,curated,C-ENV-111;C-ENV-122;C-ENV-114;C-ENV-115;C-ENV-116,
+FM-030,ENV,Full,OBSERVED,curated,C-ENV-111;C-ENV-122,
 FM-030,IVT,Full,OBSERVED,curated,C-IVT-101;C-IVT-104,
 FM-030,INV,Full,OBSERVED,curated,C-INV-111;C-INV-114;C-INV-112;C-INV-113;C-INV-115;C-INV-116,6/6
 FM-030,KAT,Full,OBSERVED,curated,C-KAT-102;C-KAT-101,2/6
@@ -198,13 +198,13 @@ FM-032,IDI,Full,CLAIMED,curated,S-IDI-006,Bank account for gifts from Pro
 FM-032,SMO,Full,CLAIMED,curated,S-SMO-006,Digital envelope and gifts page
 FM-032,WEV,Full,OBSERVED,curated,C-WEV-104;C-WEV-102;C-WEV-103;C-WEV-105;C-WEV-106,Gift sending on 5/6
 FM-032,VID,Full,OBSERVED,curated,C-VID-103;C-VID-107;C-VID-108;C-VID-109,E-Angpao digital envelope
-FM-032,ENV,Full,OBSERVED,curated,C-ENV-111;S-ENV-001;C-ENV-114;C-ENV-115;C-ENV-116,Two bank accounts (cap of 2)
+FM-032,ENV,Full,OBSERVED,curated,C-ENV-111;S-ENV-001,Two bank accounts (cap of 2)
 FM-032,IVT,Full,OBSERVED,curated,C-IVT-101;C-IVT-104,Bank transfer
 FM-032,INV,Full,OBSERVED,curated,C-INV-111;C-INV-114;C-INV-112;C-INV-113;C-INV-115;C-INV-116,6/6
 FM-032,KAT,Full,OBSERVED,curated,S-KAT-001;C-KAT-101;C-KAT-102;C-KAT-103;C-KAT-104;C-KAT-105;C-KAT-106,Bank accounts with transfer-proof upload
 FM-032,BRN,Full,OBSERVED,curated,S-BRN-005;S-BRN-004,Gift-money transfer area
 FM-033,invitesion,None,CODE,curated,F-021,No copy button
-FM-033,ENV,Full,OBSERVED,curated,C-ENV-111;C-ENV-114;C-ENV-115;C-ENV-116;C-ENV-122;C-ENV-123,Copy-number buttons
+FM-033,ENV,Full,OBSERVED,curated,C-ENV-111,Copy-number buttons
 FM-033,INV,Full,OBSERVED,curated,C-INV-111;C-INV-114;C-INV-112;C-INV-113;C-INV-115;C-INV-116,Copy button on 6/6
 FM-033,KAT,Full,MEASURED,derived,C-KAT-101;C-KAT-102,keyword detector: 2/6 structure-eligible theme(s)
 FM-034,invitesion,None,CODE,curated,F-022,
@@ -240,7 +240,7 @@ FM-040,IVT,Full,OBSERVED,curated,C-IVT-101;C-IVT-104,Two embedded YouTube player
 FM-040,KAT,Full,OBSERVED,curated,C-KAT-101;C-KAT-102,Video.js / YouTube players
 FM-041,invitesion,None,CODE,curated,F-025,Config only (corporateProfile.dressCode)
 FM-041,VID,Full,OBSERVED,curated,C-VID-103;C-VID-107;C-VID-108;C-VID-109,
-FM-041,ENV,Full,OBSERVED,curated,C-ENV-111;C-ENV-122;C-ENV-114;C-ENV-115;C-ENV-116,
+FM-041,ENV,Full,OBSERVED,curated,C-ENV-111;C-ENV-122,
 FM-041,INV,Full,CLAIMED,curated,S-INV-003,Dress code on premium themes
 FM-041,KAT,Full,OBSERVED,curated,C-KAT-101;C-KAT-102;C-KAT-103;C-KAT-104;C-KAT-105;C-KAT-106,6/6
 FM-042,invitesion,None,CODE,curated,F-026,guests.qr_code column unused
@@ -261,7 +261,7 @@ FM-046,invitesion,Full,CODE,curated,F-031,
 FM-047,invitesion,Partial,CODE,curated,F-032;C-INV-005;C-INV-001;C-INV-002,Title only; no og:image (QA-009)
 FM-047,WEV,Full,OBSERVED,curated,C-WEV-104;C-WEV-101;C-WEV-102;C-WEV-103;C-WEV-105;C-WEV-106,og:image present; no og:title / og:description
 FM-047,VID,Full,OBSERVED,curated,C-VID-101;C-VID-102;C-VID-103;C-VID-107;C-VID-108;C-VID-109,"og:image, og:title and og:description"
-FM-047,ENV,Full,OBSERVED,curated,C-ENV-111;C-ENV-114;C-ENV-115;C-ENV-116;C-ENV-122;C-ENV-123,"og:image, og:title, og:description"
+FM-047,ENV,Full,OBSERVED,curated,C-ENV-111,"og:image, og:title, og:description"
 FM-047,IVT,Full,OBSERVED,curated,C-IVT-101;C-IVT-104,"og:image, og:title, og:description"
 FM-047,INV,Full,OBSERVED,curated,C-INV-111;C-INV-114;C-INV-112;C-INV-113;C-INV-115;C-INV-116,"og:image, og:title, og:description"
 FM-047,KAT,Full,OBSERVED,curated,C-KAT-101;C-KAT-102;C-KAT-103;C-KAT-104;C-KAT-105;C-KAT-106,"og:image, og:title, og:description"
@@ -287,7 +287,6 @@ FM-054,SMO,Partial,OBSERVED,curated,S-SMO-004,A 3D theme variant exists; fallbac
 FM-055,invitesion,None,CODE,curated,C-INV-005;C-INV-001;C-INV-002,No motion on guest pages and no reduced-motion CSS there (reducedMotionCss=false); the marketing site and template preview honour it
 FM-055,WEV,Full,MEASURED,derived,C-WEV-101;C-WEV-102;C-WEV-103;C-WEV-104;C-WEV-105;C-WEV-106,prefers-reduced-motion CSS on 6/6 theme(s) (CSS rules only; JS checks not detected)
 FM-055,VID,Full,MEASURED,derived,C-VID-101;C-VID-102;C-VID-103;C-VID-107;C-VID-108;C-VID-109,prefers-reduced-motion CSS on 6/6 theme(s) (CSS rules only; JS checks not detected)
-FM-055,ENV,Full,MEASURED,derived,C-ENV-111;C-ENV-114;C-ENV-115;C-ENV-116;C-ENV-122;C-ENV-123,prefers-reduced-motion CSS on 6/6 theme(s) (CSS rules only; JS checks not detected)
 FM-055,IVT,None,MEASURED,derived,C-IVT-101;C-IVT-104,prefers-reduced-motion CSS on 0/2 theme(s) (CSS rules only; JS checks not detected)
 FM-055,INV,Full,OBSERVED,curated,C-INV-111;C-INV-114;C-INV-112;C-INV-113;C-INV-115;C-INV-116,prefers-reduced-motion CSS on 6/6
 FM-055,KAT,None,OBSERVED,curated,C-KAT-101;C-KAT-102;C-KAT-103;C-KAT-104;C-KAT-105;C-KAT-106,No prefers-reduced-motion CSS on any demo
@@ -698,7 +697,6 @@ FM-155,KAT,Partial,OBSERVED,curated,S-KAT-004,"""Adat"" filter"
 FM-156,invitesion,Full,MEASURED,derived,C-INV-001;C-INV-002;C-INV-005,median 94 score over 2 theme(s) / 3 cold-load-eligible capture(s)
 FM-156,WEV,None,MEASURED,derived,C-WEV-101;C-WEV-102;C-WEV-103;C-WEV-104;C-WEV-105;C-WEV-106,median 40 score over 6 theme(s) / 6 cold-load-eligible capture(s)
 FM-156,VID,Partial,MEASURED,derived,C-VID-101;C-VID-102;C-VID-103;C-VID-107;C-VID-108;C-VID-109,median 53 score over 6 theme(s) / 6 cold-load-eligible capture(s)
-FM-156,ENV,None,MEASURED,derived,C-ENV-111;C-ENV-112;C-ENV-113;C-ENV-114;C-ENV-115;C-ENV-116,median 42 score over 6 theme(s) / 13 cold-load-eligible capture(s)
 FM-156,IVT,None,MEASURED,derived,C-IVT-101;C-IVT-102;C-IVT-103;C-IVT-104,median 38 score over 4 theme(s) / 4 cold-load-eligible capture(s)
 FM-156,INV,None,MEASURED,derived,C-INV-111;C-INV-112;C-INV-113;C-INV-114;C-INV-115;C-INV-116,median 30 score over 6 theme(s) / 6 cold-load-eligible capture(s)
 FM-156,KAT,None,MEASURED,derived,C-KAT-101;C-KAT-102;C-KAT-103;C-KAT-104;C-KAT-105;C-KAT-106,median 28 score over 6 theme(s) / 6 cold-load-eligible capture(s)
@@ -706,7 +704,6 @@ FM-156,BRN,Partial,MEASURED,derived,C-BRN-101;C-BRN-102;C-BRN-103,median 55 scor
 FM-157,invitesion,Partial,MEASURED,derived,C-INV-001;C-INV-002;C-INV-005,"median 2,529 ms over 2 theme(s) / 3 cold-load-eligible capture(s)"
 FM-157,WEV,None,MEASURED,derived,C-WEV-101;C-WEV-102;C-WEV-103;C-WEV-104;C-WEV-105;C-WEV-106,"median 17,408 ms over 6 theme(s) / 6 cold-load-eligible capture(s)"
 FM-157,VID,None,MEASURED,derived,C-VID-101;C-VID-102;C-VID-103;C-VID-107;C-VID-108;C-VID-109,"median 12,576 ms over 6 theme(s) / 6 cold-load-eligible capture(s)"
-FM-157,ENV,None,MEASURED,derived,C-ENV-111;C-ENV-112;C-ENV-113;C-ENV-114;C-ENV-115;C-ENV-116,"median 13,874 ms over 6 theme(s) / 13 cold-load-eligible capture(s)"
 FM-157,IVT,None,MEASURED,derived,C-IVT-101;C-IVT-102;C-IVT-103;C-IVT-104,"median 18,945 ms over 4 theme(s) / 4 cold-load-eligible capture(s)"
 FM-157,INV,None,MEASURED,derived,C-INV-111;C-INV-112;C-INV-113;C-INV-114;C-INV-115;C-INV-116,"median 20,449 ms over 6 theme(s) / 6 cold-load-eligible capture(s)"
 FM-157,KAT,None,MEASURED,derived,C-KAT-101;C-KAT-102;C-KAT-103;C-KAT-104;C-KAT-105;C-KAT-106,"median 15,347 ms over 6 theme(s) / 6 cold-load-eligible capture(s)"
@@ -714,7 +711,6 @@ FM-157,BRN,None,MEASURED,derived,C-BRN-101;C-BRN-102;C-BRN-103,"median 23,146 ms
 FM-158,invitesion,Full,MEASURED,derived,C-INV-001;C-INV-002;C-INV-005,median 184 ms over 2 theme(s) / 3 cold-load-eligible capture(s)
 FM-158,WEV,None,MEASURED,derived,C-WEV-101;C-WEV-102;C-WEV-103;C-WEV-104;C-WEV-105;C-WEV-106,median 982 ms over 6 theme(s) / 6 cold-load-eligible capture(s)
 FM-158,VID,Partial,MEASURED,derived,C-VID-101;C-VID-102;C-VID-103;C-VID-107;C-VID-108;C-VID-109,median 416 ms over 6 theme(s) / 6 cold-load-eligible capture(s)
-FM-158,ENV,None,MEASURED,derived,C-ENV-111;C-ENV-112;C-ENV-113;C-ENV-114;C-ENV-115;C-ENV-116,median 920 ms over 6 theme(s) / 13 cold-load-eligible capture(s)
 FM-158,IVT,None,MEASURED,derived,C-IVT-101;C-IVT-102;C-IVT-103;C-IVT-104,median 918 ms over 4 theme(s) / 4 cold-load-eligible capture(s)
 FM-158,INV,None,MEASURED,derived,C-INV-111;C-INV-112;C-INV-113;C-INV-114;C-INV-115;C-INV-116,"median 3,686 ms over 6 theme(s) / 6 cold-load-eligible capture(s)"
 FM-158,KAT,None,MEASURED,derived,C-KAT-101;C-KAT-102;C-KAT-103;C-KAT-104;C-KAT-105;C-KAT-106,"median 4,192 ms over 6 theme(s) / 6 cold-load-eligible capture(s)"
@@ -722,7 +718,6 @@ FM-158,BRN,Full,MEASURED,derived,C-BRN-101;C-BRN-102;C-BRN-103,median 0 ms over 
 FM-159,invitesion,Full,MEASURED,derived,C-INV-001;C-INV-002;C-INV-005,median 0.000 over 2 theme(s) / 3 cold-load-eligible capture(s)
 FM-159,WEV,Full,MEASURED,derived,C-WEV-101;C-WEV-102;C-WEV-103;C-WEV-104;C-WEV-105;C-WEV-106,median 0.002 over 6 theme(s) / 6 cold-load-eligible capture(s)
 FM-159,VID,Full,MEASURED,derived,C-VID-101;C-VID-102;C-VID-103;C-VID-107;C-VID-108;C-VID-109,median 0.037 over 6 theme(s) / 6 cold-load-eligible capture(s)
-FM-159,ENV,Full,MEASURED,derived,C-ENV-111;C-ENV-112;C-ENV-113;C-ENV-114;C-ENV-115;C-ENV-116,median 0.000 over 6 theme(s) / 13 cold-load-eligible capture(s)
 FM-159,IVT,Full,MEASURED,derived,C-IVT-101;C-IVT-102;C-IVT-103;C-IVT-104,median 0.000 over 4 theme(s) / 4 cold-load-eligible capture(s)
 FM-159,INV,Full,MEASURED,derived,C-INV-111;C-INV-112;C-INV-113;C-INV-114;C-INV-115;C-INV-116,median 0.023 over 6 theme(s) / 6 cold-load-eligible capture(s)
 FM-159,KAT,Full,MEASURED,derived,C-KAT-101;C-KAT-102;C-KAT-103;C-KAT-104;C-KAT-105;C-KAT-106,median 0.004 over 6 theme(s) / 6 cold-load-eligible capture(s)
@@ -730,7 +725,6 @@ FM-159,BRN,Full,MEASURED,derived,C-BRN-101;C-BRN-102;C-BRN-103,median 0.000 over
 FM-160,invitesion,Full,MEASURED,derived,C-INV-001;C-INV-002;C-INV-005,median 311 KiB over 2 theme(s) / 3 cold-load-eligible capture(s)
 FM-160,WEV,Partial,MEASURED,derived,C-WEV-101;C-WEV-102;C-WEV-103;C-WEV-104;C-WEV-105;C-WEV-106,"median 3,448 KiB over 6 theme(s) / 6 cold-load-eligible capture(s)"
 FM-160,VID,Partial,MEASURED,derived,C-VID-101;C-VID-102;C-VID-103;C-VID-107;C-VID-108;C-VID-109,"median 3,084 KiB over 6 theme(s) / 6 cold-load-eligible capture(s)"
-FM-160,ENV,Full,MEASURED,derived,C-ENV-111;C-ENV-112;C-ENV-113;C-ENV-114;C-ENV-115;C-ENV-116,"median 2,404 KiB over 6 theme(s) / 13 cold-load-eligible capture(s)"
 FM-160,IVT,None,MEASURED,derived,C-IVT-101;C-IVT-102;C-IVT-103;C-IVT-104,"median 7,192 KiB over 4 theme(s) / 4 cold-load-eligible capture(s)"
 FM-160,INV,Partial,MEASURED,derived,C-INV-111;C-INV-112;C-INV-113;C-INV-114;C-INV-115;C-INV-116,"median 3,936 KiB over 6 theme(s) / 6 cold-load-eligible capture(s)"
 FM-160,KAT,None,MEASURED,derived,C-KAT-101;C-KAT-102;C-KAT-103;C-KAT-104;C-KAT-105;C-KAT-106,"median 5,984 KiB over 6 theme(s) / 6 cold-load-eligible capture(s)"
@@ -739,7 +733,6 @@ FM-161,invitesion,None,CODE,curated,M-027,Originals served; no next/image
 FM-162,invitesion,Full,CODE,curated,M-013,Gallery images use loading=lazy; the cover image is eager (above the fold). The captured pages had no gallery photos (lazyImages 0/0)
 FM-162,WEV,None,MEASURED,derived,C-WEV-101;C-WEV-102;C-WEV-103;C-WEV-104;C-WEV-105;C-WEV-106,lazy images on 0/6 theme(s) with images
 FM-162,VID,Partial,MEASURED,derived,C-VID-101;C-VID-102;C-VID-103;C-VID-107;C-VID-108;C-VID-109,lazy images on 1/6 theme(s) with images
-FM-162,ENV,Full,MEASURED,derived,C-ENV-111;C-ENV-114;C-ENV-115;C-ENV-116;C-ENV-122;C-ENV-123,lazy images on 6/6 theme(s) with images
 FM-162,IVT,None,MEASURED,derived,C-IVT-101;C-IVT-104,lazy images on 0/2 theme(s) with images
 FM-162,INV,Full,MEASURED,derived,C-INV-111;C-INV-112;C-INV-113;C-INV-114;C-INV-115;C-INV-116,lazy images on 6/6 theme(s) with images
 FM-162,KAT,Partial,MEASURED,derived,C-KAT-101;C-KAT-102;C-KAT-103;C-KAT-104;C-KAT-105;C-KAT-106,lazy images on 5/6 theme(s) with images
@@ -747,7 +740,6 @@ FM-162,BRN,None,MEASURED,derived,C-BRN-101;C-BRN-102;C-BRN-103,lazy images on 0/
 FM-163,invitesion,Full,MEASURED,derived,C-INV-001;C-INV-002;C-INV-005,median 96 score over 2 theme(s) / 3 cold-load-eligible capture(s)
 FM-163,WEV,Partial,MEASURED,derived,C-WEV-101;C-WEV-102;C-WEV-103;C-WEV-104;C-WEV-105;C-WEV-106,median 86 score over 6 theme(s) / 6 cold-load-eligible capture(s)
 FM-163,VID,Partial,MEASURED,derived,C-VID-101;C-VID-102;C-VID-103;C-VID-107;C-VID-108;C-VID-109,median 81 score over 6 theme(s) / 6 cold-load-eligible capture(s)
-FM-163,ENV,Full,MEASURED,derived,C-ENV-111;C-ENV-112;C-ENV-113;C-ENV-114;C-ENV-115;C-ENV-116,median 100 score over 6 theme(s) / 13 cold-load-eligible capture(s)
 FM-163,IVT,Partial,MEASURED,derived,C-IVT-101;C-IVT-102;C-IVT-103;C-IVT-104,median 83 score over 4 theme(s) / 4 cold-load-eligible capture(s)
 FM-163,INV,Partial,MEASURED,derived,C-INV-111;C-INV-112;C-INV-113;C-INV-114;C-INV-115;C-INV-116,median 85 score over 6 theme(s) / 6 cold-load-eligible capture(s)
 FM-163,KAT,Partial,MEASURED,derived,C-KAT-101;C-KAT-102;C-KAT-103;C-KAT-104;C-KAT-105;C-KAT-106,median 77 score over 6 theme(s) / 6 cold-load-eligible capture(s)
@@ -755,7 +747,6 @@ FM-163,BRN,Partial,MEASURED,derived,C-BRN-101;C-BRN-102;C-BRN-103,median 83 scor
 FM-164,invitesion,Full,MEASURED,derived,C-INV-001;C-INV-002;C-INV-005,zoom blocked on 0/2 theme(s)
 FM-164,WEV,Full,MEASURED,derived,C-WEV-101;C-WEV-102;C-WEV-103;C-WEV-104;C-WEV-105;C-WEV-106,zoom blocked on 0/6 theme(s)
 FM-164,VID,None,MEASURED,derived,C-VID-101;C-VID-102;C-VID-103;C-VID-107;C-VID-108;C-VID-109,zoom blocked on 6/6 theme(s)
-FM-164,ENV,Full,MEASURED,derived,C-ENV-111;C-ENV-114;C-ENV-115;C-ENV-116;C-ENV-122;C-ENV-123,zoom blocked on 0/6 theme(s)
 FM-164,IVT,Full,MEASURED,derived,C-IVT-101;C-IVT-104,zoom blocked on 0/2 theme(s)
 FM-164,INV,Full,MEASURED,derived,C-INV-111;C-INV-112;C-INV-113;C-INV-114;C-INV-115;C-INV-116,zoom blocked on 0/6 theme(s)
 FM-164,KAT,None,MEASURED,derived,C-KAT-101;C-KAT-102;C-KAT-103;C-KAT-104;C-KAT-105;C-KAT-106,zoom blocked on 6/6 theme(s)
@@ -805,7 +796,6 @@ FM-178,invitesion,None,CODE,curated,F-102,
 FM-179,invitesion,Full,MEASURED,derived,C-INV-001;C-INV-002;C-INV-005,median 0 entities over 2 theme(s) / 3 cold-load-eligible capture(s)
 FM-179,WEV,None,MEASURED,derived,C-WEV-101;C-WEV-102;C-WEV-103;C-WEV-104;C-WEV-105;C-WEV-106,median 9 entities over 6 theme(s) / 6 cold-load-eligible capture(s)
 FM-179,VID,None,MEASURED,derived,C-VID-101;C-VID-102;C-VID-103;C-VID-107;C-VID-108;C-VID-109,median 5 entities over 6 theme(s) / 6 cold-load-eligible capture(s)
-FM-179,ENV,Partial,MEASURED,derived,C-ENV-111;C-ENV-112;C-ENV-113;C-ENV-114;C-ENV-115;C-ENV-116,median 1 entities over 6 theme(s) / 13 cold-load-eligible capture(s)
 FM-179,IVT,Partial,MEASURED,derived,C-IVT-101;C-IVT-102;C-IVT-103;C-IVT-104,median 2 entities over 4 theme(s) / 4 cold-load-eligible capture(s)
 FM-179,INV,None,MEASURED,derived,C-INV-111;C-INV-112;C-INV-113;C-INV-114;C-INV-115;C-INV-116,median 9 entities over 6 theme(s) / 6 cold-load-eligible capture(s)
 FM-179,KAT,None,MEASURED,derived,C-KAT-101;C-KAT-102;C-KAT-103;C-KAT-104;C-KAT-105;C-KAT-106,median 8 entities over 6 theme(s) / 6 cold-load-eligible capture(s)

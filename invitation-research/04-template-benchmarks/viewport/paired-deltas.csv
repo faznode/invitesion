@@ -1,0 +1,7 @@
+population,competitor,theme_key,metric,direction,value_v2-412,value_v2-360,delta_v2-360,value_v2-390,delta_v2-390,value_v2-412-rm,delta_v2-412-rm,captures
+competitor,wevitation,wevitation.com/demo/espresso,perf,higher is better,34.0,33.0,-1.0,38.0,4.0,39.0,5.0,C-WEV-201 C-WEV-202 C-WEV-203 C-WEV-204
+competitor,wevitation,wevitation.com/demo/espresso,a11y,higher is better,82.0,82.0,0.0,82.0,0.0,82.0,0.0,C-WEV-201 C-WEV-202 C-WEV-203 C-WEV-204
+competitor,wevitation,wevitation.com/demo/espresso,lcp_ms,lower is better,17930.91,17565.706,-365.204,5009.227,-12921.683,5025.921,-12904.989,C-WEV-201 C-WEV-202 C-WEV-203 C-WEV-204
+competitor,wevitation,wevitation.com/demo/espresso,tbt_ms,lower is better,1580.5,1814.563,234.063,2285.5,705.0,2032.0,451.5,C-WEV-201 C-WEV-202 C-WEV-203 C-WEV-204
+competitor,wevitation,wevitation.com/demo/espresso,cls,lower is better,0.001,0.003,0.002,0.001,0.0,0.001,0.0,C-WEV-201 C-WEV-202 C-WEV-203 C-WEV-204
+competitor,wevitation,wevitation.com/demo/espresso,lh_kib,lower is better,2488.0,2484.0,-4.0,2488.0,0.0,2488.0,0.0,C-WEV-201 C-WEV-202 C-WEV-203 C-WEV-204

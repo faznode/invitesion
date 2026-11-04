@@ -65,11 +65,53 @@ class Statistics(unittest.TestCase):
         self.assertEqual([t['theme_key'] for t in tiers], ['a'])
         self.assertEqual(next(a for a in aggregates if a['metric'] == 'lh_kib')['best'], 100.0)
 
+    def test_sensitivity_build_reads_the_sensitivity_columns(self):
+        rows = [row('C-X-1', theme='a', lh_kib=100),
+                row('C-X-2', theme='b', cold=False, struct=False, lh_kib=900,
+                    coldload_eligible_sensitivity=True, structure_eligible_sensitivity=True)]
+        for r in rows[:1]:
+            r.update(coldload_eligible_sensitivity='True', structure_eligible_sensitivity='True')
+        plain, sens = bp.build(rows), bp.build(rows, sensitivity=True)
+        self.assertEqual([t['theme_key'] for t in plain[0]], ['a'])
+        self.assertEqual([t['theme_key'] for t in sens[0]], ['a', 'b'])
+        self.assertIn('| all | lh_kib |', bp.compare(plain[1], sens[1]))
+
     def test_own_pages_stay_out_of_competitor_aggregates(self):
         rows = [row('C-X-1', theme='a', lh_kib=5000), row('C-INV-005', competitor='invitesion', theme='own', population='own', lh_kib=311)]
         _, aggregates, _ = bp.build(rows)
         comp = next(a for a in aggregates if a['population'] == 'competitor' and a['metric'] == 'lh_kib' and a['tier'] == 'all')
         self.assertEqual((comp['n_themes'], comp['best']), (1, 5000.0))
+
+
+class Viewport(unittest.TestCase):
+    """Protocol v2 outputs (s13): one population per profile, paired deltas against the same-session v2-412 control."""
+
+    @staticmethod
+    def rows():
+        return [row('C-X-1', theme='a', profile='v2-412', perf=60, layout_overflow_px=0),
+                row('C-X-2', theme='a', profile='v2-360', perf=50, layout_overflow_px=12),
+                row('C-X-3', theme='a', profile='v2-390', cold=False, perf=99, layout_overflow_px=4),
+                row('C-X-4', theme='a', profile='v2-412-rm', struct=False, perf=64, layout_overflow_px=999),
+                row('C-X-5', theme='b', profile='v1-412', perf=10, layout_overflow_px=0)]
+
+    def test_profiles_are_never_pooled(self):
+        aggregates, _, _ = bp.build_viewport(self.rows())
+        perf = {a['profile']: a for a in aggregates if a['metric'] == 'perf'}
+        self.assertEqual([(p, perf[p]['n_themes'], perf[p]['median']) for p in sorted(perf)],
+                         [('v2-360', 1, 50.0), ('v2-412', 1, 60.0), ('v2-412-rm', 1, 64.0)])  # v2-390 not cold-load eligible
+
+    def test_deltas_need_both_profiles_eligible_for_the_metric_source(self):
+        _, paired, summary = bp.build_viewport(self.rows())
+        perf = next(p for p in paired if p['metric'] == 'perf')
+        self.assertEqual((perf['delta_v2-360'], perf['delta_v2-390'], perf['delta_v2-412-rm']), (-10.0, '', 4.0))
+        overflow = next(p for p in paired if p['metric'] == 'layout_overflow_px')
+        self.assertEqual((overflow['delta_v2-360'], overflow['delta_v2-390'], overflow['delta_v2-412-rm']), (12.0, 4.0, ''))
+        worse = next(s for s in summary if s['metric'] == 'perf' and s['comparison'] == 'v2-360 vs v2-412')
+        self.assertEqual((worse['n_pairs'], worse['n_worse'], worse['n_better']), (1, 1, 0))
+
+    def test_v1_tier_files_ignore_v2_captures(self):
+        tiers, _, _ = bp.build(self.rows())
+        self.assertEqual([t['theme_key'] for t in tiers], ['b'])
 
 
 class RealData(unittest.TestCase):
@@ -78,6 +120,21 @@ class RealData(unittest.TestCase):
         rows, stale = bp.load_rows()
         cls.stale = stale
         cls.tiers, cls.aggregates, cls.blueprints = bp.build(rows)
+        cls.s_tiers, cls.s_aggregates, cls.s_blueprints = bp.build(rows, sensitivity=True)
+
+    def test_provisional_captures_only_in_the_sensitivity_set(self):
+        g2 = [f'C-ENV-{n}' for n in range(111, 124)]
+        unconditional = ' '.join(t['coldload_captures'] + ' ' + t['structure_captures'] for t in self.tiers)
+        sensitivity = ' '.join(t['coldload_captures'] + ' ' + t['structure_captures'] for t in self.s_tiers)
+        self.assertFalse([c for c in g2 if c in unconditional])
+        self.assertEqual(len([t for t in self.s_tiers if t['competitor'] == 'enviory']), 6)
+        self.assertTrue(all(c in sensitivity for c in ('C-ENV-111', 'C-ENV-122', 'C-ENV-123')))
+        self.assertEqual(len(self.s_tiers) - len(self.tiers), 6)
+
+    def test_sensitivity_files_on_disk_are_current(self):
+        for name, records in zip(bp.OUTPUT_NAMES, (self.s_tiers, self.s_aggregates, self.s_blueprints)):
+            with open(os.path.join(bp.BENCH, bp.output_path(name, sensitivity=True)), encoding='utf-8') as handle:
+                self.assertEqual(handle.read(), bp.render(records), name)
 
     def test_summary_matches_recomputed_eligibility(self):
         self.assertEqual(self.stale, [])

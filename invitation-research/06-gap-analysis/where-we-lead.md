@@ -10,12 +10,14 @@
 ## 1. Measured leads (Lighthouse 12.8.2 mobile, simulated Slow 4G + 4× CPU, 412×915, cold cache; eligible captures, median per theme)
 | Metric | Invitesion (C-INV-001/002/005) | Competitor medians | Best competitor | Matrix row |
 |---|---|---|---|---|
-| Performance score | **94** | KAT 28, INV 30, IVT 38, WEV 40, ENV 42, VID 53, BRN 55 | BRN 55 | FM-156 |
-| LCP | **2.53 s** (Partial: just above the 2.5 s control point) | VID 12.58 s, ENV 13.87 s … BRN 23.15 s | VID 12.58 s | FM-157 |
+| Performance score | **94** | KAT 28, INV 30, IVT 38, WEV 40, VID 53, BRN 55 | BRN 55 | FM-156 |
+| LCP | **2.53 s** (Partial: just above the 2.5 s control point) | VID 12.58 s … BRN 23.15 s | VID 12.58 s | FM-157 |
 | TBT (not INP) | **184 ms** | VID 416 … KAT 4,192 ms; **BRN 0 ms** | BRN | FM-158 |
-| Transfer at cold load | **311 KiB** | ENV 2,404 … IVT 7,192 KiB | ENV | FM-160 |
-| Accessibility score | **96** | KAT 77 … WEV 86; **ENV 100** | ENV | FM-163 |
-| Third-party entities | **0** | ENV 1, IVT 2, VID 5, BRN 5, KAT 8, WEV 9, INV 9 | ENV | FM-179 |
+| Transfer at cold load | **311 KiB** | VID 3,084 … IVT 7,192 KiB | VID | FM-160 |
+| Accessibility score | **96** | KAT 77 … WEV 86 | WEV 86 | FM-163 |
+| Third-party entities | **0** | IVT 2, VID 5, BRN 5, KAT 8, WEV 9, INV 9 | IVT | FM-179 |
+
+*s13 (D-031): unconditional population. Enviory's provisional medians (sensitivity only, never unconditional): Perf 42, LCP 13.87 s, TBT 920 ms, 2,404 KiB (would be the lightest), accessibility 100 (would be the best), 1 third-party entity (would be the fewest). None of our leads changes direction either way.*
 | Pinch-zoom | allowed | VID and KAT block zoom on every theme | — | FM-164 |
 
 **Limits that travel with every sentence above:** C-INV-005 is a local production build with `middleware.ts` omitted (placeholder Clerk keys, D-012, P-INV-010), so CSP, locale cookie and clerk-js (+70.7 KB brotli, QA-007) are not in the numbers; our pages have **no music, cover, motion or images yet**, so part of the lead is the absence of features competitors ship. Lab TBT is not INP.

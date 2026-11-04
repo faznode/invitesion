@@ -1,0 +1,25 @@
+population,profile,metric,direction,source,n_themes,n_vendors,n_captures,median,p75,best,best_theme_capture,confidence
+competitor,v2-412,perf,higher is better,lighthouse,1,1,1,34.0,34.0,34.0,C-WEV-201,low
+competitor,v2-360,perf,higher is better,lighthouse,1,1,1,33.0,33.0,33.0,C-WEV-202,low
+competitor,v2-390,perf,higher is better,lighthouse,1,1,1,38.0,38.0,38.0,C-WEV-203,low
+competitor,v2-412-rm,perf,higher is better,lighthouse,1,1,1,39.0,39.0,39.0,C-WEV-204,low
+competitor,v2-412,a11y,higher is better,lighthouse,1,1,1,82.0,82.0,82.0,C-WEV-201,low
+competitor,v2-360,a11y,higher is better,lighthouse,1,1,1,82.0,82.0,82.0,C-WEV-202,low
+competitor,v2-390,a11y,higher is better,lighthouse,1,1,1,82.0,82.0,82.0,C-WEV-203,low
+competitor,v2-412-rm,a11y,higher is better,lighthouse,1,1,1,82.0,82.0,82.0,C-WEV-204,low
+competitor,v2-412,lcp_ms,lower is better,lighthouse,1,1,1,17930.91,17930.91,17930.91,C-WEV-201,low
+competitor,v2-360,lcp_ms,lower is better,lighthouse,1,1,1,17565.706,17565.706,17565.706,C-WEV-202,low
+competitor,v2-390,lcp_ms,lower is better,lighthouse,1,1,1,5009.227,5009.227,5009.227,C-WEV-203,low
+competitor,v2-412-rm,lcp_ms,lower is better,lighthouse,1,1,1,5025.921,5025.921,5025.921,C-WEV-204,low
+competitor,v2-412,tbt_ms,lower is better,lighthouse,1,1,1,1580.5,1580.5,1580.5,C-WEV-201,low
+competitor,v2-360,tbt_ms,lower is better,lighthouse,1,1,1,1814.563,1814.563,1814.563,C-WEV-202,low
+competitor,v2-390,tbt_ms,lower is better,lighthouse,1,1,1,2285.5,2285.5,2285.5,C-WEV-203,low
+competitor,v2-412-rm,tbt_ms,lower is better,lighthouse,1,1,1,2032.0,2032.0,2032.0,C-WEV-204,low
+competitor,v2-412,cls,lower is better,lighthouse,1,1,1,0.001,0.001,0.001,C-WEV-201,low
+competitor,v2-360,cls,lower is better,lighthouse,1,1,1,0.003,0.003,0.003,C-WEV-202,low
+competitor,v2-390,cls,lower is better,lighthouse,1,1,1,0.001,0.001,0.001,C-WEV-203,low
+competitor,v2-412-rm,cls,lower is better,lighthouse,1,1,1,0.001,0.001,0.001,C-WEV-204,low
+competitor,v2-412,lh_kib,lower is better,lighthouse,1,1,1,2488.0,2488.0,2488.0,C-WEV-201,low
+competitor,v2-360,lh_kib,lower is better,lighthouse,1,1,1,2484.0,2484.0,2484.0,C-WEV-202,low
+competitor,v2-390,lh_kib,lower is better,lighthouse,1,1,1,2488.0,2488.0,2488.0,C-WEV-203,low
+competitor,v2-412-rm,lh_kib,lower is better,lighthouse,1,1,1,2488.0,2488.0,2488.0,C-WEV-204,low

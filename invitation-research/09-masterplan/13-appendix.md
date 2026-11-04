@@ -13,7 +13,9 @@
 | Evidence IDs (C-, S-, D-, H-, P-, B-, V-REA-) | `../_evidence-index.md` |
 | Capture summaries (no page copy, no PII) | `../raw/<competitor>/C-*.json`; machine index `../raw/_captures.csv`; table `../04-template-benchmarks/captures-summary.csv` |
 | Eligibility and exclusions | `../_tools/capture/eligibility.py`, `../04-template-benchmarks/benchmark-exclusions.csv`, protocol `../04-template-benchmarks/protocol.md` v1.2 |
-| Dossiers (Tier A, 14 of 15) | `../03-teardowns/{indoinvite,paleo,satumomen,wevitation,viding,enviory,invitato,invi,katsudoto,barunson,paperlesspost,rsvpify,joy,partiful}/dossier.md` (+ `api-observed.md`); Sitemu is a BLOCKED record, not a profile: `../03-teardowns/sitemu/dossier.md` |
+| Dossiers (Tier A, 15 of 15) | `../03-teardowns/{indoinvite,paleo,satumomen,wevitation,viding,enviory,invitato,invi,katsudoto,sitemu,barunson,paperlesspost,rsvpify,joy,partiful}/dossier.md` (+ `api-observed.md`); Sitemu v1 since s12 (level C, D-030); Enviory §4 provisional (D-031) |
+| Robots applicability audit (s12) | `../02-competitor-discovery/robots-applicability-s12.md` (D-030, D-031; per-origin results `../raw/_discovery/robots-applicability-2026-11-04.jsonl`) |
+| Provisional evidence and sensitivity results (s13) | `../04-template-benchmarks/benchmark-provisional.csv` (C-ENV-111…123, Q-O09); `../04-template-benchmarks/sensitivity/`; `../05-feature-matrix/coverage-summary.md` § Sensitivity |
 | Tier-B profiles (11 substantive, 3 thin, 7 blocked) | `../03-teardowns/tier-b-profiles.md`; facts `../raw/_discovery/profile-reads-2026-11-03.jsonl`; reader `../_tools/discovery/profile-reads.py` |
 | Comparative flow library | `../03-teardowns/_flows/` (creator, guest, host day-of, reseller, post-event; OBSERVED / CLAIMED / PROPOSED) |
 | Benchmark pack | `../04-template-benchmarks/benchmark-pack.md` (method, coverage, limits) with `blueprints.csv`, `tiers.csv`, `tier-aggregates.csv`; generator `../_tools/capture/benchmark-pack.py` (`--check`) |

@@ -1,7 +1,7 @@
 <!-- SUMMARY (first 7 lines — greppable) -->
 # 05-feature-matrix-and-gaps.md — comparison, gap analysis and upgrade map (summary + links)
 > WHAT: The masterplan view of `../05-feature-matrix/` and `../06-gap-analysis/`: what we compare, the headline gaps and leads, and how they become backlog items.
-> STATUS: Verified s10 (2026-11-04; v1 s08). Counts re-checked with `build-matrix.py --check` (187 rows, 643 / 2,805 competitor cells known) and the upgrade map (68 gaps: 12 P0, 30 P1, 26 P2); measured cells rebuilt with Viding's six themes. The comparison describes our **pre-P0 baseline**; what P0 changed is in §4.
+> STATUS: Verified s10 (2026-11-04; v1 s08); s13 rebuild under D-031. Counts re-checked with `build-matrix.py --check`, which since s13 also fails on stale outputs (187 rows, **633 / 2,805** competitor cells known in the unconditional population; 643 with the provisional Enviory captures) and the upgrade map (68 gaps: 12 P0, 30 P1, 26 P2). The comparison describes our **pre-P0 baseline**; what P0 changed is in §4.
 > OWNER: Research agent
 > DEPS: ../05-feature-matrix/{feature-matrix.csv,feature-matrix-long.csv,coverage-summary.md,niche-coverage.md}, ../06-gap-analysis/{upgrade-map.csv,gap-analysis.md,where-we-lead.md,pricing-packaging.md,template-catalog-roadmap.md,must-have-p0.md}, ../01-codebase-audit/revalidation-s10.md
 > GREP: feature matrix, gaps, upgrade map, leads, niches, p0 delta
@@ -12,7 +12,7 @@
 |---|---|
 | What exactly is compared, and how is each cell justified? | `../05-feature-matrix/features.csv` (criteria), `assessments/*.csv` (evidence), `build-matrix.py` (rules, `--check`) |
 | The matrix | `../05-feature-matrix/feature-matrix.csv` (187 rows × Invitesion + 15 Tier-A columns) |
-| How much is known per vendor | `../05-feature-matrix/coverage-summary.md` (643 / 2,805 competitor cells known; Sitemu 0, BLOCKED) |
+| How much is known per vendor | `../05-feature-matrix/coverage-summary.md` (633 / 2,805 competitor cells known, unconditional; Enviory's 10 measured cells only in its § Sensitivity; Sitemu 0: dossier v1 exists since s12, no curated cells yet) |
 | Niches | `../05-feature-matrix/niche-coverage.md` |
 | Gaps → modules → priorities | `../06-gap-analysis/upgrade-map.csv` (G-001…G-068) |
 | Narrative, leads, pricing, catalog, P0 | `../06-gap-analysis/*.md` |
@@ -20,7 +20,7 @@
 ## 2. Headline comparison
 - **Table stakes we lacked at the baseline** (None / Partial while ≥ 6 of 9 Indonesian vendors with evidence are Full): music (9 / 9), cover gate (8), countdown (8), add to calendar (8), gallery depth (7), QR check-in scanner (7), video (6), QR pass (6), OG image (6), correct party size (6), custom music (6). Shipped in s09: countdown, add to calendar, OG image (Latin-script names) and correct party size; music and cover gate are B-009.
 - **Defects that undermined trust at the baseline:** preset loss (QA-001), wrong times (QA-002), guessable guest links (QA-003), overwritten allowance (QA-005), preview 404 (QA-011), CSV injection (QA-012), "Rp0" marketing (ADR-O02), unverified scripture (QA-015). All fixed in s09 except QA-003, which is mitigated (real 404; opaque links default off by owner decision).
-- **Leads (measured, lab, our pre-P0 build):** Perf 94 vs 28–55; TBT 184 ms vs 416–4,192 (BRN 0); 311 KiB vs 2,404–7,192; a11y 96 vs 77–86 (ENV 100); 0 third-party entities vs 1–9.
+- **Leads (measured, lab, our pre-P0 build; unconditional population):** Perf 94 vs 28–55; TBT 184 ms vs 416–4,192 (BRN 0); 311 KiB vs 3,084–7,192; a11y 96 vs 77–86; 0 third-party entities vs 2–9. With the provisional Enviory themes (D-031): 2,404–7,192 KiB, a11y up to 100, third parties 1–9; no lead changes direction.
 - **Leads (design):** unlimited editing, 12 months, free drafting, SEO + catalog breadth, fictional previews, noindex guest pages, IDR + USD.
 - **Business gaps:** reseller and affiliate programmes, local payment breadth, entry price above the mass band, no assisted-setup option.
 - **Niches:** breadth exists (27 categories), depth does not (one renderer, captured fields not rendered); INVI.ID's Islamic family-event themes are the closest proof that niche depth sells; memorial is mapped to a celebration form (defect).

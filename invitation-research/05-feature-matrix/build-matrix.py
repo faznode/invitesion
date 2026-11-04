@@ -2,7 +2,7 @@
 """Feature matrix builder (brief 03 §15, brief 05 §15): evidence-linked cells -> feature-matrix.csv.
 
     python3 -B invitation-research/05-feature-matrix/build-matrix.py           # validate, then write the outputs
-    python3 -B invitation-research/05-feature-matrix/build-matrix.py --check   # validate only; exit 1 on any error
+    python3 -B invitation-research/05-feature-matrix/build-matrix.py --check   # validate + compare with the files on disk; exit 1 on any error or stale file
 
 Inputs
   features.csv                  stable row definitions FM-001... with Full/Partial/None criteria
@@ -154,16 +154,22 @@ def zoom_blocked(viewport):
     return 'user-scalable=no' in text or 'user-scalable=0' in text or re.search(r'maximum-scale=1(\.0*)?(,|$)', text) is not None
 
 
-def derive(columns_with_raw):
+def derive(columns_with_raw, sensitivity=False):
+    """Measured cells from eligible captures: the unconditional population by default, or the sensitivity population that
+    also admits provisional evidence (eligibility.py rule 7). Only the unconditional cells enter the matrix files."""
     register = eligibility.load_register()
+    suffix = '_sensitivity' if sensitivity else ''
     derived, stats = {}, {}
     for column in columns_with_raw:
-        captures = eligibility.load_captures(os.path.join(RESEARCH, 'raw', RAW_DIRS[column], 'C-*.json'))
+        # The matrix is defined on the v1.2 population (412 × 915, pre-P0 own build): v2 profiles and later own builds
+        # are separate populations (D-032) and never enter a matrix median.
+        captures = [c for c in eligibility.load_captures(os.path.join(RESEARCH, 'raw', RAW_DIRS[column], 'C-*.json'))
+                    if eligibility.v12_population(c['id'], c.get('competitor'), eligibility.capture_profile(c))]
         if not captures:
             continue
         results = eligibility.evaluate_all(captures, register)
-        cold = [(results[c['id']]['theme_key'], c) for c in captures if results[c['id']]['coldload_eligible']]
-        page = [(results[c['id']]['theme_key'], c) for c in captures if results[c['id']]['structure_eligible']]
+        cold = [(results[c['id']]['theme_key'], c) for c in captures if results[c['id']]['coldload_eligible' + suffix]]
+        page = [(results[c['id']]['theme_key'], c) for c in captures if results[c['id']]['structure_eligible' + suffix]]
         stats[column] = {'cold': len(cold), 'cold_themes': len({k for k, _ in cold}),
                          'page': len(page), 'page_themes': len({k for k, _ in page})}
 
@@ -270,24 +276,26 @@ def merge(features, curated, derived):
     return merged, disagreements
 
 
-def write_outputs(features, order, merged, disagreements, stats):
-    with open(os.path.join(HERE, 'feature-matrix.csv'), 'w', newline='', encoding='utf-8') as handle:
-        writer = csv.writer(handle, lineterminator='\n')
-        writer.writerow(['feature_id', 'family', 'area', 'feature', 'ours_ref'] + COLUMNS + ['evidence'])
-        for fid in order:
-            row = features[fid]
-            statuses = [merged.get((fid, c), {}).get('status', 'Unknown') for c in COLUMNS]
-            evidence = '; '.join(f"{c}={'+'.join(merged[(fid, c)]['evidence'][:3])}" for c in COLUMNS
-                                 if (fid, c) in merged and merged[(fid, c)]['status'] != 'Unknown' and merged[(fid, c)]['evidence'])
-            writer.writerow([fid, row['family'], row['area'], row['feature'], row['ours_ref']] + statuses + [evidence])
-    with open(os.path.join(HERE, 'feature-matrix-long.csv'), 'w', newline='', encoding='utf-8') as handle:
-        writer = csv.writer(handle, lineterminator='\n')
-        writer.writerow(['feature_id', 'column', 'status', 'basis', 'source', 'evidence', 'note'])
-        for fid in order:
-            for column in COLUMNS:
-                cell = merged.get((fid, column))
-                if cell and cell['status'] != 'Unknown':
-                    writer.writerow([fid, column, cell['status'], cell['basis'], cell['source'], ';'.join(cell['evidence']), cell['note']])
+def render_outputs(features, order, merged, disagreements, stats, sensitivity_changes):
+    """Return {file name: text} for the three outputs, so --check can compare them with the files on disk."""
+    import io
+    wide = io.StringIO()
+    writer = csv.writer(wide, lineterminator='\n')
+    writer.writerow(['feature_id', 'family', 'area', 'feature', 'ours_ref'] + COLUMNS + ['evidence'])
+    for fid in order:
+        row = features[fid]
+        statuses = [merged.get((fid, c), {}).get('status', 'Unknown') for c in COLUMNS]
+        evidence = '; '.join(f"{c}={'+'.join(merged[(fid, c)]['evidence'][:3])}" for c in COLUMNS
+                             if (fid, c) in merged and merged[(fid, c)]['status'] != 'Unknown' and merged[(fid, c)]['evidence'])
+        writer.writerow([fid, row['family'], row['area'], row['feature'], row['ours_ref']] + statuses + [evidence])
+    long_ = io.StringIO()
+    writer = csv.writer(long_, lineterminator='\n')
+    writer.writerow(['feature_id', 'column', 'status', 'basis', 'source', 'evidence', 'note'])
+    for fid in order:
+        for column in COLUMNS:
+            cell = merged.get((fid, column))
+            if cell and cell['status'] != 'Unknown':
+                writer.writerow([fid, column, cell['status'], cell['basis'], cell['source'], ';'.join(cell['evidence']), cell['note']])
 
     families = sorted({features[f]['family'] for f in order}, key=['guest', 'host', 'business', 'platform'].index)
     lines = ['<!-- generated by build-matrix.py; do not edit by hand -->',
@@ -319,9 +327,18 @@ def write_outputs(features, order, merged, disagreements, stats):
         lines += [f'| {f} | {c} | {a} | {b} | {n} |' for f, c, a, b, n in disagreements]
     else:
         lines.append('None.')
+    lines += ['', '## Sensitivity: cells that change when provisional evidence is admitted (D-031, not in the matrix files)', '',
+              'The matrix files above use the unconditional population. These rows show what the measured cells would be '
+              'with the provisional captures of `../04-template-benchmarks/benchmark-provisional.csv` admitted. They are a '
+              'sensitivity result only and must not be quoted as matrix cells.', '']
+    if sensitivity_changes:
+        lines += ['| Row | Column | Unconditional | With provisional evidence | Basis with provisional evidence |', '|---|---|---|---|---|']
+        lines += [f'| {f} | {c} | {a} | {b} | {n} |' for f, c, a, b, n in sensitivity_changes]
+    else:
+        lines.append('None.')
     lines.append('')
-    with open(os.path.join(HERE, 'coverage-summary.md'), 'w', encoding='utf-8') as handle:
-        handle.write('\n'.join(lines))
+    return {'feature-matrix.csv': wide.getvalue(), 'feature-matrix-long.csv': long_.getvalue(),
+            'coverage-summary.md': '\n'.join(lines)}
 
 
 def main():
@@ -347,8 +364,16 @@ def main():
                     ('FM-156', 'FM-157', 'FM-158', 'FM-159', 'FM-160', 'FM-162', 'FM-163', 'FM-164', 'FM-179')]
     if missing_ours:
         errors.append(f'our own column has no curated cell for {len(missing_ours)} row(s): {", ".join(missing_ours[:12])}')
-    derived, stats = derive([c for c in COLUMNS if c in RAW_DIRS])
+    raw_columns = [c for c in COLUMNS if c in RAW_DIRS]
+    derived, stats = derive(raw_columns)
     merged, disagreements = merge(features, curated, derived)
+    merged_s, _ = merge(features, curated, derive(raw_columns, sensitivity=True)[0])
+    sensitivity_changes = []
+    for fid in order:
+        for column in COLUMNS:
+            a, b = merged.get((fid, column), {}), merged_s.get((fid, column), {})
+            if (a.get('status', 'Unknown'), a.get('note', '')) != (b.get('status', 'Unknown'), b.get('note', '')):
+                sensitivity_changes.append((fid, column, a.get('status', 'Unknown'), b.get('status', 'Unknown'), b.get('note', '')))
     unknown_ours = [f for f in order if merged.get((f, 'invitesion'), {}).get('status', 'Unknown') == 'Unknown']
     if unknown_ours:
         errors.append(f'our own column is Unknown for {", ".join(unknown_ours)}: we can read our code')
@@ -357,12 +382,21 @@ def main():
     known = sum(1 for (f, c), cell in merged.items() if cell['status'] != 'Unknown' and c != 'invitesion')
     print(f'feature matrix: {len(order)} rows x {len(COLUMNS)} columns; competitor cells known {known}/{len(order) * (len(COLUMNS) - 1)}; '
           f'derived cells {sum(1 for c in merged.values() if c["source"] == "derived")}; disagreements {len(disagreements)}; '
-          f'errors {len(errors)}')
+          f'sensitivity changes {len(sensitivity_changes)}; errors {len(errors)}')
     if errors:
         return 1
-    if not args.check:
-        write_outputs(features, order, merged, disagreements, stats)
-        print('wrote feature-matrix.csv, feature-matrix-long.csv, coverage-summary.md')
+    outputs = render_outputs(features, order, merged, disagreements, stats, sensitivity_changes)
+    if args.check:
+        stale = [name for name, text in outputs.items()
+                 if not os.path.exists(os.path.join(HERE, name)) or open(os.path.join(HERE, name), encoding='utf-8').read() != text]
+        if stale:
+            print(f'STALE {", ".join(stale)}: re-run build-matrix.py')
+            return 1
+        return 0
+    for name, text in outputs.items():
+        with open(os.path.join(HERE, name), 'w', newline='', encoding='utf-8') as handle:
+            handle.write(text)
+    print('wrote feature-matrix.csv, feature-matrix-long.csv, coverage-summary.md')
     return 0
 
 

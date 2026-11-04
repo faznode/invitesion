@@ -1,0 +1,19 @@
+population,metric,direction,comparison,n_pairs,median_delta,n_worse,n_better,n_same
+competitor,perf,higher is better,v2-360 vs v2-412,1,-1.0,1,0,0
+competitor,perf,higher is better,v2-390 vs v2-412,1,4.0,0,1,0
+competitor,perf,higher is better,v2-412-rm vs v2-412,1,5.0,0,1,0
+competitor,a11y,higher is better,v2-360 vs v2-412,1,0.0,0,0,1
+competitor,a11y,higher is better,v2-390 vs v2-412,1,0.0,0,0,1
+competitor,a11y,higher is better,v2-412-rm vs v2-412,1,0.0,0,0,1
+competitor,lcp_ms,lower is better,v2-360 vs v2-412,1,-365.204,0,1,0
+competitor,lcp_ms,lower is better,v2-390 vs v2-412,1,-12921.683,0,1,0
+competitor,lcp_ms,lower is better,v2-412-rm vs v2-412,1,-12904.989,0,1,0
+competitor,tbt_ms,lower is better,v2-360 vs v2-412,1,234.063,1,0,0
+competitor,tbt_ms,lower is better,v2-390 vs v2-412,1,705.0,1,0,0
+competitor,tbt_ms,lower is better,v2-412-rm vs v2-412,1,451.5,1,0,0
+competitor,cls,lower is better,v2-360 vs v2-412,1,0.002,1,0,0
+competitor,cls,lower is better,v2-390 vs v2-412,1,0.0,0,0,1
+competitor,cls,lower is better,v2-412-rm vs v2-412,1,0.0,0,0,1
+competitor,lh_kib,lower is better,v2-360 vs v2-412,1,-4.0,0,1,0
+competitor,lh_kib,lower is better,v2-390 vs v2-412,1,0.0,0,0,1
+competitor,lh_kib,lower is better,v2-412-rm vs v2-412,1,0.0,0,0,1

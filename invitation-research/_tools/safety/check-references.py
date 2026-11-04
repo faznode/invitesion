@@ -29,7 +29,10 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 RESEARCH = os.path.normpath(os.path.join(HERE, '..', '..'))
 ROOT = os.path.normpath(os.path.join(RESEARCH, '..'))
 
+# 02-competitor-discovery/*.md added s13: the s12 robots-applicability audit defines D-030 / D-031 and cites Q-O09, Q-O10 and
+# S-ENV-004, none of which were registered, and the old scope never checked that folder.
 LIVING = [
+    '02-competitor-discovery/*.md',
     '09-masterplan/*.md', '05-feature-matrix/*.md', '06-gap-analysis/*.md', '07-ideation/*.md', '08-backend-rust-plan/README.md',
     '08-backend-rust-plan/spike/README.md', '03-teardowns/*/dossier.md', '03-teardowns/tier-b-profiles.md', '03-teardowns/_flows/*.md',
     '04-template-benchmarks/*.md', '01-codebase-audit/*.md', '_handoff/LATEST.md', '_handoff/acceptance-matrix.md',

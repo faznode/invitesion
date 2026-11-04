@@ -7,7 +7,9 @@
     -> invitation-research/04-template-benchmarks/captures-summary.csv (generated; feeds blueprints, dossiers, tier aggregates)
 
 Every capture stays in the CSV (raw evidence is never dropped); `coldload_eligible` / `structure_eligible` and
-`eligibility_reasons` say what it may support (eligibility.py, brief 05 B1). Measurement sources are never mixed (B2):
+`eligibility_reasons` say what it may support in the unconditional population (eligibility.py, brief 05 B1);
+`provisional` + `*_eligible_sensitivity` describe the sensitivity population that also admits provisional evidence
+(eligibility.py rule 7, D-031). Measurement sources are never mixed (B2):
   lh_*          Lighthouse cold load (12.8.2, simulated Slow 4G + 4x CPU, 412x915, own cold Chrome; Lighthouse never clicks)
   cdp_visit_*   our CDP session over the whole visit: load + REA scenario + cover click + scroll (unthrottled)
   *_bytes       exact bytes; *_kib = bytes / 1024, rounded (older dossiers wrote "KB" for these KiB values)
@@ -29,6 +31,7 @@ RESEARCH = eligibility.RESEARCH
 COLUMNS = ['id', 'competitor', 'population', 'kind', 'page_class', 'page_class_source', 'url', 'theme_key',
            'theme_attempt', 'theme_attempts', 'captured_at', 'visit_driver',
            'coldload_eligible', 'structure_eligible', 'exclusion_scope', 'exclusion_decision', 'eligibility_reasons',
+           'provisional', 'provisional_decision', 'coldload_eligible_sensitivity', 'structure_eligible_sensitivity',
            'lh_ok', 'lh_version', 'perf', 'a11y', 'best_practices', 'seo', 'fcp_ms', 'lcp_ms', 'tbt_ms', 'cls', 'si_ms',
            'lh_requests', 'lh_bytes', 'lh_kib', 'lh_kib_script', 'lh_kib_image', 'lh_kib_font', 'lh_kib_css',
            'lh_kib_media', 'lh_kib_third_party',
@@ -36,7 +39,12 @@ COLUMNS = ['id', 'competitor', 'population', 'kind', 'page_class', 'page_class_s
            'cdp_visit_kib_font', 'cdp_visit_kib_css', 'cdp_visit_kib_media', 'cdp_third_party_hosts', 'cdp_font_files',
            'libs', 'sections', 'features', 'og_image', 'reduced_motion_css', 'dom_nodes', 'wrapper_heuristic',
            'cover_detected', 'click_attempted', 'click_method', 'click_landing', 'gate_opening',
-           'audio_elements', 'audio_autoplay_attr', 'audio_playback']
+           'audio_elements', 'audio_autoplay_attr', 'audio_playback',
+           # s13, protocol v2 (capture-profile.mjs): empty for v1.2 captures, which predate the probes.
+           'profile', 'protocol', 'viewport_w', 'viewport_h', 'device_scale_factor', 'reduced_motion', 'emulation_verified',
+           'layout_overflow_px', 'layout_overflowing_elements', 'layout_small_text', 'layout_small_targets', 'layout_targets',
+           'motion_running_before', 'motion_running_after', 'motion_infinite_after', 'motion_gsap_active_after',
+           'motion_reduce_matched']
 CDP_TYPES = {'script': 'Script', 'image': 'Image', 'font': 'Font', 'css': 'Stylesheet', 'media': 'Media'}
 LH_TYPES = {'script': 'script', 'image': 'image', 'font': 'font', 'css': 'stylesheet', 'media': 'media',
             'third_party': 'third-party'}
@@ -64,6 +72,9 @@ def row(d, ev):
         'coldload_eligible': ev['coldload_eligible'], 'structure_eligible': ev['structure_eligible'],
         'exclusion_scope': ev['exclusion_scope'], 'exclusion_decision': ev['exclusion_decision'],
         'eligibility_reasons': '; '.join(reasons),
+        'provisional': ev['provisional'], 'provisional_decision': ev['provisional_decision'],
+        'coldload_eligible_sensitivity': ev['coldload_eligible_sensitivity'],
+        'structure_eligible_sensitivity': ev['structure_eligible_sensitivity'],
         'lh_ok': bool(lh.get('ok')), 'lh_version': lh.get('lighthouseVersion') or '',
         'perf': scores.get('performance'), 'a11y': scores.get('accessibility'),
         'best_practices': scores.get('best-practices'), 'seo': scores.get('seo'),
@@ -84,6 +95,20 @@ def row(d, ev):
     for column in ('cover_detected', 'click_attempted', 'click_method', 'click_landing', 'gate_opening',
                    'audio_elements', 'audio_autoplay_attr', 'audio_playback'):
         out[column] = ev[column]
+    m = d.get('measurement') or {}
+    viewport = m.get('viewport') or {}
+    layout, motion_after = after.get('layout') or {}, after.get('motion') or {}
+    motion_before = ((d.get('structure') or {}).get('beforeOpen') or {}).get('motion') or {}
+    out.update({
+        'profile': ev['profile'], 'protocol': m.get('protocol') or 'v1.2', 'viewport_w': viewport.get('width'),
+        'viewport_h': viewport.get('height'), 'device_scale_factor': viewport.get('device_scale_factor'),
+        'reduced_motion': m.get('reduced_motion'), 'emulation_verified': m.get('emulation_verified'),
+        'layout_overflow_px': layout.get('horizontalOverflowPx'), 'layout_overflowing_elements': layout.get('overflowingElements'),
+        'layout_small_text': layout.get('smallTextElements'), 'layout_small_targets': layout.get('smallTargets'),
+        'layout_targets': layout.get('interactiveTargets'), 'motion_running_before': motion_before.get('running'),
+        'motion_running_after': motion_after.get('running'), 'motion_infinite_after': motion_after.get('runningInfinite'),
+        'motion_gsap_active_after': motion_after.get('gsapActiveTweens'), 'motion_reduce_matched': motion_after.get('reducedMotionMatches'),
+    })
     return out
 
 
@@ -108,8 +133,11 @@ def main():
             w.writerows(rows)
         cold = sum(r['coldload_eligible'] for r in rows)
         struct = sum(r['structure_eligible'] for r in rows)
+        cold_s = sum(r['coldload_eligible_sensitivity'] for r in rows)
+        struct_s = sum(r['structure_eligible_sensitivity'] for r in rows)
         print(f'{len(rows)} captures -> {os.path.relpath(a.out, RESEARCH)} '
-              f'(cold-load eligible {cold}, structure eligible {struct}; register {register.rows} rows)')
+              f'(unconditional: cold-load eligible {cold}, structure eligible {struct}; sensitivity incl. provisional: '
+              f'{cold_s} / {struct_s}; register {register.rows} rows, provisional {register.provisional_rows} rows)')
     if a.print or a.competitor != '*':
         for r in rows:
             print(f"{r['id']:10} {r['page_class']:10} cold={'Y' if r['coldload_eligible'] else 'n'} "

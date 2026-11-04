@@ -29,7 +29,7 @@
 | TKN | The Knot | US | substantive | S-TKN-001, S-TKN-002 |
 | EVT | Evite | US | substantive | S-EVT-001, S-EVT-002 |
 | BHP | Biihappy | VN | substantive | S-BHP-001, S-BHP-002 |
-| SNT | Sonett | KR | thin (readable under D-030; the static homepage is a 77-character client-rendered shell) | S-SNT-001, S-SNT-002 |
+| SNT | Sonett | KR | thin (readable under D-030; the static homepage is a client-rendered shell with 25 characters of text) | S-SNT-001, S-SNT-002 |
 | WMG | WedMeGood | IN | **blocked** (HTTP 403 to the first s12 request; robots no longer the reason) | S-WMG-001, S-WMG-002 |
 | GRV | Greenvelope | US | **blocked** (HTTP 403 on robots.txt and homepage) | S-GRV-001 |
 | MTD | Minted | US | **blocked** (HTTP 403) | S-MTD-001 |
@@ -175,7 +175,7 @@
 - **Lesson:** share channels follow the local messenger (Zalo there, WhatsApp here) and gifts by national QR. **Counter:** WhatsApp-first sharing with OG cards (B-010 done, B-018).
 
 ### SNT — Sonett (thin) · WMG — WedMeGood (blocked) · CNV — Canva (blocked)
-- **Sonett:** readable under D-030 (legacy names only in the Cloudflare training section). The s12 static read returned a 77-character client-rendered shell (Kakao SDK, Cloudflare), so there is nothing to profile from static HTML [OBSERVED S-SNT-002]. Next action: one rendered read with the capture browser. No challenge has occurred, so this is not a fallback route. Korean format lessons are covered by Barunson (`barunson/dossier.md`).
+- **Sonett:** readable under D-030 (legacy names only in the Cloudflare training section). The s12 static read returned a client-rendered shell with 25 characters of visible text in 2,915 bytes (Kakao SDK, Cloudflare), so there is nothing to profile from static HTML [OBSERVED S-SNT-002]. *(s13 correction: this line said "77-character"; the committed record says 25.)* Next action: one rendered read with the capture browser. No challenge has occurred, so this is not a fallback route. Korean format lessons are covered by Barunson (`barunson/dossier.md`).
 - **WedMeGood:** readable by robots under D-030, but the first s12 request answered **HTTP 403**. The origin is stopped with no fallback. [OBSERVED S-WMG-002]
 - **Canva:** its site-written group (GPTBot, ClaudeBot, CCBot, Applebot-Extended, `anthropic-ai`, `Claude-Web`: `Disallow: /`, `Allow: /create/`) has no documented purpose, so D-030 keeps the restriction and no request was made. Training intent is likely [INFERRED from the grouping]. [OBSERVED S-CNV-002]
 

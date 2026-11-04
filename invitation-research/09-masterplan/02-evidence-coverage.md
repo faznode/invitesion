@@ -11,9 +11,9 @@
 | Gate | Status | Basis |
 |---|---|---|
 | Strict Wave 1 (dossier + ≥ 3 valid demos for each top-8 Indonesian vendor; 5 international dossiers) | **NOT MET** | IDI, PLO, SMO have 0 valid demos (ADR-W1) |
-| Revised demo obligation (≥ 6 valid demos for the top-6 Indonesian vendors where safely available) | **met where available; strict 3 / 6** | WEV 6, VID 6 (s10), ENV 6; IDI, PLO, SMO unavailable (`../04-template-benchmarks/benchmark-pack.md` §6) |
-| Profile coverage (≥ 12 Indonesian, ≥ 10 international substantive profiles) | **MET** (15 / 10) | Tier-A dossiers + 11 substantive Tier-B one-pagers (`../03-teardowns/tier-b-profiles.md`) |
-| Tier-A dossiers (10 Indonesian + 5 international) | **14 / 15 — Sitemu BLOCKED** | robots.txt AI-agent opt-out honoured (D-026, Q-O08) |
+| Revised demo obligation (≥ 6 valid demos for the top-6 Indonesian vendors where safely available) | **met where available; strict 2 / 6 unconditional** (3 / 6 with provisional evidence) | WEV 6, VID 6 (s10); ENV 6 only in the sensitivity population (provisional, D-031, Q-O09); IDI, PLO, SMO unavailable (`../04-template-benchmarks/benchmark-pack.md` §6) |
+| Profile coverage (≥ 12 Indonesian, ≥ 10 international substantive profiles) | **MET** (17 / 11; most conservative 16 / 11) | 10 Tier-A dossiers (Sitemu v1 since s12) + 7 substantive Indonesian Tier-B one-pagers; 5 + 6 international (`../03-teardowns/tier-b-profiles.md`). The most conservative count leaves out Enviory, whose guest-page section rests on provisional captures (D-031); its marketing sections rest on S-ENV-001, which G2 does not touch |
+| Tier-A dossiers (10 Indonesian + 5 international) | **15 / 15** (s12) | Sitemu v1 written after the D-030 applicability audit (level C: marketing, pricing, catalog; no guest-page measurement). Enviory §4 is provisional (D-031) |
 | Planning gate | **MET through ADR-W1** (2026-11-03T16:54Z) — reduced-confidence exception, not evidence | all seven fallback items met (12-decision-log.md) |
 
 ## 2. Evidence per competitor
@@ -38,7 +38,7 @@
 |---|---|---|
 | Our own product (features, defects, architecture) | high | code read at `2c94140`, identical product code at `64678cf`; runtime checks for QA-001, QA-005 (s08 + s09) and QA-003's 200 (s09); revalidated at `7a00a6d` with the shipped P0 separated (`../01-codebase-audit/revalidation-s10.md`) |
 | Guest-page performance comparison | medium (lab only) | eligible captures, Lighthouse 12.8.2 mobile; TBT ≠ INP; C-INV-005 omits middleware and clerk-js and predates the s09 P0 changes (our current page is unmeasured) |
-| "Typical Indonesian premium / DIY guest page" | medium | 5 of the top 8 measured (ADR-W1); tier aggregates: premium 26 themes / 5 vendors (high), signature 8 / 2 (medium), basic 3 / 1 (low) |
+| "Typical Indonesian premium / DIY guest page" | medium | 4 of the top 8 measured unconditionally, 5 with the provisional Enviory themes (ADR-W1, D-031); unconditional tier aggregates: premium 20 themes / 4 vendors (high), signature 8 / 2 (medium), basic 3 / 1 (low); sensitivity premium 26 / 5 (high) |
 | Mass-market DIY leaders (IDI, PLO) guest pages | low | unmeasured |
 | Feature presence for level-C vendors | low-medium | vendor claims and structure-only observations |
 | Prices and packaging | high | public pages read on dated visits |

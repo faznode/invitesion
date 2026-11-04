@@ -3,7 +3,11 @@
 // normal mobile visitor would, then record evidence with REA + a Lighthouse lab run.
 //
 //   node capture.mjs --id C-ENV-003 --competitor enviory --kind demo --url https://… \
-//     [--open-cover] [--lighthouse] [--own] [--settle 5000] [--driver rea|cdp]
+//     [--open-cover] [--lighthouse] [--own] [--settle 5000] [--driver rea|cdp] [--profile v1-412|v2-412|v2-360|v2-390|v2-412-rm]
+//
+// --profile (s13, capture-profile.mjs) fixes viewport, scale factor, motion preference, protocol and method for every
+// channel (CDP, REA, Lighthouse). The default v1-412 behaves exactly as before s13; v2 profiles add the layout and motion
+// probes, verify the emulation the page actually saw, and record a `measurement` block in the summary.
 //
 // Driver (s06): by default REA `capture-browser-scenario` (connect mode) performs the visit (navigation, settle,
 // keyboard scroll, network/console events); this script keeps only what REA does not cover: the optional cover click
@@ -24,6 +28,10 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { robotsStatusVerdict, robotsUnreachable, robotsVerdict } from './robots.mjs';
 import { hasToken, loadMap, pseudonymizeText, redactDemoNames, resolveTokens, saveMap } from '../safety/pseudonymize.mjs';
+import {
+  DEFAULT_PROFILE, EMULATION_PROBE_V2, LAYOUT_PROBE, MOTION_PROBE, deviceMetrics, emulationCommands, emulationMatches, getProfile,
+  lighthouseArgs, measurementRecord, reaEnvironment, screenshotName,
+} from './capture-profile.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const RESEARCH = join(HERE, '..', '..');
@@ -45,6 +53,8 @@ const args = Object.fromEntries(
 for (const required of ['id', 'competitor', 'url']) if (!args[required]) throw new Error(`--${required} is required`);
 const own = Boolean(args.own);
 const settle = Number(args.settle ?? 5000);
+const profile = getProfile(typeof args.profile === 'string' ? args.profile : DEFAULT_PROFILE);
+const v2 = profile.name !== DEFAULT_PROFILE;
 // Committed queues carry pseudonymized slugs (rdct-…, _tools/safety/slug-rules.json): visit the real page, but
 // everything written into the repo (summary, capture index) goes through pseudonymizeText.
 const redactionMap = loadMap(PRIVATE);
@@ -177,7 +187,10 @@ async function observe(url) {
   await page.send('Network.enable');
   await page.send('Network.setCacheDisabled', { cacheDisabled: true });
   await page.send('Network.setUserAgentOverride', { userAgent: ANDROID_UA, acceptLanguage: 'id-ID,id;q=0.9,en;q=0.6', platform: 'Android' });
-  await page.send('Emulation.setDeviceMetricsOverride', { width: 412, height: 915, deviceScaleFactor: 2.625, mobile: true });
+  const applyEmulation = async () => {
+    for (const [method, params] of emulationCommands(profile)) await page.send(method, params);
+  };
+  await applyEmulation();
   await page.send('Page.enable');
   const loadFired = () => new Promise((resolve) => page.on((m) => m.method === 'Page.loadEventFired' && resolve()));
   const evaluate = async (expression) => (await page.send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true })).result.value;
@@ -240,9 +253,10 @@ async function observe(url) {
     loadMs = Date.now() - started;
     await sleep(Math.max(500, settle - 1500));
     beforeOpen = await evaluate(FINGERPRINT);
+    if (v2) beforeOpen.motion = await evaluate(MOTION_PROBE);
     // REA's connect-mode viewport override lives in REA's own CDP session and is dropped when it disconnects, and its
     // scenario schema has no mobile/touch flag, so record what the page saw while REA drove it as well as afterwards.
-    const emulationDuring = await evaluate(EMULATION_PROBE);
+    const emulationDuring = await evaluate(v2 ? EMULATION_PROBE_V2 : EMULATION_PROBE);
     const result = await run;
     writeFileSync(scenarioPath, result.stdout || '');
     const json = safeParse(result.stdout);
@@ -253,7 +267,7 @@ async function observe(url) {
       stepsCompleted: steps.length - failed.length, stepsTotal: steps.length, failed: failed.slice(0, 10), events: json?.normalized_result?.events?.retained ?? null,
       error: result.ok ? null : result.stderr, sha256: result.stdout ? sha256(result.stdout) : null, file: `_private/rea/${args.id}/rea-scenario.json`,
     };
-    emulation = { duringScenario: emulationDuring, afterScenario: await evaluate(EMULATION_PROBE) };
+    emulation = { duringScenario: emulationDuring, afterScenario: await evaluate(v2 ? EMULATION_PROBE_V2 : EMULATION_PROBE) };
     if ((await evaluate('location.href')) === 'about:blank') {
       driverUsed = 'cdp-fallback';
     } else {
@@ -263,7 +277,7 @@ async function observe(url) {
       // here, after REA disconnected, followed by this session's own scroll through the opened page.
       let scrolled = false;
       if (args['open-cover']) {
-        await page.send('Emulation.setDeviceMetricsOverride', { width: 412, height: 915, deviceScaleFactor: 2.625, mobile: true });
+        await applyEmulation();
         await sleep(500);
         coverClicked = await customCoverClick();
         if (coverClicked) { await sleep(2500); await customScroll(); scrolled = true; }
@@ -280,17 +294,27 @@ async function observe(url) {
     loadMs = Date.now() - started;
     await sleep(settle);
     beforeOpen = await evaluate(FINGERPRINT);
+    if (v2) beforeOpen.motion = await evaluate(MOTION_PROBE);
     if (args['open-cover']) { coverClicked = await customCoverClick(); await sleep(2500); }
     await customScroll();
   }
 
-  // Re-assert the mobile metrics in case REA's session changed them, so every afterOpen pass sees the same viewport.
-  await page.send('Emulation.setDeviceMetricsOverride', { width: 412, height: 915, deviceScaleFactor: 2.625, mobile: true });
+  // REA's disconnect wipes this session's emulation: re-apply it (v2 clears first, see emulationCommands) so every
+  // afterOpen pass sees the profile; v2 then verifies what the page actually reports.
+  await applyEmulation();
   await sleep(300);
   const afterOpen = await evaluate(FINGERPRINT);
-  await page.send('Emulation.setDeviceMetricsOverride', { width: 412, height: 915, deviceScaleFactor: 1, mobile: true });
+  let verification = null;
+  if (v2) {
+    afterOpen.layout = await evaluate(LAYOUT_PROBE);
+    afterOpen.motion = await evaluate(MOTION_PROBE);
+    const final = await evaluate(EMULATION_PROBE_V2);
+    verification = { ...emulationMatches(profile, final), final };
+    if (emulation?.duringScenario) verification.duringScenario = emulationMatches(profile, emulation.duringScenario);
+  }
+  await page.send('Emulation.setDeviceMetricsOverride', deviceMetrics(profile, 1));
   const shot = await page.send('Page.captureScreenshot', { format: 'webp', quality: 55 });
-  return { page, target, requests: [...requests.values()], loadMs, beforeOpen, afterOpen, coverClicked, coverClickMethod, coverClickLanding, shot: Buffer.from(shot.data, 'base64'), scenario, driverUsed, emulation };
+  return { page, target, requests: [...requests.values()], loadMs, beforeOpen, afterOpen, coverClicked, coverClickMethod, coverClickLanding, shot: Buffer.from(shot.data, 'base64'), scenario, driverUsed, emulation, verification };
 }
 
 function runReaScenario(targetId, url, outPath) {
@@ -306,7 +330,7 @@ function runReaScenario(targetId, url, outPath) {
     start_url: { url },
     // reduced_motion defaults to "reduce" in REA; a normal guest gets the full animation. Service workers are allowed
     // because REA's default "block" rejects captures of PWA-style invitation sites.
-    environment: { viewport: { width: 412, height: 915, device_scale_factor: 2.625 }, locale: 'id-ID', timezone: 'Asia/Jakarta', reduced_motion: 'no-preference', service_workers: 'allow' },
+    environment: reaEnvironment(profile),
     actions,
     capture: { at_end: ['url', 'screenshot'], events: ['network', 'console', 'page-errors'] },
   };
@@ -340,10 +364,8 @@ function lighthouse(url, outPath) {
 }
 
 function lighthouseOnce(url, outPath) {
-  const run = spawnSync(LIGHTHOUSE, [url, '--quiet', '--output=json', `--output-path=${outPath}`, '--form-factor=mobile', '--screenEmulation.mobile', '--screenEmulation.width=412',
-    '--screenEmulation.height=915', '--screenEmulation.deviceScaleFactor=2.625', '--throttling-method=simulate', `--emulated-user-agent=${ANDROID_UA}`,
-    '--only-categories=performance,accessibility,best-practices,seo', '--chrome-flags=--headless=new --no-sandbox --disable-dev-shm-usage --lang=id-ID'],
-  { encoding: 'utf8', env: { ...process.env, CHROME_PATH: CHROME }, timeout: 240000 });
+  const run = spawnSync(LIGHTHOUSE, lighthouseArgs(profile, { url, outPath, userAgent: ANDROID_UA }),
+    { encoding: 'utf8', env: { ...process.env, CHROME_PATH: CHROME }, timeout: 240000 });
   if (run.status !== 0 || !existsSync(outPath)) return { ok: false, error: (run.stderr || '').slice(-400) };
   const report = JSON.parse(readFileSync(outPath, 'utf8'));
   const audit = (id) => report.audits[id];
@@ -373,8 +395,9 @@ if (!robots.allowed) {
   process.exit(0);
 }
 const observed = await observe(visitUrl);
-const inspect = rea('inspect-web-page', observed.target.id, ['--observation-ms', '1500']);
-const bundle = rea('analyze-web-bundle', observed.target.id);
+const skipped = { ok: false, stdout: '', stderr: `skipped: lean profile ${profile.name}` };
+const inspect = profile.lean ? skipped : rea('inspect-web-page', observed.target.id, ['--observation-ms', '1500']);
+const bundle = profile.lean ? skipped : rea('analyze-web-bundle', observed.target.id);
 observed.page.close();
 await fetch(`${CDP}/json/close/${observed.target.id}`).catch(() => {});
 
@@ -383,7 +406,7 @@ for (const [name, result] of [['rea-inspect.json', inspect], ['rea-bundle.json',
   if (result.ok) { writeFileSync(join(captureDir, name), result.stdout); files[name] = sha256(result.stdout); }
 }
 if (observed.scenario?.sha256) files[observed.scenario.file] = observed.scenario.sha256;
-const shotPath = own ? join(captureDir, 'viewport-412.webp') : join(PRIVATE, 'thumbs', `${args.id}.webp`);
+const shotPath = own ? join(captureDir, screenshotName(profile)) : join(PRIVATE, 'thumbs', `${args.id}.webp`);
 mkdirSync(dirname(shotPath), { recursive: true });
 writeFileSync(shotPath, observed.shot);
 
@@ -412,7 +435,9 @@ if (args.lighthouse) {
 
 const summary = {
   id: args.id, competitor: args.competitor, kind: args.kind ?? 'page', url: args.url, capturedAt: wib(), robots,
-  method: `${observed.driverUsed === 'rea' ? 'REA capture-browser-scenario (connect mode) drives navigation, settle and keyboard scroll; optional cover click (trusted CDP mouse click on the settled control: coverClickMethod, coverClickLanding) and scroll through the opened page by CDP after REA\'s scenario' : `CDP drives navigation/click/scroll (driver ${observed.driverUsed})`}; CDP mobile emulation 412x915 @2.625 + Android Chrome UA, cold cache (no throttling); REA ${REA_VERSION} inspect-web-page/analyze-web-bundle; custom structure pass (text features + animation libraries: no REA coverage); Lighthouse 12 mobile simulate (Slow 4G, 4x CPU) when present`,
+  method: `${observed.driverUsed === 'rea' ? 'REA capture-browser-scenario (connect mode) drives navigation, settle and keyboard scroll; optional cover click (trusted CDP mouse click on the settled control: coverClickMethod, coverClickLanding) and scroll through the opened page by CDP after REA\'s scenario' : `CDP drives navigation/click/scroll (driver ${observed.driverUsed})`}; CDP mobile emulation ${profile.width}x${profile.height} @${profile.dsf}${v2 ? ` + prefers-reduced-motion ${profile.motion}, re-applied (clear + set) after REA's scenario` : ''} + Android Chrome UA, cold cache (no throttling); ${profile.lean ? 'REA inspect/bundle skipped (lean)' : `REA ${REA_VERSION} inspect-web-page/analyze-web-bundle`}; custom structure pass (text features + animation libraries: no REA coverage)${v2 ? ' + layout and motion probes' : ''}; Lighthouse 12 mobile simulate (Slow 4G, 4x CPU) when present`,
+  ...(v2 ? { measurement: { ...measurementRecord(profile, observed.verification), emulation_final: observed.verification?.final ?? null,
+    emulation_during_scenario: observed.verification?.duringScenario ?? null } } : {}),
   driver: observed.driverUsed,
   rea: { version: REA_VERSION, scenario: observed.scenario, emulation: observed.emulation, inspectEvidenceId: inspectJson?.evidence_id ?? null, bundleEvidenceId: bundleJson?.evidence_id ?? null, inspectError: inspect.ok ? null : inspect.stderr, bundleError: bundle.ok ? null : bundle.stderr,
     domNodes: nr.dom?.total_nodes ?? null, scripts: nr.scripts?.total ?? null, resources: Array.isArray(nr.resources) ? nr.resources.length : null,
@@ -420,8 +445,8 @@ const summary = {
     bundleEndpoints: (bundleJson?.normalized_result?.observations?.endpoints ?? []).slice(0, 15).map((e) => e.value ?? e.pattern ?? e.url ?? e), bundleInferences: (bundleJson?.normalized_result?.inferences ?? []).slice(0, 10) },
   network: { loadEventMs: observed.loadMs, requests: observed.requests.length, bytes: observed.requests.reduce((s, r) => s + (r.bytes || 0), 0), byType, protocols: [...new Set(observed.requests.map((r) => r.protocol))].filter(Boolean),
     scriptHosts, scriptFiles, fontFiles, thirdPartyHosts: [...new Set(observed.requests.map((r) => new URL(r.url).hostname))].filter((h) => h !== new URL(visitUrl).hostname).slice(0, 30) },
-  structure: { coverClicked: observed.coverClicked, coverClickMethod: observed.coverClickMethod, coverClickLanding: observed.coverClickLanding, beforeOpen: { sectionCount: observed.beforeOpen.sectionCount, features: observed.beforeOpen.features, buttons: observed.beforeOpen.buttons.slice(0, 10) }, afterOpen: observed.afterOpen },
-  lighthouse: lh, files, screenshot: own ? 'viewport-412.webp (public, own product)' : '_private/thumbs (competitor, not committed)',
+  structure: { coverClicked: observed.coverClicked, coverClickMethod: observed.coverClickMethod, coverClickLanding: observed.coverClickLanding, beforeOpen: { sectionCount: observed.beforeOpen.sectionCount, features: observed.beforeOpen.features, buttons: observed.beforeOpen.buttons.slice(0, 10), ...(observed.beforeOpen.motion ? { motion: observed.beforeOpen.motion } : {}) }, afterOpen: observed.afterOpen },
+  lighthouse: lh, files, screenshot: own ? `${screenshotName(profile)} (public, own product)` : '_private/thumbs (competitor, not committed)',
 };
 // D-017: a summary whose written URL carries a redaction token must not show the demo couple's names either.
 // D-021: the same for every competitor demo, since a page alone cannot prove that its couple is a placeholder.

@@ -5,9 +5,14 @@
     python3 -B invitation-research/_tools/capture/benchmark-pack.py --check    # exit 1 if the files on disk are stale
     python3 -B invitation-research/_tools/capture/benchmark-pack.py --markdown # print the aggregate tables
 
+    python3 -B invitation-research/_tools/capture/benchmark-pack.py --compare  # aggregates that change with provisional evidence
+
 Input: 04-template-benchmarks/captures-summary.csv (summarize-captures.py) for the numbers; eligibility is recomputed
 with eligibility.py from raw/ and the exclusion register, and the run fails if the summary disagrees (stale summary).
-Outputs in 04-template-benchmarks/: tiers.csv (one row per eligible theme), tier-aggregates.csv, blueprints.csv.
+Outputs in 04-template-benchmarks/: tiers.csv (one row per eligible theme), tier-aggregates.csv, blueprints.csv, built
+from the UNCONDITIONAL population (provisional evidence excluded, eligibility.py rule 7, D-031). The same three files
+built from the SENSITIVITY population (provisional evidence included) go to sensitivity/*-incl-provisional.csv. The two
+sets are separate files and are never merged; only the unconditional set supports unconditional claims.
 
 Rules (benchmark-pack.md §2, D-027):
 - Cold-load aggregates use Lighthouse columns of cold-load-eligible captures; post-visit aggregates use CDP columns of
@@ -35,6 +40,18 @@ import eligibility
 RESEARCH = eligibility.RESEARCH
 BENCH = os.path.join(RESEARCH, '04-template-benchmarks')
 SUMMARY = os.path.join(BENCH, 'captures-summary.csv')
+SENSITIVITY_DIR = 'sensitivity'
+OUTPUT_NAMES = ('tiers.csv', 'tier-aggregates.csv', 'blueprints.csv')
+
+
+def output_path(name, sensitivity=False):
+    """Relative output path inside 04-template-benchmarks/ for one of OUTPUT_NAMES."""
+    return os.path.join(SENSITIVITY_DIR, name.replace('.csv', '-incl-provisional.csv')) if sensitivity else name
+
+
+def eligibility_keys(sensitivity=False):
+    suffix = '_sensitivity' if sensitivity else ''
+    return 'coldload_eligible' + suffix, 'structure_eligible' + suffix
 
 SIGNATURE_LIBS = {'scrollTrigger', 'three'}
 LEVEL2_LIBS = {'gsap', 'aos', 'animateCss', 'lottie', 'anime'}
@@ -109,8 +126,10 @@ def load_rows():
         if ev is None:
             stale.append(f"{row['id']}: in the summary but not in raw/")
             continue
-        for key in ('coldload_eligible', 'structure_eligible'):
-            if truthy(row[key]) != bool(ev[key]):
+        for key in eligibility_keys() + eligibility_keys(True) + ('provisional',):
+            if key not in row:
+                stale.append(f"{row['id']}: summary lacks column {key}")
+            elif truthy(row[key]) != bool(ev[key]):
                 stale.append(f"{row['id']}: {key} summary={row[key]} recomputed={ev[key]}")
     if len(rows) != len(results):
         stale.append(f'summary has {len(rows)} rows, raw/ has {len(results)} captures')
@@ -130,8 +149,13 @@ def theme_values(rows, column, eligible_key):
     return {key: (statistics.median(v for v, _ in items), [cid for _, cid in items]) for key, items in by_theme.items()}
 
 
-def build(rows):
-    eligible = [r for r in rows if truthy(r['coldload_eligible']) or truthy(r['structure_eligible'])]
+def build(rows, sensitivity=False):
+    """Tiers, aggregates and blueprints for one population: unconditional (default) or sensitivity (provisional included).
+    Only the protocol v1.2 population enters these files (profile v1-412; own pages = the pre-P0 baseline build, see
+    eligibility.v12_population); v2 profiles are reported by build_viewport()."""
+    rows = [r for r in rows if eligibility.v12_population(r['id'], r['competitor'], r.get('profile'))]
+    cold_key, struct_key = eligibility_keys(sensitivity)
+    eligible = [r for r in rows if truthy(r[cold_key]) or truthy(r[struct_key])]
     themes = {}
     for row in sorted(eligible, key=lambda r: r['id']):
         key = (row['competitor'], row['theme_key'])
@@ -148,15 +172,15 @@ def build(rows):
         tiers_out.append({
             'competitor': competitor, 'population': entry['population'], 'theme_key': theme, 'tier': tier,
             'signals': ' '.join(signals) or '-', 'tier_confidence': conf,
-            'coldload_captures': ' '.join(r['id'] for r in entry['rows'] if truthy(r['coldload_eligible'])) or '-',
-            'structure_captures': ' '.join(r['id'] for r in entry['rows'] if truthy(r['structure_eligible'])) or '-',
+            'coldload_captures': ' '.join(r['id'] for r in entry['rows'] if truthy(r[cold_key])) or '-',
+            'structure_captures': ' '.join(r['id'] for r in entry['rows'] if truthy(r[struct_key])) or '-',
             'detector_note': NON_LATIN_DETECTOR_GAP.get(competitor, ''),
         })
     aggregates = []
     for population in ('competitor', 'own'):
         for tier in TIERS + ('all',):
             for metric, column, direction, source in METRICS:
-                eligible_key = 'coldload_eligible' if source == 'lighthouse' else 'structure_eligible'
+                eligible_key = cold_key if source == 'lighthouse' else struct_key
                 values = {k: v for k, v in theme_values(rows, column, eligible_key).items()
                           if themes.get(k, {}).get('population') == population and (tier == 'all' or tier_of.get(k) == tier)}
                 if not values:
@@ -173,7 +197,7 @@ def build(rows):
                 })
     blueprints = []
     for (competitor, theme), entry in sorted(themes.items()):
-        structural = [r for r in entry['rows'] if truthy(r['structure_eligible'])]
+        structural = [r for r in entry['rows'] if truthy(r[struct_key])]
         if not structural:
             continue
         row = structural[0]
@@ -191,8 +215,85 @@ def build(rows):
     return tiers_out, aggregates, blueprints
 
 
-def render(records):
+V2_PROFILES = ('v2-412', 'v2-360', 'v2-390', 'v2-412-rm')
+V2_CONTROL = 'v2-412'
+VIEWPORT_DIR = 'viewport'
+# (metric, column, direction, source): Lighthouse metrics need cold-load eligibility, layout / motion probes structure
+# eligibility. All come from the same capture, so a theme's four profiles are paired within one session.
+VIEWPORT_METRICS = [
+    ('perf', 'perf', 'high', 'lighthouse'), ('a11y', 'a11y', 'high', 'lighthouse'), ('lcp_ms', 'lcp_ms', 'low', 'lighthouse'),
+    ('tbt_ms', 'tbt_ms', 'low', 'lighthouse'), ('cls', 'cls', 'low', 'lighthouse'), ('lh_kib', 'lh_kib', 'low', 'lighthouse'),
+    ('layout_overflow_px', 'layout_overflow_px', 'low', 'layout'), ('layout_small_targets', 'layout_small_targets', 'low', 'layout'),
+    ('layout_small_text', 'layout_small_text', 'low', 'layout'), ('motion_running_before', 'motion_running_before', 'low', 'motion'),
+    ('motion_running_after', 'motion_running_after', 'low', 'motion'),
+]
+PROFILE_AGG_FIELDS = ['population', 'profile', 'metric', 'direction', 'source', 'n_themes', 'n_vendors', 'n_captures', 'median',
+                      'p75', 'best', 'best_theme_capture', 'confidence']
+PAIRED_FIELDS = ['population', 'competitor', 'theme_key', 'metric', 'direction'] + [f'value_{p}' for p in V2_PROFILES] + \
+                [f'delta_{p}' for p in V2_PROFILES if p != V2_CONTROL] + ['captures']
+PAIRED_SUMMARY_FIELDS = ['population', 'metric', 'direction', 'comparison', 'n_pairs', 'median_delta', 'n_worse', 'n_better', 'n_same']
+
+
+def build_viewport(rows):
+    """Protocol v2 outputs (unconditional population): per-profile aggregates and per-theme paired deltas against the
+    same-session v2-412 control. Profiles are never pooled; a delta exists only when both profiles of a theme are eligible."""
+    rows = [r for r in rows if r.get('profile') in V2_PROFILES]
+    cold_key, struct_key = eligibility_keys()
+    profile_aggregates, paired, summary = [], [], []
+    for population in ('competitor', 'own'):
+        sel = [r for r in rows if r['population'] == population]
+        for metric, column, direction, source in VIEWPORT_METRICS:
+            key = cold_key if source == 'lighthouse' else struct_key
+            per_profile = {p: theme_values([r for r in sel if r['profile'] == p], column, key) for p in V2_PROFILES}
+            for profile in V2_PROFILES:
+                values = per_profile[profile]
+                if not values:
+                    continue
+                nums = [v for v, _ in values.values()]
+                best_key = (min if direction == 'low' else max)(values, key=lambda k: values[k][0])
+                vendors = {k[0] for k in values}
+                profile_aggregates.append({
+                    'population': population, 'profile': profile, 'metric': metric,
+                    'direction': 'lower is better' if direction == 'low' else 'higher is better', 'source': source,
+                    'n_themes': len(values), 'n_vendors': len(vendors), 'n_captures': sum(len(c) for _, c in values.values()),
+                    'median': round(statistics.median(nums), 3), 'p75': round(percentile(nums, 0.75 if direction == 'low' else 0.25), 3),
+                    'best': round(values[best_key][0], 3), 'best_theme_capture': values[best_key][1][0],
+                    'confidence': confidence(len(values), len(vendors)) if population == 'competitor' else 'own pages (not a market sample)',
+                })
+            control = per_profile[V2_CONTROL]
+            deltas = {p: [] for p in V2_PROFILES if p != V2_CONTROL}
+            for theme in sorted(control):
+                record = {'population': population, 'competitor': theme[0], 'theme_key': theme[1], 'metric': metric,
+                          'direction': 'lower is better' if direction == 'low' else 'higher is better'}
+                captures = []
+                for p in V2_PROFILES:
+                    value = per_profile[p].get(theme)
+                    record[f'value_{p}'] = round(value[0], 3) if value else ''
+                    captures += value[1] if value else []
+                    if p != V2_CONTROL:
+                        delta = round(value[0] - control[theme][0], 3) if value else ''
+                        record[f'delta_{p}'] = delta
+                        if value:
+                            deltas[p].append(delta)
+                record['captures'] = ' '.join(captures)
+                paired.append(record)
+            for p, values in deltas.items():
+                if not values:
+                    continue
+                worse = sum(1 for d in values if (d > 0 if direction == 'low' else d < 0))
+                better = sum(1 for d in values if (d < 0 if direction == 'low' else d > 0))
+                summary.append({'population': population, 'metric': metric,
+                                'direction': 'lower is better' if direction == 'low' else 'higher is better',
+                                'comparison': f'{p} vs {V2_CONTROL}', 'n_pairs': len(values),
+                                'median_delta': round(statistics.median(values), 3), 'n_worse': worse, 'n_better': better,
+                                'n_same': len(values) - worse - better})
+    return profile_aggregates, paired, summary
+
+
+def render(records, fieldnames=None):
     if not records:
+        if fieldnames:
+            return ','.join(fieldnames) + '\n'
         return ''
     out = io.StringIO()
     writer = csv.DictWriter(out, fieldnames=list(records[0].keys()), lineterminator='\n')
@@ -211,10 +312,28 @@ def markdown(aggregates, metrics=('perf', 'a11y', 'lcp_ms', 'tbt_ms', 'cls', 'lh
     return '\n'.join(lines)
 
 
+def compare(unconditional, sensitivity, population='competitor'):
+    """Markdown table of the aggregates that differ once provisional evidence is admitted (or exist in only one set)."""
+    index = lambda records: {(a['tier'], a['metric']): a for a in records if a['population'] == population}
+    left, right = index(unconditional), index(sensitivity)
+    cell = lambda a: f"{a['n_themes']} / {a['n_vendors']} · {a['median']:g} · {a['p75']:g} · {a['best']:g} ({a['confidence']})" if a else '—'
+    lines = ['| Tier | Metric | Unconditional: themes / vendors · median · p75 · best (confidence) | '
+             'Sensitivity incl. provisional: same columns |', '|---|---|---|---|']
+    for key in sorted(set(left) | set(right), key=lambda k: (TIERS + ('all',)).index(k[0]) if k[0] in TIERS + ('all',) else 9):
+        a, b = left.get(key), right.get(key)
+        fields = ('n_themes', 'n_vendors', 'median', 'p75', 'best')
+        if a and b and all(a[f] == b[f] for f in fields):
+            continue
+        lines.append(f'| {key[0]} | {key[1]} | {cell(a)} | {cell(b)} |')
+    return '\n'.join(lines)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--check', action='store_true')
-    ap.add_argument('--markdown', action='store_true')
+    ap.add_argument('--markdown', action='store_true', help='unconditional aggregate tables (add --sensitivity for the other set)')
+    ap.add_argument('--sensitivity', action='store_true', help='with --markdown: the set that includes provisional evidence')
+    ap.add_argument('--compare', action='store_true', help='aggregates that change when provisional evidence is admitted')
     args = ap.parse_args()
     rows, stale = load_rows()
     if stale:
@@ -222,22 +341,37 @@ def main():
         for line in stale:
             print('  ' + line, file=sys.stderr)
         return 1
-    tiers_out, aggregates, blueprints = build(rows)
-    files = {'tiers.csv': render(tiers_out), 'tier-aggregates.csv': render(aggregates), 'blueprints.csv': render(blueprints)}
+    built = {False: build(rows), True: build(rows, sensitivity=True)}
+    files = {output_path(name, sens): render(records)
+             for sens, outputs in built.items() for name, records in zip(OUTPUT_NAMES, outputs)}
+    v_aggregates, v_paired, v_summary = build_viewport(rows)
+    files.update({os.path.join(VIEWPORT_DIR, 'profile-aggregates.csv'): render(v_aggregates, PROFILE_AGG_FIELDS),
+                  os.path.join(VIEWPORT_DIR, 'paired-deltas.csv'): render(v_paired, PAIRED_FIELDS),
+                  os.path.join(VIEWPORT_DIR, 'paired-summary.csv'): render(v_summary, PAIRED_SUMMARY_FIELDS)})
+    tiers_out, aggregates, blueprints = built[False]
+    s_tiers, s_aggregates, s_blueprints = built[True]
     if args.markdown:
-        print(markdown(aggregates))
+        print(markdown(s_aggregates if args.sensitivity else aggregates))
+        return 0
+    if args.compare:
+        print(compare(aggregates, s_aggregates))
         return 0
     if args.check:
         bad = [name for name, text in files.items()
                if not os.path.exists(os.path.join(BENCH, name)) or open(os.path.join(BENCH, name), encoding='utf-8').read() != text]
         print(f"benchmark-pack: {'STALE ' + ', '.join(bad) if bad else 'up to date'} "
-              f"({len(tiers_out)} themes, {len(aggregates)} aggregates, {len(blueprints)} blueprints)")
+              f"(unconditional: {len(tiers_out)} themes, {len(aggregates)} aggregates, {len(blueprints)} blueprints; "
+              f"sensitivity incl. provisional: {len(s_tiers)} / {len(s_aggregates)} / {len(s_blueprints)})")
         return 1 if bad else 0
+    os.makedirs(os.path.join(BENCH, SENSITIVITY_DIR), exist_ok=True)
+    os.makedirs(os.path.join(BENCH, VIEWPORT_DIR), exist_ok=True)
     for name, text in files.items():
         with open(os.path.join(BENCH, name), 'w', encoding='utf-8') as handle:
             handle.write(text)
-    print(f'benchmark-pack: wrote tiers.csv ({len(tiers_out)} themes), tier-aggregates.csv ({len(aggregates)} rows), '
-          f'blueprints.csv ({len(blueprints)} themes)')
+    print(f'benchmark-pack: wrote unconditional tiers.csv ({len(tiers_out)} themes), tier-aggregates.csv ({len(aggregates)} rows), '
+          f'blueprints.csv ({len(blueprints)} themes); sensitivity/*-incl-provisional.csv ({len(s_tiers)} / {len(s_aggregates)} / '
+          f'{len(s_blueprints)}); viewport/ (protocol v2: {len(v_aggregates)} profile aggregates, {len(v_paired)} paired rows, '
+          f'{len(v_summary)} paired summaries)')
     return 0
 
 

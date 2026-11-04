@@ -11,7 +11,7 @@
 | Satu Momen (`SMO`) | 45 | 9 | 4 | 129 | 58 | 0 | 0 / 0 |
 | Wevitation (`WEV`) | 49 | 13 | 6 | 119 | 68 | 10 | 6 (6 themes) / 6 (6 themes) |
 | Viding (`VID`) | 43 | 11 | 3 | 130 | 57 | 11 | 6 (6 themes) / 6 (6 themes) |
-| Enviory (`ENV`) | 71 | 4 | 8 | 104 | 83 | 10 | 13 (6 themes) / 6 (6 themes) |
+| Enviory (`ENV`) | 65 | 3 | 5 | 114 | 73 | 0 | 0 (0 themes) / 0 (0 themes) |
 | Invitato (`IVT`) | 49 | 8 | 12 | 118 | 69 | 10 | 4 (4 themes) / 2 (2 themes) |
 | INVI.ID (`INV`) | 46 | 10 | 6 | 125 | 62 | 9 | 6 (6 themes) / 6 (6 themes) |
 | Katsudoto (`KAT`) | 53 | 6 | 7 | 121 | 66 | 10 | 6 (6 themes) / 6 (6 themes) |
@@ -32,7 +32,7 @@
 | Satu Momen | 22/66 | 16/57 | 13/35 | 7/29 |
 | Wevitation | 27/66 | 15/57 | 9/35 | 17/29 |
 | Viding | 22/66 | 15/57 | 6/35 | 14/29 |
-| Enviory | 31/66 | 23/57 | 13/35 | 16/29 |
+| Enviory | 30/66 | 23/57 | 13/35 | 7/29 |
 | Invitato | 28/66 | 21/57 | 5/35 | 15/29 |
 | INVI.ID | 24/66 | 9/57 | 12/35 | 17/29 |
 | Katsudoto | 29/66 | 19/57 | 4/35 | 14/29 |
@@ -47,7 +47,23 @@
 
 | Row | Column | Curated | Derived | Derived basis |
 |---|---|---|---|---|
-| FM-014 | ENV | Partial | Full | keyword detector: 6/6 structure-eligible theme(s) |
 | FM-014 | INV | Partial | Full | keyword detector: 4/6 structure-eligible theme(s) |
 | FM-018 | invitesion | Partial | Full | zone label present on 2/2 theme(s); correctness for WITA/WIT not verifiable |
 | FM-018 | WEV | Partial | Full | zone label present on 4/6 theme(s); correctness for WITA/WIT not verifiable |
+
+## Sensitivity: cells that change when provisional evidence is admitted (D-031, not in the matrix files)
+
+The matrix files above use the unconditional population. These rows show what the measured cells would be with the provisional captures of `../04-template-benchmarks/benchmark-provisional.csv` admitted. They are a sensitivity result only and must not be quoted as matrix cells.
+
+| Row | Column | Unconditional | With provisional evidence | Basis with provisional evidence |
+|---|---|---|---|---|
+| FM-055 | ENV | Unknown | Full | prefers-reduced-motion CSS on 6/6 theme(s) (CSS rules only; JS checks not detected) |
+| FM-156 | ENV | Unknown | None | median 42 score over 6 theme(s) / 13 cold-load-eligible capture(s) |
+| FM-157 | ENV | Unknown | None | median 13,874 ms over 6 theme(s) / 13 cold-load-eligible capture(s) |
+| FM-158 | ENV | Unknown | None | median 920 ms over 6 theme(s) / 13 cold-load-eligible capture(s) |
+| FM-159 | ENV | Unknown | Full | median 0.000 over 6 theme(s) / 13 cold-load-eligible capture(s) |
+| FM-160 | ENV | Unknown | Full | median 2,404 KiB over 6 theme(s) / 13 cold-load-eligible capture(s) |
+| FM-162 | ENV | Unknown | Full | lazy images on 6/6 theme(s) with images |
+| FM-163 | ENV | Unknown | Full | median 100 score over 6 theme(s) / 13 cold-load-eligible capture(s) |
+| FM-164 | ENV | Unknown | Full | zoom blocked on 0/6 theme(s) |
+| FM-179 | ENV | Unknown | Partial | median 1 entities over 6 theme(s) / 13 cold-load-eligible capture(s) |
