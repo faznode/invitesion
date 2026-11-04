@@ -62,12 +62,12 @@ test('B-029: contact links only for a dialable number or one plain address', () 
   }
 });
 
-test('B-029: the contract marks the programme fields rendered; category and logo stay stored-only', () => {
+test('B-029: the contract marks every corporate field rendered, logo and category included (s16)', () => {
   const capability = RENDER_CAPABILITIES.corporateProfile;
-  for (const field of ['description', 'agenda', 'speakers', 'dressCode', 'contactName', 'contactPhone', 'contactEmail']) {
+  for (const field of ['description', 'agenda', 'speakers', 'dressCode', 'contactName', 'contactPhone', 'contactEmail', 'eventCategory', 'logoUrl']) {
     assert.ok((capability.rendered as readonly string[]).includes(field), field);
   }
-  assert.deepEqual([...capability.storedOnly].sort(), ['eventCategory', 'logoUrl']);
+  assert.deepEqual([...capability.storedOnly], []);
 });
 
 test('B-029: every layout renders the filled programme after the event, in the fixed order, with links and host text', () => {

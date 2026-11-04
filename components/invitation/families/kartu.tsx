@@ -4,6 +4,7 @@ import { Countdown } from '@/components/invitation/countdown';
 import {
   CalendarLinks,
   EventFacts,
+  CorporateMark,
   GuestbookBlock,
   MapLink,
   PROGRAMME_HEADINGS,
@@ -40,6 +41,7 @@ export function KartuLayout({ props, view }: { props: GuestPageProps; view: Gues
               // eslint-disable-next-line @next/next/no-img-element
               <img src={config.theme.cover.imageUrl} alt="" aria-hidden className="mb-6 aspect-[4/3] w-full rounded-xl object-cover" />
             )}
+            <CorporateMark view={view} align="start" className="mb-6" />
             <div className="flex items-start justify-between gap-4">
               <p className={`pt-1 text-xs uppercase tracking-[0.25em] ${tone.accent}`}>{config.theme?.cover?.headline || 'Undangan'}</p>
               {stamp && (

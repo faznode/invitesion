@@ -4,6 +4,7 @@ import { Countdown } from '@/components/invitation/countdown';
 import {
   CalendarLinks,
   EventFacts,
+  CorporateMark,
   GuestbookBlock,
   MapLink,
   PROGRAMME_HEADINGS,
@@ -227,6 +228,7 @@ export function RiangLayout({ props, view }: { props: GuestPageProps; view: Gues
           // eslint-disable-next-line @next/next/no-img-element
           <img src={config.theme.cover.imageUrl} alt="" aria-hidden className={`mx-auto mt-10 aspect-square w-36 rounded-full border-4 ${tone.line} object-cover`} />
         )}
+        <CorporateMark view={view} align="center" className="mt-10" />
         <p className={`inv-rise mt-10 text-sm font-semibold uppercase tracking-[0.2em] ${tone.accent}`}>{config.theme?.cover?.headline || 'Kamu diundang'}</p>
         <h1 className="mx-auto mt-4 max-w-2xl font-serif text-5xl leading-none text-balance [overflow-wrap:anywhere] sm:text-7xl">
           {names?.length

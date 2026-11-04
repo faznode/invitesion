@@ -1,9 +1,9 @@
 <!-- SUMMARY (first 7 lines — greppable) -->
 # templates/_briefs — structured design briefs for guest-page design families (B-030)
 > WHAT: One brief per design family: the problem it answers, the principles it draws on (with evidence IDs), its recipe, controlled variation, assets, review state and open findings. Briefs guide generation; renders and reviews decide.
-> STATUS: ACTIVE (s15, 2026-11-04). Gapura, Kartu, Riang written as-built from code plus the s15 rendered review; Lontar is a new brief (not yet built).
+> STATUS: ACTIVE (s16, 2026-11-04). Gapura, Kartu, Riang written as-built from code (s15); Lontar written as a brief first and then built (s15). All four reviewed with renders in s16 (the s15 review record was never saved).
 > OWNER: template-system workstream (Operator), reviewed under ADR-O09
-> DEPS: ../../.agents/skills/invitesion-template-harness/SKILL.md, ../../lib/invitation/families.ts, ../../invitation-research/_handoff/family-review-20261104-s15.md
+> DEPS: ../../.agents/skills/invitesion-template-harness/SKILL.md, ../../lib/invitation/families.ts, ../../invitation-research/_handoff/family-review-20261104-s16.md
 > GREP: brief, design family, recipe, variation, taste, review, Gapura, Kartu, Riang, Lontar
 > UPDATED: 2026-11-04
 
@@ -27,7 +27,9 @@ Invitesion has no established taste yet. Gapura, Kartu and Riang are first exper
 ## Index
 | Brief | Use case | Status |
 |---|---|---|
-| [gapura.md](gapura.md) | Weddings, ceremonial | reviewed (s15) |
-| [kartu.md](kartu.md) | Weddings, modern stationery | reviewed (s15) |
-| [riang.md](riang.md) | Birthdays, thanksgivings, aqiqah, khitanan, company events | reviewed (s15) |
-| [lontar.md](lontar.md) | Formal and corporate events, programme-led | brief (s15), not built |
+| [gapura.md](gapura.md) | Weddings, ceremonial | revise (s16: photo treatment, phone rhythm) |
+| [kartu.md](kartu.md) | Weddings, modern stationery | kept (s16) |
+| [riang.md](riang.md) | Birthdays, thanksgivings, aqiqah, khitanan, company celebrations | kept for celebrations (s16) |
+| [lontar.md](lontar.md) | Formal and corporate events, programme-led | kept for formal / corporate (s16) |
+
+Review record: `../../invitation-research/_handoff/family-review-20261104-s16.md`. Rendered contrast: `../../invitation-research/_handoff/contrast-sweep-20261104-s16.md`.

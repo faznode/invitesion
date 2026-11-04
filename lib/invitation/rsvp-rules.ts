@@ -20,6 +20,26 @@ export function rsvpAttendance(status: RsvpStatus, requested: number, allowance:
   return Math.min(Math.max(wanted, 1), cap);
 }
 
+/**
+ * RSVP window (B-027). `rsvp.deadline` is an instant saved with the host's offset (detail-config), so the comparison is
+ * zone-independent; only its display uses the event's wall clock (B-004). Closed from the deadline instant on. A missing
+ * or unreadable deadline never closes RSVP (the lenient read path already drops a section that fails the schema).
+ */
+export function rsvpDeadlinePassed(deadline: string | undefined, now: number): boolean {
+  if (!deadline) return false;
+  const at = Date.parse(deadline);
+  return Number.isFinite(at) && now >= at;
+}
+
+export type RsvpClosedReason = 'disabled' | 'deadline';
+
+/** Why an RSVP write must be refused for this config at `now`, or null. The action applies it to every POST. */
+export function rsvpClosedReason(rsvp: { enabled?: boolean; deadline?: string } | undefined, now: number): RsvpClosedReason | null {
+  if (rsvp?.enabled === false) return 'disabled';
+  if (rsvpDeadlinePassed(rsvp?.deadline, now)) return 'deadline';
+  return null;
+}
+
 /** What the RSVP form should preselect: the last answer when the guest is attending, else the full allowance. */
 export function rsvpDefaultCount(guest: { guestCount: number; attendingCount: number | null }): number {
   const allowance = guest.guestCount > 0 ? guest.guestCount : 1;

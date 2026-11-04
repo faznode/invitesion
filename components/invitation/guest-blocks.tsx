@@ -258,6 +258,40 @@ export function ProgrammeBody({ id, view, cardClassName }: { id: ProgrammeSectio
   );
 }
 
+/**
+ * B-029: the organiser's logo and the event category above a corporate headline. The logo sits in a fixed 160 × 64 frame
+ * with intrinsic size attributes, so a logo of any aspect fits without shifting the cover while it loads. Layouts that
+ * lay a photo behind the cover pass their chip classes for the label (`coverText`).
+ */
+export function CorporateMark({
+  view,
+  align,
+  labelClassName,
+  className = '',
+}: {
+  view: GuestView;
+  align: 'center' | 'start';
+  labelClassName?: string;
+  className?: string;
+}) {
+  const { corporateMark: mark, tone } = view;
+  if (!mark) return null;
+  const items = align === 'center' ? 'items-center' : 'items-start';
+  return (
+    <div className={`flex flex-col gap-3 ${items} ${className}`}>
+      {mark.logo && (
+        <span className={`flex h-16 w-40 ${items} ${align === 'center' ? 'justify-center' : 'justify-start'}`}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={mark.logo.src} alt={mark.logo.alt} width={160} height={64} decoding="async" className="max-h-full max-w-full object-contain" />
+        </span>
+      )}
+      {mark.category && (
+        <p className={labelClassName ?? `text-xs font-semibold uppercase tracking-[0.2em] ${tone.muted}`}>{mark.category}</p>
+      )}
+    </div>
+  );
+}
+
 /** RSVP: status notices, then the form for a recognised guest of an active invitation, otherwise an explanation. */
 export function RsvpBlock({
   props,
@@ -271,31 +305,38 @@ export function RsvpBlock({
   fallbackClassName: string;
 }) {
   const { invitation, guest, readOnly, status } = props;
-  const { tone, canRespond } = view;
+  const { tone, canRsvp, rsvpDeadlineText, rsvpClosedByDeadline } = view;
+  const closedText = readOnly
+    ? 'RSVP untuk undangan ini sudah ditutup.'
+    : rsvpClosedByDeadline
+      ? `Batas waktu konfirmasi kehadiran sudah lewat${rsvpDeadlineText ? ` (${rsvpDeadlineText})` : ''}.`
+      : 'Konfirmasi kehadiran tersedia melalui tautan undangan personal yang dikirimkan kepadamu.';
   return (
     <>
       {status.rsvp === 'saved' && <Notice kind="success">Terima kasih, konfirmasimu sudah kami terima.</Notice>}
       {status.rsvp === 'invalid' && <Notice kind="error">Pilihan kehadiran tidak dikenali. Silakan coba lagi.</Notice>}
+      {status.rsvp === 'closed' && <Notice kind="error">Konfirmasimu belum tersimpan karena RSVP untuk undangan ini sudah ditutup.</Notice>}
 
-      {canRespond && guest ? (
+      {canRsvp && guest ? (
         <form action={submitRsvp} className={formClassName}>
           <input type="hidden" name="slug" value={invitation.slug} />
           <input type="hidden" name="guestSlug" value={guestLinkSegment(guest)} />
 
-          <label className="block space-y-1.5">
-            <span className="text-sm font-semibold">Nama</span>
-            {/* Prefilled and locked: identity comes from the guest link, not user input. */}
-            <input
-              value={guest.name}
-              disabled
-              readOnly
-              aria-describedby="rsvp-name-hint"
-              className={`h-11 w-full rounded-lg border ${tone.line} ${tone.soft} px-3 text-sm`}
-            />
-            <span id="rsvp-name-hint" className={`block text-xs ${tone.muted}`}>
-              Nama diambil dari undangan personalmu.
-            </span>
-          </label>
+          {rsvpDeadlineText && (
+            <p className={`text-sm ${tone.muted}`}>
+              Mohon konfirmasi sebelum <span className="font-semibold">{rsvpDeadlineText}</span>.
+            </p>
+          )}
+
+          {/* Identity comes from the guest link, not user input, so the name is text rather than a locked control: it
+              wraps instead of clipping (s15 review F7), stays in the contrast audit and is isolated for RTL names. */}
+          <dl className="flex flex-col gap-1.5">
+            <dt className="text-sm font-semibold">Nama</dt>
+            <dd dir="auto" className={`rounded-lg border ${tone.line} ${tone.soft} px-3 py-2.5 text-sm leading-6 ${HOST_TEXT}`}>
+              {guest.name}
+            </dd>
+            <dd className={`text-xs ${tone.muted}`}>Nama diambil dari undangan personalmu.</dd>
+          </dl>
 
           <label className="block space-y-1.5">
             <span className="text-sm font-semibold">Jumlah yang hadir</span>
@@ -336,11 +377,7 @@ export function RsvpBlock({
           )}
         </form>
       ) : (
-        <p className={fallbackClassName}>
-          {readOnly
-            ? 'RSVP untuk undangan ini sudah ditutup.'
-            : 'Konfirmasi kehadiran tersedia melalui tautan undangan personal yang dikirimkan kepadamu.'}
-        </p>
+        <p className={fallbackClassName}>{closedText}</p>
       )}
     </>
   );
@@ -366,6 +403,7 @@ export function GuestbookBlock({
     <>
       {status.wish === 'saved' && <Notice kind="success">Terima kasih atas ucapanmu.</Notice>}
       {status.wish === 'invalid' && <Notice kind="error">Ucapan tidak boleh kosong.</Notice>}
+      {status.wish === 'closed' && <Notice kind="error">Ucapanmu belum tersimpan karena buku tamu undangan ini sudah ditutup.</Notice>}
 
       {canRespond && guest && (
         <form action={submitGuestMessage} className={formClassName}>

@@ -4,6 +4,7 @@ import { Countdown } from '@/components/invitation/countdown';
 import {
   CalendarLinks,
   EventFacts,
+  CorporateMark,
   GuestbookBlock,
   MapLink,
   PROGRAMME_HEADINGS,
@@ -35,6 +36,7 @@ export function LontarLayout({ props, view }: { props: GuestPageProps; view: Gue
   return (
     <main className={`min-h-screen ${tone.bg} ${tone.ink}`} style={tone.style}>
       <header className="mx-auto w-full max-w-2xl px-5 pb-4 pt-12 sm:pt-20">
+        <CorporateMark view={view} align="start" className="mb-6" />
         {config.theme?.cover?.headline && <p className={`text-xs font-semibold uppercase tracking-[0.25em] ${tone.accent}`}>{config.theme.cover.headline}</p>}
         <h1 className="mt-4 font-serif text-4xl leading-tight text-balance [overflow-wrap:anywhere] sm:text-6xl">
           {names?.length

@@ -1,14 +1,14 @@
 <!-- SUMMARY (first 7 lines — greppable) -->
 # lontar.md — design brief: Lontar, a programme-led family for formal and corporate events
-> WHAT: New brief (s15) written to show the brief → prototype → review loop repeats beyond the first three families. Not built yet.
-> STATUS: brief (2026-11-04). Depends on B-029 (render agenda, speakers, dress code, contact for every layout through shared blocks).
+> WHAT: Brief (s15) written before the layout to show the brief → prototype → review loop repeats beyond the first three families; built in s15 (`components/invitation/families/lontar.tsx`) on the B-029 programme blocks, binding redrawn after the first desktop render, reviewed with renders in s16.
+> STATUS: kept for formal and corporate events (s16 review, 2026-11-04). Verdict in §Review.
 > OWNER: template-system workstream
-> DEPS: README.md, ../../invitation-research/01-codebase-audit/niche-coverage.md, ../../invitation-research/09-masterplan/06-backlog.md (B-029, B-030), ../../lib/invitation/content-contract.ts
+> DEPS: README.md, ../../invitation-research/01-codebase-audit/niche-coverage.md, ../../invitation-research/09-masterplan/06-backlog.md (B-029, B-030), ../../lib/invitation/content-contract.ts, ../../components/invitation/families/lontar.tsx, ../../invitation-research/_handoff/family-review-20261104-s16.md
 > GREP: Lontar, corporate, seminar, agenda, programme, speakers, dress code, B-029
 > UPDATED: 2026-11-04
 
 ## Identity
-`lontar` · Lontar · status **brief**.
+`lontar` · Lontar · status **kept** for formal and corporate events (built s15, reviewed s16).
 
 ## Use case
 Seminars, conferences, company anniversaries, launches, inaugurations, gala and award nights, RUPS, trainings; also formal family events whose invitation is mainly a programme. Guests open it twice: once to decide, once on the day to find the session, the room and the dress code.
@@ -27,7 +27,7 @@ Seminars, conferences, company anniversaries, launches, inaugurations, gala and 
 No competitor's page is a source for this brief. RSVPify, the owner's preferred reference for a modern, elegant frontend, has no rendered observation in the evidence (S-RSV-002: non-browser clients answered 403; no guest page identified), so no RSVPify specific is claimed.
 
 ## Recipe
-- **Cover:** organisation name in muted small caps; event name in the display serif at the largest size that fits two lines at 360 px; one "leaf" band (soft surface, full width, two punched holes and a cord line in CSS, `aria-hidden`) carrying date, time with zone label and venue. Logo only when `logoUrl` is set, in a fixed-ratio frame with the organisation name as alt text.
+- **Cover:** organisation name in muted small caps; event name in the display serif at the largest size that fits two lines at 360 px; one "leaf" band (soft surface, full width, `aria-hidden` CSS ornament) carrying date, time with zone label and venue. The ornament is two punched holes, each with a short cord leaving through the band's top edge; nothing crosses the band, because a cord drawn across it read as a range slider at 1280 px (s15, recorded as L2; s16 render S16-L1). Logo only when `logoUrl` is set, in a fixed-ratio frame with the organisation name as alt text (built in s16, E-021: a 160 × 64 frame above the headline, shared by every layout, from an upload or an http(s) URL; S16-L6).
 - **Programme:** time | title + speaker rows; at ≥ 640 px a two-column grid, at 360 px time above title. Accent only for the time labels (accent on soft and on bg are verified token pairs); speakers muted.
 - **Then:** speakers (name, role, organisation), practical information (dress code, contact as `tel:` / `mailto:` links, map link from the event), RSVP and guestbook through the shared blocks, footer.
 - **Type:** the two self-hosted fonts; serif for event name and section titles, sans for everything a guest scans.
@@ -45,7 +45,11 @@ None (CSS ornament only).
 B-029 first: shared agenda / speakers / dress-code / contact blocks with contract and renderer tests (long, hostile, RTL, empty renders nothing). Then the family: registry entry, layout file, `pnpm test` (rendered tests iterate every family), `page-review.ts` at 360 / 390 / 412 / 1280 + reduced motion with a corporate stress fixture (long organisation, 30 agenda rows, missing logo, expired), `rendered-contrast.ts`, legacy output unchanged.
 
 ## Review
-Not built; nothing reviewed. Technical PASS: n/a. Visual approval: n/a.
+s16 (2026-11-04), `../../invitation-research/_handoff/family-review-20261104-s16.md`: full, photo, corporate (30 agenda rows, long organisation, RTL speaker), birthday (emoji guest), sparse (RTL guest), expired and dark (hostile guest) at 360 / 390 / 412 / 1280 + 390 reduced motion; hostile, RTL, emoji and opaque-link guests at 360. First render of the final two-cord binding.
+- **Technical:** PASS for layout (0 px overflow on all 35 + 4 shots; reduced motion identical, motion level 0). Rendered contrast: `contrast-sweep-20261104-s16.md`. Tests: `tests/design-families.test.ts` ("Lontar: the programme leads …") and the rendered tests that iterate every family.
+- **Visual:** keep for formal and corporate events. The corporate page is clearly programme-led (cover → about → one divided agenda card → speakers → guest information → time and place → RSVP; S16-L2); the binding reads as tie points, not a control, at every width (S16-L1); the photo is framed beside or below the band (S16-L3). A wedding reads as a calm formal letter, spare; a child's birthday reads stiff (S16-L5), so Lontar stays labelled `formal` and is not offered as a children's-party design.
 
 ## Open
-- Build B-029 shared blocks, then Lontar, then review with renders. If the renders do not read as clearly programme-led, revise the brief before polishing the code.
+- S16-L6: **closed in s16.** The logo renders when `logoUrl` is set (E-021: fixed 160 × 64 frame, the organisation's name as alt text, an upload or an http(s) URL), `logoUrl` is `rendered` in the content contract with tests, and an uploaded logo can now be saved at all (E-022: the schema had refused the upload path).
+- S16-L7: the phone and email links in Informasi Tamu sit far apart (two 44 px targets); keep unless a denser pattern keeps the target size.
+- s15 F7: **closed in s16** by B-027 slice 1 (E-020): the RSVP name is wrapping text in every layout.

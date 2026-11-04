@@ -41,16 +41,21 @@ export const RENDER_CAPABILITIES = {
     ],
   },
   corporateProfile: {
-    // B-029: the programme renders when filled (`lib/invitation/programme.ts`); category and logo are not shown yet.
-    rendered: ['organizationName', 'eventName', 'description', 'agenda', 'speakers', 'dressCode', 'contactName', 'contactPhone', 'contactEmail'],
-    storedOnly: ['eventCategory', 'logoUrl'],
+    // B-029: the programme renders when filled (`lib/invitation/programme.ts`); logo (an upload or an http(s) URL,
+    // `lib/invitation/image-url.ts`) and category above the headline (`lib/invitation/corporate-mark.ts`).
+    rendered: [
+      'organizationName', 'eventName', 'description', 'agenda', 'speakers', 'dressCode', 'contactName', 'contactPhone', 'contactEmail',
+      'eventCategory', 'logoUrl',
+    ],
+    storedOnly: [],
   },
   theme: { rendered: ['paletteId', 'familyId', 'cover.imageUrl', 'cover.headline'], storedOnly: [], hostOnly: ['templateId'] },
   events: { rendered: ['title', 'startAt', 'endAt', 'venueName', 'address', 'mapUrl', 'note'], storedOnly: [] },
   music: { rendered: [], storedOnly: ['enabled', 'assetUrl', 'title', 'autoplay'] },
   greetings: { rendered: ['enabled', 'prayer'], storedOnly: [] },
   gift: { rendered: ['enabled', 'accounts', 'label', 'number', 'holder', 'note'], storedOnly: ['kind'] },
-  rsvp: { rendered: ['enabled'], storedOnly: ['deadline', 'maxGuestsPerRsvp'] },
+  // B-027: the deadline is shown in the event's wall clock and closes the form and the action from that instant on.
+  rsvp: { rendered: ['enabled', 'deadline'], storedOnly: ['maxGuestsPerRsvp'] },
   gallery: { rendered: ['enabled'], storedOnly: ['layout'], hostOnly: ['assetIds'] },
   streaming: { rendered: ['enabled', 'url'], storedOnly: ['platform', 'scheduledAt'] },
   story: { rendered: ['enabled', 'items', 'date', 'title', 'body'], storedOnly: [] },

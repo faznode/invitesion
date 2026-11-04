@@ -1,14 +1,14 @@
 <!-- SUMMARY (first 7 lines — greppable) -->
 # kartu.md — design brief (as built): Kartu, an asymmetric stack of printed cards
-> WHAT: As-built brief for the Kartu family (B-030 slice 1, code s14), written in s15 from `components/invitation/families/kartu.tsx` and the s15 rendered review.
-> STATUS: reviewed (s15). Verdict in §Review.
+> WHAT: As-built brief for the Kartu family (B-030 slice 1, code s14), written in s15 from `components/invitation/families/kartu.tsx`; review state from the s16 rendered review (the s15 review record was never saved).
+> STATUS: reviewed (s16): keep. Verdict in §Review.
 > OWNER: template-system workstream
-> DEPS: README.md, ../../components/invitation/families/kartu.tsx, ../../lib/invitation/families.ts, ../../invitation-research/_handoff/family-review-20261104-s15.md
+> DEPS: README.md, ../../components/invitation/families/kartu.tsx, ../../lib/invitation/families.ts, ../../invitation-research/_handoff/family-review-20261104-s16.md
 > GREP: Kartu, card, ticket, stationery, perforation, asymmetric, wedding
 > UPDATED: 2026-11-04
 
 ## Identity
-`kartu` · Kartu · status **reviewed** (s15).
+`kartu` · Kartu · status **kept** (reviewed s16).
 
 ## Use case
 Weddings with a modern-stationery tone; works for any event with one or more dated sessions.
@@ -38,7 +38,9 @@ None (CSS ornament only).
 As Gapura; no text-over-photo case by construction.
 
 ## Review
-See `../../invitation-research/_handoff/family-review-20261104-s15.md` § Kartu.
+s16 (2026-11-04), `../../invitation-research/_handoff/family-review-20261104-s16.md`: full, photo, corporate, birthday, sparse (RTL), expired and dark (hostile) at 360 / 390 / 412 / 1280 + 390 reduced motion; hostile, RTL, emoji and opaque-link guests at 360.
+- **Technical:** PASS for layout (0 px overflow on every shot; s15 F2 organiser and F3 programme eyebrows verified). Rendered contrast: `contrast-sweep-20261104-s16.md`.
+- **Visual:** keep. The most consistent family across event types in this review: the stationery card, the dashed date stamp and the eyebrow → title hierarchy hold for weddings, birthdays and the corporate fixture; the cover photo is framed at full strength with nothing over it (S16-X1, candidate T1).
 
 ## Open
-See the review record.
+- s15 F7 (shared RSVP name input clips long names) belongs to B-027.

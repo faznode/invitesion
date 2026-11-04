@@ -7,6 +7,7 @@ import { RiangLayout } from '@/components/invitation/families/riang';
 import {
   CalendarLinks,
   EventFacts,
+  CorporateMark,
   GuestbookBlock,
   MapLink,
   PROGRAMME_HEADINGS,
@@ -65,6 +66,7 @@ function LegacyLayout({ props, view }: LayoutProps) {
           <img src={config.theme.cover.imageUrl} alt="" aria-hidden className="absolute inset-0 h-full w-full object-cover opacity-25" />
         )}
         <div className="relative">
+          <CorporateMark view={view} align="center" className="mb-6" labelClassName={coverText(`text-xs font-semibold uppercase tracking-[0.2em] ${tone.muted}`)} />
           {config.theme?.cover?.headline && <p className={coverText(`text-xs uppercase tracking-[0.3em] ${tone.accent}`)}>{config.theme.cover.headline}</p>}
           {names?.length ? (
             <h1 className="mt-6 font-serif text-4xl leading-tight sm:text-5xl">

@@ -1,10 +1,12 @@
 import { isFlagOn } from '@/lib/flags';
 import { calendarEventsFromConfig } from '@/lib/invitation/calendar';
+import { corporateMarkOf } from '@/lib/invitation/corporate-mark';
 import type { DetailConfig } from '@/lib/invitation/detail-config';
 import { eventDateParts, formatEventDate, formatEventTime } from '@/lib/invitation/event-time';
 import { invitationDisplayName, invitationHeadline } from '@/lib/invitation/headline';
 import { palette } from '@/lib/invitation/palettes';
 import { programmeOf } from '@/lib/invitation/programme';
+import { rsvpDeadlinePassed } from '@/lib/invitation/rsvp-rules';
 import type { Guest, Invitation, MediaAsset } from '@/lib/db/schema';
 
 export type GuestMessage = { id: number; name: string; message: string; createdAt: Date };
@@ -47,6 +49,14 @@ export function buildGuestView({ invitation, config, guest, media, readOnly }: G
       : undefined;
   const gallery = config.gallery?.enabled !== false ? media.filter((asset) => asset.type === 'photo') : [];
   const canRespond = Boolean(guest) && !readOnly;
+  // B-027: the host's RSVP deadline closes the RSVP form only (the guestbook stays open); the action applies the same
+  // rule to every POST, so a page rendered before the deadline cannot write after it.
+  const rsvpDeadline = config.rsvp?.deadline;
+  const rsvpClosedByDeadline = rsvpDeadlinePassed(rsvpDeadline, renderedAt);
+  // Shown only when the rule reads the same value, so the page never announces a deadline the action would not enforce.
+  const deadlineParts = rsvpDeadline && Number.isFinite(Date.parse(rsvpDeadline)) ? [formatDate(rsvpDeadline), formatTime(rsvpDeadline)] : [];
+  const rsvpDeadlineText = deadlineParts.length === 2 && deadlineParts.every(Boolean) ? deadlineParts.join(', ') : undefined;
+  const canRsvp = canRespond && !rsvpClosedByDeadline;
   // Small text drawn over a cover photo sits on an opaque page-colour chip: accent tokens clear AA on bg itself, but a
   // dark region of a 20–25 % photo can pull them to 2.8:1 (B-016, tests/palette-contrast.test.ts). No photo, no change.
   // Block-level so the chip never shares a line with the inline guest card that follows it (s15 review F6).
@@ -70,8 +80,20 @@ export function buildGuestView({ invitation, config, guest, media, readOnly }: G
           contactEmail: config.corporateProfile?.contactEmail,
         })
       : null;
+  // B-029: the organiser's logo and the event category, corporate invitations only and render-when-filled (S16-L6).
+  const corporateMark =
+    invitation.eventType === 'corporate'
+      ? corporateMarkOf({
+          logoUrl: config.corporateProfile?.logoUrl,
+          eventCategory: config.corporateProfile?.eventCategory,
+          organisation,
+        })
+      : null;
 
-  return { tone, formatDate, formatTime, dateParts, names, events, primaryEvent, renderedAt, primaryStartMs, showCountdown, primaryCalendarEvent, gallery, canRespond, coverText, programme, organiser };
+  return {
+    tone, formatDate, formatTime, dateParts, names, events, primaryEvent, renderedAt, primaryStartMs, showCountdown, primaryCalendarEvent, gallery,
+    canRespond, canRsvp, rsvpDeadlineText, rsvpClosedByDeadline, coverText, programme, organiser, corporateMark,
+  };
 }
 
 export type GuestView = ReturnType<typeof buildGuestView>;

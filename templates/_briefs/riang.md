@@ -1,14 +1,14 @@
 <!-- SUMMARY (first 7 lines — greppable) -->
 # riang.md — design brief (as built): Riang, bands and bunting for celebrations
-> WHAT: As-built brief for the Riang family (B-030 slice 1, code s14), written in s15 from `components/invitation/families/riang.tsx` and the s15 rendered review. The non-wedding family the B-030 acceptance requires.
-> STATUS: reviewed (s15). Verdict in §Review.
+> WHAT: As-built brief for the Riang family (B-030 slice 1, code s14), written in s15 from `components/invitation/families/riang.tsx`; review state from the s16 rendered review (the s15 review record was never saved). The non-wedding family the B-030 acceptance requires.
+> STATUS: reviewed (s16): keep for celebrations. Verdict in §Review.
 > OWNER: template-system workstream
-> DEPS: README.md, ../../components/invitation/families/riang.tsx, ../../lib/invitation/families.ts, ../../invitation-research/_handoff/family-review-20261104-s15.md
+> DEPS: README.md, ../../components/invitation/families/riang.tsx, ../../lib/invitation/families.ts, ../../invitation-research/_handoff/family-review-20261104-s16.md
 > GREP: Riang, birthday, celebration, bunting, umbul-umbul, bands, calendar tile, aqiqah, khitanan
 > UPDATED: 2026-11-04
 
 ## Identity
-`riang` · Riang · status **reviewed** (s15).
+`riang` · Riang · status **kept** for celebrations (reviewed s16).
 
 ## Use case
 Birthdays, thanksgivings (syukuran), aqiqah, khitanan and informal company events: invitations whose guests mostly need when and where.
@@ -38,7 +38,10 @@ None (CSS ornament only).
 As Gapura; birthday fixture (`review-riang-birthday`) in addition to the wedding fixtures.
 
 ## Review
-See `../../invitation-research/_handoff/family-review-20261104-s15.md` § Riang.
+s16 (2026-11-04), `../../invitation-research/_handoff/family-review-20261104-s16.md`: full, photo, corporate, birthday, sparse (RTL), expired and dark (hostile) at 360 / 390 / 412 / 1280 + 390 reduced motion; hostile, RTL, emoji and opaque-link guests at 360.
+- **Technical:** PASS for layout (0 px overflow on every shot; s15 F2 organiser, F5 centred chips and F8 single-event width verified). Rendered contrast: `contrast-sweep-20261104-s16.md`.
+- **Visual:** keep for celebrations. Bunting, the date tile and centred chips read playful for birthdays and thanksgivings; on the corporate conference fixture the bunting is off-tone (S16-X3), although everything renders correctly.
 
 ## Open
-See the review record.
+- S16-X3: the editor names Riang's intended use but does not flag a formal event; a mismatch hint is a product follow-up, not a layout change.
+- s15 F7 (shared RSVP name input clips long names) belongs to B-027.

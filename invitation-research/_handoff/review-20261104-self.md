@@ -1,7 +1,7 @@
 <!-- SUMMARY (first 7 lines — greppable) -->
 # review-20261104-self.md — owner-authorized self-review of the research / masterplan milestone (RQ-VER-03)
 > WHAT: The authoring session's review of its own research and masterplan work, done under owner authority (ADR-O09) against `review-request-s14.md`. It is not an independent review and not a Guardian approval.
-> STATUS: in progress, 2026-11-04 (s14). Areas 2, 3 (code) and 5 done; areas 1, 3 (outputs), 4 and 6 follow the v2 batch checks.
+> STATUS: complete, 2026-11-04 (areas 2, 3 code and 5 in s14; areas 1, 3 outputs, 4 and 6 closed in s16 with the §3 checks re-run on the current tree). Verdict in §5.
 > OWNER: authoring session s14, reviewing under ADR-O09
 > DEPS: review-request-s14.md, acceptance-matrix.md, ../09-masterplan/, ../04-template-benchmarks/benchmark-pack.md, ../02-competitor-discovery/robots-applicability-s12.md, ../_tools/
 > GREP: self-review, RQ-VER-03, ADR-O09, finding, re-derived, verified, Q-O09, D-030, population
@@ -15,12 +15,12 @@
 ## 2. Method per area (`review-request-s14.md` §2)
 | Area | What was re-derived or re-read | Result |
 |---|---|---|
-| 1 Acceptance matrix | Each status re-derived from its named check after the batch | pending (§4) |
+| 1 Acceptance matrix | Each status re-derived from its named check after the batch | s16: every check a row names that is in the §3 list was re-run and still supports the row (59 rows: 49 VERIFIED; PARTIAL RQ-COMP-04, RQ-COMP-05, RQ-OWN-02, RQ-BENCH-05; RQ-DEMO-01 qualified, ADR-O10; RQ-VER-03 this review; RQ-ORIG-01…04 specified, limited or removed). Rows resting on document reads (dossiers, discovery, S- reads) were not re-read in s16 and keep their s14 / s15 verification. No status changed |
 | 2 Robots applicability (D-030 / D-031) | §1–§7 of the applicability audit read against its sources table; the rule table checked for internal consistency against the per-origin results | Sound and conservative; finding F1 |
-| 3 Measurement populations | Code read: `eligibility.py` rules 7–8, `measurement_population`, `v12_population`, `benchmark-pack.py` viewport populations; outputs checked independently after the batch | Code: separation enforced; outputs pending (§4) |
-| 4 Benchmark pack and protocol | Viewport conclusions against paired, verified captures after regeneration | pending (§4) |
+| 3 Measurement populations | Code read: `eligibility.py` rules 7–8, `measurement_population`, `v12_population`, `benchmark-pack.py` viewport populations; outputs checked independently after the batch | Code: separation enforced. Outputs (s16): `summarize-captures.py --strict` regenerates 165 captures (unconditional: cold-load eligible 132, structure eligible 126; sensitivity with provisional rows 145 / 132; register 26 rows, 13 provisional) byte-identical to the committed `captures-summary.csv`; the populations stay separate in the outputs |
+| 4 Benchmark pack and protocol | Viewport conclusions against paired, verified captures after regeneration | s16: `benchmark-pack.py --check` exit 0 (generated files not stale) and 22 / 22 pack tests. The viewport limits stay as RQ-BENCH-05 states them; Protocol v2 verifies final emulation only |
 | 5 Masterplan consistency | Fresh table parser over `06-backlog.md`; reference resolver over every chapter and handoff file; ADR-A1 numbers recomputed from the s09 round-1 summary; RQ-COMP-02 dossier scan | Verified; no finding |
-| 6 Privacy and provenance | `commit-guard.sh` and `check-references.py` after the batch | pending (§4) |
+| 6 Privacy and provenance | `commit-guard.sh` and `check-references.py` after the batch | s16: `commit-guard.sh` OK at both s16 commits; `check-references.py` 0 unresolved on the current tree. The host's `.gitignore` rewrite was caught and reverted before any commit (session 16, 18:30Z) |
 
 ## 3. Findings
 | # | Area | Finding | Severity | Status |
@@ -32,7 +32,24 @@
 | V4 | 1 / 5 | RQ-COMP-02: 15 Tier-A dossiers, each with 12 / 12 numbered sections matching the template, no TODO / TBD marker, 10 Indonesian vendors | — | Verified |
 
 ## 4. Checks re-run (`review-request-s14.md` §3)
-pending: filled in after the v2 batch and output regeneration.
+s16, 18:52Z, on the tree after commit `409fbe1`. Load: contrast run 2 (Lighthouse `color-contrast` only) was running; no performance measurement ran, and these checks are deterministic offline reads.
+
+| Check | Result |
+|---|---|
+| `check-references.py` | 69 files, 2,738 ID references, 10 relative links, 753 quoted paths, **0 unresolved** |
+| `test_eligibility.py` | 38 / 38 OK |
+| `test_benchmark_pack.py` | 22 / 22 OK |
+| `summarize-captures.py --strict` | 165 captures; output **byte-identical** to the committed `captures-summary.csv` |
+| `benchmark-pack.py --check` | exit 0 (not stale) |
+| `build-matrix.py --check` | 187 × 16; 633 / 2,805 competitor cells known; 69 derived; 3 disagreements; 10 sensitivity changes; 0 errors |
+| `test_profile_reads.py` | 28 / 28 OK |
+| `node --test` robots + capture-profile | 21 / 21 (15 + 6) |
+| `commit-guard.sh` | OK at `64701bb` and `409fbe1` |
+| `pnpm typecheck && pnpm test` | 0; 147 / 147 at `409fbe1`; 153 / 153 with the B-029 logo and category change (E-021) |
 
 ## 5. Verdict
-pending.
+Owner-authorized self-review (ADR-O09): not an independent review and not a Guardian approval.
+- **Records:** the research and masterplan records that exist agree with their evidence. Every §3 check passes on the current tree, regenerated outputs equal the committed ones, and every ID and quoted path resolves. No acceptance-matrix status had to change.
+- **Milestone: not complete.** RQ-COMP-04, RQ-COMP-05, RQ-OWN-02 and RQ-BENCH-05 stay PARTIAL; RQ-DEMO-01 is qualified by availability (ADR-O10); RQ-ORIG-01…03 are specified or environment-limited, not done. Implementation continues alongside them (ADR-O08), and any conclusion that depends on them stays qualified.
+- **Open:** F1 (latent robots rule gap; no read relied on it). Q-O09 is not ruled here.
+- **Decision:** the records may be relied on for continued implementation within the limits stated above and in the acceptance matrix.

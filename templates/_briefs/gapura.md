@@ -1,14 +1,14 @@
 <!-- SUMMARY (first 7 lines — greppable) -->
 # gapura.md — design brief (as built): Gapura, symmetric and ceremonial
-> WHAT: As-built brief for the Gapura family (B-030 slice 1, code s14), written in s15 from `components/invitation/families/gapura.tsx` and the s15 rendered review.
-> STATUS: reviewed (s15). Verdict in §Review.
+> WHAT: As-built brief for the Gapura family (B-030 slice 1, code s14), written in s15 from `components/invitation/families/gapura.tsx`; review state from the s16 rendered review (the s15 review record was never saved).
+> STATUS: reviewed (s16): keep, revise photo treatment and phone rhythm. Verdict in §Review.
 > OWNER: template-system workstream
-> DEPS: README.md, ../../components/invitation/families/gapura.tsx, ../../lib/invitation/families.ts, ../../invitation-research/_handoff/family-review-20261104-s15.md
+> DEPS: README.md, ../../components/invitation/families/gapura.tsx, ../../lib/invitation/families.ts, ../../invitation-research/_handoff/family-review-20261104-s16.md
 > GREP: Gapura, gate, arch, ceremonial, wedding, symmetric
 > UPDATED: 2026-11-04
 
 ## Identity
-`gapura` · Gapura · status **reviewed** (s15).
+`gapura` · Gapura · status **revise** (reviewed s16; keep the family, revise two findings).
 
 ## Use case
 Weddings with a ceremonial tone (akad, pemberkatan, resepsi). Renders every event type.
@@ -38,7 +38,11 @@ None (CSS ornament only).
 `pnpm test` (rendered tests over every family), `page-review.ts` (360 / 390 / 412 / 1280 + reduced motion), stress guests, `rendered-contrast.ts`, text-over-photo bound in `tests/palette-contrast.test.ts`.
 
 ## Review
-See `../../invitation-research/_handoff/family-review-20261104-s15.md` § Gapura.
+s16 (2026-11-04), `../../invitation-research/_handoff/family-review-20261104-s16.md`: full, photo, corporate, birthday, sparse (RTL), expired and dark (hostile) at 360 / 390 / 412 / 1280 + 390 reduced motion; hostile, RTL, emoji and opaque-link guests at 360.
+- **Technical:** PASS for layout (0 px overflow on every shot; s15 F2 organiser and F4 venue-pin fixes verified). Rendered contrast: `contrast-sweep-20261104-s16.md`.
+- **Visual:** keep, revise. The arch reads ceremonial and suits weddings; on the corporate fixture it reads ceremonial rather than business-formal. S16-X1: the cover photo at 20 % opacity behind the text becomes a grey veil with a high-contrast photo. S16-X2: about 180 px of empty page between the guest card and the opening copy at 360 px.
 
 ## Open
-See the review record.
+- S16-X1: frame the photo inside the arch at full strength instead of fading it behind text (keep names in ink and the chips only where text still meets the photo); re-render with a low-contrast photo too.
+- S16-X2: tighten the gap after the cover on phones to the section rhythm.
+- s15 F7 (shared RSVP name input clips long names) belongs to B-027.

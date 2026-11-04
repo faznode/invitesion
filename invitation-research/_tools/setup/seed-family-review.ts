@@ -7,7 +7,9 @@
  * (the verified corpus is empty, B-003). Event dates are relative to the run so the countdown and calendar links show.
  *
  *   POSTGRES_URL=postgres://postgres@127.0.0.1:5433/invitesion \
- *     npx tsx invitation-research/_tools/setup/seed-family-review.ts [--cover-url http://127.0.0.1:3100/review/cover.png] [--palettes]
+ *     npx tsx invitation-research/_tools/setup/seed-family-review.ts [--cover-url http://127.0.0.1:3100/review/cover.png] [--palettes] \
+ *       [--logo-url /media/900001/b029b029b029b029b029b029.png]   (fictional logo on every corporate variant, B-029; an
+ *       upload path as the editor stores it, or an http(s) URL)
  *
  * Guest pages: /i/review-<layout>-<variant>/<guest>. Layouts: legacy | gapura | kartu | riang | lontar. Variants: full | photo
  * (only with --cover-url) | sparse | birthday | corporate (B-029 programme stress) | expired | dark (legacy: full, photo,
@@ -118,8 +120,8 @@ function birthday(familyId?: FamilyId): DetailConfig {
   };
 }
 
-/** B-029 stress: a long organisation name, 30 agenda rows (one very long), long and RTL speakers, contact links, no logo. */
-function corporate(familyId?: FamilyId): DetailConfig {
+/** B-029 stress: a long organisation name, 30 agenda rows (one very long), long and RTL speakers, contact links; logo only with --logo-url. */
+function corporate(familyId?: FamilyId, logoUrl?: string): DetailConfig {
   const agenda = Array.from({ length: 30 }, (_, index) => {
     const minutes = 8 * 60 + index * 15;
     const time = `${String(Math.floor(minutes / 60)).padStart(2, '0')}.${String(minutes % 60).padStart(2, '0')} WITA`;
@@ -131,6 +133,7 @@ function corporate(familyId?: FamilyId): DetailConfig {
       organizationName: 'PT Contoh Nusantara Sejahtera Abadi Makmur Sentosa (Persero) Tbk',
       eventName: 'Konferensi Mitra Tahunan 2026',
       eventCategory: 'conference',
+      ...(logoUrl ? { logoUrl } : {}),
       description: 'Pertemuan tahunan mitra, pemasok, dan karyawan untuk meninjau capaian dan rencana tahun depan.\nSeluruh nama dan data dalam undangan ini fiktif.',
       agenda,
       speakers: [
@@ -173,7 +176,7 @@ function paletteSweep(): ReviewInvitation[] {
   );
 }
 
-export function familyReviewInvitations(coverImageUrl?: string, withPaletteSweep = false): ReviewInvitation[] {
+export function familyReviewInvitations(coverImageUrl?: string, withPaletteSweep = false, logoUrl?: string): ReviewInvitation[] {
   const withToken = (slug: string): GuestSeed[] => [...STRESS_GUESTS, { name: 'Tamu Bertoken', slug: 'tamu-bertoken', guestCount: 2, linkToken: reviewToken(slug) }];
   const make = (slug: string, config: DetailConfig, options: Partial<Pick<ReviewInvitation, 'eventType' | 'expired' | 'withMessages'>> = {}): ReviewInvitation => ({
     slug,
@@ -186,13 +189,13 @@ export function familyReviewInvitations(coverImageUrl?: string, withPaletteSweep
   const fullPalette: Record<FamilyId, string> = { gapura: 'ivory', kartu: 'terracotta', riang: 'ocean', lontar: 'sage' };
   const rows: ReviewInvitation[] = [make('review-legacy-full', weddingFull('ivory'))];
   if (coverImageUrl) rows.push(make('review-legacy-photo', weddingFull('ivory', undefined, coverImageUrl)));
-  rows.push(make('review-legacy-corporate', corporate(), { eventType: 'corporate', withMessages: false }));
+  rows.push(make('review-legacy-corporate', corporate(undefined, logoUrl), { eventType: 'corporate', withMessages: false }));
   for (const familyId of FAMILY_IDS) {
     rows.push(make(`review-${familyId}-full`, weddingFull(fullPalette[familyId], familyId)));
     if (coverImageUrl) rows.push(make(`review-${familyId}-photo`, weddingFull(fullPalette[familyId], familyId, coverImageUrl)));
     rows.push(make(`review-${familyId}-sparse`, weddingSparse(familyId), { withMessages: false }));
     rows.push(make(`review-${familyId}-birthday`, birthday(familyId), { eventType: 'birthday' }));
-    rows.push(make(`review-${familyId}-corporate`, corporate(familyId), { eventType: 'corporate', withMessages: false }));
+    rows.push(make(`review-${familyId}-corporate`, corporate(familyId, logoUrl), { eventType: 'corporate', withMessages: false }));
     rows.push(make(`review-${familyId}-expired`, weddingFull(fullPalette[familyId], familyId), { expired: true }));
     rows.push(make(`review-${familyId}-dark`, weddingFull('midnight', familyId)));
   }
@@ -245,8 +248,8 @@ async function seed(row: ReviewInvitation, ownerId: number) {
 }
 
 async function main() {
-  const coverIndex = process.argv.indexOf('--cover-url');
-  const rows = familyReviewInvitations(coverIndex > 0 ? process.argv[coverIndex + 1] : undefined, process.argv.includes('--palettes'));
+  const argValue = (flag: string) => (process.argv.indexOf(flag) > 0 ? process.argv[process.argv.indexOf(flag) + 1] : undefined);
+  const rows = familyReviewInvitations(argValue('--cover-url'), process.argv.includes('--palettes'), argValue('--logo-url'));
   const owner = await upsertOwner();
   const seeded: string[] = [];
   for (const row of rows) seeded.push(await seed(row, owner.id));

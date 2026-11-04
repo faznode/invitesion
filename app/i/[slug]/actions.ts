@@ -5,9 +5,10 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { db } from '@/lib/db/drizzle';
 import { analyticsEvents, guestMessages, guests, invitations } from '@/lib/db/schema';
+import { normalizeStoredConfig } from '@/lib/invitation/content-read';
 import { findGuestByLinkSegment } from '@/lib/invitation/public';
 import { guestPath } from '@/lib/invitation/public-url';
-import { isRsvpStatus, rsvpAttendance } from '@/lib/invitation/rsvp-rules';
+import { isRsvpStatus, rsvpAttendance, rsvpClosedReason } from '@/lib/invitation/rsvp-rules';
 
 /**
  * Resolves the invitation + guest pair a public form submission refers to, and
@@ -24,7 +25,9 @@ async function openInvitationFor(slug: string, guestSlug: string) {
   const guest = await findGuestByLinkSegment(invitation.id, guestSlug);
   if (!guest) return null;
 
-  return { invitation, guest };
+  // The same lenient read as the page, so the action enforces exactly the switches and deadline the guest saw.
+  const { config } = normalizeStoredConfig(invitation.config ?? {});
+  return { invitation, guest, config };
 }
 
 export async function submitRsvp(formData: FormData) {
@@ -35,6 +38,9 @@ export async function submitRsvp(formData: FormData) {
 
   const context = await openInvitationFor(slug, guestSlug);
   if (!context) redirect(`${guestPath(slug, guestSlug)}?rsvp=closed`);
+  // B-027: a hidden form is not a closed one. RSVP switched off, or past its deadline, refuses every POST, including a
+  // page that was rendered while it was still open.
+  if (rsvpClosedReason(context.config.rsvp, Date.now())) redirect(`${guestPath(slug, guestSlug)}?rsvp=closed`);
 
   if (!isRsvpStatus(status)) {
     redirect(`${guestPath(slug, guestSlug)}?rsvp=invalid`);
@@ -63,6 +69,7 @@ export async function submitGuestMessage(formData: FormData) {
 
   const context = await openInvitationFor(slug, guestSlug);
   if (!context) redirect(`${guestPath(slug, guestSlug)}?wish=closed`);
+  if (context.config.guestbook?.enabled === false) redirect(`${guestPath(slug, guestSlug)}?wish=closed`);
 
   if (!message || message.length > 1000) {
     redirect(`${guestPath(slug, guestSlug)}?wish=invalid`);

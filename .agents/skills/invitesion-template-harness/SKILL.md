@@ -13,8 +13,8 @@ Precedence: `AGENTS.md` > this skill > third-party skills. Third-party design sk
 `frontend-design`, …) may inform craft; they never override the rules below.
 
 ## Hard rules
-- **Invitesion has no established taste yet.** Gapura, Kartu and Riang are experiments. Keep, revise or retire a
-  family on rendered evidence, never because it exists or because a brief says so.
+- **Invitesion has no established taste yet.** Gapura, Kartu, Riang and Lontar are experiments. Keep, revise or
+  retire a family on rendered evidence, never because it exists or because a brief says so.
 - **No copying.** Extract principles, structure and measurements only. Never a competitor's layout, component
   combination, asset, font, audio, illustration, branding or wording.
 - **Observed or not claimed.** Every visual statement names the render it comes from (file, viewport, fixture,
@@ -64,9 +64,21 @@ npx tsx tools/template-harness/page-review.ts --out /tmp/review --url gapura=htt
 npx tsx tools/template-harness/page-review.ts --out /tmp/review-m --mobile-only --url …   # stress guests at 360 × 800
 npx tsx tools/template-harness/rendered-contrast.ts --out /tmp/contrast --url legacy-ivory=…/i/review-legacy-p-ivory/budi-hartono
 ```
-Fixture pages: `/i/review-<legacy|gapura|kartu|riang>-<full|photo|sparse|birthday|expired|dark>/<guest>`; guests
-`budi-hartono`, `nama-panjang`, `hostile-name`, `rtl-name`, `emoji-name`; palette sweep `/i/review-<layout>-p-<paletteId>/budi-hartono`.
+Fixture pages: `/i/review-<legacy|gapura|kartu|riang|lontar>-<full|photo|corporate|sparse|birthday|expired|dark>/<guest>`
+(legacy: full, photo, corporate); guests `budi-hartono`, `nama-panjang`, `hostile-name`, `rtl-name`, `emoji-name`, plus one
+opaque-link guest per invitation (token in the seed output); palette sweep `/i/review-<layout>-p-<paletteId>/budi-hartono`.
 Never run screenshots, builds or tests while a capture batch runs (shared CPU skews its measurements).
+
+**Rendered-contrast verdicts** (`rendered-contrast.ts`, logic in `contrast-gate.ts`, tests `tests/rendered-contrast.test.ts`):
+PASS (exit 0) only when every page ran, scored 1 with no failing node, and axe's needs-review list holds no
+`color-contrast` node; FAIL (exit 1) on any failing node; INCOMPLETE (exit 3) for a null / missing / errored /
+not-applicable audit, a runtime error, a redirect, an unreadable report, missing artifacts or unmeasured text (text over
+a photo always lands here; it is bounded by `worstContrastOverImage`, not by axe). INCOMPLETE is never a finished gate.
+
+**Review-only fonts.** The sandbox has Noto Sans only, so Arabic and emoji render as boxes. For review screenshots,
+unpack `dejavu-sans-fonts` and `google-noto-emoji-color-fonts` (`sudo dnf install --downloadonly`, `rpm2archive`) into
+`/tmp/review-fonts` and point only the review Chrome at them with `FONTCONFIG_FILE` (recipe in
+`family-review-20261104-s16.md` §2). Disclose it in the record; these fonts never ship and the capture Chrome never uses them.
 
 ## Review checklist (per family, per render)
 1. 360 × 800, 390 × 844, 412 × 915, 1280 × 800, 390 × 844 reduced motion; overflow 0 px everywhere.
@@ -80,8 +92,14 @@ Never run screenshots, builds or tests while a capture batch runs (shared CPU sk
 8. Verdict: technical PASS / FAIL (gates) and visual verdict (keep / revise / retire) on separate lines.
 
 ## Current families and review state
-See `templates/_briefs/` (one brief each) and the latest `invitation-research/_handoff/family-review-*.md`.
+See `templates/_briefs/` (one brief each) and the latest `invitation-research/_handoff/family-review-*.md`
+(s16: Gapura revise, Kartu kept, Riang kept for celebrations, Lontar kept for formal / corporate events).
 
 ## Emerging taste
-Nothing is listed here until a principle has survived a written review on more than one family. Candidates and their
-evidence live in the review records.
+A principle is listed here only after it survived a written review on more than one family. Candidates and their
+evidence live in the review records (s16: T1 frame photos instead of fading them, T3 phone rhythm).
+- **Repeated rows share one container.** A schedule, a list of sessions or any run of same-shaped rows is one card
+  divided by hairlines, with a scanning column (time) where the rows have one; separate cards are for distinct
+  entities (an event, a speaker, a gift account). Evidence: s15 F1 (30 agenda cards took ≈ 3,100 px of a 6,378 px page
+  at 360 px) and `family-review-20261104-s16.md` §3–§4 (one divided card on all five layouts, corporate pages
+  5,727–6,289 px at 360 px, readable at 360 and 1280).

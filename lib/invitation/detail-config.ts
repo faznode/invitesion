@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { FAMILY_IDS } from './families';
+import { isAbsoluteUrl, isUploadedMediaPath } from './image-url';
 
 /**
  * Typed contract for the invitation detail editor.
@@ -15,6 +16,21 @@ const trimmed = (max: number) => z.string().trim().max(max);
 const optionalText = (max: number) => trimmed(max).optional();
 const idText = trimmed(80).regex(/^[a-zA-Z0-9_-]+$/, 'Only letters, numbers, underscores, and hyphens are allowed');
 const dateTime = z.string().datetime({ offset: true });
+
+/**
+ * An image field the editor fills with `ImageUpload`. The upload route answers with the relative `/media/<key>` path,
+ * which `.url()` refused, so every save after an upload failed. This takes that path plus everything `.url()` took, and
+ * reports anything else with the same issue as before.
+ */
+const imageUrlField = () =>
+  z
+    .string()
+    .max(500)
+    .superRefine((value, ctx) => {
+      if (isUploadedMediaPath(value) || isAbsoluteUrl(value)) return;
+      ctx.addIssue({ code: z.ZodIssueCode.invalid_string, validation: 'url', message: 'Invalid url' });
+    })
+    .optional();
 
 const conditionalSchema = z.object({
   questionId: idText,
@@ -129,7 +145,7 @@ export const coupleSideSchema = z.object({
   parents: optionalText(300),
   order: z.number().int().min(0).max(50).optional(), // child order (anak ke-)
   instagram: optionalText(100),
-  photoUrl: z.string().url().max(500).optional(),
+  photoUrl: imageUrlField(),
 });
 
 export const giftAccountSchema = z.object({
@@ -189,7 +205,7 @@ export const detailConfigSchema = z
         birthDate: z.string().date().optional(),
         age: z.number().int().min(1).max(120).optional(),
         parents: optionalText(300),
-        photoUrl: z.string().url().max(500).optional(),
+        photoUrl: imageUrlField(),
         instagram: optionalText(100),
         message: optionalText(600),
       })
@@ -210,7 +226,7 @@ export const detailConfigSchema = z
         birthPlace: optionalText(160),
         age: z.number().int().min(0).max(120).optional(),
         ceremonyNote: optionalText(800),
-        photoUrl: z.string().url().max(500).optional(),
+        photoUrl: imageUrlField(),
         // Aqiqah-specific
         gender: z.enum(['male', 'female']).optional(),
         birthWeight: optionalText(20), // e.g. "3.2 kg"
@@ -242,7 +258,7 @@ export const detailConfigSchema = z
         contactName: optionalText(160),
         contactPhone: optionalText(30),
         contactEmail: optionalText(160),
-        logoUrl: z.string().url().max(500).optional(),
+        logoUrl: imageUrlField(),
         description: optionalText(1000),
         dressCode: optionalText(120),
         agenda: z
@@ -265,7 +281,7 @@ export const detailConfigSchema = z
         familyId: z.enum(FAMILY_IDS).optional().catch(undefined),
         cover: z
           .object({
-            imageUrl: z.string().url().max(500).optional(),
+            imageUrl: imageUrlField(),
             headline: optionalText(200),
           })
           .optional(),

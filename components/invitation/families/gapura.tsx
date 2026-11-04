@@ -4,6 +4,7 @@ import { Countdown } from '@/components/invitation/countdown';
 import {
   CalendarLinks,
   EventFacts,
+  CorporateMark,
   GuestbookBlock,
   MapLink,
   PROGRAMME_HEADINGS,
@@ -37,6 +38,7 @@ export function GapuraLayout({ props, view }: { props: GuestPageProps; view: Gue
             )}
             <div className="relative flex flex-col items-center">
               <Diamond tone={tone} className="inv-rise" />
+              <CorporateMark view={view} align="center" className="mt-6" labelClassName={coverText(`text-xs font-semibold uppercase tracking-[0.2em] ${tone.muted}`)} />
               {config.theme?.cover?.headline && (
                 <p className={coverText(`inv-rise mt-6 text-xs uppercase tracking-[0.3em] ${tone.accent}`)}>{config.theme.cover.headline}</p>
               )}
