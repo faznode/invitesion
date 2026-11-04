@@ -1,10 +1,13 @@
 import 'server-only';
 
-import { and, asc, count, desc, eq, gte, isNull, or, sql } from 'drizzle-orm';
+import { cache } from 'react';
+import { and, asc, count, desc, eq, isNull, or } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
-import { analyticsEvents, guestMessages, guests, invitations, mediaAssets } from '@/lib/db/schema';
-import { detailConfigSchema, type DetailConfig } from './detail-config';
+import { guestMessages, guests, invitations, mediaAssets } from '@/lib/db/schema';
+import { normalizeStoredConfig } from './content-read';
+import type { DetailConfig } from './detail-config';
 import { pickGuestForSegment } from './guest-link';
+import { recordInvitationView } from './view-tracking';
 
 export type PublicInvitation = Awaited<ReturnType<typeof loadPublicInvitation>>;
 
@@ -28,10 +31,15 @@ export const GUESTBOOK_PAGE_SIZE = 50;
  *   guests table so one config can serve every guest.
  * - `includeDraft` is only for the owner preview (`app/preview/[id]`), which
  *   checks ownership before calling; public routes never pass it.
+ *
+ * Wrapped in React `cache()` (B-014 step 1): `generateMetadata` and the page
+ * of one request share a single load instead of querying everything twice.
+ * The cache lives for one server request only, so guests never share results.
+ * Arguments are primitives so the cache key is stable.
  */
-export async function loadPublicInvitation(slug: string, guestSlug?: string, options: { includeDraft?: boolean } = {}) {
+export const loadPublicInvitation = cache(async (slug: string, guestSlug?: string, includeDraft = false) => {
   const [invitation] = await db.select().from(invitations).where(eq(invitations.slug, slug)).limit(1);
-  if (!invitation || (invitation.status === 'DRAFT' && !options.includeDraft)) return null;
+  if (!invitation || (invitation.status === 'DRAFT' && !includeDraft)) return null;
 
   const expired = invitation.status === 'EXPIRED' || (invitation.expiresAt ? invitation.expiresAt.getTime() < Date.now() : false);
 
@@ -40,8 +48,7 @@ export async function loadPublicInvitation(slug: string, guestSlug?: string, opt
   // An unknown guest slug is a wrong link, not a different view of the page.
   if (guestSlug && !guest) return null;
 
-  const parsed = detailConfigSchema.safeParse(invitation.config ?? {});
-  const config: DetailConfig = parsed.success ? parsed.data : {};
+  const config = readStoredConfig(invitation.id, invitation.config);
 
   const [media, messages, messageCount] = await Promise.all([
     db.select().from(mediaAssets).where(eq(mediaAssets.invitationId, invitation.id)).orderBy(asc(mediaAssets.sortOrder), asc(mediaAssets.id)),
@@ -80,7 +87,7 @@ export async function loadPublicInvitation(slug: string, guestSlug?: string, opt
     expired,
     readOnly: expired,
   };
-}
+});
 
 /**
  * The guest a personal link's last segment refers to, under the B-011 rule (`guest-link.ts`): token first, then the
@@ -108,13 +115,19 @@ export async function findGuestByLinkSegment(invitationId: number, segment: stri
 export async function loadPublishedInvitationSummary(slug: string) {
   const [invitation] = await db.select().from(invitations).where(eq(invitations.slug, slug)).limit(1);
   if (!invitation || invitation.status === 'DRAFT') return null;
-  const parsed = detailConfigSchema.safeParse(invitation.config ?? {});
-  const config: DetailConfig = parsed.success ? parsed.data : {};
-  return { invitation, config };
+  return { invitation, config: readStoredConfig(invitation.id, invitation.config) };
 }
 
-/** A re-render caused by an RSVP redirect is not a new open. */
-const VIEW_DEDUPE_WINDOW_MS = 30 * 60 * 1000;
+/**
+ * Stored config → renderable config through the content contract's lenient read path. Before s11 any schema failure
+ * turned the whole invitation into `{}` (an empty page for every guest); now only the failing section is dropped.
+ * Only key names are logged, never values (they can hold personal data).
+ */
+function readStoredConfig(invitationId: number, stored: unknown): DetailConfig {
+  const { config, dropped } = normalizeStoredConfig(stored ?? {});
+  if (dropped.length) console.warn(`[invitation ${invitationId}] config sections skipped on read: ${dropped.join(', ')}`);
+  return config;
+}
 
 /**
  * Records that the invitation was opened.
@@ -123,35 +136,14 @@ const VIEW_DEDUPE_WINDOW_MS = 30 * 60 * 1000;
  * including the redirect that follows an RSVP or guestbook submission. Counting
  * each of those would inflate per-guest open counts, which is precisely the
  * metric this product sells. Repeat views inside a short window therefore
- * collapse into the first one.
+ * collapse into the first one, atomically (B-017a, `view-tracking.ts`).
  *
  * Best-effort: a tracking failure must never stop a guest from seeing their
  * invitation.
  */
 export async function trackInvitationView(invitationId: number, guestId?: number | null) {
   try {
-    const since = new Date(Date.now() - VIEW_DEDUPE_WINDOW_MS);
-    const [recent] = await db
-      .select({ id: analyticsEvents.id })
-      .from(analyticsEvents)
-      .where(
-        and(
-          eq(analyticsEvents.invitationId, invitationId),
-          eq(analyticsEvents.eventType, 'VIEW'),
-          guestId ? eq(analyticsEvents.guestId, guestId) : isNull(analyticsEvents.guestId),
-          gte(analyticsEvents.createdAt, since),
-        ),
-      )
-      .limit(1);
-    if (recent) return;
-
-    await db.insert(analyticsEvents).values({ invitationId, guestId: guestId ?? null, eventType: 'VIEW' });
-    if (guestId) {
-      await db
-        .update(guests)
-        .set({ openedAt: new Date(), openedCount: sql`${guests.openedCount} + 1` })
-        .where(eq(guests.id, guestId));
-    }
+    await recordInvitationView(db, invitationId, guestId);
   } catch (error) {
     console.error('Failed to record invitation view', error);
   }

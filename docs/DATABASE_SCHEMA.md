@@ -5,7 +5,7 @@
 > OWNER: Architect
 > DEPS: PROJECT_OVERVIEW.md
 > GREP: schema, drizzle, tabel, users, invitations, guests, orders, versions
-> UPDATED: 2026-11-03 (guests: attending_count, link_token)
+> UPDATED: 2026-11-04 (analytics_events view-dedupe index; earlier: guests attending_count, link_token)
 > ORM DECISION (whyme 2026-07-15): pakai **Drizzle** (bukan Prisma) — ikut fondasi nextjs/saas-starter biar backend cepat jalan. Schema di bawah = kanonik, diimplementasi sbg Drizzle schema (lib/db/schema.ts).
 
 ## Prinsip
@@ -133,7 +133,9 @@ customer_session_summary              ← 1 baris per sesi chat selesai
 analytics_events
   id, invitation_id→invitations, guest_id→guests(nullable),
   event_type[VIEW|RSVP|GUESTBOOK|CHECKIN], meta(json), created_at
+  index analytics_events_view_dedupe_idx (invitation_id, guest_id, event_type, created_at)   -- 0011, B-017a
 ```
+> VIEW dicatat atomik (B-017a, `lib/invitation/view-tracking.ts`): satu transaksi per guest (atau per undangan untuk buka anonim) dikunci `pg_advisory_xact_lock`, lalu cek window 30 menit → insert → `guests.opened_count + 1`. Dua buka bersamaan tidak lagi menghasilkan dua baris.
 
 ## Nunggu OPEN ITEMS
 - #1 opsi B → tambah tabel `wa_devices(id, user_id, fonnte_token, status)`.

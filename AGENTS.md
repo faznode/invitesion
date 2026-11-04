@@ -75,7 +75,8 @@ Fonnte (WA). Tabel DB-nya sudah ada (`agent_tasks`, `wa_log`) tetapi belum ditul
 ## Verifikasi wajib sebelum bilang selesai
 ```
 pnpm typecheck && pnpm test && pnpm build
-npx tsx scripts/verify-payment.ts   # butuh database
+npx tsx scripts/verify-payment.ts      # butuh database
+npx tsx scripts/verify-view-dedupe.ts  # butuh database (B-017a)
 ```
 
 ## Git

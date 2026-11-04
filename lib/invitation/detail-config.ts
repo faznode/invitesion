@@ -154,6 +154,10 @@ export const storyItemSchema = z.object({
 
 export const detailConfigSchema = z
   .object({
+    // Content contract version (lib/invitation/content-contract.ts). Absent = 1, which covers every config written
+    // before the field existed; later versions are migrated on read.
+    schemaVersion: z.number().int().min(1).optional(),
+
     // Control center / settings
     settings: z
       .object({

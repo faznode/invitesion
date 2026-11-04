@@ -1,13 +1,13 @@
 <!-- SUMMARY (first 7 lines — greppable) -->
 # tier-b-profiles.md — one-page profiles of the 21 Tier-B competitors (shortlist §4)
 > WHAT: Positioning, pricing, product, technology, strengths, weaknesses and lessons per Tier-B vendor from public pages read on 2026-11-03, plus the vendors that could not be profiled and why.
-> STATUS: v1, session 10 (2026-11-03). 11 substantive profiles (6 Indonesian, 5 international), 3 thin, 7 blocked or unreadable. Facts: `../raw/_discovery/profile-reads-2026-11-03.jsonl`; targets: `../raw/_discovery/profile-targets-2026-11-03{,-pass2}.tsv`.
+> STATUS: v2, session 12 (2026-11-04). **13 substantive** (7 Indonesian, 6 international), 4 thin or partial, 4 blocked. s12 changes, after the robots applicability audit (D-030): Harikita read and substantive; Eqxiu re-requested once with content negotiation and substantive; Bridestory gained two pages (still no prices); WebNikah re-read (no further pages reachable); Sonett readable but its static HTML is an empty client-rendered shell; WedMeGood answered HTTP 403 (blocked, no fallback); Canva stays restricted (legacy group of uncertain purpose). Facts: `../raw/_discovery/profile-reads-2026-11-03.jsonl`, `../raw/_discovery/profile-reads-2026-11-04.jsonl`; targets: `../raw/_discovery/profile-targets-2026-11-0{3,4}*.tsv`.
 > OWNER: Oracle (research)
 > DEPS: ../02-competitor-discovery/{shortlist.md,competitor-longlist.csv}, ../_tools/discovery/profile-reads.py, ../_evidence-index.md (session 10), ../01-codebase-audit/feature-inventory.csv
 > GREP: tier b, profile, harikita, undangan virtual, janiva, sannubari, sangmempelai, punyaacara, wedew, zola, the knot, evite, invitee, biihappy
 > UPDATED: 2026-11-03
 
-**Method.** `_tools/discovery/profile-reads.py`: Android UA, plain GET, robots.txt first (RFC 9309 + D-022; D-026 AI-agent opt-outs), ≥ 3 s between requests to one origin, homepage plus at most two linked pricing / features / catalog pages, never demo, preview or customer pages, no forms, no login. A 401/403/429/503 or a challenge stops the origin with no fallback. Page text stayed private; only facts are committed. Evidence level of every profile below: **C** (public marketing and pricing pages; no guest-page measurement). Prices are IDR unless marked and were read once (permanence of discounts [UNKNOWN]).
+**Method.** `_tools/discovery/profile-reads.py`: Android UA, plain GET, robots.txt first (RFC 9309 + D-022; AI-agent applicability D-030 since s12, D-026 before; `../02-competitor-discovery/robots-applicability-s12.md`), ≥ 3 s between requests to one origin, homepage plus at most two linked pricing / features / catalog pages, never demo, preview or customer pages, no forms, no login. A 401/403/429/503 or a challenge stops the origin with no fallback. Page text stayed private; only facts are committed. Evidence level of every profile below: **C** (public marketing and pricing pages; no guest-page measurement). Prices are IDR unless marked and were read once (permanence of discounts [UNKNOWN]).
 
 **Privacy.** No customer, testimonial or demo-couple name is recorded. WebNikah's homepage lists customers' couple names with event dates; that page text was deleted after the non-identifying facts below were taken.
 
@@ -20,23 +20,27 @@
 | SMP | sangmempelai.id | ID | substantive | S-SMP-001 |
 | PAC | PunyaAcara | ID | substantive | S-PAC-001 |
 | WDW | Wedew | ID | substantive | S-WDW-001 |
-| WNK | WebNikah | ID | thin (homepage only) | S-WNK-001 |
-| BRS | Bridestory | ID | thin (marketplace homepage only) | S-BRS-001 |
-| MMO | MEMO Wedding | ID | thin (site "Coming Soon", app id only) | S-MMO-001 |
-| HRK | Harikita | ID | **blocked** (robots.txt AI-agent opt-out, D-026; content discarded) | S-HRK-001 |
+| WNK | WebNikah | ID | thin (homepage only; re-read s12, no further page reachable from static HTML) | S-WNK-001, S-WNK-002 |
+| BRS | Bridestory | ID | partial (s12: SayYes RSVP product page + about page; no prices in static HTML) | S-BRS-001, S-BRS-002 |
+| MMO | MEMO Wedding | ID | thin (site "Coming Soon" with no links: nothing further exists to read; app id only) | S-MMO-001 |
+| HRK | Harikita | ID | **substantive (s12)**; blocked s10–s11 under D-026, readable under D-030 | S-HRK-001…003 |
 | INE | Invitee | MY | substantive | S-INE-001 |
 | ZOL | Zola | US | substantive | S-ZOL-001, S-ZOL-002 |
 | TKN | The Knot | US | substantive | S-TKN-001, S-TKN-002 |
 | EVT | Evite | US | substantive | S-EVT-001, S-EVT-002 |
 | BHP | Biihappy | VN | substantive | S-BHP-001, S-BHP-002 |
-| SNT | Sonett | KR | **blocked** (AI-agent opt-out, D-026; content discarded) | S-SNT-001 |
-| WMG | WedMeGood | IN | **blocked** (HTTP 403 + AI-agent opt-out) | S-WMG-001 |
+| SNT | Sonett | KR | thin (readable under D-030; the static homepage is a 77-character client-rendered shell) | S-SNT-001, S-SNT-002 |
+| WMG | WedMeGood | IN | **blocked** (HTTP 403 to the first s12 request; robots no longer the reason) | S-WMG-001, S-WMG-002 |
 | GRV | Greenvelope | US | **blocked** (HTTP 403 on robots.txt and homepage) | S-GRV-001 |
 | MTD | Minted | US | **blocked** (HTTP 403) | S-MTD-001 |
-| CNV | Canva invitations | AU | **blocked** (HTTP 403 + AI-agent opt-out) | S-CNV-001 |
-| EQX | Eqxiu 易企秀 | CN | **unreadable** (compressed body without content negotiation; not re-requested) | S-EQX-001 |
+| CNV | Canva invitations | AU | **blocked** (D-030: site-written legacy-token group of undocumented purpose, restriction kept; HTTP 403 earlier) | S-CNV-001, S-CNV-002 |
+| EQX | Eqxiu 易企秀 | CN | **substantive (s12)**; one re-request with `Accept-Encoding: gzip, deflate` decoded the page | S-EQX-001, S-EQX-002 |
 
-**Counts toward RQ-COMP-01 (`../_handoff/acceptance-matrix.md`):** Indonesian substantive profiles = 9 Tier-A dossiers + 6 here = **15** (≥ 12 met; Sitemu is blocked and not counted). International = 5 Tier-A dossiers + 5 here = **10** (≥ 10 met). Required Tier-B one-pagers: **11 / 21 substantive**; the 10 others are thin or blocked for the reasons above (RQ-COMP-04 PARTIAL).
+**Counts toward RQ-COMP-01 (`../_handoff/acceptance-matrix.md`):** Indonesian substantive profiles = 10 Tier-A dossiers (Sitemu v1 written s12) + 7 here = **17**; **16** without the provisional Enviory evidence (D-031; the Enviory dossier itself rests mostly on marketing reads, but it is counted out to stay conservative). International = 5 Tier-A dossiers + 6 here = **11**. Both minimums (≥ 12, ≥ 10) are met either way. Required Tier-B one-pagers: **13 / 21 substantive** (RQ-COMP-04 PARTIAL). Of the other eight:
+- 4 are blocked by access controls (WMG, GRV, MTD HTTP 403) or by a restriction of uncertain applicability (CNV).
+- 2 have nothing further to read (MMO placeholder, WNK without reachable pages).
+- 1 needs a rendered read (SNT).
+- 1 has no visible prices (BRS).
 
 ---
 
@@ -91,16 +95,47 @@
 - **Lesson:** metering the costly parts (messages, reception devices) while giving the page away. **Counter:** we never meter guests; WhatsApp stays `wa.me` (B-018) until an official API contract exists (`../09-masterplan/10-data-privacy-security-payments.md` §5).
 
 ### WNK — WebNikah (thin)
-Free wedding-website builder; claims **252,582** couples and 100+ themes (basic / premium); "Anda Vendor?" vendor entry; jQuery + Bootstrap, GA4/GTM. The homepage publicly lists recent customers' couple names and event dates (not recorded) — a privacy weakness shared with IDI, SMO and IVT. [OBSERVED/CLAIMED S-WNK-001]
+- Free wedding-website builder. Claims **252,582** couples on 2026-11-03 and **252,589** on 2026-11-04, a live counter. 100+ themes in Basic and Premium, each with a demo. [OBSERVED/CLAIMED S-WNK-001, S-WNK-002]
+- A vendor directory across about 23 service categories (catering to honeymoon), "Jadi Reseller" and "Jadi Vendor" entries, FAQ and testimonial pages. jQuery + Bootstrap, GA4 / GTM. [OBSERVED S-WNK-002]
+- No prices on the homepage. Its links are not reachable from static HTML, so no further page was read.
+- The homepage publicly lists recent customers' couple names, event dates and invitation subdomains. These are not recorded. It is a privacy weakness shared with IDI, SMO and IVT.
 
-### BRS — Bridestory (thin)
-Vendor marketplace homepage (Nuxt/Vue) with a "SayYes RSVP" product flagged new and an app promotion; no invitation pricing on the homepage. Profiled only at homepage level. [OBSERVED S-BRS-001]
+### BRS — Bridestory (partial)
+- **Vendor marketplace and inspiration directory** ("help wedding vendors connect with engaged couples"). [OBSERVED S-BRS-002 about page]
+- Its invitation product, **SayYes RSVP**, is an end-to-end e-invitation service [OBSERVED S-BRS-002]:
+  - template invitations you build yourself from a form;
+  - custom-design invitations made by its designers (music and video only in custom);
+  - a managed **RSVP service** that includes table numbers for seated events;
+  - a **QR check-in service** staffed on the day;
+  - seating management in the dashboard, with admin help;
+  - custom RSVP questions, asked once per invitation for standing events and **once per attending guest for seated events**.
+- Next.js, Sentry, GTM; Android app `com.bridestory.user`. [OBSERVED]
+- A "Daftar Harga" (price list) section exists but has no prices in static HTML [UNKNOWN].
+- **Lesson:** the per-guest versus per-invitation question model fits seated Indonesian receptions. **Counter:** RSVP custom questions (F-017 within G-031) and seating (G-045) stay P2. Staffed check-in is a service, not our product.
 
 ### MMO — MEMO Wedding (thin)
-`memowedding.com` serves a "Coming Soon" page that links the Android app `com.memowedding.undanganpernikahandigital` (100K+ installs per the 2026-10-29 Play read in the longlist). Store listing not re-read. [OBSERVED S-MMO-001] / installs [ESTIMATE longlist]
+`memowedding.com` serves a "Coming Soon" page with no links, so there is nothing more to read on the site. It links the Android app `com.memowedding.undanganpernikahandigital` (100K+ installs per the 2026-10-29 Play read in the longlist). Store listing not re-read. [OBSERVED S-MMO-001] / installs [ESTIMATE longlist]
 
-### HRK — Harikita (blocked)
-robots.txt opts out the legacy Anthropic agent tokens; pages read before the check were discarded unused (D-026). Only the historical longlist row remains (business tiers up to Rp 9.999M, 2026-10-29).
+### HRK — Harikita (harikita.id)
+- **Positioning:** "Undangan digital semua acara" (digital invitations for every occasion): weddings, birthdays, khitanan / aqiqah, tasyakuran and general events, under "Dibuat untuk dirayakan bersama" (made to be celebrated together). [OBSERVED S-HRK-002]
+- **Pricing** [OBSERVED S-HRK-002, S-HRK-003]:
+  - **Basic, free** to make and publish: 10 free designs, up to 30 guests and 5 gallery photos, 50 WhatsApp messages a day, studio, background music, basic RSVP, 5 AI edits, public link carrying the Harikita label.
+  - **Premium Rp 155,000 one-time:** every design, unlimited guests and photos, 60 AI edits a day, no label, bulk WhatsApp sending, custom path, music and love story, own domain, budget / vendors / tasks / seating, MP4 video, story and feed exports, WhatsApp stickers, analytics and CSV export.
+  - **Single design Rp 60,000**, one-time for one invitation.
+  - **Reseller plans:** Starter Rp 199,000 a month or 1,999,000 a year (10 active invitations); Pro Rp 499,000 or 4,999,000 (30, own invitation address, client domain per invitation); Elite Rp 999,000 or 9,999,000 (100, shop-brand domain). Finished invitations can be archived to free slots.
+- **Product** [OBSERVED S-HRK-002, S-HRK-003]:
+  - **129 designs** (82 wedding), with 3D elements, cartoon couples using the couple's own photo heads, and layered motion.
+  - A "Studio" with direct manipulation on six "atur sendiri" themes: click text, buttons, cards or photos to change font, size, colour and position; drag; add text, lines and 3D ornaments; reorder sections.
+  - **"Minta AI":** type an instruction such as "make the cover sky light blue" or "write an Islamic opening", and the invitation changes. Nothing is saved until Save, with undo.
+  - Guest list, personal WhatsApp links, RSVP and check-in. The link stays the same after edits, and guests need no app.
+- **Design pages:** each design has a short premise (for example, a small-cinema premiere with a curtain opening and guest-named tickets), style tags (cartoon, modern, dark) and a per-design FAQ ("too playful for a wedding?"). No personal data. [OBSERVED S-HRK-003]
+- **Claims:** 200+ users, 90+ published invitations, 1,000+ guests invited, 11,000+ opens. These are small, early-stage numbers stated plainly. [CLAIMED]
+- **Tech:** Next.js, Cloudflare (managed robots.txt). [OBSERVED]
+- **Lesson:** the strongest Indonesian example of a design-led product:
+  - named, premise-driven designs across occasions;
+  - direct manipulation limited to a few "free-style" designs, which shows the same tension between freedom and design integrity that our content contract resolves;
+  - an instruction box that edits and writes copy.
+  **Counter:** design families named and described by premise, not numbered (harness workstream). Editing stays inside the content contract. AI copy help could be a later P2, with **no generated religious text** (approved corpus only, ADR-O04).
 
 ---
 
@@ -139,14 +174,21 @@ robots.txt opts out the legacy Anthropic agent tokens; pages read before the che
 - **Tech:** Laravel (2026-10-29 probe). [OBSERVED longlist]
 - **Lesson:** share channels follow the local messenger (Zalo there, WhatsApp here) and gifts by national QR. **Counter:** WhatsApp-first sharing with OG cards (B-010 done, B-018).
 
-### SNT — Sonett (blocked) · WMG — WedMeGood (blocked) · CNV — Canva (blocked)
-robots.txt opts out the legacy Anthropic agent tokens (all three) and WedMeGood and Canva also answered HTTP 403; nothing usable was kept (D-026). Korean format lessons are covered by Barunson (`barunson/dossier.md`).
+### SNT — Sonett (thin) · WMG — WedMeGood (blocked) · CNV — Canva (blocked)
+- **Sonett:** readable under D-030 (legacy names only in the Cloudflare training section). The s12 static read returned a 77-character client-rendered shell (Kakao SDK, Cloudflare), so there is nothing to profile from static HTML [OBSERVED S-SNT-002]. Next action: one rendered read with the capture browser. No challenge has occurred, so this is not a fallback route. Korean format lessons are covered by Barunson (`barunson/dossier.md`).
+- **WedMeGood:** readable by robots under D-030, but the first s12 request answered **HTTP 403**. The origin is stopped with no fallback. [OBSERVED S-WMG-002]
+- **Canva:** its site-written group (GPTBot, ClaudeBot, CCBot, Applebot-Extended, `anthropic-ai`, `Claude-Web`: `Disallow: /`, `Allow: /create/`) has no documented purpose, so D-030 keeps the restriction and no request was made. Training intent is likely [INFERRED from the grouping]. [OBSERVED S-CNV-002]
 
 ### GRV — Greenvelope (blocked) · MTD — Minted (blocked)
 HTTP 403 to the first request (Greenvelope also on robots.txt): origin stopped, no fallback route (`_rea-playbook.md` §5). Only the 2026-10-29 longlist rows remain.
 
-### EQX — Eqxiu (unreadable)
-The homepage answered with a compressed body although the request did not advertise compression; the tool could not decode it and the page was not re-requested. Longlist row only (WeChat H5 invitations and marketing pages).
+### EQX — Eqxiu 易企秀 (China)
+- **Access:** s10's body arrived compressed without having been requested. The one planned s12 re-request sent `Accept-Encoding: gzip, deflate` (content negotiation) and the tool decoded it. [OBSERVED S-EQX-002]
+- **Positioning:** a mass-market interactive-page platform: "10万+ 免费H5模板" (100k+ free H5 templates), AI online design, forms / votes / surveys, and WeCom private-domain marketing. [OBSERVED]
+- **Formats and scenes:** H5, long pages, voting, registration, surveys, quizzes, posters, lottery games, e-brochures, video and AI tools. Scenes include business invitations (商务邀请) and personal invitations (个人请柬) beside HR, education, government media, healthcare and retail promotion. [OBSERVED]
+- **Model:** free templates beside member templates ("会员免费用", free for members). Templates are credited to third-party design studios with use counts. A custom design service. A seasonal hot-topic calendar (solar terms, shopping festivals) drives discovery. [OBSERVED]
+- **Tech:** Vue, jQuery, Swiper. [OBSERVED]
+- **Lesson:** here invitations are one format of a general interactive-page engine, merchandised by season and supplied by a designer marketplace with usage counts. **Counter:** out of scope for an event-first product. A designer marketplace (F-077, missing) stays P2, and templates stay curated and reviewed (no unrestricted HTML or JS).
 
 ---
 

@@ -179,3 +179,12 @@ Method for every S- row below: `_tools/discovery/profile-reads.py` (Android UA, 
 | ID | When | What | Result |
 |---|---|---|---|
 | C-VID-107…109 | 01:38–01:42 | Official Viding previews `viding.co/theme/preview/166`, `/164`, `/163` (D-VID list), `run-batch.sh` → `capture.mjs --open-cover --lighthouse`, REA driver, trusted click; `viding.co/robots.txt` 200, `User-Agent: *` `Allow: /`, no AI-agent group (re-read 01:37) | All three valid (cold load + structure). Lighthouse Perf 57 / 53 / 53, LCP 10.7 / 11.9 / 13.2 s, 2,151 / 2,263 / 3,621 KiB; opening verified on 107 and 109, gate persisted on 108; audio playback not measured. Demo names redacted at capture; commit guard clean. Viding now has 6 cold-load themes (benchmark pack §6) |
+
+## Session 11 additions (2026-11-04; times UTC)
+Policy reads only: robots.txt, no page content. Method: the fixed `_tools/discovery/profile-reads.py` matcher (RFC 9309 matching, D-022, D-026), through `_tools/discovery/recheck-robots.py` or one plain fetch of robots.txt. Full output stays in the sandbox log; the conclusions are below.
+
+| ID | When | What | Result |
+|---|---|---|---|
+| S-STM-006 | ≈ 04:45 | `sitemu.id/robots.txt` re-read (200, 173 lines) | `anthropic-ai` group `Disallow: /` → **opt-out still holds (D-026)**. The file has two `Claude-Web` groups (`Disallow: /` and `Allow: /`); RFC 9309 combines them and the tie goes to Allow, so only `anthropic-ai` binds. The s10 record listed both tokens because the old matcher read each group separately |
+| S-ENV-003 | ≈ 04:50 | `enviory.com/robots.txt` re-read (200, 142 lines), during the s11 audit of every capture origin in `raw/_captures.csv` | `anthropic-ai` and `Claude-Web` groups `Disallow: /`. S-ENV-002 (2026-10-29) already observed `anthropic-ai` and treated it as a training-crawler token; **under D-026 Enviory is an opted-out origin**. Its existing evidence predates D-026 and is retained but **policy-contested** (D-028, Q-O08). The tools now refuse new requests to it |
+| — | ≈ 04:45–04:55 | Re-check of every s10 profile read (21 Tier-B targets + pass 2, 40 recorded URLs incl. two auto-followed redirect targets) and every capture origin (10 origins) against today's robots.txt | 0 recorded reads not allowed under the fixed matcher, apart from the Enviory finding above and C-VID-104…106 (`studio.viding.co` robots 500, already excluded under D-022). Opt-outs still hold for `harikita.id`, `sonett.kr`, `canva.com`, `wedmegood.com` |

@@ -51,7 +51,7 @@ Lab: 2 vCPU / 4.2 GB VM, Postgres 16.15 on the same host, k6 v0.54.0 on the same
 | | `rust` | 1,438.9 → 1,501.4 (+4.3 %) | 18.8 → 18.0 | 0.21 → 0.22 | 0.78 → 0.76 |
 | fixed 10 req/s | `next` / `next-min` / `rust` | 10.0 each, 0 dropped | 35.5 → 35.3 / 6.8 → 7.5 / 2.3 → 2.2 | 27.5 → 25.5 / 4.9 → 5.1 / 0.70 → 0.70 | 3.19 → 2.90 / 1.90 → 1.69 / 1.50 → 1.50 |
 
-Round-to-round spread is 2–24 % (largest for the Next.js RSVP burst, which ran first in round 1 and last in round 2); the platform dev server averaged ≤ 3.5 % of a core in every run and steal stayed ≤ 0.3 %. The arm-to-arm effects used in §1 are ≈ 6.7–7.0× (`next` → `next-min` read throughput), ≈ 4.4–4.8× (`next-min` → `rust`) and ≈ 11–12× (server CPU per page, `next-min` �� `rust`): an order of magnitude above the spread.
+Round-to-round spread is 2–24 % (largest for the Next.js RSVP burst, which ran first in round 1 and last in round 2); the platform dev server averaged ≤ 3.5 % of a core in every run and steal stayed ≤ 0.3 %. The arm-to-arm effects used in §1 are ≈ 6.7–7.0× (`next` → `next-min` read throughput), ≈ 4.4–4.8× (`next-min` → `rust`) and ≈ 11–12× (server CPU per page, `next-min` → `rust`): an order of magnitude above the spread.
 
 ### 3.2 Consistency (database snapshots after each scenario)
 - **RSVP writes:** RSVP events = accepted writes (k6 `rsvp_saved`) on every arm in both rounds (round 1: 10,458 / 14,373 / 57,558; round 2 `next`: 12,995); all 300 guests confirmed.

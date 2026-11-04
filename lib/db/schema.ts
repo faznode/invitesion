@@ -9,6 +9,7 @@ import {
   jsonb,
   unique,
   uniqueIndex,
+  index,
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
@@ -325,16 +326,23 @@ export const customerSessionSummary = pgTable('customer_session_summary', {
 // ─────────────────────────────────────────────
 // ANALYTICS
 // ─────────────────────────────────────────────
-export const analyticsEvents = pgTable('analytics_events', {
-  id: serial('id').primaryKey(),
-  invitationId: integer('invitation_id')
-    .notNull()
-    .references(() => invitations.id),
-  guestId: integer('guest_id').references(() => guests.id),
-  eventType: varchar('event_type', { length: 20 }).notNull(), // VIEW|RSVP|GUESTBOOK|CHECKIN
-  meta: jsonb('meta'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-});
+export const analyticsEvents = pgTable(
+  'analytics_events',
+  {
+    id: serial('id').primaryKey(),
+    invitationId: integer('invitation_id')
+      .notNull()
+      .references(() => invitations.id),
+    guestId: integer('guest_id').references(() => guests.id),
+    eventType: varchar('event_type', { length: 20 }).notNull(), // VIEW|RSVP|GUESTBOOK|CHECKIN
+    meta: jsonb('meta'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (t) => ({
+    // The view-dedupe lookup (B-017a, QA-010): one invitation, one guest, one event type, newest first.
+    viewDedupe: index('analytics_events_view_dedupe_idx').on(t.invitationId, t.guestId, t.eventType, t.createdAt),
+  }),
+);
 
 // ─────────────────────────────────────────────
 // RELATIONS

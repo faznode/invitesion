@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getAdminEntryPath } from '@/lib/env';
 import { resolveLocale } from '@/lib/i18n';
+import { mirrorsLocaleCookie } from '@/lib/locale-cookie';
 
 const customerRoot = '/dashboard';
 const adminRoot = '/admin';
@@ -186,7 +187,9 @@ export default clerkMiddleware(async (getAuth, request) => {
 
   const res = NextResponse.next({ request: { headers: requestHeaders } });
   res.headers.set(headerName, policy);
-  res.cookies.set('locale', locale, { sameSite: 'lax', maxAge: 60 * 60 * 24 * 30, path: '/' });
+  if (mirrorsLocaleCookie(pathname)) {
+    res.cookies.set('locale', locale, { sameSite: 'lax', maxAge: 60 * 60 * 24 * 30, path: '/' });
+  }
 
   if (isProtectedRoute) {
     res.headers.set('Cache-Control', 'private, no-store, max-age=0, must-revalidate');

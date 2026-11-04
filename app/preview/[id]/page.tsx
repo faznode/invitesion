@@ -34,7 +34,7 @@ export default async function OwnerPreviewPage({ params }: { params: Promise<{ i
     .limit(1);
   if (!owned) notFound();
 
-  const data = await loadPublicInvitation(owned.slug, undefined, { includeDraft: true });
+  const data = await loadPublicInvitation(owned.slug, undefined, true);
   if (!data) notFound();
 
   return (

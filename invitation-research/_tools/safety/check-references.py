@@ -38,9 +38,10 @@ LIVING = [
 ROOT_DOCS = ['README.md', 'archive/README.md']
 
 # Absent by design: git-ignored private/scratch locations and owner-removed folders that docs name only to forbid them.
+# `.clerk` (root `.gitignore`: `/.clerk/`) is written at runtime by Clerk's keyless dev mode and must never be committed.
 INTENTIONALLY_ABSENT = {
     'invitation-research/_private', 'invitation-research/_handoff/briefs', 'invitation-research/_handoff/logs',
-    'tools/template-harness/.out', 'storage', '.env', '.env.local',
+    'tools/template-harness/.out', 'storage', '.env', '.env.local', '.clerk',
 }
 # Path-map tables record moves: cells under these headers name retired paths on purpose; every other column is checked.
 RETIRED_PATH_COLUMNS = ('old path', 'original path', 'previous path')

@@ -1,11 +1,11 @@
 <!-- SUMMARY (first 7 lines — greppable) -->
 # IMPLEMENTATION-LOG.md — technical record of masterplan implementation (P0 first)
 > WHAT: One entry per finished increment: backlog item, behaviour confirmed before the change, acceptance criteria, change, tests, checks, measurements, risks, rollback. A work record, not a transcript.
-> STATUS: ACTIVE (started session 09, 2026-11-03; baseline `64678cf`). B-001…B-008, B-010, B-011 DONE s09; B-009 and B-012 open.
+> STATUS: ACTIVE (started session 09, 2026-11-03; baseline `64678cf`). B-001…B-008, B-010, B-011 DONE s09; B-009 and B-012 open. s11 (baseline `e873680`): E-012 B-017a, E-013 B-014 step 1, E-014 content contract.
 > OWNER: Operator role (research agent)
 > DEPS: ../09-masterplan/06-backlog.md, ../09-masterplan/08-template-system-and-harness.md, sessions/session-09-20261103-1816.md
 > GREP: implementation, P0, B-0, acceptance, tests, rollback, verify, migration
-> UPDATED: 2026-11-03
+> UPDATED: 2026-11-04
 
 ## How checks are run
 Product checks run in the local-stack snapshot (`/vercel/share/work/app`, refreshed with `local-stack.sh sync`; `app/spike-min` and stale `.next/types` removed first so spike files never mask a product result): `pnpm typecheck`, `pnpm test`, `pnpm build` (the repository's required gates, `AGENTS.md`). Database steps run against the disposable Postgres (`127.0.0.1:5433`, identity checked: `invitesion|127.0.0.1|5433|/vercel/share/work/pgdata`). Build = production build without `middleware.ts` (placeholder Clerk keys, P-INV-010), so middleware behaviour is not validated here. Results are quoted from the run, never assumed.
@@ -112,3 +112,30 @@ Sprint-2 check run (s09 19:24–19:31Z, after E-008, E-010, E-011): `pnpm typech
 - **Live (19:30Z):** known guest 200; `tamu-999` **404**; unknown invitation 404; invitation page 200; with a token set on `nama-panjang` (disposable db): token URL 200, its slug URL 404, form carries the token, RSVP posted with the slug → `rsvp=closed` and no write, RSVP with the token → `2|2|CONFIRMED`; token removed → slug URL 200 again. No server errors.
 - **Limits:** the flag-on minting path in the dashboard needs a signed-in Clerk session (not exercised; source-asserted); CSV import of guests does not exist in code yet (docs mention it), so nothing to change there.
 - **Risk / rollback:** M (rendering mode of two routes). Revert `next.config.ts`/layout/page exports to restore PPR; tokens are additive and only minted with the flag on.
+
+## Session 11 (2026-11-04; baseline `e873680`)
+Order and reasoning: LATEST §4 and `sessions/session-11-20261104-0420.md` (05:20Z). Checks: `pnpm typecheck`, `pnpm test`, snapshot build (`local-stack.sh sync && build`, without middleware per D-012), live requests against `local-stack.sh start` on :3100, SQL counted with `log_statement=all` on the disposable Postgres (`/vercel/share/work/tools/count-queries.sh`, sandbox-only helper).
+
+### E-012 B-017a atomic view dedupe (DONE s11)
+- **Before (confirmed):** `trackInvitationView()` ran select → insert → update as separate statements. The new DB check reproduced the race on the old sequence: 20 concurrent first opens → **19 VIEW rows, `opened_count` 19**.
+- **Acceptance (backlog):** 20 concurrent first opens of one guest → exactly one VIEW row and `opened_count` + 1; an open after the window still counts; a tracking failure never blocks the page.
+- **Change:** new `lib/invitation/view-tracking.ts` `recordInvitationView()`: one transaction serialised by `pg_advisory_xact_lock(<"VIEW">, guestId | -invitationId)`, then check → insert → increment. `lib/invitation/public.ts` `trackInvitationView()` delegates and stays best-effort (try / catch). Additive index `analytics_events_view_dedupe_idx (invitation_id, guest_id, event_type, created_at)` in `lib/db/schema.ts` + migration `0011_analytics_view_dedupe_index.sql` (generated with `drizzle-kit generate`; the only diff was the index).
+- **Tests / checks:** `scripts/verify-view-dedupe.ts` against the disposable Postgres. All six checks pass (one row of 20 concurrent opens, exactly one call reports a write, `opened_count` 1, no write inside the window, +1 after the window, one row of 20 concurrent anonymous opens), and the old sequence produced 19 rows under the same load. Unit test for lock-key separation. Live: the first open of a guest logs one advisory lock + one VIEW insert; a repeat open inside the window logs the lock and no insert.
+- **Limits:** the spike consistency re-run (`summarize-spike.py`) was not repeated; the DB check is the direct proof.
+- **Risk / rollback:** L. Revert `view-tracking.ts` and the call; the index is additive (`DROP INDEX analytics_events_view_dedupe_idx`).
+
+### E-013 B-014 step 1: one loader call per request, no locale cookie on `/i/*` (DONE s11; step 2 open)
+- **Before (measured on the `e873680` build):** a guest open ran `loadPublicInvitation()` twice (metadata + page). Per request: 2 invitation lookups, 2 guest lookups, 2 media and 4 guestbook queries (13 statements with view tracking). The invitation page ran 9 statements.
+- **Change:** `loadPublicInvitation` wrapped in React `cache()` with primitive arguments (`includeDraft` became the third positional argument; `app/preview/[id]/page.tsx` and the B-005 source assertion updated). `middleware.ts` no longer sets the `locale` cookie on `/i/*` (`lib/locale-cookie.ts` `mirrorsLocaleCookie()`); the locale still reaches the layout through the `x-app-locale` header.
+- **After (same build method):** guest open → 1 invitation, 1 guest, 1 media, 2 guestbook queries (the loader runs once); invitation page → 1 / 0 / 1 / 2. Known guest 200, `tamu-999` 404, second fixture 200.
+- **Tests:** source assertions for `cache()` and the middleware guard; `mirrorsLocaleCookie()` unit cases (`/invitations` keeps the cookie).
+- **Limits:** the cookie change cannot be observed live here because measurement builds run without middleware (P-INV-010). It is unit-tested and source-asserted only. Step 2 (cacheable invitation-level shell behind a flag, the cross-guest leakage test, spike CPU target ≤ 2 × `next-min`) is not started.
+- **Risk / rollback:** L. Revert the wrapper and the guard.
+
+### E-014 Content contract, lenient read path, honest editor (DONE s11)
+- **Before (confirmed, `01-codebase-audit/template-editability-s11.md`):** any schema failure in a stored config rendered an empty invitation (`safeParse` → `{}`); the editor offered 10+ inputs the guest page never shows and a guestbook "moderation" toggle that is not enforced.
+- **Change:** `lib/invitation/content-contract.ts` (`CONTENT_SCHEMA_VERSION` 1, `RENDER_CAPABILITIES` per section: rendered / storedOnly / hostOnly / caveat; type-only schema import, so the client editor bundles no zod); `lib/invitation/content-read.ts` `normalizeStoredConfig()` (per-section lenient read, dropped key names logged without values); `detail-config.ts` gains optional `schemaVersion` (absent = 1); `public.ts` reads through it. Editor: an amber note under each section title lists stored-only fields, says when a whole section is not shown yet (Music, Instagram Story), and states the moderation caveat; Control Center cards for those sections carry a "Belum tampil" badge.
+- **Tests:** `tests/content-contract.test.ts` (11 tests): every schema section classified and nothing else; every `rendered` field is read by the renderer / headline sources; no `storedOnly` field is; notices derived from the map; profile-tab mapping per event type; lenient read (round-trip, legacy `art` + broken `events` dropped while other sections survive, non-objects, future version). Two mutations caught (marking music rendered; rendering `guestbook.moderation`).
+- **Live:** a fixture invitation given a legacy `art` key and an invalid `events` entry rendered names and RSVP. Only the events section was missing, and the server logged `config sections skipped on read: art, events`. The fixture was restored afterwards.
+- **Limits:** the editor UI needs a signed-in Clerk session, so it was not viewed in a browser in this sandbox. Its logic is unit-tested and it typechecks and builds. The design families that will move fields to `rendered` are not built yet.
+- **Risk / rollback:** L. Revert the three modules and the editor note; stored data is untouched (reads only).

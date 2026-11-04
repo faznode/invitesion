@@ -28,7 +28,7 @@
 
 ## What ships today
 
-| For | Capabilities (code at `7a00a6d`) |
+| For | Capabilities (code at `7a00a6d`, plus the session-11 changes below) |
 |---|---|
 | **Guests** | Personal link per guest (`/i/<invitation>/<guest>`) greeting them by name · RSVP with party size kept within the host's allowance · wishes wall · countdown and add-to-calendar (Google Calendar + `.ics`) · event times in the event's own zone (WIB / WITA / WIT) · link-preview image with names and date for WhatsApp (Latin-script names) · love story, schedule, maps, gift accounts and livestream link when the host fills them · no login, pages not indexed by search engines, unknown guest links return 404 |
 | **Hosts** | Catalog of 64 templates in 27 event categories with filters · form editor with a private preview · guest list with personal-link generator, WhatsApp share links, CSV export (spreadsheet-formula safe), RSVP override and manual check-in · edits after publishing · free drafting, pay to publish |
@@ -36,13 +36,18 @@
 
 Ten of the twelve must-have fixes (P0) shipped in session 09; the change log per item is [`invitation-research/_handoff/IMPLEMENTATION-LOG.md`](invitation-research/_handoff/IMPLEMENTATION-LOG.md).
 
+Session 11 added:
+- **Accurate open counts:** simultaneous first opens of one guest link record one view (B-017a, migration `0011`, `scripts/verify-view-dedupe.ts`).
+- **One data load per guest open** instead of two (B-014 step 1), and no locale cookie on guest pages.
+- **A content contract** (`lib/invitation/content-contract.ts`) that records what the guest page renders. The editor now marks inputs that are saved but not shown to guests yet (for example music, Instagram Story, couple photos and parents), and says plainly that guestbook moderation is not active. A stored config with one invalid section now loses only that section instead of rendering an empty invitation. Background: [`template-editability-s11.md`](invitation-research/01-codebase-audit/template-editability-s11.md).
+
 ### Experimental (in the repository, not on by default or not wired into the product)
 - **Opaque guest links** behind `FLAG_OPAQUE_GUEST_LINKS`, **off** by default: the owner keeps slug links; existing links keep working either way.
 - **Template harness** (`pnpm harness`) with three original sample templates in `templates/_harness-samples/` (basic, premium Islamic, signature 3D). Their reports pass every gate, but the product renderer cannot load these templates yet.
 - **Stripe checkout** for non-IDR currencies exists as an adapter; it has not been verified against a live Stripe account.
 
 ### Planned (from the verified masterplan; not shipped)
-Next phase, in order: re-measure the guest page after P0 · harness budgets enforced on product guest pages (B-012) · atomic view counting (B-017a) · cover gate with background music (B-009) · no Clerk script on guest pages (B-015) and a cached invitation-level render (B-014) · contrast-safe palettes (B-016). Later: QR check-in, gift block with the host's own QRIS, bulk guest import, template system v2. Every item carries its evidence, paths, acceptance criteria and rollback in [`09-masterplan/06-backlog.md`](invitation-research/09-masterplan/06-backlog.md).
+Next, as decided in session 11 (order and reasons in [`LATEST.md`](invitation-research/_handoff/LATEST.md) §4): contrast-safe palettes (B-016) · design families: trusted template compositions that render more of the contract, developed through the harness taste workflow · cached invitation-level render (B-014 step 2) · harness budgets on product guest pages (B-012) · cover gate with background music (B-009) · no Clerk script on guest pages (B-015, needs real-key verification) · re-measure the guest page after P0. Later: QR check-in, gift block with the host's own QRIS, bulk guest import, template system v2. Every item carries its evidence, paths, acceptance criteria and rollback in [`09-masterplan/06-backlog.md`](invitation-research/09-masterplan/06-backlog.md).
 
 ## How it fits together
 
@@ -63,7 +68,7 @@ One Next.js App Router application: React Server Components for pages, Server Ac
 ## Stack and prerequisites
 
 - **Framework:** Next.js 15.6 canary (App Router) · React 19 · TypeScript · Tailwind CSS 4 with shadcn / Radix primitives
-- **Data:** PostgreSQL with Drizzle ORM (postgres.js); migrations `0000`–`0010` in `lib/db/migrations/`
+- **Data:** PostgreSQL with Drizzle ORM (postgres.js); migrations `0000`–`0011` in `lib/db/migrations/`
 - **Auth:** Clerk for sign-in; roles stay in the local `users` table
 - **Payments and storage:** own QRIS payload builder and a Stripe adapter behind one rail interface; local or S3-compatible storage with an in-house SigV4 signer
 - **Tests:** `node:test` through `tsx`
@@ -74,7 +79,7 @@ Verified locally on 2026-11-04 with Node.js 24, pnpm 10.34 and PostgreSQL 16.15.
 
 ```bash
 cp .env.example .env            # POSTGRES_URL and the Clerk keys are required; read the comments in the file
-pnpm install
+pnpm install                    # without a terminal (CI, sandboxes): CI=true pnpm install --frozen-lockfile
 pnpm db:migrate                 # applies lib/db/migrations
 pnpm db:seed:templates          # syncs the 64-template catalog
 pnpm dev                        # http://localhost:3000
@@ -86,10 +91,12 @@ Use `.env`, not `.env.local`, and do not run `pnpm db:setup` (a leftover of the 
 
 ```bash
 pnpm typecheck                  # TypeScript, no emit
-pnpm test                       # 94 unit tests
+pnpm test                       # 105 unit tests
 pnpm build                      # production build (needs POSTGRES_URL)
 pnpm verify                     # all three
 pnpm harness check templates/_harness-samples/basic-wedding-melati   # template gates
+npx tsx scripts/verify-payment.ts       # against a scratch database
+npx tsx scripts/verify-view-dedupe.ts   # against a scratch database (concurrent opens → one view)
 ```
 
 Research checks (evidence references, feature matrix, benchmark pack, privacy) are listed in [`invitation-research/README.md`](invitation-research/README.md#commands-from-the-repo-root).

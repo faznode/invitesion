@@ -164,7 +164,8 @@ test('B-005: the editor links to the owner preview and no longer gates the theme
   assert.match(source('app/(customer)/dashboard/invitations/[id]/edit/page.tsx'), /previewHref=\{ownerPreviewPath\(id\)\}/);
   const preview = source('app/preview/[id]/page.tsx');
   assert.match(preview, /eq\(invitations\.userId, user\.id\)/, 'preview checks ownership');
-  assert.match(preview, /includeDraft: true/);
+  // s11 (B-014 step 1): the loader takes `includeDraft` as its third positional argument so React cache() keys stay stable.
+  assert.match(preview, /loadPublicInvitation\(owned\.slug, undefined, true\)/);
   assert.doesNotMatch(preview, /trackInvitationView/, 'owner views are not tracked');
 });
 
