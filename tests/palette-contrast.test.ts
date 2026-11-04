@@ -2,8 +2,11 @@ import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import test from 'node:test';
-import { contrastRatio, relativeLuminance, WCAG_AA } from '../lib/invitation/contrast';
+import { blend, contrastRatio, relativeLuminance, WCAG_AA, worstContrastOverImage } from '../lib/invitation/contrast';
+import type { DetailConfig } from '../lib/invitation/detail-config';
+import { formatEventDate } from '../lib/invitation/event-time';
 import { palette, paletteHex, paletteIds, type PaletteTokens } from '../lib/invitation/palettes';
+import { renderGuestPage, withFamily } from './support/render-guest-page';
 
 const source = (path: string) => readFileSync(join(process.cwd(), path), 'utf8');
 
@@ -88,6 +91,46 @@ test('B-016: every guest-page layout draws colour only through palette tokens', 
     }
   }
   assert.doesNotMatch(source('components/invitation/countdown.tsx'), /\bopacity-\d+/);
+});
+
+test('worst-case contrast over any image: blend and bound match hand-computed values', () => {
+  assert.equal(blend('#000000', '#ffffff', 0.25), '#bfbfbf');
+  assert.equal(blend('#ffffff', '#000000', 0.2), '#333333');
+  assert.equal(worstContrastOverImage('#000000', '#ffffff', 0.25), contrastRatio('#000000', '#bfbfbf'), 'a black image region is the worst case for dark text');
+  assert.equal(worstContrastOverImage('#ffffff', '#000000', 0.2), contrastRatio('#ffffff', '#333333'), 'a white image region is the worst case for light text');
+  assert.equal(worstContrastOverImage('#808080', '#ffffff', 0.9), 1, 'text luminance inside the reachable span can vanish');
+});
+
+/** Layouts that lay the cover photo behind cover text; the opacity is read from the class each one draws. */
+const PHOTO_BEHIND_TEXT = { legacy: 'components/invitation/public-renderer.tsx', gapura: 'components/invitation/families/gapura.tsx' } as const;
+
+test('B-016: cover text over a photo keeps AA whatever the photo shows: names in ink, small accent text on a page-colour chip', () => {
+  for (const [label, file] of Object.entries(PHOTO_BEHIND_TEXT)) {
+    const opacity = Number(/<img [^>]*\bopacity-(\d+)/.exec(source(file))?.[1]) / 100;
+    assert.ok(opacity > 0 && opacity < 1, `${label}: cover image opacity`);
+    for (const id of paletteIds) {
+      const tokens = paletteHex(id);
+      assert.ok(worstContrastOverImage(tokens.ink, tokens.bg, opacity) >= WCAG_AA.text, `${label} ${id}: names straight over the photo`);
+    }
+    // Why the chip exists: accent text straight over a dark photo region falls below AA (s15: 2.83:1 at worst).
+    assert.ok(paletteIds.some((id) => worstContrastOverImage(paletteHex(id).accent, paletteHex(id).bg, opacity) < WCAG_AA.text), label);
+  }
+  const startAt = '2099-12-27T19:00:00+08:00';
+  const cover = { headline: 'Pernikahan', imageUrl: 'https://example.test/cover.jpg' };
+  const config: DetailConfig = { couple: { bride: { nickName: 'Sari' }, groom: { nickName: 'Budi' } }, theme: { cover }, events: [{ title: 'Resepsi', startAt }] };
+  const classOf = (page: string, text: string) => new RegExp(`<p class="([^"]*)">${text}</p>`).exec(page)?.[1];
+  for (const familyId of [undefined, 'gapura'] as const) {
+    const label = familyId ?? 'legacy';
+    const page = renderGuestPage({ config: withFamily(config, familyId) });
+    for (const text of [cover.headline, formatEventDate(startAt) ?? '']) {
+      assert.match(classOf(page, text) ?? '', /\bbg-\(--inv-bg\)/, `${label}: "${text}" sits on the page colour`);
+      // s15 review F6: an inline-block chip let the legacy guest card flow onto the date's line.
+      assert.match(classOf(page, text) ?? '', /(?:^|\s)block(?:\s|$)/, `${label}: "${text}" chip keeps its own line`);
+      assert.doesNotMatch(classOf(page, text) ?? '', /\binline-block\b/, `${label}: "${text}" chip is not inline`);
+    }
+    const plain = renderGuestPage({ config: withFamily({ ...config, theme: { cover: { headline: cover.headline } } }, familyId) });
+    assert.doesNotMatch(classOf(plain, cover.headline) ?? 'missing', /bg-\(--inv-bg\)|missing/, `${label}: without a photo the markup is unchanged`);
+  }
 });
 
 test('B-016: fixed colours live only in the shared blocks, as self-contained status and action pairs', () => {

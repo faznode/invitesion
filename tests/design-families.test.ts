@@ -5,18 +5,37 @@ import test from 'node:test';
 import { RENDER_CAPABILITIES } from '../lib/invitation/content-contract';
 import { normalizeStoredConfig } from '../lib/invitation/content-read';
 import { detailConfigSchema } from '../lib/invitation/detail-config';
-import { eventDateParts } from '../lib/invitation/event-time';
+import { eventDateParts, formatEventDate } from '../lib/invitation/event-time';
 import { FAMILIES, FAMILY_IDS, familyOf } from '../lib/invitation/families';
+import type { DetailConfig } from '../lib/invitation/detail-config';
+import { fixtureGuest, fixtureInvitation, LAYOUTS, renderGuestPage, withFamily } from './support/render-guest-page';
 
 const source = (path: string) => readFileSync(join(process.cwd(), path), 'utf8');
+const couple = { bride: { nickName: 'Sari' }, groom: { nickName: 'Budi' } };
 const familyFiles = readdirSync(join(process.cwd(), 'components/invitation/families')).sort();
 
-test('B-030: three registered families, one designed for non-wedding events, each with its own layout file', () => {
-  assert.deepEqual([...FAMILY_IDS], ['gapura', 'kartu', 'riang']);
+test('B-030: four registered families, two designed for non-wedding events, each with its own layout file', () => {
+  assert.deepEqual([...FAMILY_IDS], ['gapura', 'kartu', 'riang', 'lontar']);
   assert.ok(Object.values(FAMILIES).some((family) => family.intendedFor === 'celebration'));
+  assert.ok(Object.values(FAMILIES).some((family) => family.intendedFor === 'formal'));
   assert.deepEqual(familyFiles, FAMILY_IDS.map((id) => `${id}.tsx`).sort());
   const renderer = source('components/invitation/public-renderer.tsx');
   for (const id of FAMILY_IDS) assert.match(renderer, new RegExp(`\\b${id}: [A-Z][a-z]+Layout\\b`), id);
+});
+
+test('B-030 Lontar: the programme leads, the leaf band carries date, time and venue, and its ornament is hidden', () => {
+  const config: DetailConfig = {
+    corporateProfile: { organizationName: 'PT Contoh', eventName: 'Rapat Tahunan', agenda: [{ time: '09.00 WITA', title: 'Pembukaan' }] },
+    events: [{ title: 'Rapat Tahunan', startAt: '2099-12-27T09:00:00+08:00', endAt: '2099-12-27T12:00:00+08:00', venueName: 'Aula Contoh' }],
+  };
+  const page = renderGuestPage({ config: withFamily(config, 'lontar'), invitation: fixtureInvitation({ eventType: 'corporate' }), guest: fixtureGuest() });
+  const cover = page.slice(0, page.indexOf('</header>'));
+  const date = formatEventDate('2099-12-27T09:00:00+08:00') ?? 'missing';
+  for (const text of ['09.00 WITA', 'sampai 12.00 WITA', 'Aula Contoh', date]) assert.ok(cover.includes(text), `cover band: ${text}`);
+  assert.ok(page.indexOf('Susunan Acara') < page.indexOf('Waktu &amp; Tempat'), 'the agenda comes before the events section');
+  assert.ok(page.indexOf('Waktu &amp; Tempat') < page.indexOf('Konfirmasi Kehadiran'), 'events, then RSVP');
+  assert.doesNotMatch(cover, /<span class="absolute inset-x-0 top-5 block"/, 'the binding is not exposed to assistive technology');
+  assert.match(cover, /<span aria-hidden="true" class="absolute inset-x-0 top-5 block"/, 'the binding is decorative');
 });
 
 test('B-030: a missing or unknown family keeps the legacy layout', () => {
@@ -25,6 +44,11 @@ test('B-030: a missing or unknown family keeps the legacy layout', () => {
   assert.equal(familyOf('retired-family'), null);
   assert.equal(familyOf('gapura')?.name, 'Gapura');
   assert.match(source('components/invitation/public-renderer.tsx'), /family \? FAMILY_LAYOUTS\[family\.id\] : LegacyLayout/);
+  // A stored id whose family was retired (read past the schema, e.g. an older row) renders exactly the legacy page.
+  const past: DetailConfig = { couple, events: [{ title: 'Resepsi', startAt: '2020-12-27T19:00:00+08:00' }] };
+  const legacy = renderGuestPage({ config: withFamily(past), guest: fixtureGuest() });
+  assert.equal(renderGuestPage({ config: withFamily(past, 'retired-family'), guest: fixtureGuest() }), legacy);
+  assert.notEqual(renderGuestPage({ config: withFamily(past, 'gapura'), guest: fixtureGuest() }), legacy);
 });
 
 test('B-030: only known families are stored, and a retired id never drops the rest of the theme', () => {
@@ -76,12 +100,27 @@ test('B-030: names typed by hosts are isolated for bidirectional text and wrap i
     assert.match(text, /dir="auto"|<bdi/, `${file}: names need dir="auto" or <bdi>`);
     assert.match(text, /\[overflow-wrap:anywhere\]/, `${file}: long names must wrap`);
   }
+  const hostile = '<img src=x onerror=alert(1)>';
+  const config: DetailConfig = { couple: { bride: { nickName: `ليلى 🎉 ${hostile}` }, groom: { nickName: 'Budi' } } };
+  for (const { label, familyId } of LAYOUTS) {
+    const page = renderGuestPage({ config: withFamily(config, familyId), guest: fixtureGuest({ name: `${hostile} Tamu` }) });
+    assert.equal(page.includes('<img src=x'), false, `${label}: host and guest text is never markup`);
+    assert.ok(page.includes('&lt;img src=x onerror=alert(1)&gt; Tamu'), `${label}: the guest name is shown as text`);
+    // The legacy layout keeps its pre-B-030 markup verbatim (no isolation); only families promise it.
+    if (familyId) assert.match(page, /(dir="auto"[^>]*>|<bdi[^>]*>)ليلى 🎉/, `${label}: the RTL name is isolated`);
+  }
 });
 
 test('B-030: declared motion level matches the markup, and reduced motion switches the entrance off', () => {
   assert.match(source('app/globals.css'), /@media \(prefers-reduced-motion: reduce\)\s*\{\s*\.inv-rise\s*\{\s*animation: none;/);
   for (const id of FAMILY_IDS) {
     assert.equal(source(`components/invitation/families/${id}.tsx`).includes('inv-rise'), FAMILIES[id].motionLevel > 0, id);
+  }
+  const config: DetailConfig = { couple, theme: { cover: { headline: 'The Wedding of' } }, events: [{ title: 'Resepsi', startAt: '2099-12-27T19:00:00+08:00' }] };
+  for (const { label, familyId } of LAYOUTS) {
+    const page = renderGuestPage({ config: withFamily(config, familyId), guest: fixtureGuest() });
+    assert.equal(page.includes('inv-rise'), familyId ? FAMILIES[familyId].motionLevel > 0 : false, `${label}: rendered motion matches the declared level`);
+    assert.doesNotMatch(page, /<h1[^>]*\binv-rise\b/, `${label}: the names paint without an entrance animation`);
   }
 });
 

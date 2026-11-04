@@ -130,3 +130,25 @@
 
 button, a { -webkit-tap-highlight-color: transparent; }
 img { max-width: 100%; }
+
+/*
+ * Entrance motion of the design families with motion level 1 (B-030, `lib/invitation/families.ts`): ornaments, the
+ * date and the guest block rise in once on load. Names never carry the class, so the largest text paints without
+ * waiting, and prefers-reduced-motion switches the entrance off entirely.
+ */
+@keyframes inv-rise {
+  from {
+    opacity: 0;
+    transform: translateY(0.75rem);
+  }
+}
+
+.inv-rise {
+  animation: inv-rise 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .inv-rise {
+    animation: none;
+  }
+}

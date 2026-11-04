@@ -2,8 +2,19 @@ import { Gift, Quote as QuoteIcon, Radio } from 'lucide-react';
 import { Countdown } from '@/components/invitation/countdown';
 import { GapuraLayout } from '@/components/invitation/families/gapura';
 import { KartuLayout } from '@/components/invitation/families/kartu';
+import { LontarLayout } from '@/components/invitation/families/lontar';
 import { RiangLayout } from '@/components/invitation/families/riang';
-import { CalendarLinks, EventFacts, GuestbookBlock, MapLink, ReadOnlyNotice, RsvpBlock } from '@/components/invitation/guest-blocks';
+import {
+  CalendarLinks,
+  EventFacts,
+  GuestbookBlock,
+  MapLink,
+  PROGRAMME_HEADINGS,
+  ProgrammeBody,
+  programmeSections,
+  ReadOnlyNotice,
+  RsvpBlock,
+} from '@/components/invitation/guest-blocks';
 import { buildGuestView, type GuestPageProps, type GuestView } from '@/components/invitation/guest-view';
 import { familyOf, type FamilyId } from '@/lib/invitation/families';
 
@@ -23,6 +34,7 @@ const FAMILY_LAYOUTS: Record<FamilyId, (input: LayoutProps) => React.ReactNode> 
   gapura: GapuraLayout,
   kartu: KartuLayout,
   riang: RiangLayout,
+  lontar: LontarLayout,
 };
 
 export function PublicInvitationRenderer(props: GuestPageProps) {
@@ -42,7 +54,7 @@ function Heading({ children, accent }: { children: React.ReactNode; accent: stri
 
 function LegacyLayout({ props, view }: LayoutProps) {
   const { invitation, config, guest, readOnly } = props;
-  const { tone, formatDate, names, events, primaryEvent, renderedAt, primaryStartMs, showCountdown, gallery } = view;
+  const { tone, formatDate, names, events, primaryEvent, renderedAt, primaryStartMs, showCountdown, gallery, coverText, organiser } = view;
 
   return (
     <main className={`min-h-screen ${tone.bg} ${tone.ink}`} style={tone.style}>
@@ -53,7 +65,7 @@ function LegacyLayout({ props, view }: LayoutProps) {
           <img src={config.theme.cover.imageUrl} alt="" aria-hidden className="absolute inset-0 h-full w-full object-cover opacity-25" />
         )}
         <div className="relative">
-          {config.theme?.cover?.headline && <p className={`text-xs uppercase tracking-[0.3em] ${tone.accent}`}>{config.theme.cover.headline}</p>}
+          {config.theme?.cover?.headline && <p className={coverText(`text-xs uppercase tracking-[0.3em] ${tone.accent}`)}>{config.theme.cover.headline}</p>}
           {names?.length ? (
             <h1 className="mt-6 font-serif text-4xl leading-tight sm:text-5xl">
               {names.filter(Boolean).map((name, index) => (
@@ -66,7 +78,12 @@ function LegacyLayout({ props, view }: LayoutProps) {
           ) : (
             <h1 className="mt-6 font-serif text-4xl sm:text-5xl">{config.settings?.title || 'Undangan'}</h1>
           )}
-          {primaryEvent?.startAt && <p className={`mt-6 text-sm tracking-wide ${tone.accent}`}>{formatDate(primaryEvent.startAt)}</p>}
+          {organiser && (
+            <p dir="auto" className={coverText(`mt-4 text-sm ${tone.muted} [overflow-wrap:anywhere]`)}>
+              {organiser}
+            </p>
+          )}
+          {primaryEvent?.startAt && <p className={coverText(`mt-6 text-sm tracking-wide ${tone.accent}`)}>{formatDate(primaryEvent.startAt)}</p>}
 
           {guest && (
             <div className={`mt-10 inline-block rounded-2xl ${tone.soft} px-6 py-4`}>
@@ -113,6 +130,13 @@ function LegacyLayout({ props, view }: LayoutProps) {
           <CalendarLinks view={view} slug={invitation.slug} />
         </Section>
       )}
+
+      {programmeSections(view).map((id) => (
+        <Section key={id}>
+          <Heading accent={tone.accent}>{PROGRAMME_HEADINGS[id]}</Heading>
+          <ProgrammeBody id={id} view={view} cardClassName={`rounded-2xl ${tone.card} shadow-sm`} />
+        </Section>
+      ))}
 
       {config.story?.enabled && config.story.items?.length ? (
         <Section>

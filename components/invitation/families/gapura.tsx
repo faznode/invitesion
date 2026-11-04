@@ -1,7 +1,17 @@
 import { Fragment } from 'react';
 import { Gift, Quote as QuoteIcon, Radio } from 'lucide-react';
 import { Countdown } from '@/components/invitation/countdown';
-import { CalendarLinks, EventFacts, GuestbookBlock, MapLink, ReadOnlyNotice, RsvpBlock } from '@/components/invitation/guest-blocks';
+import {
+  CalendarLinks,
+  EventFacts,
+  GuestbookBlock,
+  MapLink,
+  PROGRAMME_HEADINGS,
+  ProgrammeBody,
+  programmeSections,
+  ReadOnlyNotice,
+  RsvpBlock,
+} from '@/components/invitation/guest-blocks';
 import type { GuestPageProps, GuestView } from '@/components/invitation/guest-view';
 
 type Tone = GuestView['tone'];
@@ -13,7 +23,7 @@ type Tone = GuestView['tone'];
  */
 export function GapuraLayout({ props, view }: { props: GuestPageProps; view: GuestView }) {
   const { invitation, config, guest, readOnly } = props;
-  const { tone, formatDate, names, events, primaryEvent, renderedAt, primaryStartMs, showCountdown, gallery } = view;
+  const { tone, formatDate, names, events, primaryEvent, renderedAt, primaryStartMs, showCountdown, gallery, coverText, organiser } = view;
   const arch = `rounded-t-[3rem] rounded-b-2xl ${tone.card} shadow-sm`;
 
   return (
@@ -28,7 +38,7 @@ export function GapuraLayout({ props, view }: { props: GuestPageProps; view: Gue
             <div className="relative flex flex-col items-center">
               <Diamond tone={tone} className="inv-rise" />
               {config.theme?.cover?.headline && (
-                <p className={`inv-rise mt-6 text-xs uppercase tracking-[0.3em] ${tone.accent}`}>{config.theme.cover.headline}</p>
+                <p className={coverText(`inv-rise mt-6 text-xs uppercase tracking-[0.3em] ${tone.accent}`)}>{config.theme.cover.headline}</p>
               )}
               <h1 className="mt-6 font-serif text-4xl leading-tight text-balance [overflow-wrap:anywhere] sm:text-5xl">
                 {names?.length
@@ -42,7 +52,12 @@ export function GapuraLayout({ props, view }: { props: GuestPageProps; view: Gue
                     ))
                   : config.settings?.title || 'Undangan'}
               </h1>
-              {primaryEvent?.startAt && <p className={`inv-rise mt-8 text-sm tracking-wide ${tone.accent}`}>{formatDate(primaryEvent.startAt)}</p>}
+              {organiser && (
+                <p dir="auto" className={coverText(`mt-4 text-sm ${tone.muted} [overflow-wrap:anywhere]`)}>
+                  {organiser}
+                </p>
+              )}
+              {primaryEvent?.startAt && <p className={coverText(`inv-rise mt-8 text-sm tracking-wide ${tone.accent}`)}>{formatDate(primaryEvent.startAt)}</p>}
             </div>
           </div>
         </div>
@@ -95,7 +110,7 @@ export function GapuraLayout({ props, view }: { props: GuestPageProps; view: Gue
                   view={view}
                   className="mt-5 flex flex-col items-center gap-2 text-sm"
                   rowClassName="flex items-center justify-center gap-2"
-                  venueRowClassName="flex max-w-xs items-start justify-center gap-2"
+                  venueRowClassName="flex max-w-xs flex-col items-center gap-1"
                 />
                 {event.note && <p className={`mt-4 text-sm ${tone.muted}`}>{event.note}</p>}
                 <MapLink event={event} view={view} />
@@ -105,6 +120,12 @@ export function GapuraLayout({ props, view }: { props: GuestPageProps; view: Gue
           <CalendarLinks view={view} slug={invitation.slug} />
         </ArchSection>
       )}
+
+      {programmeSections(view).map((id) => (
+        <ArchSection key={id} tone={tone} title={PROGRAMME_HEADINGS[id]}>
+          <ProgrammeBody id={id} view={view} cardClassName={`rounded-2xl ${tone.card} shadow-sm`} />
+        </ArchSection>
+      ))}
 
       {config.story?.enabled && config.story.items?.length ? (
         <ArchSection tone={tone} title="Cerita Kami">

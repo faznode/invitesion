@@ -41,8 +41,9 @@ export const RENDER_CAPABILITIES = {
     ],
   },
   corporateProfile: {
-    rendered: ['organizationName', 'eventName'],
-    storedOnly: ['eventCategory', 'contactName', 'contactPhone', 'contactEmail', 'logoUrl', 'description', 'dressCode', 'agenda', 'speakers'],
+    // B-029: the programme renders when filled (`lib/invitation/programme.ts`); category and logo are not shown yet.
+    rendered: ['organizationName', 'eventName', 'description', 'agenda', 'speakers', 'dressCode', 'contactName', 'contactPhone', 'contactEmail'],
+    storedOnly: ['eventCategory', 'logoUrl'],
   },
   theme: { rendered: ['paletteId', 'familyId', 'cover.imageUrl', 'cover.headline'], storedOnly: [], hostOnly: ['templateId'] },
   events: { rendered: ['title', 'startAt', 'endAt', 'venueName', 'address', 'mapUrl', 'note'], storedOnly: [] },

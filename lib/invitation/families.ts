@@ -4,16 +4,25 @@
  * (`theme.familyId`); a missing or unknown id keeps the legacy layout, so retiring a family never breaks a stored
  * invitation. Families use only palette tokens (B-016) and the two self-hosted fonts.
  */
-export const FAMILY_IDS = ['gapura', 'kartu', 'riang'] as const;
+export const FAMILY_IDS = ['gapura', 'kartu', 'riang', 'lontar'] as const;
 export type FamilyId = (typeof FAMILY_IDS)[number];
 
 type Label = { id: string; en: string };
+
+export type IntendedFor = 'wedding' | 'celebration' | 'formal';
+
+/** How the editor names what a family is designed around. */
+export const INTENDED_FOR_LABEL: Record<IntendedFor, Label> = {
+  wedding: { id: 'pernikahan', en: 'weddings' },
+  celebration: { id: 'syukuran & perayaan', en: 'celebrations' },
+  formal: { id: 'acara resmi & kantor', en: 'formal and company events' },
+};
 
 export type FamilyMeta = {
   id: FamilyId;
   name: string;
   /** What the composition is designed around; every family still renders every event type. */
-  intendedFor: 'wedding' | 'celebration';
+  intendedFor: IntendedFor;
   /** Manifest motion level: 0 none, 1 entrance fades (switched off under prefers-reduced-motion). */
   motionLevel: 0 | 1;
   summary: Label;
@@ -48,6 +57,16 @@ export const FAMILIES: Record<FamilyId, FamilyMeta> = {
     summary: {
       id: 'Pita warna selebar layar, tanggal bergaya kalender, dan umbul-umbul untuk ulang tahun, syukuran, dan acara kantor.',
       en: 'Full-width tinted bands, calendar-tile dates and bunting for birthdays, thanksgivings and company events.',
+    },
+  },
+  lontar: {
+    id: 'lontar',
+    name: 'Lontar',
+    intendedFor: 'formal',
+    motionLevel: 0,
+    summary: {
+      id: 'Berpusat pada susunan acara: selembar daun lontar membawa tanggal, jam, dan tempat, lalu jadwal tampil sebagai baris waktu yang mudah dipindai.',
+      en: 'Programme-led: a palm-leaf band carries the date, time and venue, then the schedule reads as rows of times that are easy to scan.',
     },
   },
 };

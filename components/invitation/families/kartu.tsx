@@ -1,10 +1,24 @@
 import { Fragment } from 'react';
 import { Gift, Quote as QuoteIcon, Radio } from 'lucide-react';
 import { Countdown } from '@/components/invitation/countdown';
-import { CalendarLinks, EventFacts, GuestbookBlock, MapLink, ReadOnlyNotice, RsvpBlock } from '@/components/invitation/guest-blocks';
+import {
+  CalendarLinks,
+  EventFacts,
+  GuestbookBlock,
+  MapLink,
+  PROGRAMME_HEADINGS,
+  ProgrammeBody,
+  programmeSections,
+  type ProgrammeSectionId,
+  ReadOnlyNotice,
+  RsvpBlock,
+} from '@/components/invitation/guest-blocks';
 import type { GuestPageProps, GuestView } from '@/components/invitation/guest-view';
 
 type Tone = GuestView['tone'];
+
+/** Kartu's small-caps eyebrow above every section title, here for the B-029 programme sections. */
+const PROGRAMME_LABELS: Record<ProgrammeSectionId, string> = { about: 'Sekilas', agenda: 'Jadwal', speakers: 'Narasumber', info: 'Sebelum datang' };
 
 /**
  * Kartu (B-030): an asymmetric stack of printed cards. The cover is a card on an offset backing card with a dashed date
@@ -12,7 +26,7 @@ type Tone = GuestView['tone'];
  */
 export function KartuLayout({ props, view }: { props: GuestPageProps; view: GuestView }) {
   const { invitation, config, guest, readOnly } = props;
-  const { tone, formatDate, dateParts, names, events, primaryEvent, renderedAt, primaryStartMs, showCountdown, gallery } = view;
+  const { tone, formatDate, dateParts, names, events, primaryEvent, renderedAt, primaryStartMs, showCountdown, gallery, organiser } = view;
   const stamp = dateParts(primaryEvent?.startAt);
   const card = `rounded-2xl border ${tone.line} ${tone.card} shadow-sm`;
 
@@ -49,6 +63,11 @@ export function KartuLayout({ props, view }: { props: GuestPageProps; view: Gues
                   ))
                 : config.settings?.title || 'Undangan'}
             </h1>
+            {organiser && (
+              <p dir="auto" className={`mt-4 text-sm ${tone.muted} [overflow-wrap:anywhere]`}>
+                {organiser}
+              </p>
+            )}
             {primaryEvent?.startAt && (
               <p className={`mt-6 text-sm ${tone.muted}`}>
                 {formatDate(primaryEvent.startAt)}
@@ -129,6 +148,12 @@ export function KartuLayout({ props, view }: { props: GuestPageProps; view: Gues
           <CalendarLinks view={view} slug={invitation.slug} className="mt-8 flex flex-col items-start gap-3 sm:flex-row" />
         </CardSection>
       )}
+
+      {programmeSections(view).map((id) => (
+        <CardSection key={id} tone={tone} label={PROGRAMME_LABELS[id]} title={PROGRAMME_HEADINGS[id]}>
+          <ProgrammeBody id={id} view={view} cardClassName={card} />
+        </CardSection>
+      ))}
 
       {config.story?.enabled && config.story.items?.length ? (
         <CardSection tone={tone} label="Perjalanan" title="Cerita Kami">

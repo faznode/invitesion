@@ -5,10 +5,10 @@
 > OWNER: Oracle (research)
 > DEPS: captures-summary.csv, benchmark-exclusions.csv, benchmark-provisional.csv, protocol.md (v1.2), tiers.csv, tier-aggregates.csv, blueprints.csv, sensitivity/, ../_tools/capture/{eligibility,benchmark-pack,summarize-captures}.py
 > GREP: benchmark, tier, aggregate, median, p75, best in class, blueprint, eligibility, coverage, confidence, viewport, provisional, sensitivity
-> UPDATED: 2026-11-04 (s13)
+> UPDATED: 2026-11-04 (s15: §1 counts and §7 protocol v2 results after the batch completed; §2–§6 unchanged from s13)
 
 ## 1. Inputs and eligibility (D-023; populations D-031)
-- 67 captures (`captures-summary.csv`). **Unconditional: 34 cold-load eligible, 32 structure eligible.** Sensitivity (provisional admitted): 47 / 38, the s10 figures. Exclusion register 26 rows (17 `all`, 9 `structure`), unchanged. s10 added C-VID-107…109 (official `viding.co` previews 166 / 164 / 163, 2026-11-04). `benchmark-pack.py` recomputes eligibility from `raw/` and fails if the summary disagrees.
+- **s15:** `captures-summary.csv` holds 165 captures over every measurement population (v1.2, the four protocol v2 profiles, our own builds); unconditional 132 cold-load / 126 structure eligible, sensitivity 145 / 132. §2–§6 use the v1.2 competitor population only, and their outputs (`tiers.csv`, `tier-aggregates.csv`, `blueprints.csv`) were unchanged by the s15 regeneration; protocol v2 results are §7. s13 figures for the v1.2 population: 67 captures (`captures-summary.csv`). **Unconditional: 34 cold-load eligible, 32 structure eligible.** Sensitivity (provisional admitted): 47 / 38, the s10 figures. Exclusion register 26 rows (17 `all`, 9 `structure`), unchanged. s10 added C-VID-107…109 (official `viding.co` previews 166 / 164 / 163, 2026-11-04). `benchmark-pack.py` recomputes eligibility from `raw/` and fails if the summary disagrees.
 - **Provisional register** `benchmark-provisional.csv` (s13): 13 rows, C-ENV-111…123, decision D-031, open question Q-O09 (a plain fetch of the same demo route met a Cloudflare challenge before these browser captures; `../02-competitor-discovery/robots-applicability-s12.md` §7). A provisional row is not an exclusion: the files stay, provenance stays, and the captures enter only the sensitivity population. Outputs: unconditional `tiers.csv`, `tier-aggregates.csv`, `blueprints.csv`; sensitivity `sensitivity/{tiers,tier-aggregates,blueprints}-incl-provisional.csv`; differences `benchmark-pack.py --compare` (§3a). Until Q-O09 is answered, **only the unconditional set supports unconditional claims.**
 - Preserved corrections: Indoinvite C-IDI-101…107 are catalog pages (D-020), never guest-page samples; Viding C-VID-104…106 are excluded (robots.txt 500 at capture time, D-022); wrappers C-ENV-101…106 and C-INV-101 are excluded; RSVPify S-RSV-002 is a source read behind bot protection and is never cited (no capture exists).
 - **Theme first:** repeated attempts collapse to one value per theme (in the sensitivity population Enviory's 13 cold-load captures are 6 themes). Unique samples below always mean unique themes.
@@ -83,17 +83,36 @@ One row per structure-eligible theme (unconditional 31 = 29 competitor + 2 own; 
 - Strict Wave 1 (≥ 3 for each of the top 8): **NOT MET**. **Unconditional 4 / 8** (WEV, VID, IVT, INV); 5 / 8 in the sensitivity population (with ENV). IDI, PLO and SMO are unavailable. ADR-W1 is the historical authorization to plan with reduced confidence; it is not this evidence.
 - Revised obligation (≥ 6 for the top 6 where safely available): **met where safely available and unconditional** — WEV 6, VID 6 (s10); ENV 6 only in the sensitivity population (provisional, Q-O09); **IDI, PLO and SMO are unavailable** (no safe public demo; reasons in the rows above). Strict count: **2 / 6** unconditional, 3 / 6 sensitivity.
 
-## 7. Viewport and behaviour coverage (unresolved limits, not waived)
+## 7. Viewport and behaviour coverage (protocol v2 complete for the queued themes, s15; remaining limits not waived)
+Protocol v2 (D-032, `protocol.md`) measures each queued theme at `v2-412`, `v2-360`, `v2-390` and `v2-412-rm` (412 × 915 with `prefers-reduced-motion: reduce`) in one session, about a minute apart, always in that order. Population: **21 competitor themes** (Wevitation 6, Viding 6, INVI.ID 6, Barunson 3; `queues/queue-v2-s13.tsv` 94 / 94 stored s13–s15, plus the espresso replacements C-WEV-225…228 of `queue-v2-s14-espresso.tsv`, stored s15) and our own build `0b5eb1b` (2 themes, s14). Outputs: `viewport/profile-aggregates.csv` (88 rows), `viewport/paired-deltas.csv` (253), `viewport/paired-summary.csv` (66), `viewport/lighthouse-environment.csv` (benchmarkIndex and slow-CPU warning per capture); full tables `benchmark-pack.py --viewport-markdown`.
+
+Competitor medians per profile (21 themes in every column):
+
+| Metric | v2-412 | v2-360 | v2-390 | v2-412-rm |
+|---|---|---|---|---|
+| Performance ↑ | 40 | 40 | 40 | 39.5 |
+| LCP ↓ (s) | 16.4 | 16.6 | 18.0 | 18.0 |
+| TBT ↓ (ms) | 966 | 945 | 1,038 | 1,017 |
+| CLS ↓ | 0.021 | 0.024 | 0.023 | 0.003 |
+| Lighthouse weight ↓ (KiB) | 3,516 | 3,621 | 3,615 | 3,529 |
+| Horizontal overflow (px) | 0 | 0 | 0 | 0 |
+| Small touch targets | 3 | 3 | 3 | 3 |
+| Elements still animating after the scenario | 2 | 2 | 3 | 2 |
+
+**Reading (paired against each theme's own `v2-412` capture, 21 pairs per row).** Median deltas are 0 for performance and weight and within ±0.11 s for LCP, with worse / better splits close to even (360 vs 412 LCP 10 / 11; 390 vs 412 LCP 14 / 7). No viewport effect is distinguishable from run-to-run variation in this lab, and the fixed order (412 first) is confounded with the profile, so **no delta here is attributed to the viewport.** Every theme renders without horizontal overflow at 360 px. Reduced motion lowers the CLS median (0.021 → 0.003) but reduced the number of elements still animating in only **2 of 21** themes (5 more, 14 unchanged): honouring `prefers-reduced-motion` is not the competitor norm. Our build `0b5eb1b`: LCP 0.78 s lower at 360 and 390 than at 412 in both pairs; two themes and a fixed order, so indicative only.
+
+**Caveats.** One 2-vCPU host whose speed varied (benchmarkIndex 820–1,332 on 2026-11-04; slow-CPU warnings on C-VID-217, C-VID-220, C-INV-224 and C-WEV-228 in s15); emulation is verified at the final CDP state, not at every interaction (D-032), and is not a device test. Competing load: the platform's preview `next dev` booted while C-WEV-221 (wayang, `v2-412`) ran Lighthouse (last ≈ 15 s) and while C-WEV-222 (wayang, `v2-360`) ran its REA / CDP phase (`../_handoff/sessions/session-15-20261104-1556.md`), so the wayang 412 / 360 cells carry that caveat.
+
 | Required by the protocol / briefs | Status | What would resolve it |
 |---|---|---|
 | 412×915 mobile cold load | done (protocol v1.2) | — |
-| 360×800 and 390×844 runs | **not run** for any vendor or our page | protocol v2 batch (`../_tools/capture/run-batch.sh`) |
+| 360×800 and 390×844 runs | **done (protocol v2, s13–s15)** for 21 competitor themes and 2 own; not for Indoinvite, PALEO, Satu Momen (unavailable), Enviory (provisional, Q-O09), Invitato or Katsudoto (not queued) | queue rows for the remaining safe vendors |
+| Reduced-motion runs | **done** (`v2-412-rm`), same themes | — |
 | In-app browser (WhatsApp / Instagram) behaviour, audio | **not run**; UA emulation would not equal a physical in-app browser | device lab |
 | Audio playback | **never measured** (`audio_playback` = `not_measured`) | device check per vendor |
 | Long name, RTL, emoji, WIB / WITA / WIT on competitor pages | not testable without creating invitations (no signup) | owner-consented sample invitations |
-| Reduced-motion runs | not run | protocol v2 flag |
 | INP / field data | not available | CrUX or RUM on our own production pages |
-| Our current guest page (after P0) | **not re-measured** (own captures are `22ed99e`) | re-run C-INV captures on the current build |
+| Our current guest page (palette / family build) | **not re-measured**: own v2 captures are `0b5eb1b`, before B-016 / B-030 | RQ-OWN-02 interleaved runs (`../_handoff/LATEST.md` §4) |
 
 ## 8. Reproduce
 ```bash

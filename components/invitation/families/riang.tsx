@@ -1,7 +1,17 @@
 import { Fragment } from 'react';
 import { Gift, Quote as QuoteIcon, Radio } from 'lucide-react';
 import { Countdown } from '@/components/invitation/countdown';
-import { CalendarLinks, EventFacts, GuestbookBlock, MapLink, ReadOnlyNotice, RsvpBlock } from '@/components/invitation/guest-blocks';
+import {
+  CalendarLinks,
+  EventFacts,
+  GuestbookBlock,
+  MapLink,
+  PROGRAMME_HEADINGS,
+  ProgrammeBody,
+  programmeSections,
+  ReadOnlyNotice,
+  RsvpBlock,
+} from '@/components/invitation/guest-blocks';
 import type { GuestPageProps, GuestView } from '@/components/invitation/guest-view';
 
 type Tone = GuestView['tone'];
@@ -14,7 +24,7 @@ type Band = { key: string; node: React.ReactNode };
  */
 export function RiangLayout({ props, view }: { props: GuestPageProps; view: GuestView }) {
   const { invitation, config, guest, readOnly } = props;
-  const { tone, formatTime, dateParts, names, events, primaryEvent, renderedAt, primaryStartMs, showCountdown, gallery } = view;
+  const { tone, formatTime, dateParts, names, events, primaryEvent, renderedAt, primaryStartMs, showCountdown, gallery, organiser } = view;
   const tile = dateParts(primaryEvent?.startAt);
   const startTime = formatTime(primaryEvent?.startAt);
   const block = `rounded-3xl border ${tone.line} ${tone.card} shadow-sm`;
@@ -30,7 +40,7 @@ export function RiangLayout({ props, view }: { props: GuestPageProps; view: Gues
           {showCountdown && primaryEvent && (
             <Countdown target={primaryStartMs} initialNow={renderedAt} eventTitle={primaryEvent.title} boxClassName={block} labelClassName={tone.muted} />
           )}
-          <div className="mt-8 grid gap-4 sm:grid-cols-2">
+          <div className={`mt-8 grid gap-4 ${events.length > 1 ? 'sm:grid-cols-2' : ''}`}>
             {events.map((event, index) => {
               const parts = dateParts(event.startAt);
               return (
@@ -52,6 +62,18 @@ export function RiangLayout({ props, view }: { props: GuestPageProps; view: Gues
             })}
           </div>
           <CalendarLinks view={view} slug={invitation.slug} className="mt-8 flex flex-col items-start gap-3 sm:flex-row" />
+        </>
+      ),
+    });
+  }
+
+  for (const id of programmeSections(view)) {
+    bands.push({
+      key: `programme-${id}`,
+      node: (
+        <>
+          <BandHeading tone={tone}>{PROGRAMME_HEADINGS[id]}</BandHeading>
+          <ProgrammeBody id={id} view={view} cardClassName={block} />
         </>
       ),
     });
@@ -216,6 +238,11 @@ export function RiangLayout({ props, view }: { props: GuestPageProps; view: Gues
               ))
             : config.settings?.title || 'Undangan'}
         </h1>
+        {organiser && (
+          <p dir="auto" className={`mx-auto mt-4 max-w-xl text-sm ${tone.muted} [overflow-wrap:anywhere]`}>
+            {organiser}
+          </p>
+        )}
         {tile && (
           <div className="inv-rise mt-10 flex flex-wrap items-center justify-center gap-4">
             <p className={`${block} px-6 py-4`}>
@@ -226,7 +253,7 @@ export function RiangLayout({ props, view }: { props: GuestPageProps; view: Gues
               </span>
             </p>
             {(startTime || primaryEvent?.venueName) && (
-              <ul className="flex max-w-60 flex-col items-start gap-2 text-left text-sm">
+              <ul className="flex max-w-60 flex-col items-center gap-2 text-center text-sm sm:items-start sm:text-left">
                 {startTime && <li className={chip}>{startTime}</li>}
                 {primaryEvent?.venueName && <li className={chip}>{primaryEvent.venueName}</li>}
               </ul>

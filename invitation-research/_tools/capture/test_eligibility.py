@@ -236,7 +236,13 @@ class MeasurementProfiles(unittest.TestCase):
     def test_9d_profiles_are_separate_themes_for_retry_counting(self):
         pilot = IDS('C-WEV', range(201, 205))
         self.assertEqual(len({(RESULTS[c]['theme_key'], RESULTS[c]['profile']) for c in pilot}), 4)
-        self.assertTrue(all(RESULTS[c]['theme_attempts'] == 1 for c in pilot))
+        # Attempts count per theme and profile, never pooled across profiles. Counted from the data, because the s14
+        # replacements C-WEV-225…228 (same theme, same four profiles; stored s15) are genuine retries within each profile.
+        same_theme = [c for c, result in RESULTS.items() if result['theme_key'] == RESULTS['C-WEV-201']['theme_key']]
+        for c in pilot:
+            per_profile = sum(1 for other in same_theme if RESULTS[other]['profile'] == RESULTS[c]['profile'])
+            self.assertEqual(RESULTS[c]['theme_attempts'], per_profile, c)
+            self.assertLess(RESULTS[c]['theme_attempts'], len(same_theme), f'{c}: attempts pooled across profiles')
         self.assertEqual(RESULTS['C-WEV-104']['profile'], elig.V1_PROFILE)  # no measurement block = protocol v1.2
 
 

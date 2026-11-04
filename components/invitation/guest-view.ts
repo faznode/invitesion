@@ -4,6 +4,7 @@ import type { DetailConfig } from '@/lib/invitation/detail-config';
 import { eventDateParts, formatEventDate, formatEventTime } from '@/lib/invitation/event-time';
 import { invitationDisplayName, invitationHeadline } from '@/lib/invitation/headline';
 import { palette } from '@/lib/invitation/palettes';
+import { programmeOf } from '@/lib/invitation/programme';
 import type { Guest, Invitation, MediaAsset } from '@/lib/db/schema';
 
 export type GuestMessage = { id: number; name: string; message: string; createdAt: Date };
@@ -46,8 +47,31 @@ export function buildGuestView({ invitation, config, guest, media, readOnly }: G
       : undefined;
   const gallery = config.gallery?.enabled !== false ? media.filter((asset) => asset.type === 'photo') : [];
   const canRespond = Boolean(guest) && !readOnly;
+  // Small text drawn over a cover photo sits on an opaque page-colour chip: accent tokens clear AA on bg itself, but a
+  // dark region of a 20–25 % photo can pull them to 2.8:1 (B-016, tests/palette-contrast.test.ts). No photo, no change.
+  // Block-level so the chip never shares a line with the inline guest card that follows it (s15 review F6).
+  const coverText = (classes: string) => (config.theme?.cover?.imageUrl ? `${classes} mx-auto block w-fit rounded-2xl ${tone.bg} px-3 py-1` : classes);
+  // B-029: who invites. The corporate headline is the event name, so the organisation is shown beside it when both are
+  // filled; without an event name the organisation already is the headline and is not repeated.
+  const eventName = invitation.eventType === 'corporate' ? config.corporateProfile?.eventName?.trim() : undefined;
+  const organisation = config.corporateProfile?.organizationName?.trim();
+  const organiser = eventName && organisation && organisation !== eventName ? organisation : undefined;
+  // B-029: the programme a corporate host typed, render-when-filled. Corporate invitations only, like the headline, so a
+  // profile left from another event type never reaches the page; layouts read `programme`, never the stored profile.
+  const programme =
+    invitation.eventType === 'corporate'
+      ? programmeOf({
+          description: config.corporateProfile?.description,
+          agenda: config.corporateProfile?.agenda,
+          speakers: config.corporateProfile?.speakers,
+          dressCode: config.corporateProfile?.dressCode,
+          contactName: config.corporateProfile?.contactName,
+          contactPhone: config.corporateProfile?.contactPhone,
+          contactEmail: config.corporateProfile?.contactEmail,
+        })
+      : null;
 
-  return { tone, formatDate, formatTime, dateParts, names, events, primaryEvent, renderedAt, primaryStartMs, showCountdown, primaryCalendarEvent, gallery, canRespond };
+  return { tone, formatDate, formatTime, dateParts, names, events, primaryEvent, renderedAt, primaryStartMs, showCountdown, primaryCalendarEvent, gallery, canRespond, coverText, programme, organiser };
 }
 
 export type GuestView = ReturnType<typeof buildGuestView>;

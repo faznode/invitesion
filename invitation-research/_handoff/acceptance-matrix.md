@@ -1,15 +1,15 @@
 <!-- SUMMARY (first 7 lines — greppable) -->
 # acceptance-matrix.md — masterplan requirements, verified one by one
 > WHAT: Every required research and planning deliverable with its artifact, status, evidence, how it was verified, what is still missing, dependencies and the next concrete action. Planning requirements are kept apart from implementation evidence, future implementation criteria and external dependencies.
-> STATUS: s14 (2026-11-04; recomputed from artifacts after s12 / s13, whose changes this matrix never received). **Masterplan completion: OPEN.** BLOCKED: RQ-DEMO-01 (external: no safe IDI / PLO / SMO demo) and RQ-VER-03 (needs a separate reviewer session). PARTIAL: RQ-COMP-04, RQ-COMP-05, RQ-OWN-02 (see §9). No row is VERIFIED because a file exists or carries a FINAL label; each row names the check that was run.
-> OWNER: Oracle (research); independent Guardian review pending (RQ-VER-03)
+> STATUS: s15 (2026-11-04; owner decisions ADR-O08–O10 applied). **Masterplan completion: OPEN**, and no longer a precondition for implementation (ADR-O08). RQ-DEMO-01 qualified by availability (ADR-O10); RQ-VER-03 is an owner-authorized self-review (ADR-O09), never an independent review. PARTIAL: RQ-COMP-04, RQ-COMP-05, RQ-OWN-02, RQ-BENCH-05 (see §9). No row is VERIFIED because a file exists or carries a FINAL label; each row names the check that was run.
+> OWNER: Oracle (research); review: self-review under owner authority (ADR-O09, `review-20261104-self.md`)
 > DEPS: ../09-masterplan/, ../03-teardowns/, ../04-template-benchmarks/benchmark-pack.md, ../05-feature-matrix/, ../06-gap-analysis/, ../07-ideation/, ../08-backend-rust-plan/, ../01-codebase-audit/revalidation-s10.md, ../_tools/safety/check-references.py
 > GREP: acceptance, requirement, RQ-, verified, partial, missing, blocked, gate, completion
 > UPDATED: 2026-11-04
 
 **Status values.** VERIFIED = content checked against its sources and the named check passed · PARTIAL = substantive work exists, a stated criterion is still unmet · MISSING = required artifact absent · BLOCKED = cannot be completed within the public-only, robots-honouring, no-signup boundaries; the row says what would unblock it.
 **Category.** PLAN = planning or research deliverable that must be complete before the masterplan is called complete · IMPL = evidence about code that already exists · FUTURE = acceptance criteria of later implementation work (may stay planned) · EXT = genuine external dependency.
-**Baseline.** s14 rows: worktree = `9bbd813` + the s14 commits listed in `sessions/session-14-20261104-1420.md`; checks run in the s14 sandbox on 2026-11-04 unless a row says otherwise. Older evidence text in a row keeps the session it came from.
+**Baseline.** s15 rows: worktree = `bcc1af9` + the s15 commits listed in `sessions/session-15-20261104-1556.md`; checks run in the s15 sandbox on 2026-11-04 unless a row says otherwise. s14 rows: `9bbd813` + the s14 commits. Older evidence text in a row keeps the session it came from.
 
 ## 1. Competitor research
 | ID | Requirement | Artifact | Cat. | Status | Evidence and verification | Remaining criteria · dependency · next action |

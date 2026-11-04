@@ -21,8 +21,11 @@ import { palette, paletteHex, paletteIds } from '../lib/invitation/palettes';
 import { invitationShareMetadata, previewImageModel, previewImageVersion } from '../lib/invitation/preview-image';
 import { invitationCalendarPath, invitationPreviewImagePath } from '../lib/invitation/public-path';
 import { slugify } from '../lib/invitation/slug';
+import type { DetailConfig } from '../lib/invitation/detail-config';
+import { fixtureGuest, fixtureInvitation, formCount, hiddenInputValues, LAYOUTS, linkHrefs, renderGuestPage, withFamily } from './support/render-guest-page';
 
 const source = (path: string) => readFileSync(join(process.cwd(), path), 'utf8');
+const LAYOUT_FILES = ['components/invitation/public-renderer.tsx', 'components/invitation/families/gapura.tsx', 'components/invitation/families/kartu.tsx', 'components/invitation/families/riang.tsx'];
 const unfold = (ics: string) => ics.replace(/\r\n /g, '');
 
 // ── Flags ─────────────────────────────────────────────────────────────────────
@@ -111,11 +114,55 @@ test('B-008: headline names are shared by renderer, calendar and preview image',
   assert.equal(invitationDisplayName('wedding', {}), 'Undangan');
 });
 
-test('B-008: wiring — flag-gated, drafts excluded, no guest data in the calendar route', () => {
-  const renderer = source('components/invitation/public-renderer.tsx');
-  assert.match(renderer, /isFlagOn\('GUEST_CALENDAR'\)/);
-  assert.match(renderer, /invitation\.status === 'PUBLISHED'/);
-  assert.match(renderer, /<Countdown /);
+const calendarConfig = (startAt: string, endAt?: string): DetailConfig => ({
+  couple: { bride: { nickName: 'Sari' }, groom: { nickName: 'Budi' } },
+  events: [{ title: 'Resepsi', startAt, endAt, venueName: 'Gedung Makassar' }],
+});
+const googleLink = (html: string) => linkHrefs(html).find((href) => href.startsWith('https://calendar.google.com/'));
+const icsLink = (html: string) => linkHrefs(html).find((href) => href.endsWith('/calendar.ics'));
+
+test('B-008: every layout shows the countdown and calendar links for a future event of a published invitation only, behind the flag', () => {
+  const future = calendarConfig('2099-12-27T19:00:00+08:00', '2099-12-27T21:00:00+08:00');
+  const previousFlag = process.env.FLAG_GUEST_CALENDAR;
+  try {
+    for (const { label, familyId } of LAYOUTS) {
+      delete process.env.FLAG_GUEST_CALENDAR;
+      const published = renderGuestPage({ config: withFamily(future, familyId) });
+      assert.match(published, /role="timer"/, `${label}: countdown`);
+      assert.equal(icsLink(published), '/i/budi-sari/calendar.ics', `${label}: calendar file of this invitation`);
+      const google = new URL(googleLink(published) ?? 'about:blank');
+      assert.equal(google.searchParams.get('dates'), '20991227T110000Z/20991227T130000Z', `${label}: 19.00–21.00 WITA as UTC instants`);
+      assert.equal(google.searchParams.get('location'), 'Gedung Makassar', label);
+
+      const draft = renderGuestPage({ config: withFamily(future, familyId), invitation: fixtureInvitation({ status: 'DRAFT' }) });
+      assert.equal(icsLink(draft) ?? googleLink(draft), undefined, `${label}: a draft has no calendar file, so no calendar links`);
+
+      const past = renderGuestPage({ config: withFamily(calendarConfig('2020-12-27T19:00:00+08:00'), familyId) });
+      assert.doesNotMatch(past, /role="timer"/, `${label}: no countdown after the event`);
+      assert.equal(icsLink(past) ?? googleLink(past), undefined, `${label}: no save-the-date after the event`);
+
+      process.env.FLAG_GUEST_CALENDAR = 'off';
+      const flagOff = renderGuestPage({ config: withFamily(future, familyId) });
+      assert.doesNotMatch(flagOff, /role="timer"/, `${label}: flag off removes the countdown`);
+      assert.equal(icsLink(flagOff) ?? googleLink(flagOff), undefined, `${label}: flag off removes the calendar links`);
+    }
+  } finally {
+    if (previousFlag === undefined) delete process.env.FLAG_GUEST_CALENDAR;
+    else process.env.FLAG_GUEST_CALENDAR = previousFlag;
+  }
+});
+
+test('B-008 / B-030: layouts take the flag, publish and calendar rules from the one shared guest view', () => {
+  const view = source('components/invitation/guest-view.ts');
+  assert.match(view, /isFlagOn\('GUEST_CALENDAR'\)/);
+  assert.match(view, /invitation\.status === 'PUBLISHED'/);
+  for (const file of LAYOUT_FILES) {
+    assert.doesNotMatch(source(file), /isFlagOn\(|calendarEventsFromConfig\(|invitation\.status/, `${file} re-derives a rule the guest view owns`);
+    assert.match(source(file), /<Countdown\b/, file);
+  }
+});
+
+test('B-008: wiring — the calendar route is flag-gated, skips drafts and never reads guest rows', () => {
   const route = source('app/i/[slug]/calendar.ics/route.ts');
   assert.match(route, /isFlagOn\('GUEST_CALENDAR'\)/);
   assert.match(route, /loadPublishedInvitationSummary\(slug\)/);
@@ -167,7 +214,8 @@ test('B-011: wiring — one lookup rule for page and actions, flag-gated minting
     assert.match(source(file), /isFlagOn\('OPAQUE_GUEST_LINKS'\) \? newGuestLinkToken\(\) : null/, file);
   }
   assert.match(source('app/(customer)/dashboard/guests/page.tsx'), /guestPath\(invitationSlug, guestLinkSegment\(guest\)\)/);
-  assert.equal(source('components/invitation/public-renderer.tsx').match(/name="guestSlug" value=\{guestLinkSegment\(guest\)\}/g)?.length, 2);
+  assert.equal(source('components/invitation/guest-blocks.tsx').match(/name="guestSlug" value=\{guestLinkSegment\(guest\)\}/g)?.length, 2, 'both shared forms post the link identity');
+  for (const file of LAYOUT_FILES) assert.doesNotMatch(source(file), /name="guestSlug"/, `${file} builds its own guest form`);
   assert.equal(
     source('lib/db/migrations/0010_guest_link_token.sql').trim(),
     'ALTER TABLE "guests" ADD COLUMN "link_token" varchar(32);--> statement-breakpoint\nCREATE UNIQUE INDEX "guests_link_token_unique" ON "guests" USING btree ("link_token");',
@@ -176,6 +224,30 @@ test('B-011: wiring — one lookup rule for page and actions, flag-gated minting
   assert.match(source('app/layout.tsx'), /export const experimental_ppr = true;/);
   for (const page of ['app/i/[slug]/page.tsx', 'app/i/[slug]/[guestSlug]/page.tsx']) {
     assert.match(source(page), /export const experimental_ppr = false;/, page);
+  }
+});
+
+test('B-011: every layout posts the link identity from both forms (the token, or the slug of a legacy guest) and only while responses are open', () => {
+  const config: DetailConfig = { couple: { bride: { nickName: 'Sari' }, groom: { nickName: 'Budi' } } };
+  const token = 'AbCdEfGhIjKlMnOpQrStUv';
+  const tokenized = fixtureGuest({ name: 'Sari Wulan', slug: 'sari-wulan', linkToken: token });
+  for (const { label, familyId } of LAYOUTS) {
+    const page = renderGuestPage({ config: withFamily(config, familyId), guest: tokenized });
+    assert.equal(formCount(page), 2, `${label}: RSVP and guestbook`);
+    assert.deepEqual(hiddenInputValues(page, 'guestSlug'), [token, token], `${label}: the opaque token`);
+    assert.deepEqual(hiddenInputValues(page, 'slug'), ['budi-sari', 'budi-sari'], label);
+    assert.equal(page.includes('sari-wulan'), false, `${label}: a tokenized guest's guessable slug never reaches the page`);
+
+    const legacyPage = renderGuestPage({ config: withFamily(config, familyId), guest: fixtureGuest() });
+    assert.deepEqual(hiddenInputValues(legacyPage, 'guestSlug'), ['budi-hartono', 'budi-hartono'], `${label}: legacy link keeps working`);
+
+    const expired = renderGuestPage({ config: withFamily(config, familyId), guest: tokenized, readOnly: true });
+    assert.equal(formCount(expired), 0, `${label}: an expired invitation takes no responses`);
+    assert.ok(expired.includes('RSVP untuk undangan ini sudah ditutup.') && expired.includes('sudah melewati masa aktif'), `${label}: read-only notices`);
+
+    const anonymous = renderGuestPage({ config: withFamily(config, familyId), guest: null });
+    assert.equal(formCount(anonymous), 0, `${label}: no personal link, no form`);
+    assert.ok(anonymous.includes('tautan undangan personal'), `${label}: explains where to respond`);
   }
 });
 

@@ -126,6 +126,138 @@ export function CalendarLinks({
   );
 }
 
+/**
+ * B-029: the programme a corporate host typed (`view.programme`), each section only when filled, in one fixed order
+ * after the event list. Layouts own the section frame and heading; rows, link rules and order stay here. Host text is
+ * isolated for bidirectional scripts and wraps instead of overflowing at 360 px.
+ */
+export const PROGRAMME_HEADINGS = {
+  about: 'Tentang Acara',
+  agenda: 'Susunan Acara',
+  speakers: 'Pembicara',
+  info: 'Informasi Tamu',
+} as const;
+
+export type ProgrammeSectionId = keyof typeof PROGRAMME_HEADINGS;
+
+export function programmeSections(view: GuestView): ProgrammeSectionId[] {
+  const { programme } = view;
+  if (!programme) return [];
+  const filled: Record<ProgrammeSectionId, boolean> = {
+    about: Boolean(programme.description),
+    agenda: programme.agenda.length > 0,
+    speakers: programme.speakers.length > 0,
+    info: Boolean(programme.dressCode || programme.contact),
+  };
+  return (Object.keys(PROGRAMME_HEADINGS) as ProgrammeSectionId[]).filter((id) => filled[id]);
+}
+
+const HOST_TEXT = '[overflow-wrap:anywhere]';
+
+export function ProgrammeBody({ id, view, cardClassName }: { id: ProgrammeSectionId; view: GuestView; cardClassName: string }) {
+  const { programme, tone } = view;
+  if (!programme) return null;
+
+  if (id === 'about') {
+    return (
+      <p dir="auto" className={`mt-6 whitespace-pre-line text-sm leading-7 ${HOST_TEXT}`}>
+        {programme.description}
+      </p>
+    );
+  }
+
+  // One card with divided rows: 30 rows as 30 cards took ≈ 3,100 px at 360 px (s15 review F1); from 640 px the time
+  // gets its own column so a guest scans times down one edge.
+  if (id === 'agenda') {
+    return (
+      <ol className={`mt-8 ${cardClassName} px-5`}>
+        {programme.agenda.map((row, index) => (
+          <li key={index} className={`py-4 sm:grid sm:grid-cols-[7rem_1fr] sm:gap-4 sm:text-left ${index > 0 ? `border-t ${tone.line}` : ''}`}>
+            {row.time ? (
+              <p dir="auto" className={`text-xs font-semibold uppercase tracking-widest ${tone.accent} sm:pt-1 ${HOST_TEXT}`}>
+                {row.time}
+              </p>
+            ) : (
+              <span aria-hidden className="hidden sm:block" />
+            )}
+            <div className="min-w-0">
+              <p dir="auto" className={`${row.time ? 'mt-1 sm:mt-0 ' : ''}font-medium leading-snug ${HOST_TEXT}`}>
+                {row.title}
+              </p>
+              {row.speaker && (
+                <p dir="auto" className={`mt-1 text-sm ${tone.muted} ${HOST_TEXT}`}>
+                  {row.speaker}
+                </p>
+              )}
+            </div>
+          </li>
+        ))}
+      </ol>
+    );
+  }
+
+  if (id === 'speakers') {
+    return (
+      <ul className="mt-8 grid gap-3 sm:grid-cols-2">
+        {programme.speakers.map((speaker, index) => (
+          <li key={index} className={`${cardClassName} p-5`}>
+            <p dir="auto" className={`font-medium leading-snug ${HOST_TEXT}`}>
+              {speaker.name}
+            </p>
+            {speaker.role && (
+              <p dir="auto" className={`mt-1 text-sm ${tone.muted} ${HOST_TEXT}`}>
+                {speaker.role}
+              </p>
+            )}
+            {speaker.org && (
+              <p dir="auto" className={`text-sm ${tone.muted} ${HOST_TEXT}`}>
+                {speaker.org}
+              </p>
+            )}
+          </li>
+        ))}
+      </ul>
+    );
+  }
+
+  const { dressCode, contact } = programme;
+  const link = `inline-flex min-h-11 items-center font-semibold underline underline-offset-4 ${tone.accent} ${HOST_TEXT}`;
+  const contactValue = (value: { label: string; href?: string }) =>
+    value.href ? (
+      <a href={value.href} className={link}>
+        {value.label}
+      </a>
+    ) : (
+      <span dir="auto" className={HOST_TEXT}>
+        {value.label}
+      </span>
+    );
+  return (
+    <dl className={`mt-8 flex flex-col gap-5 ${cardClassName} p-5 text-sm`}>
+      {dressCode && (
+        <div>
+          <dt className={`text-xs uppercase tracking-widest ${tone.muted}`}>Dress code</dt>
+          <dd dir="auto" className={`mt-1 font-medium ${HOST_TEXT}`}>
+            {dressCode}
+          </dd>
+        </div>
+      )}
+      {contact && (
+        <div>
+          <dt className={`text-xs uppercase tracking-widest ${tone.muted}`}>Narahubung</dt>
+          {contact.name && (
+            <dd dir="auto" className={`mt-1 font-medium ${HOST_TEXT}`}>
+              {contact.name}
+            </dd>
+          )}
+          {contact.phone && <dd>{contactValue(contact.phone)}</dd>}
+          {contact.email && <dd>{contactValue(contact.email)}</dd>}
+        </div>
+      )}
+    </dl>
+  );
+}
+
 /** RSVP: status notices, then the form for a recognised guest of an active invitation, otherwise an explanation. */
 export function RsvpBlock({
   props,

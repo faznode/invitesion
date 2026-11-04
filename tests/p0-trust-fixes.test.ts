@@ -16,6 +16,9 @@ import { catalogDefaultConfig, presetConfigFromTemplateDefaults } from '../lib/i
 import { invitationTemplates } from '../lib/invitation/templates';
 import { formatMoney } from '../lib/payment/money';
 import { currencyForLocale, priceFor, tierPriceLabel } from '../lib/pricing';
+import type { DetailConfig } from '../lib/invitation/detail-config';
+import { FAMILY_IDS } from '../lib/invitation/families';
+import { LAYOUTS, renderGuestPage, withFamily } from './support/render-guest-page';
 
 // `pnpm test` runs from the repository root (package type is CommonJS, so no import.meta).
 const source = (path: string) => readFileSync(join(process.cwd(), path), 'utf8');
@@ -138,13 +141,27 @@ test('B-004: dates do not slip a day across the UTC boundary', () => {
   assert.equal(formatEventDate('2026-11-21T23:30:00+09:00'), 'Sabtu, 21 November 2026');
 });
 
-test('B-004: missing or invalid values render nothing; the renderer no longer hard-codes WIB', () => {
+test('B-004: missing or invalid values render nothing; no guest-page file formats times itself or hard-codes WIB', () => {
   assert.equal(formatEventTime(undefined), null);
   assert.equal(formatEventTime('not a date'), null);
   assert.equal(formatEventDate(''), null);
-  const renderer = source('components/invitation/public-renderer.tsx');
-  assert.doesNotMatch(renderer, /toLocaleTimeString|['"`]\s*WIB['"`]|\} WIB`/);
-  assert.match(renderer, /formatEventTime\(value, eventZone\)/);
+  const files = ['components/invitation/public-renderer.tsx', 'components/invitation/guest-view.ts', 'components/invitation/guest-blocks.tsx', ...FAMILY_IDS.map((id) => `components/invitation/families/${id}.tsx`)];
+  for (const file of files) assert.doesNotMatch(source(file), /toLocaleTimeString|toLocaleDateString|['"`]\s*WIB['"`]|\} WIB`/, file);
+  assert.match(source('components/invitation/guest-view.ts'), /formatEventTime\(value, eventZone\)/);
+});
+
+test('B-004: every layout renders the event-local day and time on a UTC server, labelled from the saved offset or zone', () => {
+  const couple = { bride: { nickName: 'Sari' }, groom: { nickName: 'Budi' } };
+  // 00.30 WITA on the 28th is 16.30 UTC on the 27th: a server-zone date would slip back a day.
+  const offset: DetailConfig = { couple, events: [{ title: 'Akad', startAt: '2026-12-28T00:30:00+08:00', endAt: '2026-12-28T01:30:00+08:00' }] };
+  const zoned: DetailConfig = { couple, events: [{ title: 'Akad', startAt: '2026-12-27T16:30:00Z' }], eventOperations: { enabled: false, timezone: 'Asia/Jayapura' } };
+  for (const { label, familyId } of LAYOUTS) {
+    const page = renderGuestPage({ config: withFamily(offset, familyId) });
+    assert.ok(page.includes('00.30 WITA – 01.30 WITA'), `${label}: time range in the event's zone`);
+    assert.ok(page.includes('Senin, 28 Desember 2026'), `${label}: the event's own day`);
+    assert.doesNotMatch(page, /WIB|27 Desember/, `${label}: no server-zone date and no fixed WIB label`);
+    assert.ok(renderGuestPage({ config: withFamily(zoned, familyId) }).includes('01.30 WIT'), `${label}: the saved event zone`);
+  }
 });
 
 // ── B-005: editor preview opens the real renderer; theme tab reachable ─────────
