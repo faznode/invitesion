@@ -5,9 +5,11 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { db } from '@/lib/db/drizzle';
 import { analyticsEvents, guestMessages, guests, invitations } from '@/lib/db/schema';
+import { isFlagOn } from '@/lib/flags';
 import { normalizeStoredConfig } from '@/lib/invitation/content-read';
 import { findGuestByLinkSegment } from '@/lib/invitation/public';
 import { guestPath } from '@/lib/invitation/public-url';
+import { parseRsvpAnswers, rsvpQuestionsOf, type RsvpAnswers } from '@/lib/invitation/rsvp-questions';
 import { isRsvpStatus, rsvpAttendance, rsvpClosedReason } from '@/lib/invitation/rsvp-rules';
 
 /**
@@ -42,14 +44,25 @@ export async function submitRsvp(formData: FormData) {
   // page that was rendered while it was still open.
   if (rsvpClosedReason(context.config.rsvp, Date.now())) redirect(`${guestPath(slug, guestSlug)}?rsvp=closed`);
 
-  if (!isRsvpStatus(status)) {
+  // B-027: "maybe" is accepted only while its flag is on, so switching the flag off also refuses stale forms.
+  if (!isRsvpStatus(status, { maybe: isFlagOn('RSVP_MAYBE') })) {
     redirect(`${guestPath(slug, guestSlug)}?rsvp=invalid`);
   }
 
   // The answer goes to attending_count; guest_count is the host's allowance and is never written here (B-007).
   const attendingCount = rsvpAttendance(status, attending, context.guest.guestCount);
 
-  await db.update(guests).set({ rsvpStatus: status, attendingCount }).where(eq(guests.id, context.guest.id));
+  // B-027 (D-034): answers to the host's questions, by the rules the form was rendered with. Undefined leaves the column
+  // as it is (flag off or no questions), so switching either off never erases stored answers; null clears on a decline.
+  let rsvpAnswers: RsvpAnswers | null | undefined;
+  const questions = isFlagOn('RSVP_QUESTIONS') ? rsvpQuestionsOf(context.config.registrationForm ?? {}) : [];
+  if (questions.length) {
+    const parsed = parseRsvpAnswers(formData, questions, status);
+    if (!parsed.ok) redirect(`${guestPath(slug, guestSlug)}?rsvp=answers&rsvpq=${encodeURIComponent(parsed.questionId)}`);
+    rsvpAnswers = parsed.answers;
+  }
+
+  await db.update(guests).set({ rsvpStatus: status, attendingCount, ...(rsvpAnswers !== undefined && { rsvpAnswers }) }).where(eq(guests.id, context.guest.id));
   await db.insert(analyticsEvents).values({
     invitationId: context.invitation.id,
     guestId: context.guest.id,

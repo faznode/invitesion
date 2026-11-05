@@ -141,11 +141,14 @@ export const guests = pgTable(
     sentAt: timestamp('sent_at'),
     openedAt: timestamp('opened_at'),
     openedCount: integer('opened_count').notNull().default(0),
-    rsvpStatus: varchar('rsvp_status', { length: 20 }).notNull().default('PENDING'), // PENDING|CONFIRMED|DECLINED
+    rsvpStatus: varchar('rsvp_status', { length: 20 }).notNull().default('PENDING'), // PENDING|CONFIRMED|DECLINED|MAYBE (B-027)
     // Seats the host allows for this link; an RSVP never changes it (B-007).
     guestCount: integer('guest_count').notNull().default(1),
     // People the guest said will come (0 on decline). Null = no answer yet or a row answered before B-007.
     attendingCount: integer('attending_count'),
+    // Answers to the host's custom questions, { [questionId]: string | string[] | number } (B-027, D-034); written with
+    // the RSVP, cleared on a decline, read only through `readStoredAnswers`. Null = none.
+    rsvpAnswers: jsonb('rsvp_answers'),
     checkedInAt: timestamp('checked_in_at'),
     // Opaque link credential (B-011). Null = legacy guest reachable by slug; set = reachable by this token only.
     linkToken: varchar('link_token', { length: 32 }),

@@ -5,16 +5,35 @@
  * into that column, so "decline" set it to 0 and a later "confirm" was capped at 1. The answer now lives in
  * `attending_count` and the allowance is only ever read.
  */
-export const RSVP_STATUSES = ['CONFIRMED', 'DECLINED'] as const;
+export const RSVP_STATUSES = ['CONFIRMED', 'DECLINED', 'MAYBE'] as const;
 export type RsvpStatus = (typeof RSVP_STATUSES)[number];
 
-export function isRsvpStatus(value: string): value is RsvpStatus {
+/** An answer a guest may send now. "Maybe" (B-027) only when the caller says its flag is on; stored MAYBE rows stay valid. */
+export function isRsvpStatus(value: string, options: { maybe?: boolean } = {}): value is RsvpStatus {
+  if (value === 'MAYBE') return options.maybe === true;
   return (RSVP_STATUSES as readonly string[]).includes(value);
 }
 
-/** People attending for an answer: 0 on decline, otherwise the requested number clamped to 1…allowance. */
-export function rsvpAttendance(status: RsvpStatus, requested: number, allowance: number): number {
+/** What a guest reads back about their last answer. */
+export const RSVP_ANSWER_TEXT: Record<RsvpStatus, string> = { CONFIRMED: 'hadir', DECLINED: 'tidak hadir', MAYBE: 'mungkin hadir' };
+
+/** Answers per status (B-027: "maybe" is counted on its own and never as attending). Unknown stored values are left out. */
+export function rsvpCounts(rows: readonly { rsvpStatus: string }[]): Record<RsvpStatus | 'PENDING', number> {
+  const counts: Record<RsvpStatus | 'PENDING', number> = { PENDING: 0, CONFIRMED: 0, DECLINED: 0, MAYBE: 0 };
+  for (const { rsvpStatus } of rows) if (rsvpStatus in counts) counts[rsvpStatus as keyof typeof counts] += 1;
+  return counts;
+}
+
+/**
+ * People attending for an answer: 0 on decline; unknown (null) for "maybe", so a tentative answer never enters a
+ * headcount; otherwise the requested number clamped to 1…allowance.
+ */
+export function rsvpAttendance(status: 'MAYBE', requested: number, allowance: number): null;
+export function rsvpAttendance(status: Exclude<RsvpStatus, 'MAYBE'>, requested: number, allowance: number): number;
+export function rsvpAttendance(status: RsvpStatus, requested: number, allowance: number): number | null;
+export function rsvpAttendance(status: RsvpStatus, requested: number, allowance: number): number | null {
   if (status === 'DECLINED') return 0;
+  if (status === 'MAYBE') return null;
   const cap = Number.isInteger(allowance) && allowance > 0 ? allowance : 1;
   const wanted = Number.isFinite(requested) ? Math.trunc(requested) : 1;
   return Math.min(Math.max(wanted, 1), cap);

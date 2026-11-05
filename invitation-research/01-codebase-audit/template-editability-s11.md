@@ -51,3 +51,6 @@ Hosts edit **invitation data** inside a typed schema. They do not edit layout or
 
 ## 8. Evidence used
 File reads and greps at `e873680`: `detail-config.ts` (schema, merge), `editor.tsx` (tabs, `HIDDEN_MODULES_BY_TYPE`, `moduleVisible`), `public-renderer.tsx` (every `config.` read), `headline.ts`, `templates.ts` (`InvitationTemplate`, presets), `template-defaults.ts` (ADR-O01 fix), `public.ts` (loader, `safeParse` → `{}` fallback), `app/i/[slug]/actions.ts` (message insert), `schema.ts` (`guest_messages.is_hidden`), `app/templates/[slug]/preview-client.tsx`.
+
+## 9. Follow-up (appended s17; the observations above describe `e873680`)
+§2's stored-only list has shrunk since: the corporate programme, logo and category render (B-029, s15–s16); the ceremony profile renders per event type except its photo, and the wedding hashtag and filter link render once switched on (B-029 slice 3, s17, `IMPLEMENTATION-LOG.md` E-026). The live list is `RENDER_CAPABILITIES` in `lib/invitation/content-contract.ts`, which the content-contract test keeps in agreement with the renderer; `music.*`, couple `parents / photoUrl / instagram / order` and the birthday extras were still stored-only at s17.

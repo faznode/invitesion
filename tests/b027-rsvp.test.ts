@@ -62,7 +62,8 @@ test('B-027 / F7: every layout shows the guest name as wrapping, direction-isola
 test('B-027: an open deadline is announced in the event wall clock; a passed one closes RSVP only', () => {
   for (const { label, familyId } of LAYOUTS) {
     const open = renderGuestPage({ config: withFamily(withRsvp({ enabled: true, deadline: FUTURE }), familyId), guest: fixtureGuest() });
-    assert.equal(answerButtons(open), 2, `${label}: both answers offered before the deadline`);
+    // s17 (E-025): "maybe" joins the two answers while RSVP_MAYBE is on (its default); tests/b027-maybe.test.ts covers off.
+    assert.equal(answerButtons(open), 3, `${label}: every answer offered before the deadline`);
     assert.match(open, /Mohon konfirmasi sebelum <span class="font-semibold">[^<]*2 Januari 2099, 23\.59 WITA<\/span>/, `${label}: deadline in WITA`);
 
     const closed = renderGuestPage({ config: withFamily(withRsvp({ enabled: true, deadline: PAST }), familyId), guest: fixtureGuest() });

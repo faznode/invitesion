@@ -67,7 +67,8 @@ test('B-030: every family composes every guest-facing section of the legacy page
     ['names (couple, honouree or event)', /\bnames\b/],
     ['settings.title fallback', /settings\?\.title/],
     ['settings.openingCopy', /settings\?\.openingCopy/],
-    ['theme.cover.imageUrl', /cover\?\.imageUrl/],
+    // E-023: families draw the cover from the view's guarded source, never from the stored value.
+    ['theme.cover.imageUrl', /\bview\.coverImageSrc\b/],
     ['theme.cover.headline', /cover\?\.headline/],
     ['greetings.prayer', /greetings\?\.prayer/],
     ['quote.text', /quote\.text/],
@@ -128,4 +129,23 @@ test('B-030: date tiles use the event zone, not the server zone', () => {
   assert.deepEqual(eventDateParts('2026-12-27T19:00:00+08:00'), { weekday: 'Minggu', day: '27', month: 'Desember', monthShort: 'Des', year: '2026' });
   assert.equal(eventDateParts('2026-12-31T23:30:00+07:00')?.day, '31', '23:30 WIB on the 31st stays the 31st');
   assert.equal(eventDateParts('not a date'), null);
+});
+
+test('S16-X2 (s17): Gapura\'s cover is full-height only from 640 px, so on a phone the first section follows its content', () => {
+  const page = renderGuestPage({ config: withFamily({ couple, settings: { openingCopy: 'Pembuka' } }, 'gapura'), guest: fixtureGuest() });
+  const header = /<header class="([^"]*)"/.exec(page)?.[1] ?? '';
+  const classes = header.split(/\s+/);
+  assert.ok(classes.includes('sm:min-h-[90vh]') && classes.includes('sm:pb-14'), header);
+  assert.equal(classes.some((name) => /^(?:min-h-|pb-|py-)/.test(name)), false, `no phone-width minimum height or bottom padding: ${header}`);
+  const legacy = /<header class="([^"]*)"/.exec(renderGuestPage({ config: { couple }, guest: fixtureGuest() }))?.[1] ?? '';
+  assert.match(legacy, /(?:^|\s)min-h-\[80vh\](?:\s|$)/, 'legacy stays verbatim (the review revises Gapura only)');
+});
+
+test('S17-G1 (s17): Gapura\'s photo window is 4:3 on a phone and square from 640 px, so the guest greeting stays in the first viewport', () => {
+  const cover = { headline: 'Pernikahan', imageUrl: 'https://example.test/cover.jpg' };
+  const page = renderGuestPage({ config: withFamily({ couple, theme: { cover } }, 'gapura'), guest: fixtureGuest() });
+  const classes = (/<img src="https:\/\/example\.test\/cover\.jpg"[^>]*\bclass="([^"]*)"/.exec(page)?.[1] ?? '').split(/\s+/);
+  assert.ok(classes.includes('aspect-[4/3]') && classes.includes('sm:aspect-square'), classes.join(' '));
+  assert.equal(classes.includes('aspect-square'), false, `no square window below 640 px: ${classes.join(' ')}`);
+  assert.ok(page.indexOf('src="https://example.test/cover.jpg"') < page.indexOf('>Pernikahan<'), 'still framed above the cover text (S16-X1)');
 });

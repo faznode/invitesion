@@ -101,8 +101,11 @@ test('worst-case contrast over any image: blend and bound match hand-computed va
   assert.equal(worstContrastOverImage('#808080', '#ffffff', 0.9), 1, 'text luminance inside the reachable span can vanish');
 });
 
-/** Layouts that lay the cover photo behind cover text; the opacity is read from the class each one draws. */
-const PHOTO_BEHIND_TEXT = { legacy: 'components/invitation/public-renderer.tsx', gapura: 'components/invitation/families/gapura.tsx' } as const;
+/**
+ * Layouts that lay the cover photo behind cover text; the opacity is read from the class each one draws. Gapura left
+ * this list in its s17 revision (S16-X1): it frames the photo above the text, which the next test but one pins.
+ */
+const PHOTO_BEHIND_TEXT = { legacy: 'components/invitation/public-renderer.tsx' } as const;
 
 test('B-016: cover text over a photo keeps AA whatever the photo shows: names in ink, small accent text on a page-colour chip', () => {
   for (const [label, file] of Object.entries(PHOTO_BEHIND_TEXT)) {
@@ -119,7 +122,7 @@ test('B-016: cover text over a photo keeps AA whatever the photo shows: names in
   const cover = { headline: 'Pernikahan', imageUrl: 'https://example.test/cover.jpg' };
   const config: DetailConfig = { couple: { bride: { nickName: 'Sari' }, groom: { nickName: 'Budi' } }, theme: { cover }, events: [{ title: 'Resepsi', startAt }] };
   const classOf = (page: string, text: string) => new RegExp(`<p class="([^"]*)">${text}</p>`).exec(page)?.[1];
-  for (const familyId of [undefined, 'gapura'] as const) {
+  for (const familyId of [undefined] as const) {
     const label = familyId ?? 'legacy';
     const page = renderGuestPage({ config: withFamily(config, familyId) });
     for (const text of [cover.headline, formatEventDate(startAt) ?? '']) {
@@ -131,6 +134,23 @@ test('B-016: cover text over a photo keeps AA whatever the photo shows: names in
     const plain = renderGuestPage({ config: withFamily({ ...config, theme: { cover: { headline: cover.headline } } }, familyId) });
     assert.doesNotMatch(classOf(plain, cover.headline) ?? 'missing', /bg-\(--inv-bg\)|missing/, `${label}: without a photo the markup is unchanged`);
   }
+});
+
+test('S16-X1 (s17): Gapura frames the cover photo at full strength above the text and sets no text on it', () => {
+  assert.doesNotMatch(source('components/invitation/families/gapura.tsx'), /<img [^>]*\bopacity-\d+/, 'no faded cover photo');
+  const startAt = '2099-12-27T19:00:00+08:00';
+  const config: DetailConfig = {
+    couple: { bride: { nickName: 'Sari' }, groom: { nickName: 'Budi' } },
+    theme: { familyId: 'gapura', cover: { headline: 'Pernikahan', imageUrl: 'https://example.test/cover.jpg' } },
+    events: [{ title: 'Resepsi', startAt }],
+  };
+  const page = renderGuestPage({ config });
+  const img = /<img src="https:\/\/example\.test\/cover\.jpg"[^>]*>/.exec(page)?.[0] ?? '';
+  assert.match(img, /\baspect-square\b/, 'the photo fills the gate window');
+  assert.doesNotMatch(img, /\b(?:absolute|opacity-\d+)\b/, 'in the flow and at full strength, not a backdrop');
+  assert.ok(page.indexOf(img) < page.indexOf('>Pernikahan<') && page.indexOf(img) < page.indexOf('>Sari<'), 'the photo precedes every line of cover text');
+  const classOf = (text: string) => new RegExp(`<p class="([^"]*)">${text}</p>`).exec(page)?.[1] ?? 'missing';
+  for (const text of ['Pernikahan', formatEventDate(startAt) ?? '']) assert.doesNotMatch(classOf(text), /bg-\(--inv-bg\)|w-fit|missing/, `"${text}" needs no chip`);
 });
 
 test('B-016: fixed colours live only in the shared blocks, as self-contained status and action pairs', () => {

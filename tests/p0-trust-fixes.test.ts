@@ -198,9 +198,11 @@ test('B-006: formula-looking values are neutralised and quoted', () => {
   assert.equal(csvCell(null), '""');
   assert.equal(csvCell(2), '"2"');
   assert.equal(csvRow(['a', '=b', 'c"d']), `"a","'=b","c""d"`);
+  // s17 (E-025): the route serves `guestExportCsv`, whose rows go through csvRow.
   const route = source('app/(customer)/dashboard/invitations/[id]/analytics/route.ts');
-  assert.match(route, /csvRow\(/);
+  assert.match(route, /guestExportCsv\(/);
   assert.doesNotMatch(route, /function csv\(/);
+  assert.match(source('lib/invitation/guest-export.ts'), /csvRow\(/);
 });
 
 // ── B-007: RSVP keeps the host's allowance ──────────────────────────────────────
@@ -228,7 +230,8 @@ test('B-007: attendance is clamped to 1…allowance and the status whitelist hol
 
 test('B-007: the action writes attending_count, never guest_count; the migration is additive', () => {
   const action = source('app/i/[slug]/actions.ts');
-  assert.match(action, /set\(\{ rsvpStatus: status, attendingCount \}\)/);
+  // B-027 (D-034, s17) adds the answers to the same write; status and attending count still lead it.
+  assert.match(action, /set\(\{ rsvpStatus: status, attendingCount[,}\s]/);
   assert.doesNotMatch(action, /set\(\{[^}]*guestCount/);
   const migration = source('lib/db/migrations/0009_guest_attending_count.sql').trim();
   assert.equal(migration, 'ALTER TABLE "guests" ADD COLUMN "attending_count" integer;');

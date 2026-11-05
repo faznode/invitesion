@@ -35,8 +35,8 @@ export function invitationStatusLabel(status: string, locale: Locale) {
 
 export function rsvpStatusLabel(status: string, locale: Locale) {
   const labels = locale === 'en'
-    ? { PENDING: 'Pending', CONFIRMED: 'Confirmed', DECLINED: 'Declined' }
-    : { PENDING: 'Menunggu', CONFIRMED: 'Hadir', DECLINED: 'Tidak hadir' };
+    ? { PENDING: 'Pending', CONFIRMED: 'Confirmed', DECLINED: 'Declined', MAYBE: 'Maybe' }
+    : { PENDING: 'Menunggu', CONFIRMED: 'Hadir', DECLINED: 'Tidak hadir', MAYBE: 'Mungkin' };
   return labels[status as keyof typeof labels] ?? status;
 }
 

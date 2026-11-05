@@ -57,6 +57,7 @@ export function fixtureGuest(overrides: Partial<Guest> = {}): Guest {
     rsvpStatus: 'PENDING',
     guestCount: 2,
     attendingCount: null,
+    rsvpAnswers: null,
     checkedInAt: null,
     linkToken: null,
     ...overrides,

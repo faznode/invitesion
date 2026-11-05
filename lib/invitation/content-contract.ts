@@ -33,12 +33,14 @@ export const RENDER_CAPABILITIES = {
   },
   birthdayPerson: { rendered: ['fullName', 'nickName'], storedOnly: ['birthDate', 'age', 'parents', 'photoUrl', 'instagram', 'message'] },
   ceremonyProfile: {
-    rendered: ['honoureeName', 'nickName'],
-    storedOnly: [
-      'parents', 'fatherName', 'motherName', 'birthDate', 'birthTime', 'birthPlace', 'age', 'ceremonyNote', 'photoUrl', 'gender',
-      'birthWeight', 'birthLength', 'childOrder', 'nameMeaning', 'prayer', 'school', 'circumcisionDate', 'recoveryNote',
+    // B-029 (s17): each ceremony type renders the fields its editor tab offers (`lib/invitation/ceremony-profile.ts`);
+    // the photo waits for a person-photo treatment (no guest page shows a person's photo yet).
+    rendered: [
+      'honoureeName', 'nickName', 'parents', 'fatherName', 'motherName', 'birthDate', 'birthTime', 'birthPlace', 'age', 'ceremonyNote',
+      'gender', 'birthWeight', 'birthLength', 'childOrder', 'nameMeaning', 'prayer', 'school', 'circumcisionDate', 'recoveryNote',
       'thanksgivingCategory', 'thanksgivingTitle', 'achievement',
     ],
+    storedOnly: ['photoUrl'],
   },
   corporateProfile: {
     // B-029: the programme renders when filled (`lib/invitation/programme.ts`); logo (an upload or an http(s) URL,
@@ -59,7 +61,8 @@ export const RENDER_CAPABILITIES = {
   gallery: { rendered: ['enabled'], storedOnly: ['layout'], hostOnly: ['assetIds'] },
   streaming: { rendered: ['enabled', 'url'], storedOnly: ['platform', 'scheduledAt'] },
   story: { rendered: ['enabled', 'items', 'date', 'title', 'body'], storedOnly: [] },
-  instagramStory: { rendered: [], storedOnly: ['enabled', 'hashtag', 'filterUrl'] },
+  // B-029 (s17): weddings show the hashtag and an http(s) filter link once switched on (`lib/invitation/share.ts`).
+  instagramStory: { rendered: ['enabled', 'hashtag', 'filterUrl'], storedOnly: [] },
   quote: { rendered: ['enabled', 'text', 'author'], storedOnly: [] },
   guestbook: {
     rendered: ['enabled', 'heading', 'prompt'],
@@ -70,7 +73,12 @@ export const RENDER_CAPABILITIES = {
     },
   },
   eventPlanner: { rendered: [], storedOnly: [], hostOnly: ['enabled', 'eventName', 'coordinatorName', 'coordinatorPhone', 'notes', 'checklist'] },
-  registrationForm: { rendered: [], storedOnly: [], hostOnly: ['*'] },
+  // B-027 (D-034, s17): the questions render inside the RSVP form once the host switches the form on; its own deadline,
+  // capacity, plus-one and message are not shown, so the page never announces a second deadline the action ignores.
+  registrationForm: {
+    rendered: ['enabled', 'customQuestions', 'id', 'label', 'type', 'required', 'options', 'conditional'],
+    storedOnly: ['deadline', 'capacity', 'allowPlusOne', 'confirmationMessage'],
+  },
   mealPreferences: { rendered: [], storedOnly: [], hostOnly: ['*'] },
   communications: { rendered: [], storedOnly: [], hostOnly: ['*'] },
   checkInSettings: { rendered: [], storedOnly: [], hostOnly: ['*'] },
@@ -127,6 +135,11 @@ const FIELD_LABELS: Record<string, Label> = {
   platform: { id: 'platform', en: 'platform' },
   scheduledAt: { id: 'jadwal siaran', en: 'stream time' },
   moderation: { id: 'moderasi', en: 'moderation' },
+  // Section-qualified keys win over the leaf name (`storedOnlyNotice`): this deadline is not the RSVP deadline.
+  'registrationForm.deadline': { id: 'batas registrasi', en: 'registration deadline' },
+  capacity: { id: 'kapasitas', en: 'capacity' },
+  allowPlusOne: { id: 'pendamping', en: 'plus-one' },
+  confirmationMessage: { id: 'pesan konfirmasi', en: 'confirmation message' },
 };
 
 /** Section of the config that an editor tab edits, per event type (the profile tab differs by event type). */
@@ -148,7 +161,7 @@ export function storedOnlyNotice(section: ContentSection, locale: 'id' | 'en'): 
   const capability: SectionCapability = RENDER_CAPABILITIES[section];
   const labels = [...new Set(capability.storedOnly.map((path) => {
     const leaf = path.split('.').pop() ?? path;
-    return FIELD_LABELS[leaf]?.[locale] ?? leaf;
+    return (FIELD_LABELS[`${section}.${leaf}`] ?? FIELD_LABELS[leaf])?.[locale] ?? leaf;
   }))];
   const wholeSection = capability.rendered.length === 0 && capability.storedOnly.length > 0;
   if (!labels.length && !capability.caveat) return null;

@@ -8,6 +8,10 @@ const DEFAULTS = {
   GUEST_CALENDAR: true,
   /** B-011: new guests receive an opaque link token instead of a name-derived slug. */
   OPAQUE_GUEST_LINKS: false,
+  /** B-027: guests may answer "mungkin" (maybe). Off hides the choice and refuses it; stored answers stay readable. */
+  RSVP_MAYBE: true,
+  /** B-027 (D-034): the host's custom questions in the RSVP form. Off hides them and stores no answers; stored ones stay. */
+  RSVP_QUESTIONS: true,
 } as const;
 
 export type FlagName = keyof typeof DEFAULTS;

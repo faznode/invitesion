@@ -27,7 +27,7 @@ const guestPageFiles = [
   'lib/invitation/headline.ts',
 ];
 const guestPageSource = guestPageFiles.map(source).join('\n');
-const ITEM_ALIAS: Partial<Record<ContentSection, string>> = { events: 'event', gift: 'account', story: 'item' };
+const ITEM_ALIAS: Partial<Record<ContentSection, string>> = { events: 'event', gift: 'account', story: 'item', registrationForm: 'question' };
 const chain = (section: string, path: string) => new RegExp(`${[section, ...path.split('.')].join('\\??\\.')}\\b`);
 const referenced = (section: ContentSection, path: string) =>
   chain(section, path).test(guestPageSource) ||
@@ -51,7 +51,10 @@ test('no field marked stored-only is read by the guest page (move it to rendered
 
 test('editor notices come from the map: whole sections, field lists and caveats', () => {
   assert.deepEqual(storedOnlyNotice('music', 'id'), { wholeSection: true, fields: [], caveat: undefined });
-  assert.equal(storedOnlyNotice('instagramStory', 'en')?.wholeSection, true);
+  // B-029 (s17) renders the hashtag and filter link, so the section no longer carries a notice; the ceremony profile
+  // keeps one for its photo only.
+  assert.equal(storedOnlyNotice('instagramStory', 'en'), null);
+  assert.deepEqual(storedOnlyNotice('ceremonyProfile', 'id'), { wholeSection: false, fields: ['foto'], caveat: undefined });
   const couple = storedOnlyNotice('couple', 'id');
   assert.equal(couple?.wholeSection, false);
   assert.ok(couple?.fields.includes('foto') && couple.fields.includes('nama orang tua'), JSON.stringify(couple));

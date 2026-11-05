@@ -3,6 +3,7 @@ import { Gift, Quote as QuoteIcon, Radio } from 'lucide-react';
 import { Countdown } from '@/components/invitation/countdown';
 import {
   CalendarLinks,
+  CeremonyProfileBody,
   EventFacts,
   CorporateMark,
   GuestbookBlock,
@@ -12,35 +13,45 @@ import {
   programmeSections,
   ReadOnlyNotice,
   RsvpBlock,
+  SHARE_HEADING,
+  ShareBody,
+  SwitchedOffNotices,
 } from '@/components/invitation/guest-blocks';
 import type { GuestPageProps, GuestView } from '@/components/invitation/guest-view';
 
 type Tone = GuestView['tone'];
 
 /**
- * Gapura (B-030): symmetric and ceremonial. The cover sits inside a double gate arch, and event cards, gifts and forms
- * repeat the arch; a small diamond marks every section. Motion level 1: ornaments, date and guest block rise in once
- * (`inv-rise`, off under prefers-reduced-motion); the names never animate, so they paint first.
+ * Gapura (B-030): symmetric and ceremonial. The cover sits inside a double gate arch; a cover photo fills the gate's
+ * window at full strength above the text (s17 revision, S16-X1), and event cards, gifts and forms repeat the arch; a
+ * small diamond marks every section. Motion level 1: ornaments, date and guest block rise in once (`inv-rise`, off
+ * under prefers-reduced-motion); the names never animate, so they paint first.
  */
 export function GapuraLayout({ props, view }: { props: GuestPageProps; view: GuestView }) {
   const { invitation, config, guest, readOnly } = props;
-  const { tone, formatDate, names, events, primaryEvent, renderedAt, primaryStartMs, showCountdown, gallery, coverText, organiser } = view;
+  const { tone, formatDate, names, events, primaryEvent, renderedAt, primaryStartMs, showCountdown, gallery, organiser } = view;
   const arch = `rounded-t-[3rem] rounded-b-2xl ${tone.card} shadow-sm`;
+  const photo = view.coverImageSrc;
 
   return (
     <main className={`min-h-screen ${tone.bg} ${tone.ink}`} style={tone.style}>
-      <header className="flex min-h-[90vh] flex-col items-center justify-center px-5 py-14 text-center">
+      {/* S16-X2 (s17): full-height only from 640 px; on a phone the cover ends with its content, so the first section
+          follows at the section rhythm instead of after ≈ 180 px of empty page. */}
+      <header className="flex flex-col items-center justify-center px-5 pt-14 text-center sm:min-h-[90vh] sm:pb-14">
         <div className={`w-full max-w-sm rounded-t-full border ${tone.line} p-2`}>
-          <div className={`relative overflow-hidden rounded-t-full border ${tone.accentLine} px-6 pb-12 pt-20`}>
-            {config.theme?.cover?.imageUrl && (
+          <div className={`overflow-hidden rounded-t-full border ${tone.accentLine} pb-12 ${photo ? '' : 'pt-20'}`}>
+            {photo && (
+              // S16-X1 (s17): the photo fills the gate's window at full strength and no text is set on it, so it reads as
+              // a photograph with any photo and the cover text keeps the page's own contrast. S17-G1: a 4:3 window below
+              // 640 px keeps the guest greeting inside a 360 × 800 first viewport; the window is square from 640 px.
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={config.theme.cover.imageUrl} alt="" aria-hidden className="absolute inset-0 h-full w-full object-cover opacity-20" />
+              <img src={photo} alt="" aria-hidden className="block aspect-[4/3] w-full object-cover sm:aspect-square" />
             )}
-            <div className="relative flex flex-col items-center">
+            <div className={`flex flex-col items-center px-6 ${photo ? 'pt-8' : ''}`}>
               <Diamond tone={tone} className="inv-rise" />
-              <CorporateMark view={view} align="center" className="mt-6" labelClassName={coverText(`text-xs font-semibold uppercase tracking-[0.2em] ${tone.muted}`)} />
+              <CorporateMark view={view} align="center" className="mt-6" />
               {config.theme?.cover?.headline && (
-                <p className={coverText(`inv-rise mt-6 text-xs uppercase tracking-[0.3em] ${tone.accent}`)}>{config.theme.cover.headline}</p>
+                <p className={`inv-rise mt-6 text-xs uppercase tracking-[0.3em] ${tone.accent}`}>{config.theme.cover.headline}</p>
               )}
               <h1 className="mt-6 font-serif text-4xl leading-tight text-balance [overflow-wrap:anywhere] sm:text-5xl">
                 {names?.length
@@ -55,11 +66,11 @@ export function GapuraLayout({ props, view }: { props: GuestPageProps; view: Gue
                   : config.settings?.title || 'Undangan'}
               </h1>
               {organiser && (
-                <p dir="auto" className={coverText(`mt-4 text-sm ${tone.muted} [overflow-wrap:anywhere]`)}>
+                <p dir="auto" className={`mt-4 text-sm ${tone.muted} [overflow-wrap:anywhere]`}>
                   {organiser}
                 </p>
               )}
-              {primaryEvent?.startAt && <p className={coverText(`inv-rise mt-8 text-sm tracking-wide ${tone.accent}`)}>{formatDate(primaryEvent.startAt)}</p>}
+              {primaryEvent?.startAt && <p className={`inv-rise mt-8 text-sm tracking-wide ${tone.accent}`}>{formatDate(primaryEvent.startAt)}</p>}
             </div>
           </div>
         </div>
@@ -75,6 +86,7 @@ export function GapuraLayout({ props, view }: { props: GuestPageProps; view: Gue
       </header>
 
       {readOnly && <ReadOnlyNotice className="mx-auto max-w-lg px-6" />}
+      <SwitchedOffNotices props={props} view={view} className="mx-auto max-w-lg px-6" />
 
       {config.greetings?.enabled !== false && (config.greetings?.prayer || config.settings?.openingCopy) && (
         <ArchSection tone={tone}>
@@ -120,6 +132,12 @@ export function GapuraLayout({ props, view }: { props: GuestPageProps; view: Gue
             ))}
           </div>
           <CalendarLinks view={view} slug={invitation.slug} />
+        </ArchSection>
+      )}
+
+      {view.ceremonyProfile && (
+        <ArchSection tone={tone} title={view.ceremonyProfile.heading}>
+          <CeremonyProfileBody view={view} cardClassName={`rounded-2xl ${tone.card} shadow-sm`} />
         </ArchSection>
       )}
 
@@ -169,6 +187,12 @@ export function GapuraLayout({ props, view }: { props: GuestPageProps; view: Gue
         </ArchSection>
       )}
 
+      {view.share && (
+        <ArchSection tone={tone} title={SHARE_HEADING}>
+          <ShareBody view={view} align="center" />
+        </ArchSection>
+      )}
+
       {config.gift?.enabled && config.gift.accounts?.length ? (
         <ArchSection tone={tone} title="Tanda Kasih">
           <Gift className={`mx-auto mt-6 h-6 w-6 ${tone.accent}`} aria-hidden />
@@ -186,7 +210,7 @@ export function GapuraLayout({ props, view }: { props: GuestPageProps; view: Gue
       ) : null}
 
       {/* RSVP — only a recognised guest can respond, and only while the invitation is active. */}
-      {config.rsvp?.enabled !== false && (
+      {view.rsvpShown && (
         <ArchSection tone={tone} title="Konfirmasi Kehadiran">
           <RsvpBlock
             props={props}
@@ -197,7 +221,7 @@ export function GapuraLayout({ props, view }: { props: GuestPageProps; view: Gue
         </ArchSection>
       )}
 
-      {config.guestbook?.enabled !== false && (
+      {view.guestbookShown && (
         <ArchSection tone={tone} title={config.guestbook?.heading || 'Ucapan & Doa'}>
           {config.guestbook?.prompt && <p className={`mt-3 text-sm ${tone.muted}`}>{config.guestbook.prompt}</p>}
           <GuestbookBlock

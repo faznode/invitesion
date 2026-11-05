@@ -54,7 +54,7 @@ guests
   id, invitation_id→invitations, name,
   slug, phone, category, qr_code,
   sent_at, opened_at, opened_count,
-  rsvp_status[PENDING|CONFIRMED|DECLINED],
+  rsvp_status[PENDING|CONFIRMED|DECLINED|MAYBE],
   guest_count, checked_in_at,
   attending_count (nullable)       ← jawaban RSVP; guest_count = jatah host, tidak diubah RSVP (B-007, migrasi 0009)
   link_token varchar(32) nullable  ← token link opsional (B-011, migrasi 0010, FLAG_OPAQUE_GUEST_LINKS)

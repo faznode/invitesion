@@ -3,6 +3,7 @@ import { Gift, Quote as QuoteIcon, Radio } from 'lucide-react';
 import { Countdown } from '@/components/invitation/countdown';
 import {
   CalendarLinks,
+  CeremonyProfileBody,
   EventFacts,
   CorporateMark,
   GuestbookBlock,
@@ -12,6 +13,9 @@ import {
   programmeSections,
   ReadOnlyNotice,
   RsvpBlock,
+  SHARE_HEADING,
+  ShareBody,
+  SwitchedOffNotices,
 } from '@/components/invitation/guest-blocks';
 import type { GuestPageProps, GuestView } from '@/components/invitation/guest-view';
 
@@ -31,7 +35,7 @@ export function LontarLayout({ props, view }: { props: GuestPageProps; view: Gue
   const date = formatDate(primaryEvent?.startAt);
   const start = formatTime(primaryEvent?.startAt);
   const end = formatTime(primaryEvent?.endAt);
-  const photo = config.theme?.cover?.imageUrl;
+  const photo = view.coverImageSrc;
 
   return (
     <main className={`min-h-screen ${tone.bg} ${tone.ink}`} style={tone.style}>
@@ -91,6 +95,13 @@ export function LontarLayout({ props, view }: { props: GuestPageProps; view: Gue
       </header>
 
       {readOnly && <ReadOnlyNotice className="mx-auto max-w-2xl px-5 pt-6" />}
+      <SwitchedOffNotices props={props} view={view} className="mx-auto max-w-2xl px-5 pt-6" />
+
+      {view.ceremonyProfile && (
+        <LeafSection tone={tone} title={view.ceremonyProfile.heading}>
+          <CeremonyProfileBody view={view} cardClassName={card} />
+        </LeafSection>
+      )}
 
       {programmeSections(view).map((id) => (
         <LeafSection key={id} tone={tone} title={PROGRAMME_HEADINGS[id]}>
@@ -172,6 +183,12 @@ export function LontarLayout({ props, view }: { props: GuestPageProps; view: Gue
         </LeafSection>
       )}
 
+      {view.share && (
+        <LeafSection tone={tone} title={SHARE_HEADING}>
+          <ShareBody view={view} align="start" />
+        </LeafSection>
+      )}
+
       {config.gift?.enabled && config.gift.accounts?.length ? (
         <LeafSection tone={tone} title="Hadiah">
           <div className="mt-8 grid gap-4 sm:grid-cols-2">
@@ -191,7 +208,7 @@ export function LontarLayout({ props, view }: { props: GuestPageProps; view: Gue
       ) : null}
 
       {/* RSVP — only a recognised guest can respond, and only while the invitation is active. */}
-      {config.rsvp?.enabled !== false && (
+      {view.rsvpShown && (
         <LeafSection tone={tone} title="Konfirmasi Kehadiran">
           <RsvpBlock
             props={props}
@@ -202,7 +219,7 @@ export function LontarLayout({ props, view }: { props: GuestPageProps; view: Gue
         </LeafSection>
       )}
 
-      {config.guestbook?.enabled !== false && (
+      {view.guestbookShown && (
         <LeafSection tone={tone} title={config.guestbook?.heading || 'Ucapan & Doa'}>
           {config.guestbook?.prompt && <p className={`mt-2 text-sm ${tone.muted}`}>{config.guestbook.prompt}</p>}
           <GuestbookBlock props={props} view={view} formClassName={`mt-8 space-y-4 ${card} p-6`} messageClassName={`${card} p-5`} />

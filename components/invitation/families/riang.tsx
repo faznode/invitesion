@@ -3,6 +3,7 @@ import { Gift, Quote as QuoteIcon, Radio } from 'lucide-react';
 import { Countdown } from '@/components/invitation/countdown';
 import {
   CalendarLinks,
+  CeremonyProfileBody,
   EventFacts,
   CorporateMark,
   GuestbookBlock,
@@ -12,6 +13,9 @@ import {
   programmeSections,
   ReadOnlyNotice,
   RsvpBlock,
+  SHARE_HEADING,
+  ShareBody,
+  SwitchedOffNotices,
 } from '@/components/invitation/guest-blocks';
 import type { GuestPageProps, GuestView } from '@/components/invitation/guest-view';
 
@@ -63,6 +67,18 @@ export function RiangLayout({ props, view }: { props: GuestPageProps; view: Gues
             })}
           </div>
           <CalendarLinks view={view} slug={invitation.slug} className="mt-8 flex flex-col items-start gap-3 sm:flex-row" />
+        </>
+      ),
+    });
+  }
+
+  if (view.ceremonyProfile) {
+    bands.push({
+      key: 'profile',
+      node: (
+        <>
+          <BandHeading tone={tone}>{view.ceremonyProfile.heading}</BandHeading>
+          <CeremonyProfileBody view={view} cardClassName={block} />
         </>
       ),
     });
@@ -165,6 +181,18 @@ export function RiangLayout({ props, view }: { props: GuestPageProps; view: Gues
     });
   }
 
+  if (view.share) {
+    bands.push({
+      key: 'share',
+      node: (
+        <>
+          <BandHeading tone={tone}>{SHARE_HEADING}</BandHeading>
+          <ShareBody view={view} align="start" />
+        </>
+      ),
+    });
+  }
+
   if (config.gift?.enabled && config.gift.accounts?.length) {
     bands.push({
       key: 'gift',
@@ -190,7 +218,7 @@ export function RiangLayout({ props, view }: { props: GuestPageProps; view: Gues
   }
 
   // RSVP — only a recognised guest can respond, and only while the invitation is active.
-  if (config.rsvp?.enabled !== false) {
+  if (view.rsvpShown) {
     bands.push({
       key: 'rsvp',
       node: (
@@ -207,7 +235,7 @@ export function RiangLayout({ props, view }: { props: GuestPageProps; view: Gues
     });
   }
 
-  if (config.guestbook?.enabled !== false) {
+  if (view.guestbookShown) {
     bands.push({
       key: 'guestbook',
       node: (
@@ -224,9 +252,9 @@ export function RiangLayout({ props, view }: { props: GuestPageProps; view: Gues
     <main className={`min-h-screen ${tone.bg} ${tone.ink}`} style={tone.style}>
       <header className={`overflow-hidden ${tone.soft} px-5 pb-14 pt-6 text-center`}>
         <Bunting tone={tone} />
-        {config.theme?.cover?.imageUrl && (
+        {view.coverImageSrc && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={config.theme.cover.imageUrl} alt="" aria-hidden className={`mx-auto mt-10 aspect-square w-36 rounded-full border-4 ${tone.line} object-cover`} />
+          <img src={view.coverImageSrc} alt="" aria-hidden className={`mx-auto mt-10 aspect-square w-36 rounded-full border-4 ${tone.line} object-cover`} />
         )}
         <CorporateMark view={view} align="center" className="mt-10" />
         <p className={`inv-rise mt-10 text-sm font-semibold uppercase tracking-[0.2em] ${tone.accent}`}>{config.theme?.cover?.headline || 'Kamu diundang'}</p>
@@ -271,6 +299,7 @@ export function RiangLayout({ props, view }: { props: GuestPageProps; view: Gues
       </header>
 
       {readOnly && <ReadOnlyNotice className="mx-auto max-w-2xl px-5 pt-8" />}
+      <SwitchedOffNotices props={props} view={view} className="mx-auto max-w-2xl px-5 pt-8" />
 
       {bands.map((band, index) => (
         <section key={band.key} className={index % 2 === 1 ? tone.soft : undefined}>

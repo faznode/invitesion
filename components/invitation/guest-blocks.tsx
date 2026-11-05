@@ -2,7 +2,8 @@ import { CalendarDays, CalendarPlus, Clock3, MapPin } from 'lucide-react';
 import { googleCalendarUrl } from '@/lib/invitation/calendar';
 import { guestLinkSegment } from '@/lib/invitation/guest-link';
 import { invitationCalendarPath } from '@/lib/invitation/public-path';
-import { rsvpDefaultCount } from '@/lib/invitation/rsvp-rules';
+import { ANSWER_LIMITS } from '@/lib/invitation/rsvp-questions';
+import { RSVP_ANSWER_TEXT, rsvpDefaultCount, type RsvpStatus } from '@/lib/invitation/rsvp-rules';
 import { submitGuestMessage, submitRsvp } from '@/app/i/[slug]/actions';
 import type { GuestPageProps, GuestView, InvitationEvent } from '@/components/invitation/guest-view';
 
@@ -21,6 +22,31 @@ export function Notice({ kind, children }: { kind: 'success' | 'error'; children
     <p role="alert" className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-center text-sm text-red-700">
       {children}
     </p>
+  );
+}
+
+const RSVP_REFUSED = 'Konfirmasimu belum tersimpan karena RSVP untuk undangan ini sudah ditutup.';
+const WISH_REFUSED = 'Ucapanmu belum tersimpan karena buku tamu undangan ini sudah ditutup.';
+
+/**
+ * B-027: a form rendered before the host switched its section off is refused on submit (`?rsvp=closed`, `?wish=closed`),
+ * but that section is no longer on the page, so its own notice has nowhere to appear. Layouts place this where the
+ * read-only notice goes, right after the cover. Nothing renders while the section is shown or when nothing was refused.
+ */
+export function SwitchedOffNotices({ props, view, className }: { props: GuestPageProps; view: GuestView; className: string }) {
+  const refusals = [
+    !view.rsvpShown && props.status.rsvp === 'closed' ? RSVP_REFUSED : null,
+    !view.guestbookShown && props.status.wish === 'closed' ? WISH_REFUSED : null,
+  ].filter((text): text is string => text !== null);
+  if (!refusals.length) return null;
+  return (
+    <div className={className}>
+      {refusals.map((text) => (
+        <Notice key={text} kind="error">
+          {text}
+        </Notice>
+      ))}
+    </div>
   );
 }
 
@@ -259,6 +285,77 @@ export function ProgrammeBody({ id, view, cardClassName }: { id: ProgrammeSectio
 }
 
 /**
+ * B-029: the ceremony profile (`view.ceremonyProfile`, aqiqah / khitanan / tasyakuran): the facts as rows of one divided
+ * card (repeated rows share one container, s16 review), then the host's own texts under their labels. Layouts own the
+ * section frame and its heading (`view.ceremonyProfile.heading`) and put it where they put the corporate programme.
+ */
+export function CeremonyProfileBody({ view, cardClassName }: { view: GuestView; cardClassName: string }) {
+  const { ceremonyProfile: profile, tone } = view;
+  if (!profile) return null;
+  return (
+    <>
+      {profile.rows.length > 0 && (
+        <dl className={`mt-8 ${cardClassName} px-5 text-sm`}>
+          {profile.rows.map((row, index) => (
+            <div key={row.label} className={`py-4 sm:grid sm:grid-cols-[9rem_1fr] sm:gap-4 sm:text-left ${index > 0 ? `border-t ${tone.line}` : ''}`}>
+              <dt className={`text-xs uppercase tracking-widest ${tone.muted} sm:pt-0.5`}>{row.label}</dt>
+              <dd dir="auto" className={`mt-1 font-medium sm:mt-0 ${HOST_TEXT}`}>
+                {row.value}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      )}
+      {profile.texts.map((item) => (
+        <div key={item.label} className="mt-8">
+          <p className={`text-xs uppercase tracking-widest ${tone.muted}`}>{item.label}</p>
+          <p dir="auto" className={`mt-2 whitespace-pre-line text-sm leading-7 ${HOST_TEXT}`}>
+            {item.text}
+          </p>
+        </div>
+      ))}
+    </>
+  );
+}
+
+export const SHARE_HEADING = 'Bagikan Momen';
+
+/**
+ * B-029: the wedding hashtag (`view.share`): each tag as text a guest can select in one tap, then the filter link when
+ * the host gave an http(s) URL. Layouts own the frame and the heading (`SHARE_HEADING`) and place it after streaming.
+ */
+export function ShareBody({ view, align }: { view: GuestView; align: 'center' | 'start' }) {
+  const { share, tone } = view;
+  if (!share) return null;
+  return (
+    <>
+      {share.tags.length > 0 && (
+        <>
+          <p className={`mt-4 text-sm ${tone.muted}`}>Unggah momenmu dengan tagar:</p>
+          <ul className={`mt-4 flex flex-wrap gap-2 ${align === 'center' ? 'justify-center' : ''}`}>
+            {share.tags.map((tag) => (
+              <li key={tag} dir="auto" className={`select-all rounded-full border ${tone.line} ${tone.card} px-4 py-2 text-sm font-semibold ${HOST_TEXT}`}>
+                {tag}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      {share.filterUrl && (
+        <a
+          href={share.filterUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={`mt-6 inline-flex min-h-11 items-center rounded-full border border-current px-5 text-xs font-semibold ${tone.accent}`}
+        >
+          Coba filter Instagram
+        </a>
+      )}
+    </>
+  );
+}
+
+/**
  * B-029: the organiser's logo and the event category above a corporate headline. The logo sits in a fixed 160 × 64 frame
  * with intrinsic size attributes, so a logo of any aspect fits without shifting the cover while it loads. Layouts that
  * lay a photo behind the cover pass their chip classes for the label (`coverText`).
@@ -292,6 +389,105 @@ export function CorporateMark({
   );
 }
 
+type RsvpQuestion = GuestView['rsvpQuestions'][number];
+
+/**
+ * One host question in the RSVP form (B-027, D-034). Labels and options are host text, so they wrap and resolve their own
+ * direction; the stored answer is the default, and a refused answer is named next to its field.
+ */
+function RsvpQuestionField({ question, invalid, tone }: { question: RsvpQuestion; invalid: boolean; tone: GuestView['tone'] }) {
+  const id = `rsvp-${question.id}`;
+  const hintId = question.condition ? `${id}-hint` : undefined;
+  const errorId = invalid ? `${id}-error` : undefined;
+  const describedBy = [hintId, errorId].filter(Boolean).join(' ') || undefined;
+  const chosen = Array.isArray(question.stored) ? question.stored : question.stored === undefined ? [] : [String(question.stored)];
+  const field = `w-full rounded-lg border ${tone.line} ${tone.field} px-3 text-sm`;
+  const title = (
+    <>
+      <span dir="auto" className={HOST_TEXT}>
+        {question.label}
+      </span>
+      {question.required && (
+        <>
+          <span aria-hidden="true"> *</span>
+          <span className="sr-only"> (wajib jika hadir)</span>
+        </>
+      )}
+    </>
+  );
+  const notes = (
+    <>
+      {question.condition && (
+        <span id={hintId} className={`block text-xs ${tone.muted} ${HOST_TEXT}`}>
+          {question.condition}
+        </span>
+      )}
+      {invalid && (
+        <span id={errorId} className="block rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+          Mohon isi atau perbaiki jawaban ini.
+        </span>
+      )}
+    </>
+  );
+
+  if (question.type === 'radio' || question.type === 'checkbox' || question.type === 'multiselect') {
+    return (
+      <fieldset aria-describedby={describedBy} className="flex flex-col gap-2">
+        <legend className="mb-1.5 text-sm font-semibold">{title}</legend>
+        {(question.options ?? []).map((option, index) => (
+          <label key={`${index}-${option}`} className={`flex min-h-11 items-center gap-3 rounded-lg border ${tone.line} ${tone.field} px-3 py-2 text-sm`}>
+            <input
+              type={question.type === 'radio' ? 'radio' : 'checkbox'}
+              name={question.field}
+              value={option}
+              required={question.nativeRequired}
+              defaultChecked={chosen.includes(option)}
+              className="h-4 w-4 shrink-0"
+            />
+            <span dir="auto" className={HOST_TEXT}>
+              {option}
+            </span>
+          </label>
+        ))}
+        {notes}
+      </fieldset>
+    );
+  }
+
+  const shared = {
+    id,
+    name: question.field,
+    required: question.nativeRequired,
+    defaultValue: chosen[0] ?? '',
+    'aria-invalid': invalid || undefined,
+    'aria-describedby': describedBy,
+  };
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label htmlFor={id} className="text-sm font-semibold">
+        {title}
+      </label>
+      {question.type === 'textarea' ? (
+        <textarea {...shared} rows={3} maxLength={ANSWER_LIMITS.textarea} dir="auto" className={`${field} py-2.5 leading-6`} />
+      ) : question.type === 'select' ? (
+        <select {...shared} className={`h-11 ${field}`}>
+          <option value="">Pilih jawaban</option>
+          {(question.options ?? []).map((option, index) => (
+            <option key={`${index}-${option}`} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+      ) : question.type === 'number' ? (
+        <input {...shared} type="number" inputMode="numeric" min={0} max={ANSWER_LIMITS.numberMax} step={1} className={`h-11 ${field}`} />
+      ) : (
+        <input {...shared} type="text" maxLength={ANSWER_LIMITS.text} dir="auto" className={`h-11 ${field}`} />
+      )}
+      {notes}
+    </div>
+  );
+}
+
 /** RSVP: status notices, then the form for a recognised guest of an active invitation, otherwise an explanation. */
 export function RsvpBlock({
   props,
@@ -305,7 +501,11 @@ export function RsvpBlock({
   fallbackClassName: string;
 }) {
   const { invitation, guest, readOnly, status } = props;
-  const { tone, canRsvp, rsvpDeadlineText, rsvpClosedByDeadline } = view;
+  const { tone, canRsvp, rsvpMaybe, rsvpQuestions, rsvpDeadlineText, rsvpClosedByDeadline } = view;
+  const lastAnswer = guest ? RSVP_ANSWER_TEXT[guest.rsvpStatus as RsvpStatus] : undefined;
+  const refusedQuestion = status.rsvp === 'answers' ? rsvpQuestions.find((question) => question.id === status.rsvpq) : undefined;
+  // "Required" means required for "hadir" (D-034): the other answers skip the browser's check, the action applies the same rule.
+  const skipRequired = rsvpQuestions.length > 0 || undefined;
   const closedText = readOnly
     ? 'RSVP untuk undangan ini sudah ditutup.'
     : rsvpClosedByDeadline
@@ -315,7 +515,19 @@ export function RsvpBlock({
     <>
       {status.rsvp === 'saved' && <Notice kind="success">Terima kasih, konfirmasimu sudah kami terima.</Notice>}
       {status.rsvp === 'invalid' && <Notice kind="error">Pilihan kehadiran tidak dikenali. Silakan coba lagi.</Notice>}
-      {status.rsvp === 'closed' && <Notice kind="error">Konfirmasimu belum tersimpan karena RSVP untuk undangan ini sudah ditutup.</Notice>}
+      {status.rsvp === 'closed' && <Notice kind="error">{RSVP_REFUSED}</Notice>}
+      {status.rsvp === 'answers' && (
+        <Notice kind="error">
+          Konfirmasimu belum tersimpan.{' '}
+          {refusedQuestion ? (
+            <>
+              Mohon periksa jawaban untuk “<bdi>{refusedQuestion.label}</bdi>”.
+            </>
+          ) : (
+            'Mohon periksa jawabanmu.'
+          )}
+        </Notice>
+      )}
 
       {canRsvp && guest ? (
         <form action={submitRsvp} className={formClassName}>
@@ -348,10 +560,27 @@ export function RsvpBlock({
               defaultValue={rsvpDefaultCount(guest)}
               className={`h-11 w-full rounded-lg border ${tone.line} ${tone.field} px-3 text-sm`}
             />
-            <span className={`block text-xs ${tone.muted}`}>Maksimal {guest.guestCount || 1} orang untuk undangan ini.</span>
+            {/* "Maybe" stores no headcount and a decline stores 0, so the number only counts with "hadir" (s17 finding R2). */}
+            <span className={`block text-xs ${tone.muted}`}>
+              Maksimal {guest.guestCount || 1} orang untuk undangan ini. Jumlah ini dicatat untuk jawaban hadir.
+            </span>
           </label>
 
-          <div className="grid gap-3 sm:grid-cols-2">
+          {rsvpQuestions.length > 0 && (
+            <div className="flex flex-col gap-5">
+              <div className="flex flex-col gap-1">
+                <p className="text-sm font-semibold">Pertanyaan dari tuan rumah</p>
+                {rsvpQuestions.some((question) => question.required) && (
+                  <p className={`text-xs ${tone.muted}`}>Tanda * wajib dijawab jika kamu hadir.</p>
+                )}
+              </div>
+              {rsvpQuestions.map((question) => (
+                <RsvpQuestionField key={question.id} question={question} invalid={refusedQuestion?.id === question.id} tone={tone} />
+              ))}
+            </div>
+          )}
+
+          <div className={`grid gap-3 ${rsvpMaybe ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
             <button
               type="submit"
               name="status"
@@ -364,15 +593,27 @@ export function RsvpBlock({
               type="submit"
               name="status"
               value="DECLINED"
+              formNoValidate={skipRequired}
               className={`min-h-11 rounded-lg border ${tone.line} ${tone.field} px-4 text-sm font-semibold transition ${tone.hoverSoft}`}
             >
               Maaf, belum bisa
             </button>
+            {rsvpMaybe && (
+              <button
+                type="submit"
+                name="status"
+                value="MAYBE"
+                formNoValidate={skipRequired}
+                className={`min-h-11 rounded-lg border ${tone.line} ${tone.field} px-4 text-sm font-semibold transition ${tone.hoverSoft}`}
+              >
+                Mungkin hadir
+              </button>
+            )}
           </div>
 
-          {guest.rsvpStatus !== 'PENDING' && (
+          {lastAnswer && (
             <p className={`text-center text-xs ${tone.muted}`}>
-              Jawaban terakhirmu: {guest.rsvpStatus === 'CONFIRMED' ? 'hadir' : 'tidak hadir'}. Kamu masih bisa mengubahnya.
+              Jawaban terakhirmu: {lastAnswer}. Kamu masih bisa mengubahnya.
             </p>
           )}
         </form>
@@ -403,7 +644,7 @@ export function GuestbookBlock({
     <>
       {status.wish === 'saved' && <Notice kind="success">Terima kasih atas ucapanmu.</Notice>}
       {status.wish === 'invalid' && <Notice kind="error">Ucapan tidak boleh kosong.</Notice>}
-      {status.wish === 'closed' && <Notice kind="error">Ucapanmu belum tersimpan karena buku tamu undangan ini sudah ditutup.</Notice>}
+      {status.wish === 'closed' && <Notice kind="error">{WISH_REFUSED}</Notice>}
 
       {canRespond && guest && (
         <form action={submitGuestMessage} className={formClassName}>

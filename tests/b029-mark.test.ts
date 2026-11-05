@@ -80,11 +80,14 @@ test('B-029: no mark for other event types, hostile logo URLs or the "other" cat
   }
 });
 
-test('B-029: over a cover photo, legacy and Gapura put the category on the page-colour chip', () => {
+test('B-029: over a cover photo, legacy puts the category on the page-colour chip; Gapura sets it below its framed photo', () => {
   const withPhoto: DetailConfig = { ...profile({ eventCategory: 'seminar' }), theme: { cover: { imageUrl: 'https://cdn.contoh.test/cover.jpg' } } };
   for (const familyId of [undefined, 'gapura'] as const) {
     const page = renderGuestPage({ config: withFamily(withPhoto, familyId), invitation: corporate });
     const label = /<p class="([^"]*)">Seminar<\/p>/.exec(page);
-    assert.ok(label && /\bw-fit\b/.test(label[1]) && /\brounded-2xl\b/.test(label[1]), `${familyId ?? 'legacy'}: chip classes on the label`);
+    assert.ok(label, `${familyId ?? 'legacy'}: category shown`);
+    const chip = /\bw-fit\b/.test(label[1]) && /\brounded-2xl\b/.test(label[1]);
+    // Gapura no longer sets text on the photo (s17 revision, S16-X1), so its label needs no chip.
+    assert.equal(chip, familyId === undefined, `${familyId ?? 'legacy'}: chip classes only where the label meets the photo`);
   }
 });

@@ -29,6 +29,6 @@ export async function updateGuestOperation(formData: FormData) {
   if(operation==='sent') await db.update(guests).set({sentAt:new Date()}).where(eq(guests.id,guestId));
   else if(operation==='checkin'){await db.update(guests).set({checkedInAt:new Date()}).where(eq(guests.id,guestId));await db.insert(analyticsEvents).values({invitationId,guestId,eventType:'CHECKIN'});}
   else if(operation==='undo-checkin') await db.update(guests).set({checkedInAt:null}).where(eq(guests.id,guestId));
-  else if(['PENDING','CONFIRMED','DECLINED'].includes(operation)){await db.update(guests).set({rsvpStatus:operation}).where(eq(guests.id,guestId));await db.insert(analyticsEvents).values({invitationId,guestId,eventType:'RSVP',meta:{status:operation,source:'dashboard'}});}
+  else if(['PENDING','CONFIRMED','DECLINED','MAYBE'].includes(operation)){await db.update(guests).set({rsvpStatus:operation}).where(eq(guests.id,guestId));await db.insert(analyticsEvents).values({invitationId,guestId,eventType:'RSVP',meta:{status:operation,source:'dashboard'}});}
   revalidatePath(path);
 }

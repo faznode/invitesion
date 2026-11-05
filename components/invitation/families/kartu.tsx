@@ -3,6 +3,7 @@ import { Gift, Quote as QuoteIcon, Radio } from 'lucide-react';
 import { Countdown } from '@/components/invitation/countdown';
 import {
   CalendarLinks,
+  CeremonyProfileBody,
   EventFacts,
   CorporateMark,
   GuestbookBlock,
@@ -13,6 +14,9 @@ import {
   type ProgrammeSectionId,
   ReadOnlyNotice,
   RsvpBlock,
+  SHARE_HEADING,
+  ShareBody,
+  SwitchedOffNotices,
 } from '@/components/invitation/guest-blocks';
 import type { GuestPageProps, GuestView } from '@/components/invitation/guest-view';
 
@@ -37,9 +41,9 @@ export function KartuLayout({ props, view }: { props: GuestPageProps; view: Gues
         <div className="relative mx-auto max-w-md">
           <div aria-hidden className={`absolute inset-0 translate-x-3 translate-y-3 rounded-2xl ${tone.soft}`} />
           <div className={`relative ${card} p-6 sm:p-8`}>
-            {config.theme?.cover?.imageUrl && (
+            {view.coverImageSrc && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={config.theme.cover.imageUrl} alt="" aria-hidden className="mb-6 aspect-[4/3] w-full rounded-xl object-cover" />
+              <img src={view.coverImageSrc} alt="" aria-hidden className="mb-6 aspect-[4/3] w-full rounded-xl object-cover" />
             )}
             <CorporateMark view={view} align="start" className="mb-6" />
             <div className="flex items-start justify-between gap-4">
@@ -89,6 +93,7 @@ export function KartuLayout({ props, view }: { props: GuestPageProps; view: Gues
       </header>
 
       {readOnly && <ReadOnlyNotice className="mx-auto max-w-xl px-5" />}
+      <SwitchedOffNotices props={props} view={view} className="mx-auto max-w-xl px-5" />
 
       {config.greetings?.enabled !== false && (config.greetings?.prayer || config.settings?.openingCopy) && (
         <CardSection tone={tone}>
@@ -151,6 +156,12 @@ export function KartuLayout({ props, view }: { props: GuestPageProps; view: Gues
         </CardSection>
       )}
 
+      {view.ceremonyProfile && (
+        <CardSection tone={tone} label="Profil" title={view.ceremonyProfile.heading}>
+          <CeremonyProfileBody view={view} cardClassName={card} />
+        </CardSection>
+      )}
+
       {programmeSections(view).map((id) => (
         <CardSection key={id} tone={tone} label={PROGRAMME_LABELS[id]} title={PROGRAMME_HEADINGS[id]}>
           <ProgrammeBody id={id} view={view} cardClassName={card} />
@@ -204,6 +215,12 @@ export function KartuLayout({ props, view }: { props: GuestPageProps; view: Gues
         </CardSection>
       )}
 
+      {view.share && (
+        <CardSection tone={tone} label="Media sosial" title={SHARE_HEADING}>
+          <ShareBody view={view} align="start" />
+        </CardSection>
+      )}
+
       {config.gift?.enabled && config.gift.accounts?.length ? (
         <CardSection tone={tone} label="Tanda kasih" title="Hadiah">
           <div className="mt-8 grid gap-4 sm:grid-cols-2">
@@ -223,7 +240,7 @@ export function KartuLayout({ props, view }: { props: GuestPageProps; view: Gues
       ) : null}
 
       {/* RSVP — only a recognised guest can respond, and only while the invitation is active. */}
-      {config.rsvp?.enabled !== false && (
+      {view.rsvpShown && (
         <CardSection tone={tone} label="RSVP" title="Konfirmasi Kehadiran">
           <RsvpBlock
             props={props}
@@ -234,7 +251,7 @@ export function KartuLayout({ props, view }: { props: GuestPageProps; view: Gues
         </CardSection>
       )}
 
-      {config.guestbook?.enabled !== false && (
+      {view.guestbookShown && (
         <CardSection tone={tone} label="Buku tamu" title={config.guestbook?.heading || 'Ucapan & Doa'}>
           {config.guestbook?.prompt && <p className={`mt-2 text-sm ${tone.muted}`}>{config.guestbook.prompt}</p>}
           <GuestbookBlock props={props} view={view} formClassName={`mt-8 space-y-4 ${card} p-6`} messageClassName={`${card} p-5`} />

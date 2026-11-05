@@ -85,6 +85,13 @@
       "when": 1793767041606,
       "tag": "0011_analytics_view_dedupe_index",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1793851494783,
+      "tag": "0012_guest_rsvp_answers",
+      "breakpoints": true
     }
   ]
 }

@@ -26,7 +26,7 @@ F-024,guest,Livestream link,full,M-013,public-renderer.tsx,Link out
 F-025,guest,Dress code,config-only,M-009,corporateProfile.dressCode,Not rendered
 F-026,guest,QR pass for check-in,missing,M-013;M-035,guests.qr_code,Column unused
 F-027,guest,Share from guest page (WhatsApp / IG Story),missing,M-013,,
-F-028,guest,Instagram story filter / hashtag,config-only,M-009,instagramStory,Not rendered
+F-028,guest,Instagram story filter / hashtag,config-only,M-009,instagramStory,"Not rendered (s11); s17 E-026: weddings render the hashtag and an http(s) filter link once switched on"
 F-029,guest,Quote / verse block,full,M-013;M-006,,Presets contain unverified religious text (QA-015)
 F-030,guest,Opening greeting / prayer,full,M-013,,
 F-031,guest,Expired read-only mode,full,M-012;M-013,lib/invitation/public.ts,
@@ -38,7 +38,7 @@ F-036,guest,Per-template layout / ornament / art,missing,M-013,,Palette is the o
 F-037,guest,Motion / scroll reveal / cinematic cover,missing,M-013,,
 F-038,guest,3D cover with fallback,missing,M-013,,
 F-039,guest,Corporate agenda / speakers,config-only,M-009,corporateProfile.agenda,Not rendered
-F-040,guest,Ceremony profile (aqiqah baby details / khitanan / syukuran),config-only,M-009,ceremonyProfile,Only name rendered
+F-040,guest,Ceremony profile (aqiqah baby details / khitanan / syukuran),config-only,M-009,ceremonyProfile,"Only name rendered (s11); s17 E-026: each ceremony type renders the fields its editor tab offers; the photo stays stored-only"
 F-041,guest,Ticketing (free / paid / donation),config-only,M-009;M-021,ticketing,No guest UI
 F-042,guest,Seating assignment display,config-only,M-009;M-021,seatingPlan,
 F-043,guest,Per-event guest eligibility,config-only,M-009,secondaryEvents.eligibleGuestIds,

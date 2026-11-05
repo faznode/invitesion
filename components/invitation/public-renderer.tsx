@@ -6,6 +6,7 @@ import { LontarLayout } from '@/components/invitation/families/lontar';
 import { RiangLayout } from '@/components/invitation/families/riang';
 import {
   CalendarLinks,
+  CeremonyProfileBody,
   EventFacts,
   CorporateMark,
   GuestbookBlock,
@@ -15,6 +16,9 @@ import {
   programmeSections,
   ReadOnlyNotice,
   RsvpBlock,
+  SHARE_HEADING,
+  ShareBody,
+  SwitchedOffNotices,
 } from '@/components/invitation/guest-blocks';
 import { buildGuestView, type GuestPageProps, type GuestView } from '@/components/invitation/guest-view';
 import { familyOf, type FamilyId } from '@/lib/invitation/families';
@@ -55,15 +59,16 @@ function Heading({ children, accent }: { children: React.ReactNode; accent: stri
 
 function LegacyLayout({ props, view }: LayoutProps) {
   const { invitation, config, guest, readOnly } = props;
-  const { tone, formatDate, names, events, primaryEvent, renderedAt, primaryStartMs, showCountdown, gallery, coverText, organiser } = view;
+  const { tone, formatDate, names, events, primaryEvent, renderedAt, primaryStartMs, showCountdown, gallery, coverImageSrc, coverText, organiser, rsvpShown, guestbookShown } =
+    view;
 
   return (
     <main className={`min-h-screen ${tone.bg} ${tone.ink}`} style={tone.style}>
       {/* Cover */}
       <header className="relative flex min-h-[80vh] flex-col items-center justify-center overflow-hidden px-6 text-center">
-        {config.theme?.cover?.imageUrl && (
+        {coverImageSrc && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={config.theme.cover.imageUrl} alt="" aria-hidden className="absolute inset-0 h-full w-full object-cover opacity-25" />
+          <img src={coverImageSrc} alt="" aria-hidden className="absolute inset-0 h-full w-full object-cover opacity-25" />
         )}
         <div className="relative">
           <CorporateMark view={view} align="center" className="mb-6" labelClassName={coverText(`text-xs font-semibold uppercase tracking-[0.2em] ${tone.muted}`)} />
@@ -97,6 +102,7 @@ function LegacyLayout({ props, view }: LayoutProps) {
       </header>
 
       {readOnly && <ReadOnlyNotice />}
+      <SwitchedOffNotices props={props} view={view} className="mx-auto max-w-xl px-6" />
 
       {config.greetings?.enabled !== false && (config.greetings?.prayer || config.settings?.openingCopy) && (
         <Section className="text-center">
@@ -130,6 +136,13 @@ function LegacyLayout({ props, view }: LayoutProps) {
             ))}
           </div>
           <CalendarLinks view={view} slug={invitation.slug} />
+        </Section>
+      )}
+
+      {view.ceremonyProfile && (
+        <Section>
+          <Heading accent={tone.accent}>{view.ceremonyProfile.heading}</Heading>
+          <CeremonyProfileBody view={view} cardClassName={`rounded-2xl ${tone.card} shadow-sm`} />
         </Section>
       )}
 
@@ -182,6 +195,13 @@ function LegacyLayout({ props, view }: LayoutProps) {
         </Section>
       )}
 
+      {view.share && (
+        <Section className="text-center">
+          <Heading accent={tone.accent}>{SHARE_HEADING}</Heading>
+          <ShareBody view={view} align="center" />
+        </Section>
+      )}
+
       {config.gift?.enabled && config.gift.accounts?.length ? (
         <Section>
           <Gift className={`mx-auto h-6 w-6 ${tone.accent}`} aria-hidden />
@@ -200,7 +220,7 @@ function LegacyLayout({ props, view }: LayoutProps) {
       ) : null}
 
       {/* RSVP — only a recognised guest can respond, and only while the invitation is active. */}
-      {config.rsvp?.enabled !== false && (
+      {rsvpShown && (
         <Section>
           <Heading accent={tone.accent}>Konfirmasi Kehadiran</Heading>
           <RsvpBlock
@@ -212,7 +232,7 @@ function LegacyLayout({ props, view }: LayoutProps) {
         </Section>
       )}
 
-      {config.guestbook?.enabled !== false && (
+      {guestbookShown && (
         <Section>
           <Heading accent={tone.accent}>{config.guestbook?.heading || 'Ucapan & Doa'}</Heading>
           {config.guestbook?.prompt && <p className={`mt-3 text-center text-sm ${tone.muted}`}>{config.guestbook.prompt}</p>}

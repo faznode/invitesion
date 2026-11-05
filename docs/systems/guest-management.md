@@ -5,7 +5,7 @@
 > OWNER: Operator
 > DEPS: DATABASE_SCHEMA.md (guests, guest_messages, analytics_events)
 > GREP: guest, tamu, slug, url, rsvp, csv, import, tracking, collision, token, link_token, attending_count, calendar, og
-> UPDATED: 2026-11-03 (s09: B-007 attending_count, B-011 opt-in token + 404, B-008/B-010 side routes)
+> UPDATED: 2026-11-05 (s17: B-027 MAYBE status, headcount hint; s09: B-007 attending_count, B-011 opt-in token + 404, B-008/B-010 side routes)
 
 ## URL unik per-tamu (differentiator utama)
 Format: `/i/:invitationSlug/:guestSlug` → `invitation.com/i/wedding-andi/budi-santoso`
@@ -23,7 +23,8 @@ Format: `/i/:invitationSlug/:guestSlug` → `invitation.com/i/wedding-andi/budi-
 - Semua event (VIEW/RSVP/GUESTBOOK/CHECKIN) → `analytics_events`.
 
 ## RSVP
-- Status: PENDING|CONFIRMED|DECLINED. `guest_count` = jatah kursi dari host (RSVP **tidak pernah** mengubahnya); `attending_count` = jumlah yang hadir menurut tamu (0 kalau menolak, null = belum menjawab / jawaban sebelum B-007). Jawaban di-clamp ke 1…`guest_count`.
+- Status: PENDING|CONFIRMED|DECLINED|MAYBE. MAYBE (B-027, s17) di belakang flag `RSVP_MAYBE` (default on; `FLAG_RSVP_MAYBE=off` menyembunyikan pilihan "Mungkin hadir" dan action menolaknya, jawaban MAYBE yang tersimpan tetap terbaca); dihitung terpisah di dashboard tamu dan diekspor dengan status sendiri. `guest_count` = jatah kursi dari host (RSVP **tidak pernah** mengubahnya); `attending_count` = jumlah yang hadir menurut tamu (0 kalau menolak, null = belum menjawab / jawaban sebelum B-007 / MAYBE, jadi "mungkin" tidak pernah masuk hitungan kursi). Jawaban di-clamp ke 1…`guest_count`.
+- Form RSVP menjelaskan bahwa jumlah tamu hanya dicatat untuk jawaban hadir ("Jumlah ini dicatat untuk jawaban hadir", s17 temuan R2): MAYBE menyimpan `attending_count` kosong, DECLINED menyimpan 0.
 - Real-time muncul di customer panel. Export CSV (kolom `attending_count` di akhir; sel yang diawali `= + - @`, tab, CR dinetralkan dengan `'`, B-006).
 - Halaman tamu: hitung mundur + "Simpan ke Google Calendar" / file `.ics` untuk acara pertama yang belum lewat (B-008, `FLAG_GUEST_CALENDAR`, default on).
 
