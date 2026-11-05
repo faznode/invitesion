@@ -149,6 +149,12 @@ export const guests = pgTable(
     // Answers to the host's custom questions, { [questionId]: string | string[] | number } (B-027, D-034); written with
     // the RSVP, cleared on a decline, read only through `readStoredAnswers`. Null = none.
     rsvpAnswers: jsonb('rsvp_answers'),
+    // Answers per event, { [eventId]: { status, attending } } (B-027 slice 2c, D-036), keyed by the durable event id and
+    // written by the same UPDATE as the RSVP; read only through `readEventAnswers`. Null = none.
+    rsvpEventAnswers: jsonb('rsvp_event_answers'),
+    // Invite-only events this guest is invited to, [eventId, ...] (D-037); read only through `readInvitedEventIds`.
+    // Null = none. Open events are never listed: every guest sees them.
+    invitedEventIds: jsonb('invited_event_ids'),
     checkedInAt: timestamp('checked_in_at'),
     // Opaque link credential (B-011). Null = legacy guest reachable by slug; set = reachable by this token only.
     linkToken: varchar('link_token', { length: 32 }),
@@ -171,7 +177,7 @@ export const guestMessages = pgTable('guest_messages', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 
-// ─────────────────────────────────────────────
+// ──────────────────────────���──────────────────
 // COMMERCE  (Midtrans one-time, bukan subscription)
 // ─────────────────────────────────────────────
 /**
@@ -328,7 +334,7 @@ export const customerSessionSummary = pgTable('customer_session_summary', {
 
 // ─────────────────────────────────────────────
 // ANALYTICS
-// ─────────────────────────────────────────────
+// ─────────���─────────────────────────────��─────
 export const analyticsEvents = pgTable(
   'analytics_events',
   {

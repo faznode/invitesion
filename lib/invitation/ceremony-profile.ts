@@ -1,18 +1,20 @@
 import type { DetailConfig } from './detail-config';
+import type { Portrait } from './portraits';
 
 /**
  * B-029 (G-033): the profile an aqiqah, khitanan or tasyakuran host typed (the "ceremony blocks"), rendered when filled.
  * `buildGuestView()` passes the stored fields; this module keeps, per event type, exactly the fields that type's editor
  * tab offers, so a value left from another ceremony type never reaches the page. Values are trimmed, blanks dropped and
  * calendar dates formatted as written. The host's own words (doa, catatan, pesan syukur) are shown as typed: the product
- * adds no religious wording (ADR-O04). The photo stays stored-only until a person-photo treatment exists.
+ * adds no religious wording (ADR-O04). s20 (D-038): the honouree's photo, decided by `ceremonyPortrait` (children's
+ * privacy rule), is passed in and shown above the facts; a photo alone is enough for the section.
  */
 type StoredProfile = NonNullable<DetailConfig['ceremonyProfile']>;
 
-export type CeremonyProfileInput = Omit<StoredProfile, 'photoUrl'>;
+export type CeremonyProfileInput = Omit<StoredProfile, 'photoUrl' | 'showPhoto'>;
 export type ProfileRow = { label: string; value: string };
 export type ProfileText = { label: string; text: string };
-export type CeremonyProfile = { heading: string; rows: ProfileRow[]; texts: ProfileText[] };
+export type CeremonyProfile = { heading: string; rows: ProfileRow[]; texts: ProfileText[]; portrait?: Portrait };
 
 export const CEREMONY_EVENT_TYPES = ['aqiqah', 'khitanan', 'tasyakuran'] as const;
 export type CeremonyEventType = (typeof CEREMONY_EVENT_TYPES)[number];
@@ -57,7 +59,7 @@ export function formatPlainDate(value: string | undefined): string | undefined {
 }
 
 /** The profile for this event type with blank values dropped; null for other event types or when nothing is filled. */
-export function ceremonyProfileOf(eventType: string, input: CeremonyProfileInput | undefined): CeremonyProfile | null {
+export function ceremonyProfileOf(eventType: string, input: CeremonyProfileInput | undefined, portrait?: Portrait | null): CeremonyProfile | null {
   if (!input || !isCeremonyEventType(eventType)) return null;
   const rows: ProfileRow[] = [];
   const texts: ProfileText[] = [];
@@ -103,6 +105,6 @@ export function ceremonyProfileOf(eventType: string, input: CeremonyProfileInput
     text('Pesan syukur', input.ceremonyNote);
   }
 
-  if (!rows.length && !texts.length) return null;
-  return { heading: eventType === 'tasyakuran' ? 'Tentang Syukuran' : 'Tentang Ananda', rows, texts };
+  if (!rows.length && !texts.length && !portrait) return null;
+  return { heading: eventType === 'tasyakuran' ? 'Tentang Syukuran' : 'Tentang Ananda', rows, texts, ...(portrait && { portrait }) };
 }

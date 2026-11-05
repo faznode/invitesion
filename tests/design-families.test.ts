@@ -145,7 +145,9 @@ test('S17-G1 (s17): Gapura\'s photo window is 4:3 on a phone and square from 640
   const cover = { headline: 'Pernikahan', imageUrl: 'https://example.test/cover.jpg' };
   const page = renderGuestPage({ config: withFamily({ couple, theme: { cover } }, 'gapura'), guest: fixtureGuest() });
   const classes = (/<img src="https:\/\/example\.test\/cover\.jpg"[^>]*\bclass="([^"]*)"/.exec(page)?.[1] ?? '').split(/\s+/);
-  assert.ok(classes.includes('aspect-[4/3]') && classes.includes('sm:aspect-square'), classes.join(' '));
+  // S18-G2 (s20): from 640 px the window takes the height the viewport leaves after a two-line guest name (up to the former
+  // square), not a fixed square; measured in the browser at 1024 × 768 to 1920 × 1080 with one- and two-line names.
+  assert.ok(classes.includes('aspect-[4/3]') && classes.includes('sm:aspect-auto') && classes.includes('sm:h-[clamp(11rem,calc(100svh_-_36.5rem),22.75rem)]'), classes.join(' '));
   assert.equal(classes.includes('aspect-square'), false, `no square window below 640 px: ${classes.join(' ')}`);
   assert.ok(page.indexOf('src="https://example.test/cover.jpg"') < page.indexOf('>Pernikahan<'), 'still framed above the cover text (S16-X1)');
 });

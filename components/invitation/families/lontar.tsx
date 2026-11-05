@@ -4,6 +4,7 @@ import { Countdown } from '@/components/invitation/countdown';
 import {
   CalendarLinks,
   CeremonyProfileBody,
+  PortraitsBody,
   EventFacts,
   CorporateMark,
   GuestbookBlock,
@@ -109,9 +110,15 @@ export function LontarLayout({ props, view }: { props: GuestPageProps; view: Gue
       {readOnly && <ReadOnlyNotice className="mx-auto max-w-2xl px-5 pt-6" />}
       <SwitchedOffNotices props={props} view={view} className="mx-auto max-w-2xl px-5 pt-6" />
 
+      {view.portraits && (
+        <LeafSection tone={tone} title={view.portraits.heading}>
+          <PortraitsBody view={view} frame="leaf" align="start" />
+        </LeafSection>
+      )}
+
       {view.ceremonyProfile && (
         <LeafSection tone={tone} title={view.ceremonyProfile.heading}>
-          <CeremonyProfileBody view={view} cardClassName={card} />
+          <CeremonyProfileBody view={view} cardClassName={card} frame="leaf" align="start" />
         </LeafSection>
       )}
 

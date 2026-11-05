@@ -4,8 +4,8 @@ import { z } from 'zod';
 import { db } from '@/lib/db/drizzle';
 import { invitations, invitationVersions, mediaAssets } from '@/lib/db/schema';
 import type { MediaAsset } from '@/lib/db/schema';
-import { carriedRegistrationForm, normalizeStoredConfig } from './content-read';
-import { detailConfigSchema, mergeDetailConfig, type DetailConfig } from './detail-config';
+import { normalizeStoredConfig, prepareConfigWrite } from './content-read';
+import type { DetailConfig } from './detail-config';
 
 export class OwnershipError extends Error {
   constructor(message = 'Invitation not found') {
@@ -43,14 +43,9 @@ export async function updateDetailConfig(
 ): Promise<DetailConfig> {
   const inv = await requireOwnedInvitation(invitationId, userId);
   const stored = (inv.config as Record<string, unknown> | null) ?? {};
-  // S18-Q4 / D-035: a save that leaves the registration form alone carries it as every reader sees it, so a stored
-  // condition naming a deleted question cannot block saving another section; a save of the form itself is checked
-  // strictly (the editor shows that condition and asks the host to choose again). Any other invalid section still fails.
-  const carried = patch.registrationForm === undefined ? carriedRegistrationForm(stored) : undefined;
-  const merged = mergeDetailConfig(carried?.rest ?? stored, patch as Record<string, unknown>);
-  // Re-validate the merged result so a partial patch can't produce an invalid whole.
-  const parsed = detailConfigSchema.parse(merged);
-  const validated: DetailConfig = carried ? { ...parsed, registrationForm: carried.form } : parsed;
+  // S18-Q4 / D-035 (a stored condition naming a deleted question cannot block saving another section; a save of the form
+  // itself is checked strictly) and D-036 (events keep their ids; new ones get fresh ids): `prepareConfigWrite`.
+  const validated: DetailConfig = prepareConfigWrite(stored, patch);
 
   await db.transaction(async (tx) => {
     await tx

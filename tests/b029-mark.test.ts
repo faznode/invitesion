@@ -17,7 +17,8 @@ const profile = (extra: NonNullable<DetailConfig['corporateProfile']> = {}): Det
   corporateProfile: { organizationName: 'PT Contoh Nusantara', eventName: 'Konferensi Tahunan Contoh', ...extra },
   events: [{ title: 'Konferensi', startAt: '2099-03-10T09:00:00+07:00' }],
 });
-const logoTag = (html: string) => /<img src="([^"]*)" alt="([^"]*)" width="160" height="64"/.exec(html);
+// s20 (M1): the frame is 240 × 64 (was 160 × 64), so wide wordmarks keep a legible height.
+const logoTag = (html: string) => /<img src="([^"]*)" alt="([^"]*)" width="240" height="64"/.exec(html);
 
 test('B-029: a logo renders from an upload path or an http(s) URL, nothing else', () => {
   assert.equal(safeImageSrc(LOGO), LOGO);
@@ -54,7 +55,7 @@ test('B-029: every layout shows the logo in its fixed frame and the category abo
   for (const { label, familyId } of LAYOUTS) {
     const page = renderGuestPage({ config: withFamily(profile({ logoUrl: LOGO, eventCategory: 'seminar' }), familyId), invitation: corporate, guest: fixtureGuest() });
     const tag = logoTag(page);
-    assert.ok(tag, `${label}: logo with intrinsic 160 × 64 size`);
+    assert.ok(tag, `${label}: logo with intrinsic 240 × 64 size`);
     assert.equal(tag[1], LOGO, label);
     assert.equal(tag[2], 'Logo PT Contoh Nusantara', `${label}: alt names the organiser`);
     const headline = page.indexOf('<h1');

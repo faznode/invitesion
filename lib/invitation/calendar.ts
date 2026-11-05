@@ -7,6 +7,7 @@
  * end leaves DTEND out (RFC 5545 §3.6.1: the event then ends at DTSTART) rather than inventing a duration.
  * No guest data goes into the file: it is the same for every guest of an invitation.
  */
+import { legacyEventPosition } from './event-ids';
 
 export type CalendarEvent = {
   uid: string;
@@ -18,7 +19,16 @@ export type CalendarEvent = {
   url?: string | null;
 };
 
-type ConfigEvent = { title: string; startAt?: string; endAt?: string; venueName?: string; address?: string };
+type ConfigEvent = { id?: string; title: string; startAt?: string; endAt?: string; venueName?: string; address?: string };
+
+/**
+ * An entry's UID follows the event's id (D-036), so after a reorder a calendar app updates the right entry. A legacy
+ * `ev-<n>` id keeps the index UID it had before ids existed (`<slug>.<n-1>`), so entries guests already saved still match.
+ */
+export function calendarUid(slug: string, eventId: string | undefined, index: number): string {
+  const legacy = legacyEventPosition(eventId);
+  return `${slug}.${legacy !== null ? legacy - 1 : (eventId ?? index)}@invitesion`;
+}
 
 function validDate(value?: string | null): Date | null {
   if (!value) return null;
@@ -90,7 +100,7 @@ export function calendarEventsFromConfig(input: {
     const location = [event.venueName, event.address].filter((part) => part?.trim()).join(', ');
     return [
       {
-        uid: `${input.slug}.${index}@invitesion`,
+        uid: calendarUid(input.slug, event.id, index),
         title: `${event.title} · ${input.displayName}`,
         start,
         end: validDate(event.endAt),

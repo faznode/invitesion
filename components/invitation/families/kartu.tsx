@@ -4,6 +4,7 @@ import { Countdown } from '@/components/invitation/countdown';
 import {
   CalendarLinks,
   CeremonyProfileBody,
+  PortraitsBody,
   EventFacts,
   CorporateMark,
   GuestbookBlock,
@@ -45,7 +46,7 @@ export function KartuLayout({ props, view }: { props: GuestPageProps; view: Gues
               // eslint-disable-next-line @next/next/no-img-element
               <img src={view.coverImageSrc} alt="" aria-hidden className="mb-6 aspect-[4/3] w-full rounded-xl object-cover" />
             )}
-            <CorporateMark view={view} align="start" className="mb-6" />
+            <CorporateMark view={view} align="start" className="mb-6 [--inv-logo-bg:var(--inv-card)]" />
             <div className="flex items-start justify-between gap-4">
               <p className={`pt-1 text-xs uppercase tracking-[0.25em] ${tone.accent}`}>{config.theme?.cover?.headline || 'Undangan'}</p>
               {stamp && (
@@ -116,6 +117,12 @@ export function KartuLayout({ props, view }: { props: GuestPageProps; view: Gues
         </CardSection>
       )}
 
+      {view.portraits && (
+        <CardSection tone={tone} title={view.portraits.heading}>
+          <PortraitsBody view={view} frame="card" align="start" />
+        </CardSection>
+      )}
+
       {events.length > 0 && (
         <CardSection tone={tone} label="Waktu & tempat" title="Rangkaian Acara">
           {showCountdown && primaryEvent && (
@@ -158,7 +165,7 @@ export function KartuLayout({ props, view }: { props: GuestPageProps; view: Gues
 
       {view.ceremonyProfile && (
         <CardSection tone={tone} label="Profil" title={view.ceremonyProfile.heading}>
-          <CeremonyProfileBody view={view} cardClassName={card} />
+          <CeremonyProfileBody view={view} cardClassName={card} frame="card" align="start" />
         </CardSection>
       )}
 

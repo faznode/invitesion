@@ -1,5 +1,6 @@
 import { CONTENT_SCHEMA_VERSION } from './content-contract';
-import { customQuestionSchema, detailConfigSchema, registrationFormReadSchema, type DetailConfig } from './detail-config';
+import { customQuestionSchema, detailConfigSchema, mergeDetailConfig, registrationFormReadSchema, type DetailConfig } from './detail-config';
+import { keyEventsForWrite, keyStoredEvents } from './event-ids';
 
 export type NormalizedConfig = { config: DetailConfig; version: number; dropped: string[] };
 type RegistrationForm = NonNullable<DetailConfig['registrationForm']>;
@@ -32,8 +33,9 @@ function readRegistrationForm(value: unknown): { form: RegistrationForm; removed
  * config written by an older version (or containing a section today's rules reject) loses only that section instead
  * of rendering as an empty invitation. `dropped` names the removed top-level keys (never their values) for logging;
  * `registrationForm.customQuestions` means the form was kept with some unreadable questions left out.
- * `schemaVersion` absent = 1 (every config written before the field existed); there is no migration step yet because
- * version 1 is the only version.
+ * `schemaVersion` absent = 1 (every config written before the field existed). Version 2 (D-036): every event carries a
+ * durable id. The step from 1 is `keyStoredEvents`, applied on every read so a config the backfill (migration 0013) left
+ * alone, or one a writer stored without ids, reads with the same ids each time; the write path persists them.
  */
 export function normalizeStoredConfig(raw: unknown): NormalizedConfig {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { config: {}, version: CONTENT_SCHEMA_VERSION, dropped: [] };
@@ -45,7 +47,7 @@ export function normalizeStoredConfig(raw: unknown): NormalizedConfig {
   let readForm: RegistrationForm | undefined;
   for (const [key, value] of Object.entries(record)) {
     if (key === 'schemaVersion') continue;
-    const parsed = shape[key]?.safeParse(value);
+    const parsed = shape[key]?.safeParse(key === 'events' ? keyStoredEvents(value) : value);
     if (parsed?.success) {
       kept[key] = parsed.data;
       continue;
@@ -74,4 +76,22 @@ export function carriedRegistrationForm(raw: unknown): { rest: Record<string, un
   if (registrationForm === undefined || detailConfigSchema.shape.registrationForm.safeParse(registrationForm).success) return undefined;
   const read = readRegistrationForm(registrationForm);
   return read ? { rest, form: read.form } : undefined;
+}
+
+/**
+ * The config a save stores: the stored config with the patch merged in and the whole re-validated strictly, so a partial
+ * patch cannot produce an invalid whole (an invalid whole throws the schema's error, as before).
+ * - S18-Q4 / D-035: a save that leaves the registration form alone carries it as every reader sees it.
+ * - D-036: carried events keep the ids readers derive (`keyStoredEvents`), so the first save of a pre-0013 config persists
+ *   exactly the ids guests already answered under; events the writer sends without a usable id are new and get a fresh
+ *   random id. The content version is stamped.
+ */
+export function prepareConfigWrite(stored: Record<string, unknown>, patch: DetailConfig): DetailConfig {
+  const carried = patch.registrationForm === undefined ? carriedRegistrationForm(stored) : undefined;
+  const base = carried?.rest ?? stored;
+  const keyedBase = Array.isArray(base.events) ? { ...base, events: keyStoredEvents(base.events) } : base;
+  const keyedPatch = patch.events ? { ...patch, events: keyEventsForWrite(patch.events) } : patch;
+  const merged = { ...mergeDetailConfig(keyedBase, keyedPatch as Record<string, unknown>), schemaVersion: CONTENT_SCHEMA_VERSION };
+  const parsed = detailConfigSchema.parse(merged);
+  return carried ? { ...parsed, registrationForm: carried.form } : parsed;
 }

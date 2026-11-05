@@ -47,7 +47,7 @@ test('E-023: the photo chip follows the drawn photo, not the stored value (legac
   // Gapura frames the photo above its text since the s17 revision (S16-X1): the frame follows the drawn photo, and no
   // cover text meets the photo, so none needs a chip.
   const framed = renderGuestPage({ config: withFamily(cover(UPLOAD), 'gapura'), guest: fixtureGuest() });
-  assert.ok(/<img src="[^"]*"[^>]*\baspect-square\b/.test(framed) && framed.includes(`<img src="${UPLOAD}"`), 'gapura: the photo in its frame');
+  assert.ok(/<img src="[^"]*"[^>]*\baspect-\[4\/3\][^"]*\bobject-cover\b/.test(framed) && framed.includes(`<img src="${UPLOAD}"`), 'gapura: the photo in its frame');
   assert.ok(!chip.test(framed), 'gapura: no chip');
 });
 

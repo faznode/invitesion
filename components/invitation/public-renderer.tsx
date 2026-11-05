@@ -7,6 +7,7 @@ import { RiangLayout } from '@/components/invitation/families/riang';
 import {
   CalendarLinks,
   CeremonyProfileBody,
+  PortraitsBody,
   EventFacts,
   CorporateMark,
   GuestbookBlock,
@@ -116,6 +117,13 @@ function LegacyLayout({ props, view }: LayoutProps) {
           <QuoteIcon className={`mx-auto h-6 w-6 ${tone.accent}`} aria-hidden />
           <blockquote className="mt-4 font-serif text-lg leading-8">{config.quote.text}</blockquote>
           {config.quote.author && <cite className={`mt-3 block text-xs uppercase tracking-widest ${tone.muted}`}>{config.quote.author}</cite>}
+        </Section>
+      )}
+
+      {view.portraits && (
+        <Section>
+          <Heading accent={tone.accent}>{view.portraits.heading}</Heading>
+          <PortraitsBody view={view} frame="round" />
         </Section>
       )}
 

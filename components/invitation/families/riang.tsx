@@ -4,6 +4,7 @@ import { Countdown } from '@/components/invitation/countdown';
 import {
   CalendarLinks,
   CeremonyProfileBody,
+  PortraitsBody,
   EventFacts,
   CorporateMark,
   GuestbookBlock,
@@ -35,6 +36,18 @@ export function RiangLayout({ props, view }: { props: GuestPageProps; view: Gues
   const block = `rounded-3xl border ${tone.line} ${tone.card} shadow-sm`;
   const chip = `rounded-full border ${tone.line} ${tone.card} px-4 py-2`;
   const bands: Band[] = [];
+
+  if (view.portraits) {
+    bands.push({
+      key: 'portraits',
+      node: (
+        <>
+          <BandHeading tone={tone}>{view.portraits.heading}</BandHeading>
+          <PortraitsBody view={view} frame="round" />
+        </>
+      ),
+    });
+  }
 
   if (events.length > 0) {
     bands.push({
@@ -78,7 +91,7 @@ export function RiangLayout({ props, view }: { props: GuestPageProps; view: Gues
       node: (
         <>
           <BandHeading tone={tone}>{view.ceremonyProfile.heading}</BandHeading>
-          <CeremonyProfileBody view={view} cardClassName={block} />
+          <CeremonyProfileBody view={view} cardClassName={block} frame="round" />
         </>
       ),
     });
@@ -256,7 +269,8 @@ export function RiangLayout({ props, view }: { props: GuestPageProps; view: Gues
           // eslint-disable-next-line @next/next/no-img-element
           <img src={view.coverImageSrc} alt="" aria-hidden className={`mx-auto mt-10 aspect-square w-36 rounded-full border-4 ${tone.line} object-cover`} />
         )}
-        <CorporateMark view={view} align="center" className="mt-10" />
+          {/* The cover is drawn on the soft tone, so a lost logo file is covered in that colour (s20 acceptance, M2). */}
+          <CorporateMark view={view} align="center" className="mt-10 [--inv-logo-bg:var(--inv-soft)]" />
         <p className={`inv-rise mt-10 text-sm font-semibold uppercase tracking-[0.2em] ${tone.accent}`}>{config.theme?.cover?.headline || 'Kamu diundang'}</p>
         <h1 className="mx-auto mt-4 max-w-2xl font-serif text-5xl leading-none text-balance [overflow-wrap:anywhere] sm:text-7xl">
           {names?.length

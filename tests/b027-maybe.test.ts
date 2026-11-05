@@ -72,13 +72,19 @@ test('B-027: a stored "maybe" reads back as "mungkin hadir", also after the flag
 
 test('B-027: the action checks the flag before any write; the dashboard counts and sets "maybe"', () => {
   const action = source('app/i/[slug]/actions.ts');
-  const check = action.indexOf("isRsvpStatus(status, { maybe: isFlagOn('RSVP_MAYBE') })");
-  assert.ok(check > 0, 'the action passes the flag');
-  assert.ok(check < action.indexOf('db.update(guests)'), 'before the write');
+  // s19 (D-036): the flag is read once and passed to both the single answer and the per-event answers.
+  const write = action.indexOf('db.update(guests)');
+  const flag = action.indexOf("const maybe = isFlagOn('RSVP_MAYBE');");
+  assert.ok(flag > 0 && flag < write, 'the action reads the flag before the write');
+  for (const use of ['isRsvpStatus(submitted, { maybe })', 'parseEventAnswers(formData, events, context.guest.guestCount, { maybe })']) {
+    const at = action.indexOf(use);
+    assert.ok(at > flag && at < write, `${use}: passes the flag before the write`);
+  }
   const page = source('app/(customer)/dashboard/invitations/[id]/guests/page.tsx');
   assert.match(page, /\['Mungkin',rsvp\.MAYBE\]/);
   assert.match(page, /value="MAYBE" label="Mungkin"/);
-  assert.match(source('app/(customer)/dashboard/invitations/[id]/guests/actions.ts'), /'PENDING','CONFIRMED','DECLINED','MAYBE'/);
+  // D-037: the dashboard's statuses now go through `hostRsvpUpdate`; "mungkin" is still one of them.
+  assert.match(source('app/(customer)/dashboard/invitations/[id]/guests/actions.ts'), /\['PENDING', 'CONFIRMED', 'DECLINED', 'MAYBE'\]/);
 });
 
 test('B-027: the export keeps "maybe" apart with an empty headcount and still neutralises formulas', () => {

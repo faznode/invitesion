@@ -4,6 +4,7 @@ import { Countdown } from '@/components/invitation/countdown';
 import {
   CalendarLinks,
   CeremonyProfileBody,
+  PortraitsBody,
   EventFacts,
   CorporateMark,
   GuestbookBlock,
@@ -37,15 +38,23 @@ export function GapuraLayout({ props, view }: { props: GuestPageProps; view: Gue
     <main className={`min-h-screen ${tone.bg} ${tone.ink}`} style={tone.style}>
       {/* S16-X2 (s17): full-height only from 640 px; on a phone the cover ends with its content, so the first section
           follows at the section rhythm instead of after ≈ 180 px of empty page. */}
-      <header className="flex flex-col items-center justify-center px-5 pt-14 text-center sm:min-h-[90vh] sm:pb-14">
+      <header className="flex flex-col items-center justify-center px-5 pt-14 text-center sm:min-h-[90vh] sm:pb-14 sm:pt-10">
         <div className={`w-full max-w-sm rounded-t-full border ${tone.line} p-2`}>
           <div className={`overflow-hidden rounded-t-full border ${tone.accentLine} pb-12 ${photo ? '' : 'pt-20'}`}>
             {photo && (
               // S16-X1 (s17): the photo fills the gate's window at full strength and no text is set on it, so it reads as
               // a photograph with any photo and the cover text keeps the page's own contrast. S17-G1: a 4:3 window below
-              // 640 px keeps the guest greeting inside a 360 × 800 first viewport; the window is square from 640 px.
+              // 640 px keeps the guest greeting inside a 360 × 800 first viewport. S18-G2 (s20): from 640 px the window is
+              // as tall as the viewport leaves after the cover's text with a two-line guest name (≈ 36.5rem; a long couple's
+              // name wraps to two lines on a desktop card), between 11rem and its full square (22.75rem), so on a
+              // 1024 × 768, 1280 × 800 or 1366 × 768 screen the guest greeting is in the first viewport too.
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={photo} alt="" aria-hidden className="block aspect-[4/3] w-full object-cover sm:aspect-square" />
+              <img
+                src={photo}
+                alt=""
+                aria-hidden
+                className="block aspect-[4/3] w-full object-cover sm:aspect-auto sm:h-[clamp(11rem,calc(100svh_-_36.5rem),22.75rem)]"
+              />
             )}
             <div className={`flex flex-col items-center px-6 ${photo ? 'pt-8' : ''}`}>
               <Diamond tone={tone} className="inv-rise" />
@@ -103,6 +112,12 @@ export function GapuraLayout({ props, view }: { props: GuestPageProps; view: Gue
         </ArchSection>
       )}
 
+      {view.portraits && (
+        <ArchSection tone={tone} title={view.portraits.heading}>
+          <PortraitsBody view={view} frame="arch" />
+        </ArchSection>
+      )}
+
       {events.length > 0 && (
         <ArchSection tone={tone} title="Rangkaian Acara">
           {showCountdown && primaryEvent && (
@@ -137,7 +152,7 @@ export function GapuraLayout({ props, view }: { props: GuestPageProps; view: Gue
 
       {view.ceremonyProfile && (
         <ArchSection tone={tone} title={view.ceremonyProfile.heading}>
-          <CeremonyProfileBody view={view} cardClassName={`rounded-2xl ${tone.card} shadow-sm`} />
+          <CeremonyProfileBody view={view} cardClassName={`rounded-2xl ${tone.card} shadow-sm`} frame="arch" />
         </ArchSection>
       )}
 

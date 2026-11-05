@@ -1,5 +1,6 @@
 import { isFlagOn } from '@/lib/flags';
 import { buildIcs, calendarEventsFromConfig } from '@/lib/invitation/calendar';
+import { visibleEvents } from '@/lib/invitation/event-eligibility';
 import { invitationDisplayName } from '@/lib/invitation/headline';
 import { loadPublishedInvitationSummary } from '@/lib/invitation/public';
 import { getPublicOrigin, invitationPath } from '@/lib/invitation/public-url';
@@ -21,7 +22,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ slu
   const events = calendarEventsFromConfig({
     slug,
     displayName: invitationDisplayName(summary.invitation.eventType, summary.config),
-    events: summary.config.events ?? [],
+    // D-037: this file is served without a guest link, so it lists open events only.
+    events: visibleEvents(summary.config.events, { kind: 'public' }, isFlagOn('INVITE_ONLY_EVENTS')),
     publicUrl: origin ? `${origin}${invitationPath(slug)}` : null,
   });
   if (events.length === 0) return new Response('Not found', { status: 404 });

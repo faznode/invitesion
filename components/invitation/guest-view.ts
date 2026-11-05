@@ -3,12 +3,15 @@ import { calendarEventsFromConfig } from '@/lib/invitation/calendar';
 import { ceremonyProfileOf } from '@/lib/invitation/ceremony-profile';
 import { corporateMarkOf } from '@/lib/invitation/corporate-mark';
 import type { DetailConfig } from '@/lib/invitation/detail-config';
+import { guestAudience, visibleEvents, type EventAudience } from '@/lib/invitation/event-eligibility';
 import { eventDateParts, formatEventDate, formatEventTime } from '@/lib/invitation/event-time';
 import { invitationDisplayName, invitationHeadline } from '@/lib/invitation/headline';
 import { safeImageSrc } from '@/lib/invitation/image-url';
 import { palette } from '@/lib/invitation/palettes';
+import { birthdayPortrait, ceremonyPortrait, couplePortraits } from '@/lib/invitation/portraits';
 import { programmeOf } from '@/lib/invitation/programme';
 import { answerField, askableQuestions, conditionText, isMultiChoice, readStoredAnswers, rsvpQuestionsOf } from '@/lib/invitation/rsvp-questions';
+import { eventCountField, eventStatusField, perEventRsvpEvents, readEventAnswers } from '@/lib/invitation/rsvp-events';
 import { rsvpDeadlinePassed } from '@/lib/invitation/rsvp-rules';
 import { shareOf } from '@/lib/invitation/share';
 import type { Guest, Invitation, MediaAsset } from '@/lib/db/schema';
@@ -26,15 +29,20 @@ export type GuestPageProps = {
   totalMessages?: number;
   hiddenMessageCount?: number;
   readOnly: boolean;
-  /** Outcome of the last submit (`?rsvp=`, `?wish=`); `rsvpq` names the question an `rsvp=answers` refusal is about. */
-  status: { rsvp?: string; wish?: string; rsvpq?: string };
+  /**
+   * Outcome of the last submit (`?rsvp=`, `?wish=`); `rsvpq` names the question an `rsvp=answers` refusal is about and
+   * `rsvpe` the event an `rsvp=events` refusal is about (D-036).
+   */
+  status: { rsvp?: string; wish?: string; rsvpq?: string; rsvpe?: string };
+  /** The host's own preview (`/preview/[id]`): every event is shown, invite-only ones included (D-037). */
+  preview?: boolean;
 };
 
 /**
  * What every layout derives from the stored config, computed once so the legacy layout and each design family (B-030)
  * show the same data: dates in the event's own zone, the countdown rule, the calendar entry and who may respond.
  */
-export function buildGuestView({ invitation, config, guest, media, readOnly }: GuestPageProps) {
+export function buildGuestView({ invitation, config, guest, media, readOnly, preview = false }: GuestPageProps) {
   const tone = palette(config.theme?.paletteId);
   // Event-local wall clock with WIB / WITA / WIT from the saved offset, whatever zone the server runs in (B-004).
   const eventZone = config.eventOperations?.timezone;
@@ -42,7 +50,12 @@ export function buildGuestView({ invitation, config, guest, media, readOnly }: G
   const formatTime = (value?: string) => formatEventTime(value, eventZone);
   const dateParts = (value?: string) => eventDateParts(value, eventZone);
   const names = invitationHeadline(invitation.eventType, config);
-  const events = config.events ?? [];
+  // D-037: the events this page may show. A guest sees open events and the invite-only ones they are invited to; a page
+  // without a guest link sees open events only; the host's preview sees all. Countdown, calendar entry and the per-event
+  // form below all start from this list, so an event a guest may not see never reaches their page in any form.
+  const inviteOnlyOn = isFlagOn('INVITE_ONLY_EVENTS');
+  const audience: EventAudience = preview ? { kind: 'owner' } : guestAudience(guest);
+  const events = visibleEvents(config.events, audience, inviteOnlyOn);
   const primaryEvent = events[0];
   // B-008: countdown and save-the-date only for a future primary event; the calendar file only exists once published.
   const renderedAt = Date.now();
@@ -70,13 +83,27 @@ export function buildGuestView({ invitation, config, guest, media, readOnly }: G
   const questionList = isFlagOn('RSVP_QUESTIONS')
     ? askableQuestions(rsvpQuestionsOf({ enabled: config.registrationForm?.enabled, customQuestions: config.registrationForm?.customQuestions }))
     : [];
+  // B-027 slice 2c (D-036): one answer per event, by the flag and switch the action reads, keyed by the durable event id.
+  // D-037: over the listed events this guest is invited to; with fewer than two the single answer stands for them.
+  const askedEvents = visibleEvents(perEventRsvpEvents({ perEvent: config.rsvp?.perEvent, events: config.events }, isFlagOn('RSVP_PER_EVENT')), audience, inviteOnlyOn);
+  const rsvpEventList = askedEvents.length >= 2 ? askedEvents : [];
+  const storedEventAnswers = readEventAnswers(guest?.rsvpEventAnswers);
+  const rsvpEvents = rsvpEventList.map((event) => ({
+    id: event.id,
+    title: event.title,
+    details: [formatDate(event.startAt), formatTime(event.startAt), event.venueName].filter(Boolean).join(' · '),
+    statusField: eventStatusField(event.id),
+    countField: eventCountField(event.id),
+    stored: storedEventAnswers[event.id],
+  }));
   const questionsById = new Map(questionList.map((question) => [question.id, question]));
   const storedAnswers = readStoredAnswers(guest?.rsvpAnswers);
   const rsvpQuestions = questionList.map((question) => ({
     ...question,
     field: answerField(question.id),
-    // HTML can require only an unconditional question with one answer; the action checks the rest ("hadir" only).
-    nativeRequired: question.required && !question.conditional && !isMultiChoice(question),
+    // HTML can require only an unconditional question with one answer; the action checks the rest ("hadir" only). With
+    // per-event answers the overall status is known only to the action, so the browser requires none.
+    nativeRequired: question.required && !question.conditional && !isMultiChoice(question) && rsvpEvents.length === 0,
     condition: conditionText(question, questionsById),
     stored: storedAnswers[question.id],
   }));
@@ -120,6 +147,50 @@ export function buildGuestView({ invitation, config, guest, media, readOnly }: G
         })
       : null;
 
+  // D-038: person photos. Children's photos (aqiqah, khitanan, a birthday celebrant) need the host's switch and a personal
+  // link or the host's preview; the couple's and a tasyakuran honouree's show once uploaded. Field by field, as below.
+  const portraitAudience = { personalLink: Boolean(guest), preview };
+  const portraits =
+    invitation.eventType === 'wedding'
+      ? couplePortraits({
+          bride: {
+            fullName: config.couple?.bride?.fullName,
+            nickName: config.couple?.bride?.nickName,
+            parents: config.couple?.bride?.parents,
+            order: config.couple?.bride?.order,
+            photoUrl: config.couple?.bride?.photoUrl,
+          },
+          groom: {
+            fullName: config.couple?.groom?.fullName,
+            nickName: config.couple?.groom?.nickName,
+            parents: config.couple?.groom?.parents,
+            order: config.couple?.groom?.order,
+            photoUrl: config.couple?.groom?.photoUrl,
+          },
+          displayOrder: config.couple?.displayOrder,
+        })
+      : invitation.eventType === 'birthday'
+        ? birthdayPortrait(
+            {
+              fullName: config.birthdayPerson?.fullName,
+              nickName: config.birthdayPerson?.nickName,
+              photoUrl: config.birthdayPerson?.photoUrl,
+              showPhoto: config.birthdayPerson?.showPhoto,
+            },
+            portraitAudience,
+          )
+        : null;
+  const honoureePortrait = ceremonyPortrait(
+    invitation.eventType,
+    {
+      honoureeName: config.ceremonyProfile?.honoureeName,
+      nickName: config.ceremonyProfile?.nickName,
+      photoUrl: config.ceremonyProfile?.photoUrl,
+      showPhoto: config.ceremonyProfile?.showPhoto,
+    },
+    portraitAudience,
+  );
+
   // B-029: the ceremony profile (aqiqah, khitanan, tasyakuran), render-when-filled; each type keeps only the fields its
   // editor tab offers. Passed field by field, like the programme, so the content contract sees exactly what is read.
   const ceremonyProfile = ceremonyProfileOf(invitation.eventType, {
@@ -145,7 +216,7 @@ export function buildGuestView({ invitation, config, guest, media, readOnly }: G
     thanksgivingCategory: config.ceremonyProfile?.thanksgivingCategory,
     thanksgivingTitle: config.ceremonyProfile?.thanksgivingTitle,
     achievement: config.ceremonyProfile?.achievement,
-  });
+  }, honoureePortrait);
   // B-029: the wedding hashtag and filter link; the editor offers this module for weddings only.
   const share =
     invitation.eventType === 'wedding'
@@ -154,8 +225,8 @@ export function buildGuestView({ invitation, config, guest, media, readOnly }: G
 
   return {
     tone, formatDate, formatTime, dateParts, names, events, primaryEvent, renderedAt, primaryStartMs, showCountdown, primaryCalendarEvent, gallery,
-    canRespond, canRsvp, rsvpMaybe, rsvpQuestions, rsvpDeadlineText, rsvpClosedByDeadline, rsvpShown, guestbookShown, coverImageSrc, coverText, programme,
-    organiser, corporateMark, ceremonyProfile, share,
+    canRespond, canRsvp, rsvpMaybe, rsvpQuestions, rsvpEvents, rsvpDeadlineText, rsvpClosedByDeadline, rsvpShown, guestbookShown, coverImageSrc, coverText, programme,
+    organiser, corporateMark, ceremonyProfile, share, portraits,
   };
 }
 

@@ -9,7 +9,8 @@ import type { DetailConfig } from './detail-config';
  * Type-only import on purpose: the editor (a client component) uses this module without bundling zod; the lenient
  * read path that needs the schema lives in `content-read.ts`.
  */
-export const CONTENT_SCHEMA_VERSION = 1;
+/** 2 (D-036): every event carries a durable `id`. Migration on read: `content-read.ts`; stored backfill: migration 0013. */
+export const CONTENT_SCHEMA_VERSION = 2;
 
 type Label = { id: string; en: string };
 
@@ -27,20 +28,25 @@ export type SectionCapability = {
 export const RENDER_CAPABILITIES = {
   schemaVersion: { rendered: [], storedOnly: [], hostOnly: ['schemaVersion'] },
   settings: { rendered: ['title', 'openingCopy'], storedOnly: ['fontFamily', 'language'], hostOnly: ['linkSlug'] },
+  // s20 (D-038, `lib/invitation/portraits.ts`): a couple's photos open a "Mempelai" section with each name and parents line.
   couple: {
-    rendered: ['bride.fullName', 'bride.nickName', 'groom.fullName', 'groom.nickName', 'displayOrder'],
-    storedOnly: ['bride.parents', 'bride.photoUrl', 'bride.instagram', 'bride.order', 'groom.parents', 'groom.photoUrl', 'groom.instagram', 'groom.order'],
+    rendered: [
+      'bride.fullName', 'bride.nickName', 'groom.fullName', 'groom.nickName', 'displayOrder',
+      'bride.photoUrl', 'bride.parents', 'bride.order', 'groom.photoUrl', 'groom.parents', 'groom.order',
+    ],
+    storedOnly: ['bride.instagram', 'groom.instagram'],
   },
-  birthdayPerson: { rendered: ['fullName', 'nickName'], storedOnly: ['birthDate', 'age', 'parents', 'photoUrl', 'instagram', 'message'] },
+  // D-038: the celebrant's photo by the children's privacy rule (the host's switch, personal links only).
+  birthdayPerson: { rendered: ['fullName', 'nickName', 'photoUrl', 'showPhoto'], storedOnly: ['birthDate', 'age', 'parents', 'instagram', 'message'] },
   ceremonyProfile: {
     // B-029 (s17): each ceremony type renders the fields its editor tab offers (`lib/invitation/ceremony-profile.ts`);
-    // the photo waits for a person-photo treatment (no guest page shows a person's photo yet).
+    // s20 (D-038): the photo too, by the children's privacy rule for aqiqah and khitanan.
     rendered: [
       'honoureeName', 'nickName', 'parents', 'fatherName', 'motherName', 'birthDate', 'birthTime', 'birthPlace', 'age', 'ceremonyNote',
       'gender', 'birthWeight', 'birthLength', 'childOrder', 'nameMeaning', 'prayer', 'school', 'circumcisionDate', 'recoveryNote',
-      'thanksgivingCategory', 'thanksgivingTitle', 'achievement',
+      'thanksgivingCategory', 'thanksgivingTitle', 'achievement', 'photoUrl', 'showPhoto',
     ],
-    storedOnly: ['photoUrl'],
+    storedOnly: [],
   },
   corporateProfile: {
     // B-029: the programme renders when filled (`lib/invitation/programme.ts`); logo (an upload or an http(s) URL,
@@ -52,12 +58,14 @@ export const RENDER_CAPABILITIES = {
     storedOnly: [],
   },
   theme: { rendered: ['paletteId', 'familyId', 'cover.imageUrl', 'cover.headline'], storedOnly: [], hostOnly: ['templateId'] },
-  events: { rendered: ['title', 'startAt', 'endAt', 'venueName', 'address', 'mapUrl', 'note'], storedOnly: [] },
+  // D-037: `inviteOnly` decides who sees an event (`lib/invitation/event-eligibility.ts`) and is never shown itself, like `id`.
+  events: { rendered: ['title', 'startAt', 'endAt', 'venueName', 'address', 'mapUrl', 'note'], storedOnly: [], hostOnly: ['id', 'inviteOnly'] },
   music: { rendered: [], storedOnly: ['enabled', 'assetUrl', 'title', 'autoplay'] },
   greetings: { rendered: ['enabled', 'prayer'], storedOnly: [] },
   gift: { rendered: ['enabled', 'accounts', 'label', 'number', 'holder', 'note'], storedOnly: ['kind'] },
   // B-027: the deadline is shown in the event's wall clock and closes the form and the action from that instant on.
-  rsvp: { rendered: ['enabled', 'deadline'], storedOnly: ['maxGuestsPerRsvp'] },
+  // B-027 slice 2c (D-036): `perEvent` turns the single answer into one answer per event (two or more events).
+  rsvp: { rendered: ['enabled', 'deadline', 'perEvent'], storedOnly: ['maxGuestsPerRsvp'] },
   gallery: { rendered: ['enabled'], storedOnly: ['layout'], hostOnly: ['assetIds'] },
   streaming: { rendered: ['enabled', 'url'], storedOnly: ['platform', 'scheduledAt'] },
   story: { rendered: ['enabled', 'items', 'date', 'title', 'body'], storedOnly: [] },

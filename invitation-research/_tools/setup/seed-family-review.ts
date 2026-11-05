@@ -32,6 +32,10 @@
  * passed) and questions-expired (read-only invitation).
  * `--match <regex>` seeds only the rows whose slug matches, so adding variants leaves every other review page (and its
  * run-relative dates) untouched, e.g. `--ceremony --match '-(aqiqah|khitanan|tasyakuran|share)$'`.
+ * `--portraits <a.png>,<b.png>` (s20, D-038 person photos) stores two fictional portraits through `saveImage` keyed to each
+ * invitation (as `--logo-files`; set UPLOAD_ROOT) and adds per layout: portraits (the full wedding with both photos and
+ * parents lines), portraits-kid (an aqiqah photo the host switched on), portraits-kid-off (the same photo, switch off),
+ * portraits-birthday (the celebrant's photo, switch on) and portraits-tasyakuran (an adult honouree, no switch needed).
  */
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -54,8 +58,11 @@ export type ReviewInvitation = {
   withMessages: boolean;
   /** Which fictional logo `--logo-files` stores for this invitation; `broken` saves an upload path with no file. */
   logo?: LogoKind;
+  /** Which person photos `--portraits` stores for this invitation (D-038). */
+  portrait?: PortraitKind;
 };
 type LogoKind = 'square' | 'wide' | 'tall' | 'broken';
+type PortraitKind = 'couple' | 'kid' | 'kid-off' | 'birthday' | 'tasyakuran';
 
 const STRESS_GUESTS: GuestSeed[] = [
   { name: 'Budi Hartono', slug: 'budi-hartono', guestCount: 2 },
@@ -335,6 +342,8 @@ export type ReviewOptions = {
   ceremony?: boolean;
   /** `--questions` (s18): per layout `questions`, `questions-off` (form switched off), `questions-closed` (deadline passed), `questions-expired`. */
   questions?: boolean;
+  /** `--portraits` (s20): per layout `portraits`, `portraits-kid`, `portraits-kid-off`, `portraits-birthday`, `portraits-tasyakuran`. */
+  portraits?: boolean;
 };
 
 export function familyReviewInvitations(options: ReviewOptions = {}): ReviewInvitation[] {
@@ -343,11 +352,12 @@ export function familyReviewInvitations(options: ReviewOptions = {}): ReviewInvi
   const withMarkVariants = options.markVariants ?? false;
   const withCeremony = options.ceremony ?? false;
   const withQuestions = options.questions ?? false;
+  const withPortraits = options.portraits ?? false;
   const withToken = (slug: string): GuestSeed[] => [...STRESS_GUESTS, { name: 'Tamu Bertoken', slug: 'tamu-bertoken', guestCount: 2, linkToken: reviewToken(slug) }];
   const make = (
     slug: string,
     config: DetailConfig,
-    options: Partial<Pick<ReviewInvitation, 'eventType' | 'expired' | 'withMessages' | 'logo'>> = {},
+    options: Partial<Pick<ReviewInvitation, 'eventType' | 'expired' | 'withMessages' | 'logo' | 'portrait'>> = {},
   ): ReviewInvitation => ({
     slug,
     eventType: options.eventType ?? 'wedding',
@@ -356,6 +366,7 @@ export function familyReviewInvitations(options: ReviewOptions = {}): ReviewInvi
     guests: withToken(slug),
     withMessages: options.withMessages ?? true,
     ...(options.logo ? { logo: options.logo } : {}),
+    ...(options.portrait ? { portrait: options.portrait } : {}),
   });
   const corporateOptions = { eventType: 'corporate' as const, withMessages: false };
   const markVariants = (layout: string, familyId?: FamilyId): ReviewInvitation[] =>
@@ -388,9 +399,23 @@ export function familyReviewInvitations(options: ReviewOptions = {}): ReviewInvi
       make(`review-${layout}-questions-expired`, weddingQuestions(paletteId, familyId, true, open), { expired: true, withMessages: false }),
     ];
   };
+  // `--portraits`: the photo URLs are added by `attachPortraits` once the invitation id (the media key) exists.
+  const portraitVariants = (layout: string, familyId?: FamilyId): ReviewInvitation[] => {
+    if (!withPortraits) return [];
+    const paletteId = familyId ? fullPalette[familyId] : 'ivory';
+    const couple = { ...weddingFull(paletteId, familyId), couple: { ...COUPLE, bride: { ...COUPLE?.bride, order: 2 }, groom: { ...COUPLE?.groom, order: 1 } } };
+    return [
+      make(`review-${layout}-portraits`, couple, { portrait: 'couple' }),
+      make(`review-${layout}-portraits-kid`, aqiqahFull(familyId), { eventType: 'aqiqah', portrait: 'kid' }),
+      make(`review-${layout}-portraits-kid-off`, aqiqahFull(familyId), { eventType: 'aqiqah', portrait: 'kid-off' }),
+      make(`review-${layout}-portraits-birthday`, birthday(familyId), { eventType: 'birthday', portrait: 'birthday' }),
+      make(`review-${layout}-portraits-tasyakuran`, tasyakuranFull(familyId), { eventType: 'tasyakuran', withMessages: false, portrait: 'tasyakuran' }),
+    ];
+  };
   const rows: ReviewInvitation[] = [make('review-legacy-full', weddingFull('ivory'))];
   rows.push(...ceremonyVariants('legacy'));
   rows.push(...questionVariants('legacy'));
+  rows.push(...portraitVariants('legacy'));
   if (coverImageUrl) rows.push(make('review-legacy-photo', weddingFull('ivory', undefined, coverImageUrl)));
   if (coverLowUrl) rows.push(make('review-legacy-photo-low', weddingFull('ivory', undefined, coverLowUrl)));
   rows.push(make('review-legacy-corporate', corporate(undefined, logoUrl), { ...corporateOptions, logo: 'square' }));
@@ -407,6 +432,7 @@ export function familyReviewInvitations(options: ReviewOptions = {}): ReviewInvi
     rows.push(make(`review-${familyId}-dark`, weddingFull('midnight', familyId)));
     rows.push(...ceremonyVariants(familyId, familyId));
     rows.push(...questionVariants(familyId, familyId));
+    rows.push(...portraitVariants(familyId, familyId));
   }
   if (withPaletteSweep) rows.push(...paletteSweep());
   const corpus = loadCorpus();
@@ -486,6 +512,29 @@ async function attachLogo(invitationId: number, row: ReviewInvitation, files: st
   return url;
 }
 
+/** `--portraits`: both fictional portraits through the upload route's storage call, then the paths saved in the config. */
+async function attachPortraits(invitationId: number, row: ReviewInvitation, files: string[]): Promise<string[]> {
+  const { invitationMediaKey, saveImage } = await loadStorage();
+  const urls: string[] = [];
+  for (const path of files) {
+    const file = new File([new Uint8Array(readFileSync(path))], 'portrait.png', { type: 'image/png' });
+    const stored = await saveImage((ext) => invitationMediaKey(invitationId, ext), file, 5 * 1024 * 1024);
+    if (!stored) throw new Error(`${row.slug}: saveImage refused ${path}`);
+    urls.push(stored);
+  }
+  const [a, b] = urls;
+  const base = row.config;
+  const patch: Partial<DetailConfig> =
+    row.portrait === 'couple'
+      ? { couple: { ...base.couple, bride: { ...base.couple?.bride, photoUrl: a }, groom: { ...base.couple?.groom, photoUrl: b } } }
+      : row.portrait === 'birthday'
+        ? { birthdayPerson: { ...base.birthdayPerson, photoUrl: a, showPhoto: true } }
+        : { ceremonyProfile: { ...base.ceremonyProfile, photoUrl: row.portrait === 'tasyakuran' ? b : a, ...(row.portrait === 'kid' && { showPhoto: true }) } };
+  const config = detailConfigSchema.parse({ ...base, ...patch });
+  await db.update(invitations).set({ config }).where(eq(invitations.id, invitationId));
+  return row.portrait === 'couple' ? urls : [row.portrait === 'tasyakuran' ? b : a];
+}
+
 async function main() {
   const argValue = (flag: string) => (process.argv.indexOf(flag) > 0 ? process.argv[process.argv.indexOf(flag) + 1] : undefined);
   const all = familyReviewInvitations({
@@ -496,22 +545,27 @@ async function main() {
     markVariants: process.argv.includes('--mark-variants'),
     ceremony: process.argv.includes('--ceremony'),
     questions: process.argv.includes('--questions'),
+    portraits: process.argv.includes('--portraits'),
   });
   const match = argValue('--match');
   const rows = match ? all.filter((row) => new RegExp(match).test(row.slug)) : all;
   if (match && !rows.length) throw new Error(`--match ${match}: no review slug matches`);
   const logoFiles = argValue('--logo-files')?.split(',');
   if (logoFiles && logoFiles.length !== 3) throw new Error('--logo-files takes <square.png>,<wide.png>,<tall.png>');
+  const portraitFiles = argValue('--portraits')?.split(',');
+  if (portraitFiles && portraitFiles.length !== 2) throw new Error('--portraits takes <a.png>,<b.png>');
   const owner = await upsertOwner();
   const seeded: string[] = [];
   const logos: Record<string, string> = {};
+  const portraits: Record<string, string[]> = {};
   for (const row of rows) {
     const invitation = await seed(row, owner.id);
     seeded.push(invitation.slug);
     if (row.logo && logoFiles) logos[row.slug] = await attachLogo(invitation.id, row, logoFiles);
+    if (row.portrait && portraitFiles) portraits[row.slug] = await attachPortraits(invitation.id, row, portraitFiles);
   }
   console.log(
-    JSON.stringify({ invitations: seeded, guests: STRESS_GUESTS.map((guest) => guest.slug), tokens: Object.fromEntries(rows.map((row) => [row.slug, reviewToken(row.slug)])), logos }),
+    JSON.stringify({ invitations: seeded, guests: STRESS_GUESTS.map((guest) => guest.slug), tokens: Object.fromEntries(rows.map((row) => [row.slug, reviewToken(row.slug)])), logos, portraits }),
   );
 }
 

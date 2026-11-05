@@ -11,7 +11,7 @@ export const experimental_ppr = false;
 
 type Params = {
   params: Promise<{ slug: string; guestSlug: string }>;
-  searchParams: Promise<{ rsvp?: string; wish?: string; rsvpq?: string }>;
+  searchParams: Promise<{ rsvp?: string; wish?: string; rsvpq?: string; rsvpe?: string }>;
 };
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {

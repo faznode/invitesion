@@ -5,7 +5,7 @@
 > OWNER: Architect
 > DEPS: PROJECT_OVERVIEW.md
 > GREP: schema, drizzle, tabel, users, invitations, guests, orders, versions
-> UPDATED: 2026-11-05 (guests rsvp_answers, migrasi 0012; earlier: analytics_events view-dedupe index, guests attending_count, link_token)
+> UPDATED: 2026-11-05 (s19: guests rsvp_event_answers migrasi 0014; id acara tetap di invitations.config.events migrasi data 0013, D-036; guests rsvp_answers, migrasi 0012; earlier: analytics_events view-dedupe index, guests attending_count, link_token)
 > ORM DECISION (whyme 2026-07-15): pakai **Drizzle** (bukan Prisma) — ikut fondasi nextjs/saas-starter biar backend cepat jalan. Schema di bawah = kanonik, diimplementasi sbg Drizzle schema (lib/db/schema.ts).
 
 ## Prinsip
@@ -61,6 +61,9 @@ guests
   rsvp_answers jsonb nullable      ← jawaban pertanyaan custom host (B-027 2b, migrasi 0012, D-034): { [questionId]: string | string[] | number },
                                      ditulis UPDATE yang sama dengan status + attending_count; null = belum menjawab / menolak (dihapus) /
                                      baris sebelum 0012. Dibaca lewat schema yang membuang nilai rusak; tidak pernah masuk analytics_events
+  rsvp_event_answers jsonb nullable ← jawaban per acara (B-027 2c, migrasi 0014, D-036): { [eventId]: { status, attending } }, kunci = id acara
+                                     yang tetap (bukan urutan); ditulis UPDATE yang sama dengan status + attending_count + rsvp_answers;
+                                     jawaban untuk acara yang dihapus tetap tersimpan; jawaban tunggal (flag on) mengosongkannya; flag off = tidak dibaca/ditulis
   UNIQUE(invitation_id, slug)      ← anti-collision
   UNIQUE(link_token)               ← null boleh banyak
 

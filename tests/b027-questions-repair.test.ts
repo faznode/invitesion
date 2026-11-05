@@ -182,11 +182,17 @@ test('S18-Q4 wiring: every owner page and the export read leniently; the save me
     assert.match(file, /normalizeStoredConfig\(invitation\.config \?\? \{\}\)/, path);
     assert.doesNotMatch(file, /detailConfigSchema\.safeParse/, `${path}: no strict read that empties the editor`);
   }
-  assert.match(source('app/(customer)/dashboard/invitations/[id]/analytics/route.ts'), /normalizeStoredConfig\(inv\.config \?\? \{\}\)\.config\.registrationForm\?\.customQuestions/);
+  const exportRoute = source('app/(customer)/dashboard/invitations/[id]/analytics/route.ts');
+  assert.match(exportRoute, /const \{ config \} = normalizeStoredConfig\(inv\.config \?\? \{\}\);/);
+  assert.match(exportRoute, /const questions = config\.registrationForm\?\.customQuestions \?\? \[\];/);
   const service = source('lib/invitation/service.ts');
   assert.match(service, /return normalizeStoredConfig\(inv\.config \?\? \{\}\)\.config;/, 'getDetailConfig');
-  assert.match(service, /patch\.registrationForm === undefined \? carriedRegistrationForm\(stored\) : undefined/, 'updateDetailConfig carries only when the form is not saved');
-  assert.match(service, /mergeDetailConfig\(carried\?\.rest \?\? stored, patch/);
-  assert.match(service, /detailConfigSchema\.parse\(merged\)/, 'the merged rest is still strictly validated');
+  // s19 (D-036): the save's merge moved into `prepareConfigWrite` with the event-id step; the carried-form rule is unchanged.
+  assert.match(service, /const validated: DetailConfig = prepareConfigWrite\(stored, patch\);/, 'updateDetailConfig stores what the write path prepares');
+  const write = source('lib/invitation/content-read.ts');
+  assert.match(write, /patch\.registrationForm === undefined \? carriedRegistrationForm\(stored\) : undefined/, 'the save carries only when the form is not saved');
+  assert.match(write, /const base = carried\?\.rest \?\? stored;/);
+  assert.match(write, /mergeDetailConfig\(keyedBase, keyedPatch/);
+  assert.match(write, /detailConfigSchema\.parse\(merged\)/, 'the merged rest is still strictly validated');
   assert.match(source('components/invitation/guest-view.ts'), /askableQuestions\(rsvpQuestionsOf\(/);
 });

@@ -129,7 +129,8 @@
 [data-app-shell] :is(.border-slate-100, .border-slate-200):not([data-invitation-renderer], [data-invitation-renderer] *) { border-color: #e2e8f0; }
 
 button, a { -webkit-tap-highlight-color: transparent; }
-img { max-width: 100%; }
+/* S18-E1: no unlayered `img` rule. Tailwind's preflight (`@layer base`) already caps images at 100% wide, and an
+ * unlayered rule outranks every layered utility, which silently disabled `max-w-*` on every <img>. */
 
 /*
  * Entrance motion of the design families with motion level 1 (B-030, `lib/invitation/families.ts`): ornaments, the

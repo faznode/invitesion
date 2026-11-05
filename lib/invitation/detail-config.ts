@@ -146,8 +146,11 @@ const eventOperationsSchema = z.object({
   maxCheckInsPerMinute: z.number().int().min(1).max(10000).optional(),
 }).strict();
 
-// A single scheduled event (akad, resepsi, etc.).
+// A single scheduled event (akad, resepsi, etc.). `id` (B-027 slice 2c, D-036) is the event's durable identity: per-event
+// answers name it, so it survives edits and reordering. Optional in the schema because older configs and writers omit it;
+// the read path and the write path give every event one (`lib/invitation/event-ids.ts`).
 export const eventItemSchema = z.object({
+  id: idText.optional(),
   title: trimmed(120),
   startAt: z.string().datetime({ offset: true }).optional(),
   endAt: z.string().datetime({ offset: true }).optional(),
@@ -155,6 +158,8 @@ export const eventItemSchema = z.object({
   address: optionalText(400),
   mapUrl: z.string().url().max(500).optional(),
   note: optionalText(500),
+  // D-037: shown only to guests invited to it (`guests.invited_event_ids`); absent = open to every guest, as before.
+  inviteOnly: z.boolean().optional(),
 });
 
 export const coupleSideSchema = z.object({
@@ -224,6 +229,8 @@ export const detailConfigSchema = z
         age: z.number().int().min(1).max(120).optional(),
         parents: optionalText(300),
         photoUrl: imageUrlField(),
+        // D-038: the celebrant may be a child, so the photo shows only when the host switches it on (personal links only).
+        showPhoto: z.boolean().optional(),
         instagram: optionalText(100),
         message: optionalText(600),
       })
@@ -245,6 +252,8 @@ export const detailConfigSchema = z
         age: z.number().int().min(0).max(120).optional(),
         ceremonyNote: optionalText(800),
         photoUrl: imageUrlField(),
+        // D-038: an aqiqah or khitanan honouree is a child: the photo shows only when the host switches it on.
+        showPhoto: z.boolean().optional(),
         // Aqiqah-specific
         gender: z.enum(['male', 'female']).optional(),
         birthWeight: optionalText(20), // e.g. "3.2 kg"
@@ -306,7 +315,18 @@ export const detailConfigSchema = z
       })
       .optional(),
 
-    events: z.array(eventItemSchema).max(20).optional(),
+    events: z
+      .array(eventItemSchema)
+      .max(20)
+      .superRefine((events, ctx) => {
+        const ids = new Set<string>();
+        for (const [index, event] of events.entries()) {
+          if (event.id === undefined) continue;
+          if (ids.has(event.id)) ctx.addIssue({ code: z.ZodIssueCode.custom, path: [index, 'id'], message: 'Event IDs must be unique' });
+          ids.add(event.id);
+        }
+      })
+      .optional(),
 
     music: z
       .object({
@@ -336,6 +356,8 @@ export const detailConfigSchema = z
         enabled: z.boolean().default(true),
         deadline: z.string().datetime({ offset: true }).optional(),
         maxGuestsPerRsvp: z.number().int().min(1).max(50).optional(),
+        // B-027 slice 2c (D-036): guests answer each event on its own once there are two or more events.
+        perEvent: z.boolean().optional(),
       })
       .optional(),
 

@@ -53,6 +53,7 @@ export default async function OwnerPreviewPage({ params }: { params: Promise<{ i
         invitation={data.invitation}
         config={data.config}
         guest={null}
+        preview
         media={data.media}
         messages={data.messages}
         totalMessages={data.totalMessages}

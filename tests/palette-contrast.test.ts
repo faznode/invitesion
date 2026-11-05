@@ -137,7 +137,7 @@ test('B-016: cover text over a photo keeps AA whatever the photo shows: names in
 });
 
 test('S16-X1 (s17): Gapura frames the cover photo at full strength above the text and sets no text on it', () => {
-  assert.doesNotMatch(source('components/invitation/families/gapura.tsx'), /<img [^>]*\bopacity-\d+/, 'no faded cover photo');
+  assert.doesNotMatch(source('components/invitation/families/gapura.tsx'), /<img\s[^>]*\bopacity-\d+/, 'no faded cover photo');
   const startAt = '2099-12-27T19:00:00+08:00';
   const config: DetailConfig = {
     couple: { bride: { nickName: 'Sari' }, groom: { nickName: 'Budi' } },
@@ -146,7 +146,7 @@ test('S16-X1 (s17): Gapura frames the cover photo at full strength above the tex
   };
   const page = renderGuestPage({ config });
   const img = /<img src="https:\/\/example\.test\/cover\.jpg"[^>]*>/.exec(page)?.[0] ?? '';
-  assert.match(img, /\baspect-square\b/, 'the photo fills the gate window');
+  assert.match(img, /\bw-full object-cover\b/, 'the photo fills the gate window (4:3 on a phone, S18-G2 height from 640 px)');
   assert.doesNotMatch(img, /\b(?:absolute|opacity-\d+)\b/, 'in the flow and at full strength, not a backdrop');
   assert.ok(page.indexOf(img) < page.indexOf('>Pernikahan<') && page.indexOf(img) < page.indexOf('>Sari<'), 'the photo precedes every line of cover text');
   const classOf = (text: string) => new RegExp(`<p class="([^"]*)">${text}</p>`).exec(page)?.[1] ?? 'missing';

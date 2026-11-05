@@ -150,7 +150,10 @@ test('B-027 2b: a returning guest sees the stored answers; a refused answer is n
   assert.match(unknown, /role="alert"[^>]*>Konfirmasimu belum tersimpan\. Mohon periksa jawabanmu\./, 'never echoes the query');
 });
 
-test('B-027 2b: flag off or form off renders no questions and leaves the form markup as before', () => {
+test('B-027 2b: flag off or form off renders no questions and leaves the form markup as before', (t) => {
+  // s20: the pages carry a live countdown; under load two renders straddled a second (22 vs 23 "Detik"), so the clock is
+  // frozen for the byte comparison.
+  t.mock.timers.enable({ apis: ['Date'], now: Date.now() });
   const plain = renderGuestPage({ config: { ...config, registrationForm: undefined }, guest: fixtureGuest() });
   const off = withFlag('off', () => renderGuestPage({ config, guest: fixtureGuest() }));
   const disabled = renderGuestPage({ config: { ...config, registrationForm: { ...config.registrationForm!, enabled: false } }, guest: fixtureGuest() });

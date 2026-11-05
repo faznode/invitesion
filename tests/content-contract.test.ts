@@ -54,10 +54,11 @@ test('editor notices come from the map: whole sections, field lists and caveats'
   // B-029 (s17) renders the hashtag and filter link, so the section no longer carries a notice; the ceremony profile
   // keeps one for its photo only.
   assert.equal(storedOnlyNotice('instagramStory', 'en'), null);
-  assert.deepEqual(storedOnlyNotice('ceremonyProfile', 'id'), { wholeSection: false, fields: ['foto'], caveat: undefined });
+  // s20 (D-038): the photos and the couple's parents render now; only the couple's Instagram stays stored-only.
+  assert.equal(storedOnlyNotice('ceremonyProfile', 'id'), null);
   const couple = storedOnlyNotice('couple', 'id');
   assert.equal(couple?.wholeSection, false);
-  assert.ok(couple?.fields.includes('foto') && couple.fields.includes('nama orang tua'), JSON.stringify(couple));
+  assert.deepEqual(couple?.fields, ['Instagram'], JSON.stringify(couple));
   assert.equal(new Set(couple?.fields).size, couple?.fields.length, 'bride and groom fields collapse into one label each');
   assert.match(storedOnlyNotice('guestbook', 'id')?.caveat ?? '', /Moderasi belum aktif/);
   assert.equal(storedOnlyNotice('events', 'id'), null);
@@ -80,7 +81,8 @@ test('lenient read: a valid config round-trips, version absent means 1', () => {
   const read = normalizeStoredConfig(config);
   assert.deepEqual(read.dropped, []);
   assert.equal(read.version, 1);
-  assert.equal(CONTENT_SCHEMA_VERSION, 1);
+  // D-036: version 2 keys every event; a version-1 config is migrated on read (tests/b027-event-ids.test.ts).
+  assert.equal(CONTENT_SCHEMA_VERSION, 2);
   assert.equal(read.config.settings?.title, 'Budi & Sari');
   assert.equal(read.config.quote?.text, 'Teks');
 });
@@ -102,8 +104,8 @@ test('lenient read: a legacy or broken section is dropped, the rest still render
 
 test('lenient read: non-objects become an empty config; a future version keeps the sections it can read', () => {
   for (const raw of [null, undefined, 'x', 42, ['a']]) assert.deepEqual(normalizeStoredConfig(raw).config, {});
-  const future = normalizeStoredConfig({ schemaVersion: 2, settings: { title: 'T' }, newSection: { a: 1 } });
-  assert.equal(future.version, 2);
+  const future = normalizeStoredConfig({ schemaVersion: 3, settings: { title: 'T' }, newSection: { a: 1 } });
+  assert.equal(future.version, 3);
   assert.equal(future.config.settings?.title, 'T');
   assert.deepEqual(future.dropped, ['newSection']);
 });

@@ -1,6 +1,7 @@
 import { CalendarDays, CalendarPlus, Clock3, MapPin } from 'lucide-react';
 import { googleCalendarUrl } from '@/lib/invitation/calendar';
 import { guestLinkSegment } from '@/lib/invitation/guest-link';
+import type { Portrait } from '@/lib/invitation/portraits';
 import { invitationCalendarPath } from '@/lib/invitation/public-path';
 import { ANSWER_LIMITS } from '@/lib/invitation/rsvp-questions';
 import { RSVP_ANSWER_TEXT, rsvpDefaultCount, type RsvpStatus } from '@/lib/invitation/rsvp-rules';
@@ -289,11 +290,26 @@ export function ProgrammeBody({ id, view, cardClassName }: { id: ProgrammeSectio
  * card (repeated rows share one container, s16 review), then the host's own texts under their labels. Layouts own the
  * section frame and its heading (`view.ceremonyProfile.heading`) and put it where they put the corporate programme.
  */
-export function CeremonyProfileBody({ view, cardClassName }: { view: GuestView; cardClassName: string }) {
+export function CeremonyProfileBody({
+  view,
+  cardClassName,
+  frame = 'round',
+  align = 'center',
+}: {
+  view: GuestView;
+  cardClassName: string;
+  frame?: PortraitFrame;
+  align?: 'center' | 'start';
+}) {
   const { ceremonyProfile: profile, tone } = view;
   if (!profile) return null;
   return (
     <>
+      {profile.portrait && (
+        <div className={`mt-8 flex ${align === 'center' ? 'justify-center' : 'justify-start'}`}>
+          <PortraitFigure portrait={profile.portrait} frame={frame} tone={tone} align={align} />
+        </div>
+      )}
       {profile.rows.length > 0 && (
         <dl className={`mt-8 ${cardClassName} px-5 text-sm`}>
           {profile.rows.map((row, index) => (
@@ -315,6 +331,69 @@ export function CeremonyProfileBody({ view, cardClassName }: { view: GuestView; 
         </div>
       ))}
     </>
+  );
+}
+
+/** D-038: the frame each layout gives a person's photo; every frame has a fixed aspect, so nothing moves while it loads. */
+export type PortraitFrame = 'round' | 'arch' | 'card' | 'leaf';
+const PORTRAIT_FRAMES: Record<PortraitFrame, { outer: string; inner: string; width: number; height: number }> = {
+  round: { outer: 'rounded-full', inner: 'aspect-square rounded-full', width: 320, height: 320 },
+  arch: { outer: 'rounded-t-full rounded-b-2xl', inner: 'aspect-[3/4] rounded-t-full rounded-b-xl', width: 300, height: 400 },
+  card: { outer: 'rounded-xl', inner: 'aspect-[4/5] rounded-lg', width: 320, height: 400 },
+  leaf: { outer: 'rounded-sm', inner: 'aspect-[3/4] rounded-sm', width: 300, height: 400 },
+};
+
+/**
+ * D-038: one person's photo, framed at full strength with nothing set on it (T1), on a thin mat in the card colour, with
+ * the name and the parents line under it. Faces sit in the upper part of most portraits, hence the 30 % focal point.
+ */
+function PortraitFigure({ portrait, frame, tone, align }: { portrait: Portrait; frame: PortraitFrame; tone: GuestView['tone']; align: 'center' | 'start' }) {
+  const shape = PORTRAIT_FRAMES[frame];
+  return (
+    <figure className={`flex w-40 flex-col sm:w-44 ${align === 'center' ? 'items-center text-center' : 'items-start text-left'}`}>
+      <div className={`w-full overflow-hidden border ${tone.line} ${tone.card} p-1 ${shape.outer}`}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={portrait.src}
+          alt={portrait.alt}
+          width={shape.width}
+          height={shape.height}
+          loading="lazy"
+          decoding="async"
+          className={`block w-full object-cover object-[50%_30%] ${shape.inner}`}
+        />
+      </div>
+      {(portrait.name || portrait.caption) && (
+        <figcaption className="mt-4 flex flex-col gap-1">
+          {portrait.name && (
+            <span dir="auto" className={`font-serif text-xl leading-snug text-balance ${HOST_TEXT}`}>
+              {portrait.name}
+            </span>
+          )}
+          {portrait.caption && (
+            <span dir="auto" className={`text-sm leading-6 ${tone.muted} ${HOST_TEXT}`}>
+              {portrait.caption}
+            </span>
+          )}
+        </figcaption>
+      )}
+    </figure>
+  );
+}
+
+/**
+ * D-038: the couple (weddings) or the celebrant (birthdays) with their photos, `view.portraits`; null without a photo the
+ * page may show. Layouts own the section frame and its heading (`view.portraits.heading`) and place it before the events.
+ */
+export function PortraitsBody({ view, frame, align = 'center' }: { view: GuestView; frame: PortraitFrame; align?: 'center' | 'start' }) {
+  const { portraits, tone } = view;
+  if (!portraits) return null;
+  return (
+    <div className={`mt-8 flex flex-col gap-10 sm:flex-row sm:gap-12 ${align === 'center' ? 'items-center sm:items-start sm:justify-center' : 'items-start'}`}>
+      {portraits.people.map((portrait) => (
+        <PortraitFigure key={portrait.key} portrait={portrait} frame={frame} tone={tone} align={align} />
+      ))}
+    </div>
   );
 }
 
@@ -356,9 +435,13 @@ export function ShareBody({ view, align }: { view: GuestView; align: 'center' | 
 }
 
 /**
- * B-029: the organiser's logo and the event category above a corporate headline. The logo sits in a fixed 160 × 64 frame
+ * B-029: the organiser's logo and the event category above a corporate headline. The logo sits in a frame of fixed height
  * with intrinsic size attributes, so a logo of any aspect fits without shifting the cover while it loads. Layouts that
  * lay a photo behind the cover pass their chip classes for the label (`coverText`).
+ * s20 (M1 / M2): the frame is 240 px wide (was 160), so a 4 : 1 wordmark renders 240 × 57 and an 8.5 : 1 one 240 × 28
+ * instead of a 19 px strip; the 64 px height is kept, so phone covers do not move. A logo file that fails to load (a lost
+ * upload) is covered by the `::after` box, which browsers draw on an image only when it is broken, in the frame's
+ * background (`--inv-logo-bg`, the page colour unless a layout sets it), instead of the broken-image glyph and alt text.
  */
 export function CorporateMark({
   view,
@@ -377,9 +460,16 @@ export function CorporateMark({
   return (
     <div className={`flex flex-col gap-3 ${items} ${className}`}>
       {mark.logo && (
-        <span className={`flex h-16 w-40 ${items} ${align === 'center' ? 'justify-center' : 'justify-start'}`}>
+        <span className={`flex h-16 w-60 max-w-full ${items} ${align === 'center' ? 'justify-center' : 'justify-start'}`}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={mark.logo.src} alt={mark.logo.alt} width={160} height={64} decoding="async" className="max-h-full max-w-full object-contain" />
+          <img
+            src={mark.logo.src}
+            alt={mark.logo.alt}
+            width={240}
+            height={64}
+            decoding="async"
+            className={`relative h-full w-full object-contain ${align === 'center' ? 'object-center' : 'object-left'} after:absolute after:inset-0 after:bg-[var(--inv-logo-bg,var(--inv-bg))] after:content-['']`}
+          />
         </span>
       )}
       {mark.category && (
@@ -489,6 +579,70 @@ function RsvpQuestionField({ question, invalid, tone }: { question: RsvpQuestion
   );
 }
 
+type RsvpEvent = GuestView['rsvpEvents'][number];
+
+/**
+ * One event's answer in the RSVP form (B-027 slice 2c, D-036): a required choice and the people coming to this event. The
+ * event title is host text, so it wraps and resolves its own direction; a refusal for this event is named inside it.
+ */
+function RsvpEventField({
+  event,
+  invalid,
+  tone,
+  maybe,
+  allowance,
+  defaultCount,
+}: {
+  event: RsvpEvent;
+  invalid: boolean;
+  tone: GuestView['tone'];
+  maybe: boolean;
+  allowance: number;
+  defaultCount: number;
+}) {
+  const errorId = invalid ? `rsvp-ev-${event.id}-error` : undefined;
+  const choices: Array<[RsvpStatus, string]> = [['CONFIRMED', 'Hadir'], ['DECLINED', 'Tidak hadir'], ...(maybe ? [['MAYBE', 'Mungkin'] as [RsvpStatus, string]] : [])];
+  const storedCount = event.stored?.status === 'CONFIRMED' && event.stored.attending ? Math.min(event.stored.attending, allowance) : undefined;
+  return (
+    <fieldset aria-describedby={errorId} className={`flex flex-col gap-3 rounded-lg border ${tone.line} p-3`}>
+      <legend className="px-1 text-sm font-semibold">
+        <span dir="auto" className={HOST_TEXT}>
+          {event.title}
+        </span>
+      </legend>
+      {event.details && (
+        <p dir="auto" className={`text-xs ${tone.muted} ${HOST_TEXT}`}>
+          {event.details}
+        </p>
+      )}
+      {invalid && (
+        <p id={errorId} className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+          Mohon pilih jawaban untuk acara ini.
+        </p>
+      )}
+      <div className={`grid gap-2 ${maybe ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
+        {choices.map(([value, label]) => (
+          <label key={value} className={`flex min-h-11 items-center gap-3 rounded-lg border ${tone.line} ${tone.field} px-3 py-2 text-sm`}>
+            <input type="radio" name={event.statusField} value={value} required defaultChecked={event.stored?.status === value} className="h-4 w-4 shrink-0" />
+            {label}
+          </label>
+        ))}
+      </div>
+      <label className="flex flex-col gap-1.5">
+        <span className="text-xs font-semibold">Jumlah yang hadir di acara ini</span>
+        <input
+          name={event.countField}
+          type="number"
+          min={1}
+          max={allowance}
+          defaultValue={storedCount ?? defaultCount}
+          className={`h-11 w-full rounded-lg border ${tone.line} ${tone.field} px-3 text-sm`}
+        />
+      </label>
+    </fieldset>
+  );
+}
+
 /** RSVP: status notices, then the form for a recognised guest of an active invitation, otherwise an explanation. */
 export function RsvpBlock({
   props,
@@ -502,9 +656,12 @@ export function RsvpBlock({
   fallbackClassName: string;
 }) {
   const { invitation, guest, readOnly, status } = props;
-  const { tone, canRsvp, rsvpMaybe, rsvpQuestions, rsvpDeadlineText, rsvpClosedByDeadline } = view;
+  const { tone, canRsvp, rsvpMaybe, rsvpQuestions, rsvpEvents, rsvpDeadlineText, rsvpClosedByDeadline } = view;
   const lastAnswer = guest ? RSVP_ANSWER_TEXT[guest.rsvpStatus as RsvpStatus] : undefined;
   const refusedQuestion = status.rsvp === 'answers' ? rsvpQuestions.find((question) => question.id === status.rsvpq) : undefined;
+  // D-036: with an answer per event there is one submit button; the action derives the overall answer from the events.
+  const perEvent = rsvpEvents.length > 0;
+  const refusedEvent = status.rsvp === 'events' ? rsvpEvents.find((event) => event.id === status.rsvpe) : undefined;
   // "Required" means required for "hadir" (D-034): the other answers skip the browser's check, the action applies the same rule.
   const skipRequired = rsvpQuestions.length > 0 || undefined;
   const closedText = readOnly
@@ -526,6 +683,18 @@ export function RsvpBlock({
             </>
           ) : (
             'Mohon periksa jawabanmu.'
+          )}
+        </Notice>
+      )}
+      {status.rsvp === 'events' && (
+        <Notice kind="error">
+          Konfirmasimu belum tersimpan.{' '}
+          {refusedEvent ? (
+            <>
+              Mohon pilih jawaban untuk “<bdi>{refusedEvent.title}</bdi>”.
+            </>
+          ) : (
+            'Mohon pilih jawaban untuk setiap acara.'
           )}
         </Notice>
       )}
@@ -551,21 +720,43 @@ export function RsvpBlock({
             <dd className={`text-xs ${tone.muted}`}>Nama diambil dari undangan personalmu.</dd>
           </dl>
 
-          <label className="block space-y-1.5">
-            <span className="text-sm font-semibold">Jumlah yang hadir</span>
-            <input
-              name="guestCount"
-              type="number"
-              min={1}
-              max={guest.guestCount || 1}
-              defaultValue={rsvpDefaultCount(guest)}
-              className={`h-11 w-full rounded-lg border ${tone.line} ${tone.field} px-3 text-sm`}
-            />
-            {/* "Maybe" stores no headcount and a decline stores 0, so the number only counts with "hadir" (s17 finding R2). */}
-            <span className={`block text-xs ${tone.muted}`}>
-              Maksimal {guest.guestCount || 1} orang untuk undangan ini. Jumlah ini dicatat untuk jawaban hadir.
-            </span>
-          </label>
+          {perEvent ? (
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1">
+                <p className="text-sm font-semibold">Kehadiran per acara</p>
+                <p className={`text-xs ${tone.muted}`}>
+                  Pilih jawaban untuk setiap acara. Maksimal {guest.guestCount || 1} orang per acara; jumlah dicatat untuk acara yang kamu hadiri.
+                </p>
+              </div>
+              {rsvpEvents.map((event) => (
+                <RsvpEventField
+                  key={event.id}
+                  event={event}
+                  invalid={refusedEvent?.id === event.id}
+                  tone={tone}
+                  maybe={rsvpMaybe}
+                  allowance={guest.guestCount || 1}
+                  defaultCount={rsvpDefaultCount(guest)}
+                />
+              ))}
+            </div>
+          ) : (
+            <label className="block space-y-1.5">
+              <span className="text-sm font-semibold">Jumlah yang hadir</span>
+              <input
+                name="guestCount"
+                type="number"
+                min={1}
+                max={guest.guestCount || 1}
+                defaultValue={rsvpDefaultCount(guest)}
+                className={`h-11 w-full rounded-lg border ${tone.line} ${tone.field} px-3 text-sm`}
+              />
+              {/* "Maybe" stores no headcount and a decline stores 0, so the number only counts with "hadir" (s17 finding R2). */}
+              <span className={`block text-xs ${tone.muted}`}>
+                Maksimal {guest.guestCount || 1} orang untuk undangan ini. Jumlah ini dicatat untuk jawaban hadir.
+              </span>
+            </label>
+          )}
 
           {rsvpQuestions.length > 0 && (
             <div className="flex flex-col gap-5">
@@ -581,6 +772,16 @@ export function RsvpBlock({
             </div>
           )}
 
+          {perEvent ? (
+            <button
+              type="submit"
+              name="status"
+              value="EVENTS"
+              className="min-h-11 rounded-lg bg-emerald-700 px-4 text-sm font-semibold text-white transition hover:bg-emerald-800"
+            >
+              Kirim konfirmasi
+            </button>
+          ) : (
           <div className={`grid gap-3 ${rsvpMaybe ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
             <button
               type="submit"
@@ -611,6 +812,7 @@ export function RsvpBlock({
               </button>
             )}
           </div>
+          )}
 
           {lastAnswer && (
             <p className={`text-center text-xs ${tone.muted}`}>

@@ -92,6 +92,27 @@
       "when": 1793851494783,
       "tag": "0012_guest_rsvp_answers",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1793889421095,
+      "tag": "0013_event_ids",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1793889787568,
+      "tag": "0014_guest_rsvp_event_answers",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1793891132551,
+      "tag": "0015_guest_invited_event_ids",
+      "breakpoints": true
     }
   ]
 }

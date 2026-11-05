@@ -164,8 +164,9 @@ test('B-029: hashtags get one leading #, no blanks or repeats, at most five; lin
   assert.deepEqual(shareOf({ enabled: true, filterUrl: 'https://contoh.test/f' }), { tags: [], filterUrl: 'https://contoh.test/f' });
 });
 
-test('B-029: the contract marks the ceremony fields and the hashtag rendered; only the photo stays stored-only', () => {
-  assert.deepEqual([...RENDER_CAPABILITIES.ceremonyProfile.storedOnly], ['photoUrl']);
+test('B-029: the contract marks the ceremony fields and the hashtag rendered; s20 (D-038) renders the photo too', () => {
+  assert.deepEqual([...RENDER_CAPABILITIES.ceremonyProfile.storedOnly], []);
+  for (const field of ['photoUrl', 'showPhoto']) assert.ok((RENDER_CAPABILITIES.ceremonyProfile.rendered as readonly string[]).includes(field), field);
   for (const field of ['gender', 'childOrder', 'birthDate', 'nameMeaning', 'prayer', 'school', 'circumcisionDate', 'recoveryNote', 'thanksgivingCategory', 'achievement', 'ceremonyNote']) {
     assert.ok((RENDER_CAPABILITIES.ceremonyProfile.rendered as readonly string[]).includes(field), field);
   }

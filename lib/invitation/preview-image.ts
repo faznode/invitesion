@@ -1,4 +1,6 @@
+import { isFlagOn } from '@/lib/flags';
 import type { DetailConfig } from './detail-config';
+import { visibleEvents } from './event-eligibility';
 import { formatEventDate } from './event-time';
 import { invitationDisplayName } from './headline';
 import { paletteHex } from './palettes';
@@ -30,13 +32,15 @@ function clip(value: string, max: number) {
  */
 const BUNDLED_FONT_TEXT = /^[\u0020-\u007E\u00A0-\u00FF\u2010-\u2027\u2030-\u203A]*$/;
 
-export function previewImageModel(eventType: string, config: DetailConfig) {
+export function previewImageModel(eventType: string, config: DetailConfig, inviteOnlyOn = isFlagOn('INVITE_ONLY_EVENTS')) {
   const name = clip(invitationDisplayName(eventType, config), 48);
+  // D-037: the card is shown to anyone the link reaches, so its date is the first open event's, never an invite-only one.
+  const [firstOpenEvent] = visibleEvents(config.events, { kind: 'public' }, inviteOnlyOn);
   return {
     label: EVENT_LABELS[eventType] ?? 'Undangan',
     name,
     imageName: BUNDLED_FONT_TEXT.test(name) ? name : null,
-    date: formatEventDate(config.events?.[0]?.startAt, config.eventOperations?.timezone),
+    date: formatEventDate(firstOpenEvent?.startAt, config.eventOperations?.timezone),
     colors: paletteHex(config.theme?.paletteId),
   };
 }
