@@ -430,10 +430,12 @@ function RsvpQuestionField({ question, invalid, tone }: { question: RsvpQuestion
     </>
   );
 
+  // S18-Q2: label, then the condition and any refusal, then the control, so the guest reads when to answer before answering.
   if (question.type === 'radio' || question.type === 'checkbox' || question.type === 'multiselect') {
     return (
       <fieldset aria-describedby={describedBy} className="flex flex-col gap-2">
         <legend className="mb-1.5 text-sm font-semibold">{title}</legend>
+        {notes}
         {(question.options ?? []).map((option, index) => (
           <label key={`${index}-${option}`} className={`flex min-h-11 items-center gap-3 rounded-lg border ${tone.line} ${tone.field} px-3 py-2 text-sm`}>
             <input
@@ -449,7 +451,6 @@ function RsvpQuestionField({ question, invalid, tone }: { question: RsvpQuestion
             </span>
           </label>
         ))}
-        {notes}
       </fieldset>
     );
   }
@@ -467,6 +468,7 @@ function RsvpQuestionField({ question, invalid, tone }: { question: RsvpQuestion
       <label htmlFor={id} className="text-sm font-semibold">
         {title}
       </label>
+      {notes}
       {question.type === 'textarea' ? (
         <textarea {...shared} rows={3} maxLength={ANSWER_LIMITS.textarea} dir="auto" className={`${field} py-2.5 leading-6`} />
       ) : question.type === 'select' ? (
@@ -483,7 +485,6 @@ function RsvpQuestionField({ question, invalid, tone }: { question: RsvpQuestion
       ) : (
         <input {...shared} type="text" maxLength={ANSWER_LIMITS.text} dir="auto" className={`h-11 ${field}`} />
       )}
-      {notes}
     </div>
   );
 }

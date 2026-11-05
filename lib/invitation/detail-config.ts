@@ -57,18 +57,36 @@ export const customQuestionSchema = z.object({
   }
 });
 
-const registrationFormSchema = z.object({
+const registrationFormBase = z.object({
   enabled: z.boolean().default(false),
   deadline: dateTime.optional(),
   capacity: z.number().int().min(1).max(100000).optional(),
   allowPlusOne: z.boolean().default(false),
   confirmationMessage: optionalText(1000),
   customQuestions: z.array(customQuestionSchema).max(50).optional(),
-}).strict().superRefine((value, ctx) => {
+}).strict();
+
+function uniqueQuestionIds(value: z.infer<typeof registrationFormBase>, ctx: z.RefinementCtx): Set<string> {
   const ids = new Set<string>();
   for (const [index, question] of (value.customQuestions ?? []).entries()) {
     if (ids.has(question.id)) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['customQuestions', index, 'id'], message: 'Question IDs must be unique' });
     ids.add(question.id);
+  }
+  return ids;
+}
+
+/**
+ * Read rules for a stored form (S18-Q4, D-035), never used to accept a write: ids stay unique, but a condition naming a
+ * missing question, or its own, is kept. D-034 already treats such a question as never applying (the guest page hides it,
+ * the action drops its answers), and keeping it leaves its stored answers in the export and lets the host fix it.
+ */
+export const registrationFormReadSchema = registrationFormBase.superRefine((value, ctx) => {
+  uniqueQuestionIds(value, ctx);
+});
+
+const registrationFormSchema = registrationFormBase.superRefine((value, ctx) => {
+  const ids = uniqueQuestionIds(value, ctx);
+  for (const [index, question] of (value.customQuestions ?? []).entries()) {
     if (question.conditional?.questionId === question.id) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['customQuestions', index, 'conditional', 'questionId'], message: 'A question cannot be conditional on itself' });
     }

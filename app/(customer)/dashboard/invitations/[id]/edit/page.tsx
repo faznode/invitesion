@@ -5,7 +5,7 @@ import { getPrivateAdminPath } from '@/lib/auth/admin-access';
 import { db } from '@/lib/db/drizzle';
 import { invitations, mediaAssets } from '@/lib/db/schema';
 import { getLocale } from '@/lib/locale-server';
-import { detailConfigSchema } from '@/lib/invitation/detail-config';
+import { normalizeStoredConfig } from '@/lib/invitation/content-read';
 import { ownerPreviewPath } from '@/lib/invitation/public-path';
 import { InvitationEditor } from './editor';
 
@@ -30,8 +30,8 @@ export default async function EditInvitationPage({
     .limit(1);
   if (!invitation) notFound();
 
-  const parsed = detailConfigSchema.safeParse(invitation.config ?? {});
-  const config = parsed.success ? parsed.data : {};
+  // The guest page's lenient read (S18-Q4): one section that fails today's rules no longer opens an empty editor.
+  const { config } = normalizeStoredConfig(invitation.config ?? {});
 
   const media = await db
     .select()

@@ -36,6 +36,9 @@ export function LontarLayout({ props, view }: { props: GuestPageProps; view: Gue
   const start = formatTime(primaryEvent?.startAt);
   const end = formatTime(primaryEvent?.endAt);
   const photo = view.coverImageSrc;
+  // S17-L1: the band and the photo are independent. A saved photo sits beside the band when both exist and is framed on
+  // its own otherwise, so an invitation without date, time or venue still shows it.
+  const band = Boolean(date || start || primaryEvent?.venueName);
 
   return (
     <main className={`min-h-screen ${tone.bg} ${tone.ink}`} style={tone.style}>
@@ -58,22 +61,31 @@ export function LontarLayout({ props, view }: { props: GuestPageProps; view: Gue
           </p>
         )}
 
-        {(date || start || primaryEvent?.venueName) && (
-          <div className={`mt-8 grid gap-4 ${photo ? 'sm:grid-cols-[1fr_13rem]' : ''}`}>
-            <div className={`relative rounded-3xl ${tone.soft} px-6 pb-6 pt-11`}>
-              <Binding tone={tone} />
-              {date && <p className={`text-xs font-semibold uppercase tracking-[0.2em] ${tone.muted}`}>{date}</p>}
-              {start && <p className="mt-2 font-serif text-3xl leading-tight">{start}</p>}
-              {end && <p className={`text-sm ${tone.muted}`}>sampai {end}</p>}
-              {primaryEvent?.venueName && (
-                <p dir="auto" className="mt-3 text-sm font-medium [overflow-wrap:anywhere]">
-                  {primaryEvent.venueName}
-                </p>
-              )}
-            </div>
+        {(band || photo) && (
+          <div className={`mt-8 grid gap-4 ${band && photo ? 'sm:grid-cols-[1fr_13rem]' : ''}`}>
+            {band && (
+              <div className={`relative rounded-3xl ${tone.soft} px-6 pb-6 pt-11`}>
+                <Binding tone={tone} />
+                {date && <p className={`text-xs font-semibold uppercase tracking-[0.2em] ${tone.muted}`}>{date}</p>}
+                {start && <p className="mt-2 font-serif text-3xl leading-tight">{start}</p>}
+                {end && <p className={`text-sm ${tone.muted}`}>sampai {end}</p>}
+                {primaryEvent?.venueName && (
+                  <p dir="auto" className="mt-3 text-sm font-medium [overflow-wrap:anywhere]">
+                    {primaryEvent.venueName}
+                  </p>
+                )}
+              </div>
+            )}
             {photo && (
+              // A lone photo is bounded by its width: the unlayered `img { max-width: 100% }` in app/globals.css overrides every
+              // max-w-* utility on an image (S18-E1).
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={photo} alt="" aria-hidden className={`aspect-[4/3] w-full rounded-3xl border ${tone.line} object-cover sm:aspect-auto sm:h-full`} />
+              <img
+                src={photo}
+                alt=""
+                aria-hidden
+                className={`aspect-[4/3] w-full rounded-3xl border ${tone.line} object-cover ${band ? 'sm:aspect-auto sm:h-full' : 'sm:w-96'}`}
+              />
             )}
           </div>
         )}

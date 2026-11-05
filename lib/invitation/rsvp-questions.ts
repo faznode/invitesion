@@ -45,7 +45,9 @@ export function readStoredAnswers(raw: unknown): RsvpAnswers {
 type Parsed = { kind: 'empty' } | { kind: 'value'; value: AnswerValue } | { kind: 'invalid' };
 
 function parseOne(question: CustomQuestion, raw: readonly string[]): Parsed {
-  const values = raw.map((value) => value.trim()).filter(Boolean);
+  // S18-Q1: a form submits a textarea's line breaks as CRLF, but its `maxlength` counts each as one character; reading
+  // them as LF keeps the limit the guest saw and stores one line-break form.
+  const values = raw.map((value) => value.replace(/\r\n?/g, '\n').trim()).filter(Boolean);
   const options = question.options ?? [];
   if (isMultiChoice(question)) {
     const unique = [...new Set(values)];
@@ -93,6 +95,32 @@ export function questionApplies(
   const given = Array.isArray(answer) ? answer : [String(answer)];
   const wanted = conditionValues(condition);
   return given.some((value) => wanted.includes(value));
+}
+
+/**
+ * Whether any answers at all could make this question apply (S18-Q3): its condition chain ends at a question without a
+ * condition, with no missing source, no cycle, and, where the source is a choice, at least one wanted value among the
+ * source's options. A question that can never apply would only collect answers the action drops.
+ */
+export function canEverApply(question: CustomQuestion, byId: ReadonlyMap<string, CustomQuestion>): boolean {
+  const seen = new Set<string>();
+  for (let current: CustomQuestion | undefined = question; current; ) {
+    const condition = current.conditional;
+    if (!condition) return true;
+    if (seen.has(current.id)) return false;
+    seen.add(current.id);
+    const source = byId.get(condition.questionId);
+    if (!source) return false;
+    if (source.options && !conditionValues(condition).some((value) => source.options?.includes(value))) return false;
+    current = source;
+  }
+  return false;
+}
+
+/** The questions a guest is shown: the asked ones that can ever count, in the host's order (S18-Q3). */
+export function askableQuestions(questions: readonly CustomQuestion[]): CustomQuestion[] {
+  const byId = new Map(questions.map((question) => [question.id, question]));
+  return questions.filter((question) => canEverApply(question, byId));
 }
 
 /**

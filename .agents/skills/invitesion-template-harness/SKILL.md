@@ -97,9 +97,17 @@ See `templates/_briefs/` (one brief each) and the latest `invitation-research/_h
 
 ## Emerging taste
 A principle is listed here only after it survived a written review on more than one family. Candidates and their
-evidence live in the review records (s16: T1 frame photos instead of fading them, T3 phone rhythm).
+evidence live in the review records (open: T3 phone rhythm; T1 promoted s18).
 - **Repeated rows share one container.** A schedule, a list of sessions or any run of same-shaped rows is one card
   divided by hairlines, with a scanning column (time) where the rows have one; separate cards are for distinct
   entities (an event, a speaker, a gift account). Evidence: s15 F1 (30 agenda cards took ≈ 3,100 px of a 6,378 px page
   at 360 px) and `family-review-20261104-s16.md` §3–§4 (one divided card on all five layouts, corporate pages
   5,727–6,289 px at 360 px, readable at 360 and 1280).
+- **Frame the photo; never fade it behind text** (T1, promoted s18). A cover photo stays at full strength in its own
+  frame (an arch window, beside a date band, alone under the names) and no line of text sits on it, so legibility never
+  depends on the photo. Text over a photo cannot be measured by the contrast gate (it stays INCOMPLETE) and weakens on a
+  low-contrast photo. Evidence: s16 X1 (high-contrast photo; Kartu and Lontar against legacy and the old Gapura); s18
+  written reviews with the low-contrast photo on two families, Gapura's framed window (`family-review-20261104-s16.md`
+  §11) and Lontar beside the band and on its own (IMPLEMENTATION-LOG E-032); contrast run 6 PASS on both families'
+  `photo-low` pages, while legacy's headline on the photo is the INCOMPLETE case in every run. Limits: static frames,
+  one font environment, device scale 1; Kartu's and Riang's low-contrast renders not re-inspected in s18.

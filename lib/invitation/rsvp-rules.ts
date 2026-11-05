@@ -24,6 +24,25 @@ export function rsvpCounts(rows: readonly { rsvpStatus: string }[]): Record<Rsvp
   return counts;
 }
 
+export type RsvpSummary = { total: number; counts: Record<RsvpStatus | 'PENDING', number>; seats: number; seatsUnknown: number };
+
+/**
+ * One guest list's RSVP picture for the host's dashboards (E-033): answers per status, as `rsvpCounts`, and the people
+ * the "hadir" answers bring. `seats` adds up `attending_count` over CONFIRMED rows; a CONFIRMED row without one (an
+ * answer from before B-007) counts in `seatsUnknown` instead of being guessed from the allowance. "Maybe" and a decline
+ * never add seats.
+ */
+export function rsvpSummary(rows: readonly { rsvpStatus: string; attendingCount: number | null }[]): RsvpSummary {
+  let seats = 0;
+  let seatsUnknown = 0;
+  for (const { rsvpStatus, attendingCount } of rows) {
+    if (rsvpStatus !== 'CONFIRMED') continue;
+    if (attendingCount === null) seatsUnknown += 1;
+    else seats += attendingCount;
+  }
+  return { total: rows.length, counts: rsvpCounts(rows), seats, seatsUnknown };
+}
+
 /**
  * People attending for an answer: 0 on decline; unknown (null) for "maybe", so a tentative answer never enters a
  * headcount; otherwise the requested number clamped to 1…allowance.

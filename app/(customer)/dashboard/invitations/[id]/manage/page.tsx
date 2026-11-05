@@ -4,7 +4,7 @@ import { getPrivateAdminPath } from '@/lib/auth/admin-access';
 import { db } from '@/lib/db/drizzle';
 import { getUser } from '@/lib/db/queries';
 import { invitations } from '@/lib/db/schema';
-import { detailConfigSchema } from '@/lib/invitation/detail-config';
+import { normalizeStoredConfig } from '@/lib/invitation/content-read';
 import { ManageCenter } from './manage-center';
 
 export const dynamic = 'force-dynamic';
@@ -31,6 +31,7 @@ export default async function InvitationManagePage({
   if (!invitation) notFound();
 
   const { module } = await searchParams;
-  const parsed = detailConfigSchema.safeParse(invitation.config ?? {});
-  return <ManageCenter invitationId={invitation.id} slug={invitation.slug} module={module} config={parsed.success ? parsed.data : {}} />;
+  // The guest page's lenient read (S18-Q4): one section that fails today's rules no longer empties the whole editor.
+  const { config } = normalizeStoredConfig(invitation.config ?? {});
+  return <ManageCenter invitationId={invitation.id} slug={invitation.slug} module={module} config={config} />;
 }

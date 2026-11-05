@@ -8,7 +8,7 @@ import { invitationDisplayName, invitationHeadline } from '@/lib/invitation/head
 import { safeImageSrc } from '@/lib/invitation/image-url';
 import { palette } from '@/lib/invitation/palettes';
 import { programmeOf } from '@/lib/invitation/programme';
-import { answerField, conditionText, isMultiChoice, readStoredAnswers, rsvpQuestionsOf } from '@/lib/invitation/rsvp-questions';
+import { answerField, askableQuestions, conditionText, isMultiChoice, readStoredAnswers, rsvpQuestionsOf } from '@/lib/invitation/rsvp-questions';
 import { rsvpDeadlinePassed } from '@/lib/invitation/rsvp-rules';
 import { shareOf } from '@/lib/invitation/share';
 import type { Guest, Invitation, MediaAsset } from '@/lib/db/schema';
@@ -66,8 +66,9 @@ export function buildGuestView({ invitation, config, guest, media, readOnly }: G
   const rsvpMaybe = isFlagOn('RSVP_MAYBE');
   // B-027 (D-034): the host's questions in the RSVP form, by the flag and rules the action applies. Each carries the
   // guest's stored answer, so a returning guest sees what they sent and can change it.
+  // S18-Q3: a question that can never apply (a cycle, or a condition no option can meet) is not shown at all.
   const questionList = isFlagOn('RSVP_QUESTIONS')
-    ? rsvpQuestionsOf({ enabled: config.registrationForm?.enabled, customQuestions: config.registrationForm?.customQuestions })
+    ? askableQuestions(rsvpQuestionsOf({ enabled: config.registrationForm?.enabled, customQuestions: config.registrationForm?.customQuestions }))
     : [];
   const questionsById = new Map(questionList.map((question) => [question.id, question]));
   const storedAnswers = readStoredAnswers(guest?.rsvpAnswers);

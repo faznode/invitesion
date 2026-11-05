@@ -5,7 +5,7 @@ import { getPrivateAdminPath } from '@/lib/auth/admin-access';
 import { db } from '@/lib/db/drizzle';
 import { invitations } from '@/lib/db/schema';
 import { getLocale } from '@/lib/locale-server';
-import { detailConfigSchema } from '@/lib/invitation/detail-config';
+import { normalizeStoredConfig } from '@/lib/invitation/content-read';
 import { PlannerEditor } from './planner-editor';
 
 export const dynamic = 'force-dynamic';
@@ -29,8 +29,8 @@ export default async function PlannerDetailPage({
     .limit(1);
   if (!invitation) notFound();
 
-  const parsed = detailConfigSchema.safeParse(invitation.config ?? {});
-  const config = parsed.success ? parsed.data : {};
+  // The guest page's lenient read (S18-Q4): a broken section elsewhere no longer hides the stored planner.
+  const { config } = normalizeStoredConfig(invitation.config ?? {});
   const locale = await getLocale();
 
   return (

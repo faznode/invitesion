@@ -27,6 +27,9 @@
  * full name and school, Arabic parents' names), tasyakuran (housewarming) and share (the full wedding with a hashtag and
  * an http(s) filter link). Their texts are neutral wishes, checked against the religious-text heuristic like presets.
  * `--cover-low-url <url>` (s17, S16-X1) adds `photo-low` to every layout: the full wedding over a low-contrast cover.
+ * `--questions` (s18, B-027 slice 2b) adds per layout: questions (registration form on, every question type, conditions,
+ * a cycle; RSVP deadline ahead), questions-off (the same questions with the form switched off), questions-closed (deadline
+ * passed) and questions-expired (read-only invitation).
  * `--match <regex>` seeds only the rows whose slug matches, so adding variants leaves every other review page (and its
  * run-relative dates) untouched, e.g. `--ceremony --match '-(aqiqah|khitanan|tasyakuran|share)$'`.
  */
@@ -270,6 +273,40 @@ function weddingShare(paletteId: string, familyId?: FamilyId): DetailConfig {
   return { ...weddingFull(paletteId, familyId), instagramStory: { enabled: true, hashtag: '#LarasDimas2026 #SampaiTuaBersama', filterUrl: 'https://example.test/filter-contoh' } };
 }
 
+/**
+ * `--questions` (s18, B-027 slice 2b / E-029): every question type, required and optional, a condition on a choice, a
+ * chained condition (on a conditional question), a two-question cycle the schema accepts (both ids exist) but which can
+ * never apply, a long label, an RTL label and an RTL option. Fictional and neutral; nothing here is religious text.
+ */
+export const REVIEW_QUESTIONS: NonNullable<NonNullable<DetailConfig['registrationForm']>['customQuestions']> = [
+  { id: 'menu', label: 'Pilihan menu', type: 'select', required: true, options: ['Nasi liwet', 'Vegetarian', 'Tanpa preferensi'] },
+  { id: 'alergi', label: 'Bahan yang perlu kami hindari', type: 'text', required: false, conditional: { questionId: 'menu', equals: 'Vegetarian' } },
+  { id: 'transport', label: 'Cara datang', type: 'radio', required: true, options: ['Kendaraan pribadi', 'Bus rombongan', 'Transportasi umum'] },
+  { id: 'bus-titik', label: 'Titik jemput bus', type: 'select', required: true, options: ['Stasiun Contoh', 'Terminal Sampel'], conditional: { questionId: 'transport', equals: 'Bus rombongan' } },
+  { id: 'bus-kursi', label: 'Jumlah kursi bus dari stasiun', type: 'number', required: false, conditional: { questionId: 'bus-titik', in: ['Stasiun Contoh'] } },
+  { id: 'sesi', label: 'Sesi yang akan dihadiri', type: 'checkbox', required: true, options: ['Akad Nikah', 'Resepsi'] },
+  { id: 'lagu', label: 'Lagu permintaan', type: 'multiselect', required: false, options: ['Keroncong', 'Pop', 'Jazz', 'أغنية تراثية من الشمال'] },
+  {
+    id: 'kenangan',
+    label: 'Ceritakan satu kenangan singkat bersama mempelai yang boleh kami bacakan saat resepsi; beberapa kalimat sudah cukup, dan boleh dikosongkan bila tidak ada',
+    type: 'textarea',
+    required: false,
+  },
+  { id: 'anak', label: 'Jumlah anak di bawah lima tahun', type: 'number', required: false },
+  { id: 'asal', label: 'من أين ستأتي؟', type: 'text', required: false },
+  { id: 'siklus-a', label: 'Uji siklus A (tidak pernah berlaku)', type: 'text', required: false, conditional: { questionId: 'siklus-b', equals: 'ya' } },
+  { id: 'siklus-b', label: 'Uji siklus B (tidak pernah berlaku)', type: 'text', required: true, conditional: { questionId: 'siklus-a', equals: 'ya' } },
+];
+
+/** `--questions`: the full wedding with the registration form, its questions and an RSVP deadline. */
+function weddingQuestions(paletteId: string, familyId: FamilyId | undefined, formEnabled: boolean, deadline: string): DetailConfig {
+  return {
+    ...weddingFull(paletteId, familyId),
+    rsvp: { enabled: true, deadline },
+    registrationForm: { enabled: formEnabled, allowPlusOne: false, customQuestions: REVIEW_QUESTIONS },
+  };
+}
+
 /** Host-text fields of the ceremony profile; fixture text there must not look religious (nothing is verified, B-003). */
 const CEREMONY_TEXT_FIELDS = ['nameMeaning', 'prayer', 'recoveryNote', 'ceremonyNote'] as const;
 
@@ -296,6 +333,8 @@ export type ReviewOptions = {
   logoUrl?: string;
   markVariants?: boolean;
   ceremony?: boolean;
+  /** `--questions` (s18): per layout `questions`, `questions-off` (form switched off), `questions-closed` (deadline passed), `questions-expired`. */
+  questions?: boolean;
 };
 
 export function familyReviewInvitations(options: ReviewOptions = {}): ReviewInvitation[] {
@@ -303,6 +342,7 @@ export function familyReviewInvitations(options: ReviewOptions = {}): ReviewInvi
   const withPaletteSweep = options.palettes ?? false;
   const withMarkVariants = options.markVariants ?? false;
   const withCeremony = options.ceremony ?? false;
+  const withQuestions = options.questions ?? false;
   const withToken = (slug: string): GuestSeed[] => [...STRESS_GUESTS, { name: 'Tamu Bertoken', slug: 'tamu-bertoken', guestCount: 2, linkToken: reviewToken(slug) }];
   const make = (
     slug: string,
@@ -337,8 +377,20 @@ export function familyReviewInvitations(options: ReviewOptions = {}): ReviewInvi
           make(`review-${layout}-share`, weddingShare(familyId ? fullPalette[familyId] : 'ivory', familyId)),
         ]
       : [];
+  const questionVariants = (layout: string, familyId?: FamilyId): ReviewInvitation[] => {
+    if (!withQuestions) return [];
+    const paletteId = familyId ? fullPalette[familyId] : 'ivory';
+    const open = witaAt(50, '23:59');
+    return [
+      make(`review-${layout}-questions`, weddingQuestions(paletteId, familyId, true, open), { withMessages: false }),
+      make(`review-${layout}-questions-off`, weddingQuestions(paletteId, familyId, false, open), { withMessages: false }),
+      make(`review-${layout}-questions-closed`, weddingQuestions(paletteId, familyId, true, witaAt(-2, '12:00')), { withMessages: false }),
+      make(`review-${layout}-questions-expired`, weddingQuestions(paletteId, familyId, true, open), { expired: true, withMessages: false }),
+    ];
+  };
   const rows: ReviewInvitation[] = [make('review-legacy-full', weddingFull('ivory'))];
   rows.push(...ceremonyVariants('legacy'));
+  rows.push(...questionVariants('legacy'));
   if (coverImageUrl) rows.push(make('review-legacy-photo', weddingFull('ivory', undefined, coverImageUrl)));
   if (coverLowUrl) rows.push(make('review-legacy-photo-low', weddingFull('ivory', undefined, coverLowUrl)));
   rows.push(make('review-legacy-corporate', corporate(undefined, logoUrl), { ...corporateOptions, logo: 'square' }));
@@ -354,6 +406,7 @@ export function familyReviewInvitations(options: ReviewOptions = {}): ReviewInvi
     rows.push(make(`review-${familyId}-expired`, weddingFull(fullPalette[familyId], familyId), { expired: true }));
     rows.push(make(`review-${familyId}-dark`, weddingFull('midnight', familyId)));
     rows.push(...ceremonyVariants(familyId, familyId));
+    rows.push(...questionVariants(familyId, familyId));
   }
   if (withPaletteSweep) rows.push(...paletteSweep());
   const corpus = loadCorpus();
@@ -442,6 +495,7 @@ async function main() {
     logoUrl: argValue('--logo-url'),
     markVariants: process.argv.includes('--mark-variants'),
     ceremony: process.argv.includes('--ceremony'),
+    questions: process.argv.includes('--questions'),
   });
   const match = argValue('--match');
   const rows = match ? all.filter((row) => new RegExp(match).test(row.slug)) : all;

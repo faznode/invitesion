@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { db } from '@/lib/db/drizzle';
 import { invitations, invitationVersions, mediaAssets } from '@/lib/db/schema';
 import type { MediaAsset } from '@/lib/db/schema';
+import { carriedRegistrationForm, normalizeStoredConfig } from './content-read';
 import { detailConfigSchema, mergeDetailConfig, type DetailConfig } from './detail-config';
 
 export class OwnershipError extends Error {
@@ -30,9 +31,9 @@ export async function getDetailConfig(
   userId: number,
 ): Promise<DetailConfig> {
   const inv = await requireOwnedInvitation(invitationId, userId);
-  const parsed = detailConfigSchema.safeParse(inv.config ?? {});
-  // Stored config may predate this schema; return the valid subset rather than throwing.
-  return parsed.success ? parsed.data : {};
+  // Stored config may predate this schema; return the valid subset rather than throwing. The guest page's lenient read
+  // (S18-Q4), so the editor shows what guests see instead of an empty config when one section fails today's rules.
+  return normalizeStoredConfig(inv.config ?? {}).config;
 }
 
 export async function updateDetailConfig(
@@ -41,12 +42,15 @@ export async function updateDetailConfig(
   patch: DetailConfig,
 ): Promise<DetailConfig> {
   const inv = await requireOwnedInvitation(invitationId, userId);
-  const merged = mergeDetailConfig(
-    (inv.config as Record<string, unknown> | null) ?? {},
-    patch as Record<string, unknown>,
-  );
+  const stored = (inv.config as Record<string, unknown> | null) ?? {};
+  // S18-Q4 / D-035: a save that leaves the registration form alone carries it as every reader sees it, so a stored
+  // condition naming a deleted question cannot block saving another section; a save of the form itself is checked
+  // strictly (the editor shows that condition and asks the host to choose again). Any other invalid section still fails.
+  const carried = patch.registrationForm === undefined ? carriedRegistrationForm(stored) : undefined;
+  const merged = mergeDetailConfig(carried?.rest ?? stored, patch as Record<string, unknown>);
   // Re-validate the merged result so a partial patch can't produce an invalid whole.
-  const validated = detailConfigSchema.parse(merged);
+  const parsed = detailConfigSchema.parse(merged);
+  const validated: DetailConfig = carried ? { ...parsed, registrationForm: carried.form } : parsed;
 
   await db.transaction(async (tx) => {
     await tx

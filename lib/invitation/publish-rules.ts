@@ -1,4 +1,5 @@
-import { detailConfigSchema, type DetailConfig } from './detail-config';
+import { normalizeStoredConfig } from './content-read';
+import type { DetailConfig } from './detail-config';
 
 /**
  * Publishing rules, as pure functions.
@@ -45,11 +46,13 @@ export function addMonths(from: Date, months: number): Date {
  * job to guide, not a hard gate.
  */
 export function publishBlockers(eventType: string, rawConfig: unknown): string[] {
-  const parsed = detailConfigSchema.safeParse(rawConfig ?? {});
-  if (!parsed.success) {
+  // Every reader must accept the stored config without dropping anything. The lenient read equals the strict schema here
+  // except for a registration-form condition naming a missing question (D-035), which every reader handles and a save
+  // no longer rewrites, so it must not hold publishing hostage.
+  const { config, dropped } = normalizeStoredConfig(rawConfig ?? {});
+  if (dropped.length || (rawConfig && (typeof rawConfig !== 'object' || Array.isArray(rawConfig)))) {
     return ['Konfigurasi undangan tidak valid. Simpan ulang dari editor sebelum menerbitkan.'];
   }
-  const config = parsed.data;
   const reasons: string[] = [];
 
   if (!hasHonouree(eventType, config)) reasons.push('Nama pada undangan belum diisi.');
