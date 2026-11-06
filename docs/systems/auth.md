@@ -5,7 +5,7 @@
 > OWNER: Operator
 > DEPS: lib/auth/clerk-user.ts, lib/auth/admin-access.ts, DATABASE_SCHEMA.md
 > GREP: auth, clerk, session, login, signup, admin, role, jit, provisioning
-> UPDATED: 2026-07-27
+> UPDATED: 2026-11-06 (s21: B-015, ClerkProvider hanya di grup rute yang login)
 
 > **Keputusan 2026-07-27 (whyme):** auth password buatan sendiri diganti **Clerk**.
 > Dokumen ini menggantikan status "nyusul" di `AGENTS.md`.
@@ -107,8 +107,14 @@ Idempoten: dijalankan dua kali akan mempromosikan, bukan menduplikasi.
 
 ## Tampilan
 
-Clerk merender formnya; appearance dan copy diberikan sekali di `ClerkProvider` pada root layout
-(`lib/auth/clerk-appearance.ts`), jadi form hosted tidak bisa melenceng dari sisa produk.
+Clerk merender formnya; appearance dan copy diberikan sekali di `ClerkProvider` (`components/auth/auth-provider.tsx`,
+isi dari `lib/auth/clerk-appearance.ts`), jadi form hosted tidak bisa melenceng dari sisa produk.
+
+**B-015 (s21):** provider itu hanya membungkus grup rute `(login)`, `(customer)` dan `(admin)` lewat layout grupnya,
+bukan root layout. Sebelumnya setiap halaman tamu `/i/*` ikut menyerialkan appearance + kamus lokalisasi (≈ 67 KB
+dari ≈ 97 KB payload RSC) yang di-parse ulang SSR di setiap kunjungan. `auth()` / `currentUser()` sisi server
+(`@clerk/nextjs/server`, dipakai `/preview` lewat `getUser`) tidak butuh provider ini. Import komponen klien Clerk di
+luar tiga grup itu ditolak oleh `tests/b015-clerk-scope.test.ts`. Belum diuji dengan kunci Clerk asli (P-INV-010).
 
 `routing="hash"` menahan setiap langkah — reset password, kode email, MFA — tetap di halaman kita
 yang sudah bergaya, bukan memantul ke domain Clerk.

@@ -48,6 +48,9 @@ function achievementLabel(category: ThanksgivingCategory | undefined): string {
 
 const filled = (value: string | undefined) => value?.trim() || undefined;
 
+// Built once: constructing an Intl formatter costs far more than formatting with it (s21 profile); it holds no request data.
+const PLAIN_DATE = new Intl.DateTimeFormat('id-ID', { timeZone: 'UTC', day: 'numeric', month: 'long', year: 'numeric' });
+
 /** "3 Oktober 2026" for a stored calendar date (YYYY-MM-DD). A date has no zone, so it is shown exactly as written. */
 export function formatPlainDate(value: string | undefined): string | undefined {
   const match = value?.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -55,7 +58,7 @@ export function formatPlainDate(value: string | undefined): string | undefined {
   const [year, month, day] = match.slice(1).map(Number);
   const at = new Date(Date.UTC(year, month - 1, day));
   if (at.getUTCFullYear() !== year || at.getUTCMonth() !== month - 1 || at.getUTCDate() !== day) return undefined;
-  return new Intl.DateTimeFormat('id-ID', { timeZone: 'UTC', day: 'numeric', month: 'long', year: 'numeric' }).format(at);
+  return PLAIN_DATE.format(at);
 }
 
 /** The profile for this event type with blank values dropped; null for other event types or when nothing is filled. */

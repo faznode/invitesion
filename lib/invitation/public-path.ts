@@ -25,6 +25,14 @@ export function invitationPreviewImagePath(invitationSlug: string) {
 }
 
 /**
+ * E-047 (s22): a child's photo for one personal link (`lib/invitation/portraits.ts`, `childPhotoUpload`). Two segments
+ * below the guest page, so it never competes with a guest slug.
+ */
+export function guestChildPhotoPath(invitationSlug: string, guestSlug: string, slot: 'celebrant' | 'honouree') {
+  return `${guestPath(invitationSlug, guestSlug)}/photo/${slot}`;
+}
+
+/**
  * The owner's preview of an invitation in any status (B-005): the same renderer guests get, behind the owner's
  * session, without view tracking. Public `/i/<slug>` refuses drafts, so the editor links here instead.
  */

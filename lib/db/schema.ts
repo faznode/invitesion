@@ -177,7 +177,7 @@ export const guestMessages = pgTable('guest_messages', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 
-// ──────────────────────────���──────────────────
+// ─────────────────────────────────────────────
 // COMMERCE  (Midtrans one-time, bukan subscription)
 // ─────────────────────────────────────────────
 /**
@@ -334,7 +334,7 @@ export const customerSessionSummary = pgTable('customer_session_summary', {
 
 // ─────────────────────────────────────────────
 // ANALYTICS
-// ─────────���─────────────────────────────��─────
+// ─────────────────────────────────────────────
 export const analyticsEvents = pgTable(
   'analytics_events',
   {

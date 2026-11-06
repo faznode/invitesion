@@ -6,9 +6,11 @@ import type { DetailConfig } from '@/lib/invitation/detail-config';
 import { guestAudience, visibleEvents, type EventAudience } from '@/lib/invitation/event-eligibility';
 import { eventDateParts, formatEventDate, formatEventTime } from '@/lib/invitation/event-time';
 import { invitationDisplayName, invitationHeadline } from '@/lib/invitation/headline';
-import { safeImageSrc } from '@/lib/invitation/image-url';
+import { guestLinkSegment } from '@/lib/invitation/guest-link';
+import { isUploadedMediaPath, safeImageSrc } from '@/lib/invitation/image-url';
 import { palette } from '@/lib/invitation/palettes';
-import { birthdayPortrait, ceremonyPortrait, couplePortraits } from '@/lib/invitation/portraits';
+import { birthdayPortrait, ceremonyPortrait, childPhotoSlotOf, couplePortraits } from '@/lib/invitation/portraits';
+import { guestChildPhotoPath } from '@/lib/invitation/public-path';
 import { programmeOf } from '@/lib/invitation/programme';
 import { answerField, askableQuestions, conditionText, isMultiChoice, readStoredAnswers, rsvpQuestionsOf } from '@/lib/invitation/rsvp-questions';
 import { eventCountField, eventStatusField, perEventRsvpEvents, readEventAnswers } from '@/lib/invitation/rsvp-events';
@@ -150,7 +152,13 @@ export function buildGuestView({ invitation, config, guest, media, readOnly, pre
   // D-038: person photos. Children's photos (aqiqah, khitanan, a birthday celebrant) need the host's switch and a personal
   // link or the host's preview; the couple's and a tasyakuran honouree's show once uploaded. Field by field, as below.
   const portraitAudience = { personalLink: Boolean(guest), preview };
-  const portraits =
+  // E-047 (s22): a child's uploaded photo reaches a personal-link page only as `/i/<slug>/<guest>/photo/<slot>`, which
+  // re-checks the link and the host's switch per request and is `private, no-store`; the storage path never appears in
+  // the page's markup or RSC payload. The host's own preview keeps the stored path (owner session, D-038 unchanged).
+  const childSlot = childPhotoSlotOf(invitation.eventType);
+  const viaGuestRoute = (src: string) =>
+    guest && !preview && childSlot && isUploadedMediaPath(src) ? guestChildPhotoPath(invitation.slug, guestLinkSegment(guest), childSlot) : src;
+  const storedPortraits =
     invitation.eventType === 'wedding'
       ? couplePortraits({
           bride: {
@@ -180,7 +188,11 @@ export function buildGuestView({ invitation, config, guest, media, readOnly, pre
             portraitAudience,
           )
         : null;
-  const honoureePortrait = ceremonyPortrait(
+  const portraits =
+    childSlot === 'celebrant' && storedPortraits
+      ? { ...storedPortraits, people: storedPortraits.people.map((person) => ({ ...person, src: viaGuestRoute(person.src) })) }
+      : storedPortraits;
+  const storedHonoureePortrait = ceremonyPortrait(
     invitation.eventType,
     {
       honoureeName: config.ceremonyProfile?.honoureeName,
@@ -190,6 +202,8 @@ export function buildGuestView({ invitation, config, guest, media, readOnly, pre
     },
     portraitAudience,
   );
+  const honoureePortrait =
+    childSlot === 'honouree' && storedHonoureePortrait ? { ...storedHonoureePortrait, src: viaGuestRoute(storedHonoureePortrait.src) } : storedHonoureePortrait;
 
   // B-029: the ceremony profile (aqiqah, khitanan, tasyakuran), render-when-filled; each type keeps only the fields its
   // editor tab offers. Passed field by field, like the programme, so the content contract sees exactly what is read.

@@ -63,7 +63,13 @@ source /vercel/share/work/tools/env.sh
 npx tsx tools/template-harness/page-review.ts --out /tmp/review --url gapura=http://127.0.0.1:3100/i/review-gapura-full/nama-panjang
 npx tsx tools/template-harness/page-review.ts --out /tmp/review-m --mobile-only --url …   # stress guests at 360 × 800
 npx tsx tools/template-harness/rendered-contrast.ts --out /tmp/contrast --url legacy-ivory=…/i/review-legacy-p-ivory/budi-hartono
+npx tsx tools/template-harness/product-bytes.ts --out /tmp/product-bytes \
+   --url legacy=…/i/review-legacy-full/budi-hartono --url gapura=…/i/review-gapura-full/budi-hartono …  # every family
 ```
+**Product-family bytes** (`product-bytes.ts`, budgets `PRODUCT_PAGE_BUDGETS` in `policy.ts`, tests `tests/product-bytes.test.ts`):
+one page per family with the same content. The shell (what every family page loads under the same URL) is budgeted
+once; a family's own bytes (its document plus anything only it loads) and each page's total are budgeted per family.
+A new family is judged on its own bytes; the total keeps the guest page inside the cold-load budget.
 Fixture pages: `/i/review-<legacy|gapura|kartu|riang|lontar>-<full|photo|corporate|sparse|birthday|expired|dark>/<guest>`
 (legacy: full, photo, corporate); guests `budi-hartono`, `nama-panjang`, `hostile-name`, `rtl-name`, `emoji-name`, plus one
 opaque-link guest per invitation (token in the seed output); palette sweep `/i/review-<layout>-p-<paletteId>/budi-hartono`.

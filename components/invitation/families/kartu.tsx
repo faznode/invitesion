@@ -1,5 +1,5 @@
 import { Fragment } from 'react';
-import { Gift, Quote as QuoteIcon, Radio } from 'lucide-react';
+import { InvitationIcon } from '@/components/invitation/icons';
 import { Countdown } from '@/components/invitation/countdown';
 import {
   CalendarLinks,
@@ -43,8 +43,18 @@ export function KartuLayout({ props, view }: { props: GuestPageProps; view: Gues
           <div aria-hidden className={`absolute inset-0 translate-x-3 translate-y-3 rounded-2xl ${tone.soft}`} />
           <div className={`relative ${card} p-6 sm:p-8`}>
             {view.coverImageSrc && (
+              // S21-K1 (s22): the card is 28rem wide at every desktop size, so a 4:3 photo is always ≈ 287 px tall and the
+              // guest name ended at 804–836 px, below the fold of a 1024 × 768, 1280 × 800 or 1366 × 768 viewport. From
+              // 640 px the photo keeps 4:3 but is capped at what the viewport leaves after the cover's text with a two-line
+              // guest name (≈ 34.5rem, plus a margin: 37rem), never below 11rem (as Gapura's window, E-040). Phones keep
+              // the full 4:3 photo (S17-G1 holds at 360 × 800).
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={view.coverImageSrc} alt="" aria-hidden className="mb-6 aspect-[4/3] w-full rounded-xl object-cover" />
+              <img
+                src={view.coverImageSrc}
+                alt=""
+                aria-hidden
+                className="mb-6 aspect-[4/3] w-full rounded-xl object-cover sm:max-h-[max(11rem,calc(100svh_-_37rem))]"
+              />
             )}
             <CorporateMark view={view} align="start" className="mb-6 [--inv-logo-bg:var(--inv-card)]" />
             <div className="flex items-start justify-between gap-4">
@@ -108,7 +118,7 @@ export function KartuLayout({ props, view }: { props: GuestPageProps; view: Gues
       {config.quote?.enabled && config.quote.text && (
         <CardSection tone={tone}>
           <figure className="flex gap-4">
-            <QuoteIcon className={`h-8 w-8 shrink-0 ${tone.accent}`} aria-hidden />
+            <InvitationIcon name="quote" className={`h-8 w-8 shrink-0 ${tone.accent}`} />
             <div>
               <blockquote className="font-serif text-xl leading-8 text-pretty">{config.quote.text}</blockquote>
               {config.quote.author && <figcaption className={`mt-3 text-xs uppercase tracking-widest ${tone.muted}`}>{config.quote.author}</figcaption>}
@@ -216,7 +226,7 @@ export function KartuLayout({ props, view }: { props: GuestPageProps; view: Gues
             rel="noreferrer"
             className={`mt-6 inline-flex min-h-11 items-center gap-2 rounded-full border border-current px-6 text-sm font-semibold ${tone.accent}`}
           >
-            <Radio className="h-4 w-4" aria-hidden />
+            <InvitationIcon name="radio" className="h-4 w-4" />
             Tonton siaran
           </a>
         </CardSection>
@@ -234,7 +244,7 @@ export function KartuLayout({ props, view }: { props: GuestPageProps; view: Gues
             {config.gift.accounts.map((account, index) => (
               <article key={index} className={`rounded-2xl border-2 border-dashed ${tone.line} ${tone.card} p-5`}>
                 <div className="flex items-center gap-2">
-                  <Gift className={`h-4 w-4 shrink-0 ${tone.accent}`} aria-hidden />
+                  <InvitationIcon name="gift" className={`h-4 w-4 shrink-0 ${tone.accent}`} />
                   <p className={`text-xs uppercase tracking-widest ${tone.muted}`}>{account.label}</p>
                 </div>
                 {account.number && <p className="mt-3 font-mono text-lg tracking-wide [overflow-wrap:anywhere]">{account.number}</p>}

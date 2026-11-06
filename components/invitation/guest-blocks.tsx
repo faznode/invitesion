@@ -1,4 +1,3 @@
-import { CalendarDays, CalendarPlus, Clock3, MapPin } from 'lucide-react';
 import { googleCalendarUrl } from '@/lib/invitation/calendar';
 import { guestLinkSegment } from '@/lib/invitation/guest-link';
 import type { Portrait } from '@/lib/invitation/portraits';
@@ -6,6 +5,7 @@ import { invitationCalendarPath } from '@/lib/invitation/public-path';
 import { ANSWER_LIMITS } from '@/lib/invitation/rsvp-questions';
 import { RSVP_ANSWER_TEXT, rsvpDefaultCount, type RsvpStatus } from '@/lib/invitation/rsvp-rules';
 import { submitGuestMessage, submitRsvp } from '@/app/i/[slug]/actions';
+import { InvitationIcon } from '@/components/invitation/icons';
 import type { GuestPageProps, GuestView, InvitationEvent } from '@/components/invitation/guest-view';
 
 /**
@@ -79,13 +79,13 @@ export function EventFacts({
     <dl className={className}>
       {formatDate(event.startAt) && (
         <div className={rowClassName}>
-          <CalendarDays className={`h-4 w-4 shrink-0 ${tone.accent}`} aria-hidden />
+          <InvitationIcon name="calendar-days" className={`h-4 w-4 shrink-0 ${tone.accent}`} />
           <dd>{formatDate(event.startAt)}</dd>
         </div>
       )}
       {formatTime(event.startAt) && (
         <div className={rowClassName}>
-          <Clock3 className={`h-4 w-4 shrink-0 ${tone.accent}`} aria-hidden />
+          <InvitationIcon name="clock" className={`h-4 w-4 shrink-0 ${tone.accent}`} />
           <dd>
             {formatTime(event.startAt)}
             {formatTime(event.endAt) ? ` – ${formatTime(event.endAt)}` : ''}
@@ -94,7 +94,7 @@ export function EventFacts({
       )}
       {(event.venueName || event.address) && (
         <div className={venueRowClassName}>
-          <MapPin className={`mt-0.5 h-4 w-4 shrink-0 ${tone.accent}`} aria-hidden />
+          <InvitationIcon name="map-pin" className={`mt-0.5 h-4 w-4 shrink-0 ${tone.accent}`} />
           <dd>
             {event.venueName && <span className="block font-medium">{event.venueName}</span>}
             {event.address && <span className={`block ${tone.muted}`}>{event.address}</span>}
@@ -138,7 +138,7 @@ export function CalendarLinks({
         rel="noreferrer"
         className={`inline-flex min-h-11 items-center gap-2 rounded-full border border-current px-5 text-xs font-semibold ${tone.accent}`}
       >
-        <CalendarPlus className="h-4 w-4" aria-hidden />
+        <InvitationIcon name="calendar-plus" className="h-4 w-4" />
         Simpan ke Google Calendar
       </a>
       <a
@@ -146,7 +146,7 @@ export function CalendarLinks({
         download
         className={`inline-flex min-h-11 items-center gap-2 rounded-full border border-current px-5 text-xs font-semibold ${tone.accent}`}
       >
-        <CalendarPlus className="h-4 w-4" aria-hidden />
+        <InvitationIcon name="calendar-plus" className="h-4 w-4" />
         Unduh kalender (.ics)
       </a>
     </div>

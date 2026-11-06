@@ -43,17 +43,35 @@ function resolve(value: string | undefined | null, fallbackZone?: string | null)
   return { date, timeZone: zone, label: INDONESIAN_ZONES[zone] };
 }
 
+const FORMATS = {
+  dateLong: { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' },
+  monthShort: { month: 'short' },
+  time24: { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' },
+} as const satisfies Record<string, Intl.DateTimeFormatOptions>;
+
+const formatters = new Map<string, Intl.DateTimeFormat>();
+
+/**
+ * One shared formatter per zone and format. Building an `Intl.DateTimeFormat` costs far more than using one, and the
+ * guest page formats every event several times per view (≈ 8 % of the page's server CPU in the s21 profile). Instances
+ * hold only locale and options, so sharing them across requests shares no request data. `resolve()` returns one of
+ * four zones (the three Indonesian zones or UTC), so the map holds at most twelve entries.
+ */
+function formatter(timeZone: string, format: keyof typeof FORMATS): Intl.DateTimeFormat {
+  const key = `${timeZone}|${format}`;
+  let shared = formatters.get(key);
+  if (!shared) {
+    shared = new Intl.DateTimeFormat('id-ID', { timeZone, ...FORMATS[format] });
+    formatters.set(key, shared);
+  }
+  return shared;
+}
+
 /** "Sabtu, 21 November 2026" in the event's zone, or null for a missing / invalid value. */
 export function formatEventDate(value?: string | null, fallbackZone?: string | null): string | null {
   const resolved = resolve(value, fallbackZone);
   if (!resolved) return null;
-  return new Intl.DateTimeFormat('id-ID', {
-    timeZone: resolved.timeZone,
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  }).format(resolved.date);
+  return formatter(resolved.timeZone, 'dateLong').format(resolved.date);
 }
 
 export type EventDateParts = { weekday: string; day: string; month: string; monthShort: string; year: string };
@@ -62,18 +80,15 @@ export type EventDateParts = { weekday: string; day: string; month: string; mont
 export function eventDateParts(value?: string | null, fallbackZone?: string | null): EventDateParts | null {
   const resolved = resolve(value, fallbackZone);
   if (!resolved) return null;
-  const parts = (options: Intl.DateTimeFormatOptions) =>
-    Object.fromEntries(
-      new Intl.DateTimeFormat('id-ID', { timeZone: resolved.timeZone, ...options }).formatToParts(resolved.date).map((part) => [part.type, part.value]),
-    );
-  const long = parts({ weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-  return { weekday: long.weekday, day: long.day, month: long.month, monthShort: parts({ month: 'short' }).month.replace('.', ''), year: long.year };
+  const parts = (format: keyof typeof FORMATS) =>
+    Object.fromEntries(formatter(resolved.timeZone, format).formatToParts(resolved.date).map((part) => [part.type, part.value]));
+  const long = parts('dateLong');
+  return { weekday: long.weekday, day: long.day, month: long.month, monthShort: parts('monthShort').month.replace('.', ''), year: long.year };
 }
 
 /** "08.00 WIB" in the event's zone, or null for a missing / invalid value. */
 export function formatEventTime(value?: string | null, fallbackZone?: string | null): string | null {
   const resolved = resolve(value, fallbackZone);
   if (!resolved) return null;
-  const time = new Intl.DateTimeFormat('id-ID', { timeZone: resolved.timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(resolved.date);
-  return `${time} ${resolved.label}`;
+  return `${formatter(resolved.timeZone, 'time24').format(resolved.date)} ${resolved.label}`;
 }

@@ -1,5 +1,5 @@
 import { Fragment } from 'react';
-import { Gift, Quote as QuoteIcon, Radio } from 'lucide-react';
+import { InvitationIcon } from '@/components/invitation/icons';
 import { Countdown } from '@/components/invitation/countdown';
 import {
   CalendarLinks,
@@ -126,7 +126,7 @@ export function RiangLayout({ props, view }: { props: GuestPageProps; view: Gues
       key: 'quote',
       node: (
         <figure className="text-center">
-          <QuoteIcon className={`mx-auto h-8 w-8 ${tone.accent}`} aria-hidden />
+          <InvitationIcon name="quote" className={`mx-auto h-8 w-8 ${tone.accent}`} />
           <blockquote className="mx-auto mt-4 max-w-xl font-serif text-2xl leading-snug text-balance">{config.quote.text}</blockquote>
           {config.quote.author && <figcaption className={`mt-4 text-xs uppercase tracking-widest ${tone.muted}`}>{config.quote.author}</figcaption>}
         </figure>
@@ -186,7 +186,7 @@ export function RiangLayout({ props, view }: { props: GuestPageProps; view: Gues
             rel="noreferrer"
             className={`mt-8 inline-flex min-h-11 items-center gap-2 rounded-full border border-current px-6 text-sm font-semibold ${tone.accent}`}
           >
-            <Radio className="h-4 w-4" aria-hidden />
+            <InvitationIcon name="radio" className="h-4 w-4" />
             Tonton siaran
           </a>
         </>
@@ -216,7 +216,7 @@ export function RiangLayout({ props, view }: { props: GuestPageProps; view: Gues
             {config.gift.accounts.map((account, index) => (
               <article key={index} className={`${block} p-6`}>
                 <div className="flex items-center gap-2">
-                  <Gift className={`h-5 w-5 shrink-0 ${tone.accent}`} aria-hidden />
+                  <InvitationIcon name="gift" className={`h-5 w-5 shrink-0 ${tone.accent}`} />
                   <p className={`text-xs font-semibold uppercase tracking-widest ${tone.muted}`}>{account.label}</p>
                 </div>
                 {account.number && <p className="mt-3 font-mono text-xl tracking-wide [overflow-wrap:anywhere]">{account.number}</p>}

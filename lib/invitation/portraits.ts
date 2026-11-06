@@ -1,4 +1,4 @@
-import { safeImageSrc } from './image-url';
+import { isUploadedMediaPath, safeImageSrc } from './image-url';
 
 /**
  * s20 (D-038): person photos on the guest page, the last stored-only ceremony field and the couple's and celebrant's photos.
@@ -98,4 +98,36 @@ export function ceremonyPortrait(
   const name = clean(input.honoureeName) ?? clean(input.nickName);
   const fallback = eventType === 'aqiqah' ? 'Foto bayi' : eventType === 'khitanan' ? 'Foto anak' : 'Foto';
   return { key: 'honouree', src, alt: name ? `Foto ${name}` : fallback, name };
+}
+
+/**
+ * E-047 (s22): the photos the child rule governs. A guest page never carries the storage path of one of these: with a
+ * personal link it references `/i/<slug>/<guest>/photo/<slot>` (`guestChildPhotoPath`), which applies this same rule
+ * again on every request and is never cached by a shared cache.
+ */
+export type ChildPhotoSlot = 'celebrant' | 'honouree';
+
+export function childPhotoSlotOf(eventType: string): ChildPhotoSlot | null {
+  if (eventType === 'birthday') return 'celebrant';
+  if (eventType === 'aqiqah' || eventType === 'khitanan') return 'honouree';
+  return null;
+}
+
+/**
+ * The uploaded child photo a personal link may fetch for `slot`: the host's switch is on, the invitation type matches the
+ * slot and the stored value is one of our uploads (`/media/<invitation>/<24 hex>.<ext>`). An absolute URL the host typed
+ * is hosted elsewhere and never proxied, so it gets nothing here.
+ */
+export function childPhotoUpload(
+  eventType: string,
+  people: { birthdayPerson?: { photoUrl?: string; showPhoto?: boolean }; ceremonyProfile?: { photoUrl?: string; showPhoto?: boolean } },
+  slot: ChildPhotoSlot,
+): string | undefined {
+  if (childPhotoSlotOf(eventType) !== slot) return undefined;
+  const audience = { personalLink: true, preview: false };
+  const src =
+    slot === 'celebrant'
+      ? birthdayPortrait({ photoUrl: people.birthdayPerson?.photoUrl, showPhoto: people.birthdayPerson?.showPhoto }, audience)?.people[0]?.src
+      : ceremonyPortrait(eventType, { photoUrl: people.ceremonyProfile?.photoUrl, showPhoto: people.ceremonyProfile?.showPhoto }, audience)?.src;
+  return src && isUploadedMediaPath(src) ? src : undefined;
 }

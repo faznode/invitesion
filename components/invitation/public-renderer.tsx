@@ -1,4 +1,4 @@
-import { Gift, Quote as QuoteIcon, Radio } from 'lucide-react';
+import { InvitationIcon } from '@/components/invitation/icons';
 import { Countdown } from '@/components/invitation/countdown';
 import { GapuraLayout } from '@/components/invitation/families/gapura';
 import { KartuLayout } from '@/components/invitation/families/kartu';
@@ -114,7 +114,7 @@ function LegacyLayout({ props, view }: LayoutProps) {
 
       {config.quote?.enabled && config.quote.text && (
         <Section className="text-center">
-          <QuoteIcon className={`mx-auto h-6 w-6 ${tone.accent}`} aria-hidden />
+          <InvitationIcon name="quote" className={`mx-auto h-6 w-6 ${tone.accent}`} />
           <blockquote className="mt-4 font-serif text-lg leading-8">{config.quote.text}</blockquote>
           {config.quote.author && <cite className={`mt-3 block text-xs uppercase tracking-widest ${tone.muted}`}>{config.quote.author}</cite>}
         </Section>
@@ -190,7 +190,7 @@ function LegacyLayout({ props, view }: LayoutProps) {
 
       {config.streaming?.enabled && config.streaming.url && (
         <Section className="text-center">
-          <Radio className={`mx-auto h-6 w-6 ${tone.accent}`} aria-hidden />
+          <InvitationIcon name="radio" className={`mx-auto h-6 w-6 ${tone.accent}`} />
           <Heading accent={tone.accent}>Siaran Langsung</Heading>
           <a
             href={config.streaming.url}
@@ -212,7 +212,7 @@ function LegacyLayout({ props, view }: LayoutProps) {
 
       {config.gift?.enabled && config.gift.accounts?.length ? (
         <Section>
-          <Gift className={`mx-auto h-6 w-6 ${tone.accent}`} aria-hidden />
+          <InvitationIcon name="gift" className={`mx-auto h-6 w-6 ${tone.accent}`} />
           <Heading accent={tone.accent}>Hadiah</Heading>
           <div className="mt-8 space-y-3">
             {config.gift.accounts.map((account, index) => (

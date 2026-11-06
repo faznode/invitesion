@@ -5,7 +5,7 @@
 > OWNER: Architect
 > DEPS: PROJECT_OVERVIEW.md
 > GREP: schema, drizzle, tabel, users, invitations, guests, orders, versions
-> UPDATED: 2026-11-05 (s19: guests rsvp_event_answers migrasi 0014; id acara tetap di invitations.config.events migrasi data 0013, D-036; guests rsvp_answers, migrasi 0012; earlier: analytics_events view-dedupe index, guests attending_count, link_token)
+> UPDATED: 2026-11-06 (s20/s21: guests invited_event_ids migrasi 0015, events[].inviteOnly, D-037; showPhoto foto anak, D-038; s19: guests rsvp_event_answers migrasi 0014; id acara tetap di invitations.config.events migrasi data 0013, D-036; guests rsvp_answers, migrasi 0012; earlier: analytics_events view-dedupe index, guests attending_count, link_token)
 > ORM DECISION (whyme 2026-07-15): pakai **Drizzle** (bukan Prisma) — ikut fondasi nextjs/saas-starter biar backend cepat jalan. Schema di bawah = kanonik, diimplementasi sbg Drizzle schema (lib/db/schema.ts).
 
 ## Prinsip
@@ -64,6 +64,9 @@ guests
   rsvp_event_answers jsonb nullable ← jawaban per acara (B-027 2c, migrasi 0014, D-036): { [eventId]: { status, attending } }, kunci = id acara
                                      yang tetap (bukan urutan); ditulis UPDATE yang sama dengan status + attending_count + rsvp_answers;
                                      jawaban untuk acara yang dihapus tetap tersimpan; jawaban tunggal (flag on) mengosongkannya; flag off = tidak dibaca/ditulis
+  invited_event_ids jsonb nullable ← acara khusus undangan yang boleh dilihat tamu ini (D-037, migrasi 0015, s20): array id acara yang tetap;
+                                     id acara yang dihapus / dibuka lagi tetap tersimpan dan tidak berpengaruh; acara ditandai `inviteOnly` di
+                                     invitations.config.events (bukan id tamu di config); flag INVITE_ONLY_EVENTS off = tidak dibaca/ditulis
   UNIQUE(invitation_id, slug)      ← anti-collision
   UNIQUE(link_token)               ← null boleh banyak
 

@@ -1,5 +1,5 @@
 import { Fragment } from 'react';
-import { Gift, Quote as QuoteIcon, Radio } from 'lucide-react';
+import { InvitationIcon } from '@/components/invitation/icons';
 import { Countdown } from '@/components/invitation/countdown';
 import {
   CalendarLinks,
@@ -152,7 +152,7 @@ export function LontarLayout({ props, view }: { props: GuestPageProps; view: Gue
       {config.quote?.enabled && config.quote.text && (
         <LeafSection tone={tone}>
           <figure className="flex gap-4">
-            <QuoteIcon className={`h-6 w-6 shrink-0 ${tone.accent}`} aria-hidden />
+            <InvitationIcon name="quote" className={`h-6 w-6 shrink-0 ${tone.accent}`} />
             <div>
               <blockquote className="font-serif text-xl leading-8 text-pretty">{config.quote.text}</blockquote>
               {config.quote.author && <figcaption className={`mt-3 text-xs uppercase tracking-widest ${tone.muted}`}>{config.quote.author}</figcaption>}
@@ -196,7 +196,7 @@ export function LontarLayout({ props, view }: { props: GuestPageProps; view: Gue
             rel="noreferrer"
             className={`mt-6 inline-flex min-h-11 items-center gap-2 rounded-full border border-current px-6 text-sm font-semibold ${tone.accent}`}
           >
-            <Radio className="h-4 w-4" aria-hidden />
+            <InvitationIcon name="radio" className="h-4 w-4" />
             Tonton siaran
           </a>
         </LeafSection>
@@ -214,7 +214,7 @@ export function LontarLayout({ props, view }: { props: GuestPageProps; view: Gue
             {config.gift.accounts.map((account, index) => (
               <article key={index} className={`${card} p-5`}>
                 <div className="flex items-center gap-2">
-                  <Gift className={`h-4 w-4 shrink-0 ${tone.accent}`} aria-hidden />
+                  <InvitationIcon name="gift" className={`h-4 w-4 shrink-0 ${tone.accent}`} />
                   <p className={`text-xs uppercase tracking-widest ${tone.muted}`}>{account.label}</p>
                 </div>
                 {account.number && <p className="mt-3 font-mono text-lg tracking-wide [overflow-wrap:anywhere]">{account.number}</p>}

@@ -1,10 +1,8 @@
 import './globals.css';
 import type { Metadata, Viewport } from 'next';
 import { Manrope, Instrument_Serif } from 'next/font/google';
-import { ClerkProvider } from '@clerk/nextjs';
 import { getLocale } from '@/lib/locale-server';
 import { tierPriceLabel } from '@/lib/pricing';
-import { clerkAppearance, clerkLocalization } from '@/lib/auth/clerk-appearance';
 
 const manrope = Manrope({ subsets: ['latin'], variable: '--font-sans' });
 const instrumentSerif = Instrument_Serif({
@@ -49,17 +47,17 @@ export const metadata: Metadata = {
 // maximumScale intentionally omitted — WCAG 1.4.4 requires pinch-zoom to remain enabled.
 export const viewport: Viewport = { themeColor: '#e80053' };
 
+// B-015: no ClerkProvider here. Guest pages (`/i/*`), marketing pages and `/preview` never use Clerk's client components;
+// the route groups that do — (login), (customer), (admin) — wrap themselves in `AuthProvider`.
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const locale = await getLocale();
   return (
-    <ClerkProvider appearance={clerkAppearance} localization={clerkLocalization(locale)}>
-      <html
-        lang={locale}
-        className={`bg-background text-foreground ${manrope.variable} ${instrumentSerif.variable} ${manrope.className}`}
-        style={{ colorScheme: 'light' }}
-      >
-        <body className="min-h-[100dvh] bg-background text-foreground">{children}</body>
-      </html>
-    </ClerkProvider>
+    <html
+      lang={locale}
+      className={`bg-background text-foreground ${manrope.variable} ${instrumentSerif.variable} ${manrope.className}`}
+      style={{ colorScheme: 'light' }}
+    >
+      <body className="min-h-[100dvh] bg-background text-foreground">{children}</body>
+    </html>
   );
 }

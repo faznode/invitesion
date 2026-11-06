@@ -11,6 +11,18 @@ export const TIER_BUDGETS: Record<Tier, { coldLoadKiB: number; jsKiB: number; fo
   signature: { coldLoadKiB: 420, jsKiB: 40, fontsKiB: 160, imageKiB: 250, audioKiB: 1536, modelKiB: 900, fallbackKiB: 120, maxMotion: 3 },
 };
 
+/**
+ * Guest-page budgets for the product's design families (`product-bytes.ts`, s21), measured on the review fixture's
+ * `review-<layout>-full` pages (same content, one guest). Decoded bytes of what the first render fetches: the shared
+ * shell once, each family's own bytes (its document plus anything not every family loads) and each page's total; plus
+ * the page total as served, which keeps the basic tier's 320 KiB cold load anchored on C-INV-005 (311 KiB, lab
+ * `next start`, gzip). Internal, anchored on build `NqzpKCeG8LELJLqtDZ24K` (shell 609 KiB: JS 464, CSS 91, fonts 54;
+ * families 49–61 KiB; pages 658–670 KiB decoded, 233–235 KiB served) with headroom ≈ 5 % on the shell and ≈ 30 % on
+ * the largest family [ASSUMPTION; revisit with field data]. The pre-B-015 build (`xWS3KXzRmrlQhlvBsV-YW`: shell 786 KiB,
+ * families 123–134 KiB) fails them: that regression is what they guard. NOT competitor-parity thresholds.
+ */
+export const PRODUCT_PAGE_BUDGETS = { shellKiB: 640, familyKiB: 80, totalKiB: 720, totalTransferKiB: 320 };
+
 export const MAX_FONT_FAMILIES = 2;
 
 /** SPDX ids (plus `own-work`) an asset may carry; fonts are narrower. */

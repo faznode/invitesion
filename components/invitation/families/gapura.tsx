@@ -1,5 +1,5 @@
 import { Fragment } from 'react';
-import { Gift, Quote as QuoteIcon, Radio } from 'lucide-react';
+import { InvitationIcon } from '@/components/invitation/icons';
 import { Countdown } from '@/components/invitation/countdown';
 import {
   CalendarLinks,
@@ -106,7 +106,7 @@ export function GapuraLayout({ props, view }: { props: GuestPageProps; view: Gue
 
       {config.quote?.enabled && config.quote.text && (
         <ArchSection tone={tone}>
-          <QuoteIcon className={`mx-auto h-6 w-6 ${tone.accent}`} aria-hidden />
+          <InvitationIcon name="quote" className={`mx-auto h-6 w-6 ${tone.accent}`} />
           <blockquote className="mt-4 font-serif text-xl leading-8 text-pretty">{config.quote.text}</blockquote>
           {config.quote.author && <cite className={`mt-3 block text-xs uppercase not-italic tracking-widest ${tone.muted}`}>{config.quote.author}</cite>}
         </ArchSection>
@@ -190,7 +190,7 @@ export function GapuraLayout({ props, view }: { props: GuestPageProps; view: Gue
 
       {config.streaming?.enabled && config.streaming.url && (
         <ArchSection tone={tone} title="Siaran Langsung">
-          <Radio className={`mx-auto mt-6 h-6 w-6 ${tone.accent}`} aria-hidden />
+          <InvitationIcon name="radio" className={`mx-auto mt-6 h-6 w-6 ${tone.accent}`} />
           <a
             href={config.streaming.url}
             target="_blank"
@@ -210,7 +210,7 @@ export function GapuraLayout({ props, view }: { props: GuestPageProps; view: Gue
 
       {config.gift?.enabled && config.gift.accounts?.length ? (
         <ArchSection tone={tone} title="Tanda Kasih">
-          <Gift className={`mx-auto mt-6 h-6 w-6 ${tone.accent}`} aria-hidden />
+          <InvitationIcon name="gift" className={`mx-auto mt-6 h-6 w-6 ${tone.accent}`} />
           <div className="mt-8 flex flex-col gap-4">
             {config.gift.accounts.map((account, index) => (
               <article key={index} className={`${arch} px-6 pb-6 pt-9`}>
