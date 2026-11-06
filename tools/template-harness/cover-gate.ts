@@ -21,7 +21,8 @@
  * Writes cover-gate.json and a 360 × 800 screenshot of each gate; exit 0 when every check passes, 1 otherwise.
  */
 import { spawn } from 'node:child_process';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { findChrome } from './browser';
 
@@ -69,7 +70,7 @@ type Cdp = {
 async function connect(port: number): Promise<Cdp> {
   for (let i = 0; i < 50; i++) {
     try {
-      const targets = (await (await fetch(`http://127.0.0.1:${port}/json`)).json()) as { type: string; webSocketDebuggerUrl: string }[];
+      const targets = (await (await fetch(`http://127.0.0.1:${port}/json`, { signal: AbortSignal.timeout(1000) })).json()) as { type: string; webSocketDebuggerUrl: string }[];
       const page = targets.find((t) => t.type === 'page');
       if (page) {
         const ws = new WebSocket(page.webSocketDebuggerUrl);
@@ -85,7 +86,15 @@ async function connect(port: number): Promise<Cdp> {
         return {
           send: (method, params = {}) => new Promise((resolve, reject) => {
             const n = ++id;
-            pending.set(n, (m) => (m.error ? reject(new Error(`${method}: ${m.error.message}`)) : resolve(m.result)));
+            const timer = setTimeout(() => {
+              pending.delete(n);
+              reject(new Error(`${method}: Chrome did not respond within 8 seconds`));
+            }, 8000);
+            pending.set(n, (m) => {
+              clearTimeout(timer);
+              if (m.error) reject(new Error(`${method}: ${m.error.message}`));
+              else resolve(m.result);
+            });
             ws.send(JSON.stringify({ id: n, method, params }));
           }),
           on: (method, listener) => listeners.set(method, [...(listeners.get(method) ?? []), listener]),
@@ -118,9 +127,14 @@ async function waitFor(cdp: Cdp, expression: string, timeoutMs: number): Promise
 }
 
 async function load(cdp: Cdp, url: string) {
-  await cdp.send('Page.navigate', { url });
-  await waitFor(cdp, `document.readyState === 'complete'`, 15_000);
-  await evaluate(cdp, 'document.fonts.ready.then(() => true)');
+  // Repeated tests use the same URL. Use a new document so a completed previous page (or a
+  // no-JS fragment navigation) cannot satisfy the readiness check for this one.
+  const cleared = await cdp.send('Page.navigate', { url: 'about:blank' });
+  if (cleared.errorText) throw new Error(`Could not clear the previous document: ${cleared.errorText}`);
+  const navigated = await cdp.send('Page.navigate', { url });
+  if (navigated.errorText) throw new Error(`Could not load ${url}: ${navigated.errorText}`);
+  const ready = `location.href === ${JSON.stringify(url)} && document.readyState === 'complete' && document.fonts.status === 'loaded'`;
+  if (await waitFor(cdp, ready, 15_000) === null) throw new Error(`Page did not finish loading: ${url}`);
 }
 
 /** React marks the nodes it has hydrated; the island's handlers exist from then on. */
@@ -162,7 +176,11 @@ export async function runCoverGate(options: { base: string; pages: string[]; man
   const chrome = findChrome();
   if (!chrome) throw new Error('Chrome not found (set CHROME_PATH or run bootstrap-sandbox.sh tools)');
   const port = 9800 + Math.floor(Math.random() * 400);
-  const child = spawn(chrome, ['--headless=new', '--no-sandbox', '--disable-gpu', '--hide-scrollbars', '--mute-audio', '--autoplay-policy=user-gesture-required', `--remote-debugging-port=${port}`, 'about:blank'], { stdio: 'ignore' });
+  const profile = mkdtempSync(join(tmpdir(), 'invitesion-cover-gate-'));
+  const child = spawn(chrome, ['--headless=new', `--user-data-dir=${profile}`, '--no-sandbox', '--disable-gpu', '--hide-scrollbars', '--mute-audio', '--autoplay-policy=user-gesture-required', `--remote-debugging-port=${port}`, 'about:blank'], { stdio: 'ignore' });
+  const browserClosed = new Promise<void>((resolve) => child.once('close', () => resolve()));
+  // Avoid an unhandled process error if Chrome cannot launch; connect reports the missing target.
+  child.once('error', () => {});
   const rows: GateRow[] = [];
   try {
     const cdp = await connect(port);
@@ -297,6 +315,8 @@ export async function runCoverGate(options: { base: string; pages: string[]; man
     cdp.close();
   } finally {
     child.kill('SIGKILL');
+    await browserClosed;
+    rmSync(profile, { recursive: true, force: true });
   }
   return rows;
 }
