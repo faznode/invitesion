@@ -98,6 +98,9 @@ function isCustomerRoute(pathname: string) {
  */
 export default clerkMiddleware(async (getAuth, request) => {
   const { pathname } = request.nextUrl;
+  // D-040: only Clerk's session is needed for protected media; the route sets its own private, sandboxed headers and
+  // decides access itself, so no locale cookie, page CSP or redirect is added here.
+  if (pathname.startsWith('/media/protected/')) return NextResponse.next();
   const privateAdminEntry = getAdminEntryPath();
 
   // Legacy customer URLs must never surface a raw browser 404. Preserve any
@@ -205,6 +208,9 @@ export const config = {
     // establish a session for them too.
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|gif|webp|svg|ico|css|js)$).*)',
     '/(api|trpc)(.*)',
+    // D-040: a child's photo is served to its invitation's owner only, and the route's owner check needs Clerk's
+    // session here. The first pattern skips image extensions, so this prefix is matched explicitly.
+    '/media/protected/(.*)',
   ],
   runtime: 'nodejs',
 };

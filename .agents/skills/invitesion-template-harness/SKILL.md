@@ -70,6 +70,13 @@ npx tsx tools/template-harness/product-bytes.ts --out /tmp/product-bytes \
 one page per family with the same content. The shell (what every family page loads under the same URL) is budgeted
 once; a family's own bytes (its document plus anything only it loads) and each page's total are budgeted per family.
 A new family is judged on its own bytes; the total keeps the guest page inside the cold-load budget.
+Run it on two contents (s23r): the wedding (`-full`) and the long corporate programme (`-programme`, seeded with
+`--programme`; no logo or cover, so uploads do not count as family bytes). The `relative` line (bytes above the leanest
+layout) compares layouts only; it is not a budget and not competitor parity. An uploaded logo or cover has a different
+URL per invitation, so it lands in each family's own bytes: compare documents when a fixture carries host media.
+**Cover fold** (`cover-fold.ts`, s23r): per page × guest × viewport, whether the guest's name ends inside the first
+viewport with every cover image loaded (a missing image is INCOMPLETE, never PASS); `--expect-broken-logo` for pages
+whose logo is meant to fail.
 Fixture pages: `/i/review-<legacy|gapura|kartu|riang|lontar>-<full|photo|corporate|sparse|birthday|expired|dark>/<guest>`
 (legacy: full, photo, corporate); guests `budi-hartono`, `nama-panjang`, `hostile-name`, `rtl-name`, `emoji-name`, plus one
 opaque-link guest per invitation (token in the seed output); palette sweep `/i/review-<layout>-p-<paletteId>/budi-hartono`.
@@ -103,7 +110,11 @@ See `templates/_briefs/` (one brief each) and the latest `invitation-research/_h
 
 ## Emerging taste
 A principle is listed here only after it survived a written review on more than one family. Candidates and their
-evidence live in the review records (open: T3 phone rhythm; T1 promoted s18).
+evidence live in the review records (T1 promoted s18; T3 promoted s23r; open: T5 the organiser's mark as one row).
+- **One rhythm on phones; no screen-high gaps** (T3, promoted s23r). At 360 × 800 no band without content reaches half
+  the viewport, and a family keeps its gaps to its own one or two tiers (block and section). Evidence:
+  `family-review-20261104-s16.md` §14 (all five layouts, 44 pages, largest gap 217 px). Gate: `design-acceptance.ts`
+  (`t3-rhythm`), which also checks stress names, reduced motion and the icons in forced colours and print.
 - **Repeated rows share one container.** A schedule, a list of sessions or any run of same-shaped rows is one card
   divided by hairlines, with a scanning column (time) where the rows have one; separate cards are for distinct
   entities (an event, a speaker, a gift account). Evidence: s15 F1 (30 agenda cards took ≈ 3,100 px of a 6,378 px page

@@ -36,6 +36,9 @@
  * invitation (as `--logo-files`; set UPLOAD_ROOT) and adds per layout: portraits (the full wedding with both photos and
  * parents lines), portraits-kid (an aqiqah photo the host switched on), portraits-kid-off (the same photo, switch off),
  * portraits-birthday (the celebrant's photo, switch on) and portraits-tasyakuran (an adult honouree, no switch needed).
+ * `--programme` (s23r, byte census) adds per layout: programme (a two-day corporate programme: 22 agenda rows, seven
+ * speakers, two events, contact; no logo and no cover photo), the same content on every layout so `product-bytes.ts`
+ * compares layouts rather than uploads, e.g. `--programme --match '-programme$'`.
  */
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -216,6 +219,71 @@ function corporateMarkVariant(
   };
 }
 
+/**
+ * `--programme` (s23r, census fixture): a two-day corporate programme with no host media. The agenda has no day field,
+ * so the day travels in each row's time text, as a host has to type it today.
+ */
+function corporateProgramme(familyId?: FamilyId): DetailConfig {
+  const day = (n: 1 | 2, rows: [time: string, title: string, speaker?: string][]) =>
+    rows.map(([time, title, speaker]) => ({ time: `Hari ${n}, ${time} WITA`, title, ...(speaker ? { speaker } : {}) }));
+  const venue = { venueName: 'Balai Sidang Contoh', address: 'Jl. Fiktif No. 9, Makassar', mapUrl: 'https://maps.google.com/?q=-5.14,119.42' };
+  return {
+    corporateProfile: {
+      organizationName: 'PT Contoh Sinar Terang',
+      eventName: 'Rapat Kerja dan Konferensi Mitra 2026',
+      eventCategory: 'conference',
+      description: 'Dua hari rapat kerja dan konferensi mitra untuk meninjau capaian, menyepakati rencana, dan memperkuat kerja sama.\nSeluruh nama dan data dalam undangan ini fiktif.',
+      agenda: [
+        ...day(1, [
+          ['08.00', 'Registrasi dan sarapan'],
+          ['08.45', 'Pembukaan', 'Pembawa Acara Fiktif'],
+          ['09.00', 'Sambutan Direktur Utama', 'Sekar Ayu Pertiwi'],
+          ['09.30', 'Paparan kinerja tahun berjalan', 'Bagus Wicaksono'],
+          ['10.30', 'Rehat kopi'],
+          ['10.45', 'Diskusi panel: rantai pasok yang tangguh', 'Nadia Rahmawati'],
+          ['12.00', 'Makan siang'],
+          ['13.00', 'Lokakarya kelompok A: layanan pelanggan', 'Fajar Nugroho'],
+          ['13.00', 'Lokakarya kelompok B: operasional gudang', 'Intan Permatasari'],
+          ['15.00', 'Rehat kopi'],
+          ['15.15', 'Laporan lokakarya'],
+          ['16.30', 'Penutupan hari pertama'],
+        ]),
+        ...day(2, [
+          ['08.30', 'Registrasi'],
+          ['09.00', 'Pidato utama: pasar Indonesia timur', 'Galih Saputra'],
+          ['10.00', 'Sesi mitra: kisah kolaborasi', 'Wulan Anindita'],
+          ['10.45', 'Rehat kopi'],
+          ['11.00', 'Diskusi panel: transformasi digital', 'Nadia Rahmawati'],
+          ['12.00', 'Makan siang'],
+          ['13.00', 'Penandatanganan nota kesepahaman'],
+          ['14.00', 'Rencana kerja tahun depan', 'Bagus Wicaksono'],
+          ['15.00', 'Penghargaan mitra terbaik'],
+          ['15.45', 'Penutupan', 'Sekar Ayu Pertiwi'],
+        ]),
+      ],
+      speakers: [
+        { name: 'Sekar Ayu Pertiwi', role: 'Direktur Utama', org: 'PT Contoh Sinar Terang' },
+        { name: 'Bagus Wicaksono', role: 'Direktur Keuangan', org: 'PT Contoh Sinar Terang' },
+        { name: 'Nadia Rahmawati', role: 'Moderator', org: 'Asosiasi Contoh Logistik' },
+        { name: 'Fajar Nugroho', role: 'Kepala Layanan Pelanggan', org: 'PT Contoh Sinar Terang' },
+        { name: 'Intan Permatasari', role: 'Kepala Operasional', org: 'PT Contoh Sinar Terang' },
+        { name: 'Galih Saputra', role: 'Peneliti Ekonomi', org: 'Lembaga Fiktif Nasional' },
+        { name: 'Wulan Anindita', role: 'Pemilik Usaha', org: 'CV Mitra Contoh' },
+      ],
+      dressCode: 'Hari 1: batik formal. Hari 2: kemeja berkerah.',
+      contactName: 'Panitia Acara (fiktif)',
+      contactPhone: '+62 800-0000-0000',
+      contactEmail: 'panitia@example.test',
+    },
+    theme: { paletteId: 'slate', familyId, cover: { headline: 'Undangan Resmi' } },
+    events: [
+      { title: 'Hari 1: Rapat Kerja', startAt: witaAt(40, '08:00'), endAt: witaAt(40, '17:00'), ...venue },
+      { title: 'Hari 2: Konferensi Mitra', startAt: witaAt(41, '08:30'), endAt: witaAt(41, '16:00'), ...venue },
+    ],
+    guestbook: { enabled: false, moderation: false },
+  };
+}
+
 /** `--ceremony`: an aqiqah with every field the aqiqah tab offers. */
 function aqiqahFull(familyId?: FamilyId): DetailConfig {
   return {
@@ -344,6 +412,8 @@ export type ReviewOptions = {
   questions?: boolean;
   /** `--portraits` (s20): per layout `portraits`, `portraits-kid`, `portraits-kid-off`, `portraits-birthday`, `portraits-tasyakuran`. */
   portraits?: boolean;
+  /** `--programme` (s23r): per layout `programme`, the census's long corporate programme without host media. */
+  programme?: boolean;
 };
 
 export function familyReviewInvitations(options: ReviewOptions = {}): ReviewInvitation[] {
@@ -353,6 +423,7 @@ export function familyReviewInvitations(options: ReviewOptions = {}): ReviewInvi
   const withCeremony = options.ceremony ?? false;
   const withQuestions = options.questions ?? false;
   const withPortraits = options.portraits ?? false;
+  const withProgramme = options.programme ?? false;
   const withToken = (slug: string): GuestSeed[] => [...STRESS_GUESTS, { name: 'Tamu Bertoken', slug: 'tamu-bertoken', guestCount: 2, linkToken: reviewToken(slug) }];
   const make = (
     slug: string,
@@ -378,6 +449,8 @@ export function familyReviewInvitations(options: ReviewOptions = {}): ReviewInvi
           make(`review-${layout}-corp-broken`, corporateMarkVariant(familyId, 'CV Contoh Tautan Putus', 'seminar'), { ...corporateOptions, logo: 'broken' }),
         ]
       : [];
+  const programmeVariant = (layout: string, familyId?: FamilyId): ReviewInvitation[] =>
+    withProgramme ? [make(`review-${layout}-programme`, corporateProgramme(familyId), corporateOptions)] : [];
   const fullPalette: Record<FamilyId, string> = { gapura: 'ivory', kartu: 'terracotta', riang: 'ocean', lontar: 'sage' };
   const ceremonyVariants = (layout: string, familyId?: FamilyId): ReviewInvitation[] =>
     withCeremony
@@ -420,6 +493,7 @@ export function familyReviewInvitations(options: ReviewOptions = {}): ReviewInvi
   if (coverLowUrl) rows.push(make('review-legacy-photo-low', weddingFull('ivory', undefined, coverLowUrl)));
   rows.push(make('review-legacy-corporate', corporate(undefined, logoUrl), { ...corporateOptions, logo: 'square' }));
   rows.push(...markVariants('legacy'));
+  rows.push(...programmeVariant('legacy'));
   for (const familyId of FAMILY_IDS) {
     rows.push(make(`review-${familyId}-full`, weddingFull(fullPalette[familyId], familyId)));
     if (coverImageUrl) rows.push(make(`review-${familyId}-photo`, weddingFull(fullPalette[familyId], familyId, coverImageUrl)));
@@ -428,6 +502,7 @@ export function familyReviewInvitations(options: ReviewOptions = {}): ReviewInvi
     rows.push(make(`review-${familyId}-birthday`, birthday(familyId), { eventType: 'birthday' }));
     rows.push(make(`review-${familyId}-corporate`, corporate(familyId, logoUrl), { ...corporateOptions, logo: 'square' }));
     rows.push(...markVariants(familyId, familyId));
+    rows.push(...programmeVariant(familyId, familyId));
     rows.push(make(`review-${familyId}-expired`, weddingFull(fullPalette[familyId], familyId), { expired: true }));
     rows.push(make(`review-${familyId}-dark`, weddingFull('midnight', familyId)));
     rows.push(...ceremonyVariants(familyId, familyId));
@@ -546,6 +621,7 @@ async function main() {
     ceremony: process.argv.includes('--ceremony'),
     questions: process.argv.includes('--questions'),
     portraits: process.argv.includes('--portraits'),
+    programme: process.argv.includes('--programme'),
   });
   const match = argValue('--match');
   const rows = match ? all.filter((row) => new RegExp(match).test(row.slug)) : all;

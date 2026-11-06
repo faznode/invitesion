@@ -5,6 +5,8 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import type { DetailConfig } from '../lib/invitation/detail-config';
+import { guestLinkSegment } from '../lib/invitation/guest-link';
+import { guestChildPhotoPath } from '../lib/invitation/public-path';
 import { birthdayPortrait, ceremonyPortrait, childPhotoAllowed, couplePortraits, parentsLine } from '../lib/invitation/portraits';
 import { fixtureGuest, fixtureInvitation, LAYOUTS, renderGuestPage, withFamily } from './support/render-guest-page';
 
@@ -92,9 +94,13 @@ test('every layout: the couple section with framed, named, fixed-size photos; no
 
 test('every layout: an aqiqah photo the host switched on reaches personal links and the preview, never the public page', () => {
   const invitation = fixtureInvitation({ eventType: 'aqiqah' });
+  // E-047 / D-040: a personal link reaches the photo through its own route, and the storage path never reaches its page.
+  const guestRoute = guestChildPhotoPath(invitation.slug, guestLinkSegment(fixtureGuest()), 'honouree');
   for (const layout of LAYOUTS) {
     const cfg = withFamily(aqiqah, layout.familyId);
-    assert.ok(renderGuestPage({ config: cfg, invitation, guest: fixtureGuest() }).includes(`src="${BABY}"`), `${layout.label}: guest link`);
+    const personal = renderGuestPage({ config: cfg, invitation, guest: fixtureGuest() });
+    assert.ok(personal.includes(`src="${guestRoute}"`), `${layout.label}: guest link`);
+    assert.ok(!personal.includes(BABY), `${layout.label}: guest link never carries the storage path`);
     assert.ok(renderGuestPage({ config: cfg, invitation, guest: null, preview: true }).includes(`src="${BABY}"`), `${layout.label}: preview`);
     assert.ok(!renderGuestPage({ config: cfg, invitation, guest: null }).includes(BABY), `${layout.label}: public page`);
     const off = withFamily({ ...aqiqah, ceremonyProfile: { ...aqiqah.ceremonyProfile, showPhoto: undefined } }, layout.familyId);

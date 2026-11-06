@@ -6,7 +6,9 @@ import {
   CeremonyProfileBody,
   PortraitsBody,
   EventFacts,
+  CorporateLogo,
   CorporateMark,
+  CoverEyebrow,
   GuestbookBlock,
   MapLink,
   PROGRAMME_HEADINGS,
@@ -33,6 +35,7 @@ export function GapuraLayout({ props, view }: { props: GuestPageProps; view: Gue
   const { tone, formatDate, names, events, primaryEvent, renderedAt, primaryStartMs, showCountdown, gallery, organiser } = view;
   const arch = `rounded-t-[3rem] rounded-b-2xl ${tone.card} shadow-sm`;
   const photo = view.coverImageSrc;
+  const mark = view.corporateMark;
 
   return (
     <main className={`min-h-screen ${tone.bg} ${tone.ink}`} style={tone.style}>
@@ -57,12 +60,29 @@ export function GapuraLayout({ props, view }: { props: GuestPageProps; view: Gue
               />
             )}
             <div className={`flex flex-col items-center px-6 ${photo ? 'pt-8' : ''}`}>
-              <Diamond tone={tone} className="inv-rise" />
-              <CorporateMark view={view} align="center" className="mt-6" />
-              {config.theme?.cover?.headline && (
-                <p className={`inv-rise mt-6 text-xs uppercase tracking-[0.3em] ${tone.accent}`}>{config.theme.cover.headline}</p>
+              {mark ? (
+                // S22-K2 (s23r): the organiser's logo crowns the window in the diamond's place, and the category and the
+                // cover headline share one eyebrow line.
+                <>
+                  {mark.logo ? <CorporateLogo view={view} align="center" /> : <Diamond tone={tone} className="inv-rise" />}
+                  <CoverEyebrow category={mark.category} headline={config.theme?.cover?.headline} tone={tone} align="center" className="inv-rise mt-5" />
+                </>
+              ) : (
+                <>
+                  <Diamond tone={tone} className="inv-rise" />
+                  <CorporateMark view={view} align="center" className="mt-6" />
+                  {config.theme?.cover?.headline && (
+                    <p className={`inv-rise mt-6 text-xs uppercase tracking-[0.3em] ${tone.accent}`}>{config.theme.cover.headline}</p>
+                  )}
+                </>
               )}
-              <h1 className="mt-6 font-serif text-4xl leading-tight text-balance [overflow-wrap:anywhere] sm:text-5xl">
+              <h1
+                className={
+                  view.headlineKind === 'event'
+                    ? `${mark ? 'mt-4' : 'mt-6'} font-serif text-3xl leading-tight text-balance [overflow-wrap:anywhere] sm:text-4xl`
+                    : 'mt-6 font-serif text-4xl leading-tight text-balance [overflow-wrap:anywhere] sm:text-5xl'
+                }
+              >
                 {names?.length
                   ? names.filter(Boolean).map((name, index) => (
                       <Fragment key={name ?? index}>

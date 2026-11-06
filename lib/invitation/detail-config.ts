@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { FAMILY_IDS } from './families';
-import { isAbsoluteUrl, isUploadedMediaPath } from './image-url';
+import { isAbsoluteUrl, isProtectedMediaPath, isUploadedMediaPath } from './image-url';
 
 /**
  * Typed contract for the invitation detail editor.
@@ -22,15 +22,22 @@ const dateTime = z.string().datetime({ offset: true });
  * which `.url()` refused, so every save after an upload failed. This takes that path plus everything `.url()` took, and
  * reports anything else with the same issue as before.
  */
-const imageUrlField = () =>
+const imageUrlField = (options: { protectedUpload?: boolean } = {}) =>
   z
     .string()
     .max(500)
     .superRefine((value, ctx) => {
       if (isUploadedMediaPath(value) || isAbsoluteUrl(value)) return;
+      if (options.protectedUpload && isProtectedMediaPath(value)) return;
       ctx.addIssue({ code: z.ZodIssueCode.invalid_string, validation: 'url', message: 'Invalid url' });
     })
     .optional();
+
+/**
+ * D-040: the child-photo fields also take a protected upload path. The schema has no invitation, so the service checks
+ * that the path names this invitation and that the field is this event type's child photo (`media-ownership.ts`).
+ */
+const childImageUrlField = () => imageUrlField({ protectedUpload: true });
 
 const conditionalSchema = z.object({
   questionId: idText,
@@ -228,7 +235,7 @@ export const detailConfigSchema = z
         birthDate: z.string().date().optional(),
         age: z.number().int().min(1).max(120).optional(),
         parents: optionalText(300),
-        photoUrl: imageUrlField(),
+        photoUrl: childImageUrlField(),
         // D-038: the celebrant may be a child, so the photo shows only when the host switches it on (personal links only).
         showPhoto: z.boolean().optional(),
         instagram: optionalText(100),
@@ -251,7 +258,7 @@ export const detailConfigSchema = z
         birthPlace: optionalText(160),
         age: z.number().int().min(0).max(120).optional(),
         ceremonyNote: optionalText(800),
-        photoUrl: imageUrlField(),
+        photoUrl: childImageUrlField(),
         // D-038: an aqiqah or khitanan honouree is a child: the photo shows only when the host switches it on.
         showPhoto: z.boolean().optional(),
         // Aqiqah-specific

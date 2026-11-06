@@ -6,7 +6,9 @@ import {
   CeremonyProfileBody,
   PortraitsBody,
   EventFacts,
+  CorporateLogo,
   CorporateMark,
+  CoverEyebrow,
   GuestbookBlock,
   MapLink,
   PROGRAMME_HEADINGS,
@@ -35,6 +37,17 @@ export function KartuLayout({ props, view }: { props: GuestPageProps; view: Gues
   const { tone, formatDate, dateParts, names, events, primaryEvent, renderedAt, primaryStartMs, showCountdown, gallery, organiser } = view;
   const stamp = dateParts(primaryEvent?.startAt);
   const card = `rounded-2xl border ${tone.line} ${tone.card} shadow-sm`;
+  const mark = view.corporateMark;
+  const corporate = Boolean(mark);
+  const eventTitle = view.headlineKind === 'event';
+  const stampTile = stamp && (
+    <p className={`shrink-0 rounded-lg border-2 border-dashed ${tone.accentLine} px-3 py-2 text-center ${tone.accent}`}>
+      <span className="block font-serif text-3xl leading-none">{stamp.day}</span>
+      <span className="mt-1 block text-xs uppercase tracking-widest">
+        {stamp.monthShort} {stamp.year}
+      </span>
+    </p>
+  );
 
   return (
     <main className={`min-h-screen ${tone.bg} ${tone.ink}`} style={tone.style}>
@@ -56,19 +69,32 @@ export function KartuLayout({ props, view }: { props: GuestPageProps; view: Gues
                 className="mb-6 aspect-[4/3] w-full rounded-xl object-cover sm:max-h-[max(11rem,calc(100svh_-_37rem))]"
               />
             )}
-            <CorporateMark view={view} align="start" className="mb-6 [--inv-logo-bg:var(--inv-card)]" />
-            <div className="flex items-start justify-between gap-4">
-              <p className={`pt-1 text-xs uppercase tracking-[0.25em] ${tone.accent}`}>{config.theme?.cover?.headline || 'Undangan'}</p>
-              {stamp && (
-                <p className={`shrink-0 rounded-lg border-2 border-dashed ${tone.accentLine} px-3 py-2 text-center ${tone.accent}`}>
-                  <span className="block font-serif text-3xl leading-none">{stamp.day}</span>
-                  <span className="mt-1 block text-xs uppercase tracking-widest">
-                    {stamp.monthShort} {stamp.year}
-                  </span>
-                </p>
-              )}
-            </div>
-            <h1 className="mt-10 font-serif text-5xl leading-[1.05] [overflow-wrap:anywhere]">
+            {corporate ? (
+              // S22-K2 (s23r): the organiser's logo takes the eyebrow's place beside the stamp, and the category and the
+              // cover headline share one eyebrow line below, so the mark costs one row instead of three.
+              <>
+                <div className="flex items-start justify-between gap-4">
+                  {mark?.logo ? <CorporateLogo view={view} align="start" className="min-w-0 flex-1 [--inv-logo-bg:var(--inv-card)]" /> : <span aria-hidden />}
+                  {stampTile}
+                </div>
+                <CoverEyebrow category={mark?.category} headline={config.theme?.cover?.headline || 'Undangan'} tone={tone} align="start" className="mt-5" />
+              </>
+            ) : (
+              <>
+                <CorporateMark view={view} align="start" className="mb-6 [--inv-logo-bg:var(--inv-card)]" />
+                <div className="flex items-start justify-between gap-4">
+                  <p className={`pt-1 text-xs uppercase tracking-[0.25em] ${tone.accent}`}>{config.theme?.cover?.headline || 'Undangan'}</p>
+                  {stampTile}
+                </div>
+              </>
+            )}
+            <h1
+              className={
+                eventTitle
+                  ? `${corporate ? 'mt-5' : 'mt-10'} font-serif text-4xl leading-[1.1] text-balance [overflow-wrap:anywhere]`
+                  : 'mt-10 font-serif text-5xl leading-[1.05] [overflow-wrap:anywhere]'
+              }
+            >
               {names?.length
                 ? names.filter(Boolean).map((name, index) => (
                     <Fragment key={name ?? index}>

@@ -6,7 +6,9 @@ import {
   CeremonyProfileBody,
   PortraitsBody,
   EventFacts,
+  CorporateLogo,
   CorporateMark,
+  CoverEyebrow,
   GuestbookBlock,
   MapLink,
   PROGRAMME_HEADINGS,
@@ -37,6 +39,7 @@ export function LontarLayout({ props, view }: { props: GuestPageProps; view: Gue
   const start = formatTime(primaryEvent?.startAt);
   const end = formatTime(primaryEvent?.endAt);
   const photo = view.coverImageSrc;
+  const mark = view.corporateMark;
   // S17-L1: the band and the photo are independent. A saved photo sits beside the band when both exist and is framed on
   // its own otherwise, so an invitation without date, time or venue still shows it.
   const band = Boolean(date || start || primaryEvent?.venueName);
@@ -44,9 +47,25 @@ export function LontarLayout({ props, view }: { props: GuestPageProps; view: Gue
   return (
     <main className={`min-h-screen ${tone.bg} ${tone.ink}`} style={tone.style}>
       <header className="mx-auto w-full max-w-2xl px-5 pb-4 pt-12 sm:pt-20">
-        <CorporateMark view={view} align="start" className="mb-6" />
-        {config.theme?.cover?.headline && <p className={`text-xs font-semibold uppercase tracking-[0.25em] ${tone.accent}`}>{config.theme.cover.headline}</p>}
-        <h1 className="mt-4 font-serif text-4xl leading-tight text-balance [overflow-wrap:anywhere] sm:text-6xl">
+        {mark ? (
+          // S22-K2 (s23r): the logo alone, then the category and the cover headline on one eyebrow line.
+          <>
+            <CorporateLogo view={view} align="start" className="mb-4" />
+            <CoverEyebrow category={mark.category} headline={config.theme?.cover?.headline} tone={tone} align="start" />
+          </>
+        ) : (
+          <>
+            <CorporateMark view={view} align="start" className="mb-6" />
+            {config.theme?.cover?.headline && <p className={`text-xs font-semibold uppercase tracking-[0.25em] ${tone.accent}`}>{config.theme.cover.headline}</p>}
+          </>
+        )}
+        <h1
+          className={
+            view.headlineKind === 'event'
+              ? `${mark ? 'mt-3' : 'mt-4'} font-serif text-3xl leading-tight text-balance [overflow-wrap:anywhere] sm:text-5xl`
+              : 'mt-4 font-serif text-4xl leading-tight text-balance [overflow-wrap:anywhere] sm:text-6xl'
+          }
+        >
           {names?.length
             ? names.filter(Boolean).map((name, index) => (
                 <Fragment key={name ?? index}>
@@ -63,7 +82,7 @@ export function LontarLayout({ props, view }: { props: GuestPageProps; view: Gue
         )}
 
         {(band || photo) && (
-          <div className={`mt-8 grid gap-4 ${band && photo ? 'sm:grid-cols-[1fr_13rem]' : ''}`}>
+          <div className={`${mark ? 'mt-6' : 'mt-8'} grid gap-4 ${band && photo ? 'sm:grid-cols-[1fr_13rem]' : ''}`}>
             {band && (
               <div className={`relative rounded-3xl ${tone.soft} px-6 pb-6 pt-11`}>
                 <Binding tone={tone} />
@@ -92,7 +111,7 @@ export function LontarLayout({ props, view }: { props: GuestPageProps; view: Gue
         )}
 
         {guest && (
-          <div className="mt-10">
+          <div className={mark ? 'mt-8' : 'mt-10'}>
             <p className={`text-xs uppercase tracking-widest ${tone.muted}`}>Kepada Yth.</p>
             <p dir="auto" className="mt-1 font-serif text-2xl [overflow-wrap:anywhere]">
               {guest.name}

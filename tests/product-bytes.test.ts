@@ -2,7 +2,7 @@
 // budgets separate the current build from the pre-B-015 build it replaced (tools/template-harness/product-bytes.ts).
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { attributeBytes, checkProductBudgets, inlinePayloadBytes, productVerdict, type PageCensus, type Resource } from '../tools/template-harness/product-bytes';
+import { attributeBytes, checkProductBudgets, formatRelative, inlinePayloadBytes, productVerdict, relativeToLeanest, type PageCensus, type Resource } from '../tools/template-harness/product-bytes';
 import { PRODUCT_PAGE_BUDGETS } from '../tools/template-harness/policy';
 
 const resource = (url: string, type: string, decodedBytes: number, transferBytes = decodedBytes): Resource => ({ url, type, status: 200, decodedBytes, transferBytes });
@@ -89,4 +89,24 @@ test('product-bytes: the anchored budgets pass the s21 build and fail the pre-B-
     assert.ok(problems.some((problem) => problem.startsWith(`${label}: family bytes`)), `${label} family`);
     assert.ok(problems.some((problem) => problem.startsWith(`${label}: page total `)), `${label} total`);
   }
+});
+
+test('product-bytes (s23r): the relative figure compares each family with the leanest layout and never decides the verdict', () => {
+  const chunk = resource('/_next/static/chunks/app.js', 'Script', 400_000, 120_000);
+  const pages = [
+    page('legacy', [resource('/i/a', 'Document', 40_000, 12_000), chunk]),
+    page('riang', [resource('/i/c', 'Document', 50_000, 15_000), chunk]),
+    page('kartu', [resource('/i/b', 'Document', 44_000, 13_000), chunk]),
+  ];
+  const attribution = attributeBytes(pages);
+  const relative = relativeToLeanest(attribution);
+  assert.equal(relative.leanest, 'legacy');
+  assert.deepEqual(
+    relative.rows.map((row) => [row.label, row.aboveLeanestBytes, row.aboveLeanestPercent]),
+    [['legacy', 0, 0], ['riang', 10_000, 25], ['kartu', 4_000, 10]],
+  );
+  assert.match(formatRelative(relative), /not a budget\): leanest legacy; riang \+9\.8 KiB \(\+25 %\), kartu \+3\.9 KiB \(\+10 %\)$/);
+  assert.deepEqual(relativeToLeanest({ shell: attribution.shell, families: [] }), { rows: [] });
+  // A family far above the leanest still passes when it is inside the absolute budgets: only budgets decide.
+  assert.equal(productVerdict(pages, checkProductBudgets(attribution)).verdict, 'PASS');
 });

@@ -1,7 +1,7 @@
 <!-- SUMMARY (first 7 lines — greppable) -->
 # 00-README.md — Invitesion masterplan: index, reading order, status, evidence rules
 > WHAT: Entry point to the 14 masterplan chapters (00–13): what each answers, how confident it is, where its evidence lives, and whether the plan is complete.
-> STATUS: **Verified s10 (2026-11-04), completion OPEN.** Every chapter was checked against code at `7a00a6d`, the evidence index and the s10 research; the required criteria listed under "Completion status" remain blocked or partial (`../_handoff/acceptance-matrix.md` §9). v1 was session 09 (baseline `64678cf`). Implementation progress: `../_handoff/IMPLEMENTATION-LOG.md`.
+> STATUS: **Verified s10 (2026-11-04), completion OPEN.** Every chapter was checked against code at `7a00a6d`, the evidence index and the s10 research; the required criteria listed under "Completion status" remain blocked or partial (`../_handoff/acceptance-matrix.md` §9). v1 was session 09 (baseline `64678cf`). Implementation progress: `../_handoff/IMPLEMENTATION-LOG.md`. **s23r status note (2026-11-06):** the product has moved past the code these chapters describe; "Implementation since the plan" below maps the backlog to the s23r code. The chapter bodies were not rewritten and still describe `7a00a6d` unless they say otherwise. Not FINAL: the open criteria below remain open.
 > OWNER: Research agent (Architect role)
 > DEPS: every file in this folder; ../_evidence-index.md; ../_handoff/acceptance-matrix.md; ../_handoff/LATEST.md
 > GREP: masterplan, index, reading order, chapters, confidence, evidence classes, completion
@@ -12,10 +12,27 @@ The masterplan is **verified but not complete**. Open required criteria, each wi
 - **RQ-COMP-02** — no longer blocked: Sitemu (Tier A rank 10) has a v1 dossier since s12 (level C), read after the robots applicability audit replaced D-026 with D-030 (verified s13). Q-O08 keeps only a residual (Canva, undocumented legacy-name mapping).
 - **RQ-DEMO-01 BLOCKED** — strict Wave 1 (≥ 3 valid demos for each of the top-8 Indonesian competitors) is **4 / 8 unconditional** (5 / 8 if the provisional Enviory captures are admitted, D-031 / Q-O09): Indoinvite, PALEO and Satu Momen have no safely usable public demo. ADR-W1 let planning proceed with reduced confidence; it is not that evidence.
 - **RQ-COMP-04 / RQ-COMP-05 PARTIAL** — 13 of 21 Tier-B one-pagers are substantive (s12; Sonett's rendered read is still movable). Every Tier-A dossier's §10 now names its public-review source (s14): paraphrased themes for Wevitation, Indoinvite, PALEO and Partiful (the reviews each store listing shows first, not a representative sample); for the other 11 the checked sources were unreadable or absent (no store link, a client-side shell, a 403, Trustpilot restricted under D-030); forum and blog sources are not yet searched.
-- **RQ-OWN-02 PARTIAL** — our current build (`0b5eb1b`) was measured in s13 (C-INV-006…015) on a slower, variable host, so it is a separate population from the pre-P0 baseline (D-033); a same-host comparison of both builds is still needed before any own number is quoted as current.
+- **RQ-OWN-02 VERIFIED (s23r)** — `22ed99e`, `9bbd813` (= `0b5eb1b`) and the s23r tree on one host, interleaved, 6 Lighthouse runs each: the s23r page paints ≈ 0.67–0.82 s earlier and transfers ≈ 67–69 KB less than both older builds; LCP, TBT and score not established (`../04-template-benchmarks/own-builds/own-build-comparison-s23r.md`). Own-vs-competitor tables in the chapters still describe `22ed99e`.
 - **RQ-BENCH-05 PARTIAL** — only the 412×915 cold load was measured; 360×800, 390×844, reduced motion, in-app browsers, audio and INP are unresolved.
 - **RQ-MP-06 / RQ-MP-15** — no longer partial: s12 wrote acceptance, verification and rollback for the remaining 26 P1 and 26 P2 items, s13 added rollout, and the s14 table scan found every cell filled.
-- Independent Guardian review (RQ-VER-03) has not happened; its scope is in `../_handoff/review-request-s14.md`.
+- Independent Guardian review (RQ-VER-03) has not happened; its scope is in `../_handoff/review-request-s14.md`. Owner decision ADR-O09 authorizes self-review, labelled as such; it is not that review.
+
+## Implementation since the plan (s23r status note)
+Implementation proceeds alongside the open research (ADR-O08). Current code: the s23r working tree on `05235da` (typecheck 0, 296 / 296 tests). Per item: `../_handoff/IMPLEMENTATION-LOG.md`.
+| Backlog item | State at s23r | Where |
+|---|---|---|
+| B-001…B-008, B-010, B-017a, content contract | Shipped | IMPLEMENTATION-LOG (s09–s11) |
+| B-011 opaque guest links | Shipped behind `FLAG_OPAQUE_GUEST_LINKS`, **off** by default | `lib/flags.ts` |
+| B-014 render cost | Step 1 shipped; step 2 (cached shell) evaluated and not shipped; the CPU target is not met | D-039 |
+| B-015 no Clerk on guest pages | Shipped (E-042); signed-in acceptance needs real keys (EXT) | E-042 |
+| B-016 palettes | Tokens and photo bound shipped; rendered sweep has 3 INCOMPLETE pages (legacy headline over a cover) | `../_handoff/contrast-sweep-20261104-s16.md` |
+| B-012 × B-030 harness on product pages | Family byte budgets (E-044), programme fixture and relative figure (E-049), cover fold, design acceptance | E-044, E-049, family review §13–§14 |
+| B-027 RSVP | "Maybe", custom questions, an answer per event, invite-only events (flags on) | D-034–D-037 |
+| B-029 corporate and ceremonies | Programme, organiser mark, ceremony profiles; corporate covers (E-048), 7 phone cases open (S23r-P1) | E-048 |
+| B-030 design families | Four families, opt-in per invitation; the classic layout stays the default | family review |
+| Person and children's photos | Person photos (D-038); children's photos behind an access contract with a byte-verified migration (D-040); owner read with real keys EXT | E-039, E-047 |
+| B-009 cover gate with music | Not started (music is stored, not rendered) | 06-backlog |
+| RQ-OWN-02 own build vs baseline | Measured on one host (s23r): FCP 950 vs 1,624 / 1,772 ms, transfer −67 / −69 KB against `22ed99e` / `9bbd813`; LCP not established | `../04-template-benchmarks/own-builds/` |
 
 ## Reading order (verified s10)
 1. `01-executive-summary.md` — the decision in two pages, in English and Bahasa Indonesia.

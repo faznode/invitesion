@@ -7,9 +7,9 @@ import { guestAudience, visibleEvents, type EventAudience } from '@/lib/invitati
 import { eventDateParts, formatEventDate, formatEventTime } from '@/lib/invitation/event-time';
 import { invitationDisplayName, invitationHeadline } from '@/lib/invitation/headline';
 import { guestLinkSegment } from '@/lib/invitation/guest-link';
-import { isUploadedMediaPath, safeImageSrc } from '@/lib/invitation/image-url';
+import { safeImageSrc } from '@/lib/invitation/image-url';
 import { palette } from '@/lib/invitation/palettes';
-import { birthdayPortrait, ceremonyPortrait, childPhotoSlotOf, couplePortraits } from '@/lib/invitation/portraits';
+import { birthdayPortrait, ceremonyPortrait, childPhotoSlotOf, childPhotoSrcFor, couplePortraits } from '@/lib/invitation/portraits';
 import { guestChildPhotoPath } from '@/lib/invitation/public-path';
 import { programmeOf } from '@/lib/invitation/programme';
 import { answerField, askableQuestions, conditionText, isMultiChoice, readStoredAnswers, rsvpQuestionsOf } from '@/lib/invitation/rsvp-questions';
@@ -152,12 +152,17 @@ export function buildGuestView({ invitation, config, guest, media, readOnly, pre
   // D-038: person photos. Children's photos (aqiqah, khitanan, a birthday celebrant) need the host's switch and a personal
   // link or the host's preview; the couple's and a tasyakuran honouree's show once uploaded. Field by field, as below.
   const portraitAudience = { personalLink: Boolean(guest), preview };
-  // E-047 (s22): a child's uploaded photo reaches a personal-link page only as `/i/<slug>/<guest>/photo/<slot>`, which
+  // E-047 / D-040: a child's uploaded photo reaches a personal-link page only as `/i/<slug>/<guest>/photo/<slot>`, which
   // re-checks the link and the host's switch per request and is `private, no-store`; the storage path never appears in
-  // the page's markup or RSC payload. The host's own preview keeps the stored path (owner session, D-038 unchanged).
+  // the page's markup or RSC payload. The host's own preview keeps the stored path (`/media/protected/…` is served to the
+  // owner's session only). An upload of another invitation, or an avatar, is dropped (`childPhotoSrcFor`).
   const childSlot = childPhotoSlotOf(invitation.eventType);
-  const viaGuestRoute = (src: string) =>
-    guest && !preview && childSlot && isUploadedMediaPath(src) ? guestChildPhotoPath(invitation.slug, guestLinkSegment(guest), childSlot) : src;
+  const childSrc = (src: string) =>
+    childPhotoSrcFor(src, {
+      invitationId: invitation.id,
+      preview,
+      guestPhotoPath: guest && !preview && childSlot ? guestChildPhotoPath(invitation.slug, guestLinkSegment(guest), childSlot) : undefined,
+    });
   const storedPortraits =
     invitation.eventType === 'wedding'
       ? couplePortraits({
@@ -188,10 +193,15 @@ export function buildGuestView({ invitation, config, guest, media, readOnly, pre
             portraitAudience,
           )
         : null;
-  const portraits =
+  const celebrants =
     childSlot === 'celebrant' && storedPortraits
-      ? { ...storedPortraits, people: storedPortraits.people.map((person) => ({ ...person, src: viaGuestRoute(person.src) })) }
-      : storedPortraits;
+      ? storedPortraits.people.flatMap((person) => {
+          const src = childSrc(person.src);
+          return src ? [{ ...person, src }] : [];
+        })
+      : [];
+  const portraits =
+    childSlot === 'celebrant' && storedPortraits ? (celebrants.length ? { ...storedPortraits, people: celebrants } : null) : storedPortraits;
   const storedHonoureePortrait = ceremonyPortrait(
     invitation.eventType,
     {
@@ -202,8 +212,9 @@ export function buildGuestView({ invitation, config, guest, media, readOnly, pre
     },
     portraitAudience,
   );
+  const honoureeSrc = childSlot === 'honouree' && storedHonoureePortrait ? childSrc(storedHonoureePortrait.src) : undefined;
   const honoureePortrait =
-    childSlot === 'honouree' && storedHonoureePortrait ? { ...storedHonoureePortrait, src: viaGuestRoute(storedHonoureePortrait.src) } : storedHonoureePortrait;
+    childSlot === 'honouree' && storedHonoureePortrait ? (honoureeSrc ? { ...storedHonoureePortrait, src: honoureeSrc } : null) : storedHonoureePortrait;
 
   // B-029: the ceremony profile (aqiqah, khitanan, tasyakuran), render-when-filled; each type keeps only the fields its
   // editor tab offers. Passed field by field, like the programme, so the content contract sees exactly what is read.
@@ -237,7 +248,12 @@ export function buildGuestView({ invitation, config, guest, media, readOnly, pre
       ? shareOf({ enabled: config.instagramStory?.enabled, hashtag: config.instagramStory?.hashtag, filterUrl: config.instagramStory?.filterUrl })
       : null;
 
+  // S22-K2 (s23r): a corporate headline is an event title (or the organisation), longer than the names the families'
+  // display sizes were drawn for; families set it a step smaller so it does not wrap the greeting off the first screen.
+  const headlineKind: 'people' | 'event' = invitation.eventType === 'corporate' ? 'event' : 'people';
+
   return {
+    headlineKind,
     tone, formatDate, formatTime, dateParts, names, events, primaryEvent, renderedAt, primaryStartMs, showCountdown, primaryCalendarEvent, gallery,
     canRespond, canRsvp, rsvpMaybe, rsvpQuestions, rsvpEvents, rsvpDeadlineText, rsvpClosedByDeadline, rsvpShown, guestbookShown, coverImageSrc, coverText, programme,
     organiser, corporateMark, ceremonyProfile, share, portraits,

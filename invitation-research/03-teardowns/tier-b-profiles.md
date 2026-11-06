@@ -1,11 +1,11 @@
 <!-- SUMMARY (first 7 lines — greppable) -->
 # tier-b-profiles.md — one-page profiles of the 21 Tier-B competitors (shortlist §4)
 > WHAT: Positioning, pricing, product, technology, strengths, weaknesses and lessons per Tier-B vendor from public pages read on 2026-11-03, plus the vendors that could not be profiled and why.
-> STATUS: v2, session 12 (2026-11-04). **13 substantive** (7 Indonesian, 6 international), 4 thin or partial, 4 blocked. s12 changes, after the robots applicability audit (D-030): Harikita read and substantive; Eqxiu re-requested once with content negotiation and substantive; Bridestory gained two pages (still no prices); WebNikah re-read (no further pages reachable); Sonett readable but its static HTML is an empty client-rendered shell; WedMeGood answered HTTP 403 (blocked, no fallback); Canva stays restricted (legacy group of uncertain purpose). Facts: `../raw/_discovery/profile-reads-2026-11-03.jsonl`, `../raw/_discovery/profile-reads-2026-11-04.jsonl`; targets: `../raw/_discovery/profile-targets-2026-11-0{3,4}*.tsv`.
+> STATUS: v2, session 12 (2026-11-04); s23r (2026-11-06): Sonett profiled from a rendered read (`../_tools/discovery/rendered-read.py`, S-SNT-003; facts `../raw/_discovery/rendered-reads-2026-11-06-s23r.jsonl`), thin → partial (no public prices); counts unchanged. **13 substantive** (7 Indonesian, 6 international), 4 thin or partial, 4 blocked. s12 changes, after the robots applicability audit (D-030): Harikita read and substantive; Eqxiu re-requested once with content negotiation and substantive; Bridestory gained two pages (still no prices); WebNikah re-read (no further pages reachable); Sonett readable but its static HTML is an empty client-rendered shell; WedMeGood answered HTTP 403 (blocked, no fallback); Canva stays restricted (legacy group of uncertain purpose). Facts: `../raw/_discovery/profile-reads-2026-11-03.jsonl`, `../raw/_discovery/profile-reads-2026-11-04.jsonl`; targets: `../raw/_discovery/profile-targets-2026-11-0{3,4}*.tsv`.
 > OWNER: Oracle (research)
 > DEPS: ../02-competitor-discovery/{shortlist.md,competitor-longlist.csv}, ../_tools/discovery/profile-reads.py, ../_evidence-index.md (session 10), ../01-codebase-audit/feature-inventory.csv
-> GREP: tier b, profile, harikita, undangan virtual, janiva, sannubari, sangmempelai, punyaacara, wedew, zola, the knot, evite, invitee, biihappy
-> UPDATED: 2026-11-03
+> GREP: tier b, profile, harikita, undangan virtual, janiva, sannubari, sangmempelai, punyaacara, wedew, zola, the knot, evite, invitee, biihappy, sonett, rendered read
+> UPDATED: 2026-11-06
 
 **Method.** `_tools/discovery/profile-reads.py`: Android UA, plain GET, robots.txt first (RFC 9309 + D-022; AI-agent applicability D-030 since s12, D-026 before; `../02-competitor-discovery/robots-applicability-s12.md`), ≥ 3 s between requests to one origin, homepage plus at most two linked pricing / features / catalog pages, never demo, preview or customer pages, no forms, no login. A 401/403/429/503 or a challenge stops the origin with no fallback. Page text stayed private; only facts are committed. Evidence level of every profile below: **C** (public marketing and pricing pages; no guest-page measurement). Prices are IDR unless marked and were read once (permanence of discounts [UNKNOWN]).
 
@@ -29,7 +29,7 @@
 | TKN | The Knot | US | substantive | S-TKN-001, S-TKN-002 |
 | EVT | Evite | US | substantive | S-EVT-001, S-EVT-002 |
 | BHP | Biihappy | VN | substantive | S-BHP-001, S-BHP-002 |
-| SNT | Sonett | KR | thin (readable under D-030; the static homepage is a client-rendered shell with 25 characters of text) | S-SNT-001, S-SNT-002 |
+| SNT | Sonett | KR | **partial (s23r)**: rendered read of the homepage (2,065 characters; the static HTML had 25); product and positioning, no public prices | S-SNT-001…003 |
 | WMG | WedMeGood | IN | **blocked** (HTTP 403 to the first s12 request; robots no longer the reason) | S-WMG-001, S-WMG-002 |
 | GRV | Greenvelope | US | **blocked** (HTTP 403 on robots.txt and homepage) | S-GRV-001 |
 | MTD | Minted | US | **blocked** (HTTP 403) | S-MTD-001 |
@@ -39,8 +39,7 @@
 **Counts toward RQ-COMP-01 (`../_handoff/acceptance-matrix.md`):** Indonesian substantive profiles = 10 Tier-A dossiers (Sitemu v1 written s12) + 7 here = **17**; **16** without the provisional Enviory evidence (D-031; the Enviory dossier itself rests mostly on marketing reads, but it is counted out to stay conservative). International = 5 Tier-A dossiers + 6 here = **11**. Both minimums (≥ 12, ≥ 10) are met either way. Required Tier-B one-pagers: **13 / 21 substantive** (RQ-COMP-04 PARTIAL). Of the other eight:
 - 4 are blocked by access controls (WMG, GRV, MTD HTTP 403) or by a restriction of uncertain applicability (CNV).
 - 2 have nothing further to read (MMO placeholder, WNK without reachable pages).
-- 1 needs a rendered read (SNT).
-- 1 has no visible prices (BRS).
+- 2 have no visible prices (BRS; SNT, partial since its s23r rendered read).
 
 ---
 
@@ -174,8 +173,23 @@
 - **Tech:** Laravel (2026-10-29 probe). [OBSERVED longlist]
 - **Lesson:** share channels follow the local messenger (Zalo there, WhatsApp here) and gifts by national QR. **Counter:** WhatsApp-first sharing with OG cards (B-010 done, B-018).
 
-### SNT — Sonett (thin) · WMG — WedMeGood (blocked) · CNV — Canva (blocked)
-- **Sonett:** readable under D-030 (legacy names only in the Cloudflare training section). The s12 static read returned a client-rendered shell with 25 characters of visible text in 2,915 bytes (Kakao SDK, Cloudflare), so there is nothing to profile from static HTML [OBSERVED S-SNT-002]. *(s13 correction: this line said "77-character"; the committed record says 25.)* Next action: one rendered read with the capture browser. No challenge has occurred, so this is not a fallback route. Korean format lessons are covered by Barunson (`barunson/dossier.md`).
+### SNT — Sonett (sonett.kr, Korea; partial since s23r: product and positioning, no public prices)
+- **Reads:** the s12 static read returned a client-rendered shell with 25 characters of visible text in 2,915 bytes (Kakao SDK, Cloudflare) [OBSERVED S-SNT-002]. *(s13 correction: this line said "77-character"; the committed record says 25.)* **s23r rendered read** (2026-11-06 13:11Z, `_tools/discovery/rendered-read.py`): robots.txt 200 (171 lines; `anthropic-ai` / `Claude-Web` only inside the Cloudflare-managed training section, recorded and not binding under D-030), then one navigation of the homepage in the capture browser: 200, no redirect, no challenge, a rendered DOM of 38.6 KB with **2,065 characters** of visible text; 13 first-party and 4 third-party requests (Google Fonts, Cloudflare Insights, Kakao CDN). One page, no interaction. No challenge occurred at either read, so the rendered read is not a fallback route. [OBSERVED S-SNT-003]
+- **Positioning:** a Korean mobile wedding-invitation builder sold on speed: make it in minutes and share it through KakaoTalk. Weddings only on the homepage. [OBSERVED S-SNT-003]
+- **Pricing:** none on the homepage and no pricing page linked from it [UNKNOWN].
+- **Product** [CLAIMED S-SNT-003, paraphrased]:
+  - Composition instead of fixed templates: 15 main-screen styles × 12 theme colours, with the photo frame shape, a background effect (petals, snow, stars) and an opening animation chosen separately; ready-made templates as a shortcut.
+  - Three steps: pick a design; fill in names, date, venue, photos and greeting with a live preview; save to get a unique address and share by KakaoTalk or link. Edits are unlimited and apply on save.
+  - **After the wedding the page turns into an anniversary page by itself, and bank accounts and RSVP answers are hidden automatically.**
+  - **Personal links whose greeting changes with the guest's name and relationship group** (family, friends, colleagues).
+  - A vertical scroll by default, or a horizontal mode read page by page.
+  - A live gallery where guests upload their own photos on the day, beside a photo gallery (slides or grid).
+  - RSVP with headcount and meal choice in a host dashboard; a password-managed guestbook; a timeline of the day; an "interview" section for the couple; Kakao Map directions; KakaoTalk sharing with QR code and link copy; gift accounts with copy-to-transfer; Korean, English and Japanese; background music.
+  - Sections linked from the homepage: templates, events / notices, reviews, guide, contact, a board, management and the editor; support through a KakaoTalk open chat.
+- **Technology:** client-rendered (the static HTML carries no content), Cloudflare in front, Kakao JavaScript SDK, Google Fonts; framework [UNKNOWN] (no marker in the rendered DOM). [OBSERVED S-SNT-003]
+- **Lessons:** (1) **Withdraw sensitive details after the event.** Our expired state closes responses (`readOnly`, `lib/invitation/public.ts`); whether gift accounts and RSVP answers should also leave the page after the event is a product question this read raises (UU PDP minimisation). (2) **Greeting by relationship group:** Invitesion already stores a guest `category` (`lib/db/schema.ts`) that the guest page does not use. (3) Style × colour composition is the same axis as our design families × palettes (B-030 × B-016). (4) Horizontal page mode and a guest-uploaded live gallery are features we do not have. Evidence level C (marketing page; no guest-page measurement). Korean format lessons are also covered by Barunson (`barunson/dossier.md`).
+
+### WMG — WedMeGood (blocked) · CNV — Canva (blocked)
 - **WedMeGood:** readable by robots under D-030, but the first s12 request answered **HTTP 403**. The origin is stopped with no fallback. [OBSERVED S-WMG-002]
 - **Canva:** its site-written group (GPTBot, ClaudeBot, CCBot, Applebot-Extended, `anthropic-ai`, `Claude-Web`: `Disallow: /`, `Allow: /create/`) has no documented purpose, so D-030 keeps the restriction and no request was made. Training intent is likely [INFERRED from the grouping]. [OBSERVED S-CNV-002]
 

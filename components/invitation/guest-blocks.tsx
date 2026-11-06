@@ -459,23 +459,61 @@ export function CorporateMark({
   const items = align === 'center' ? 'items-center' : 'items-start';
   return (
     <div className={`flex flex-col gap-3 ${items} ${className}`}>
-      {mark.logo && (
-        <span className={`flex h-16 w-60 max-w-full ${items} ${align === 'center' ? 'justify-center' : 'justify-start'}`}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={mark.logo.src}
-            alt={mark.logo.alt}
-            width={240}
-            height={64}
-            decoding="async"
-            className={`relative h-full w-full object-contain ${align === 'center' ? 'object-center' : 'object-left'} after:absolute after:inset-0 after:bg-[var(--inv-logo-bg,var(--inv-bg))] after:content-['']`}
-          />
-        </span>
-      )}
+      <CorporateLogo view={view} align={align} />
       {mark.category && (
         <p className={labelClassName ?? `text-xs font-semibold uppercase tracking-[0.2em] ${tone.muted}`}>{mark.category}</p>
       )}
     </div>
+  );
+}
+
+/**
+ * S22-K2 (s23r): the organiser's logo alone, in the same 240 × 64 frame (M1 / M2), so a family can place it in its own
+ * composition (Kartu beside the date stamp) and set the category in the cover's eyebrow instead of a row of its own.
+ */
+export function CorporateLogo({ view, align, className = '' }: { view: GuestView; align: 'center' | 'start'; className?: string }) {
+  const logo = view.corporateMark?.logo;
+  if (!logo) return null;
+  const items = align === 'center' ? 'items-center' : 'items-start';
+  return (
+    <span className={`flex h-16 w-60 max-w-full ${items} ${align === 'center' ? 'justify-center' : 'justify-start'}${className ? ` ${className}` : ''}`}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={logo.src}
+        alt={logo.alt}
+        width={240}
+        height={64}
+        decoding="async"
+        className={`relative h-full w-full object-contain ${align === 'center' ? 'object-center' : 'object-left'} after:absolute after:inset-0 after:bg-[var(--inv-logo-bg,var(--inv-bg))] after:content-['']`}
+      />
+    </span>
+  );
+}
+
+/**
+ * S22-K2 (s23r): the cover's classification labels (a corporate event's category, then the cover headline such as
+ * "Undangan Resmi") on one line that wraps label by label. Told apart by colour and a gap, not a separator glyph, so a
+ * wrap never leaves a dot alone at the start or end of a line, centred or start-aligned.
+ */
+export function CoverEyebrow({
+  category,
+  headline,
+  tone,
+  align,
+  className = '',
+}: {
+  category?: string;
+  headline?: string;
+  tone: GuestView['tone'];
+  align: 'center' | 'start';
+  className?: string;
+}) {
+  if (!category && !headline) return null;
+  return (
+    <p className={`flex flex-wrap gap-x-4 gap-y-1 text-xs font-semibold uppercase tracking-[0.2em] ${align === 'center' ? 'justify-center text-center' : 'justify-start'} ${className}`}>
+      {category && <span className={tone.muted}>{category}</span>}
+      {headline && <span className={tone.accent}>{headline}</span>}
+    </p>
   );
 }
 

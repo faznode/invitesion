@@ -29,6 +29,9 @@ test('B-029: a logo renders from an upload path or an http(s) URL, nothing else'
   }
 });
 
+/** Where the category label's element starts: its own paragraph (legacy) or a span in the cover eyebrow (families). */
+const categoryAt = (page: string, text: string) => page.search(new RegExp(`>${text}</(?:p|span)>`));
+
 test('B-029: the guest page names a category with the words the editor shows the host; "other" names nothing', () => {
   const editor = readFileSync(join(process.cwd(), 'app/(customer)/dashboard/invitations/[id]/edit/editor.tsx'), 'utf8');
   const list = /const cats:\[string,string\]\[\]=(\[[^;]*\]);/.exec(editor);
@@ -59,7 +62,9 @@ test('B-029: every layout shows the logo in its fixed frame and the category abo
     assert.equal(tag[1], LOGO, label);
     assert.equal(tag[2], 'Logo PT Contoh Nusantara', `${label}: alt names the organiser`);
     const headline = page.indexOf('<h1');
-    assert.ok(page.indexOf(LOGO) < headline && page.indexOf('>Seminar</p>') > 0 && page.indexOf('>Seminar</p>') < headline, `${label}: logo and category precede the headline`);
+    // S22-K2 (s23r): the four families set the category in the cover's eyebrow (a span); legacy keeps its own paragraph.
+    const category = categoryAt(page, 'Seminar');
+    assert.ok(page.indexOf(LOGO) < headline && category > 0 && category < headline, `${label}: logo and category precede the headline`);
 
     const uploaded = logoTag(renderGuestPage({ config: withFamily(profile({ logoUrl: UPLOAD }), familyId), invitation: corporate }));
     assert.equal(uploaded?.[1], UPLOAD, `${label}: an uploaded logo renders from its /media path`);
@@ -69,12 +74,12 @@ test('B-029: every layout shows the logo in its fixed frame and the category abo
 test('B-029: no mark for other event types, hostile logo URLs or the "other" category', () => {
   for (const { label, familyId } of LAYOUTS) {
     const wedding = renderGuestPage({ config: withFamily(profile({ logoUrl: LOGO, eventCategory: 'seminar' }), familyId), guest: fixtureGuest() });
-    assert.equal(wedding.includes(LOGO) || wedding.includes('>Seminar</p>'), false, `${label}: a profile left from another event type stays off the page`);
+    assert.equal(wedding.includes(LOGO) || categoryAt(wedding, 'Seminar') >= 0, false, `${label}: a profile left from another event type stays off the page`);
 
     const hostile = renderGuestPage({ config: withFamily(profile({ logoUrl: 'javascript:alert(1)', eventCategory: 'webinar' }), familyId), invitation: corporate });
     assert.equal(hostile.includes('javascript:'), false, `${label}: the hostile URL never reaches the markup`);
     assert.equal(logoTag(hostile), null, `${label}: no logo image`);
-    assert.ok(hostile.includes('>Webinar</p>'), `${label}: the category still shows`);
+    assert.ok(categoryAt(hostile, 'Webinar') > 0, `${label}: the category still shows`);
 
     const other = renderGuestPage({ config: withFamily(profile({ eventCategory: 'other' }), familyId), invitation: corporate });
     assert.equal(other.includes('Lainnya') || logoTag(other) !== null, false, `${label}: nothing for "other" without a logo`);
@@ -85,7 +90,7 @@ test('B-029: over a cover photo, legacy puts the category on the page-colour chi
   const withPhoto: DetailConfig = { ...profile({ eventCategory: 'seminar' }), theme: { cover: { imageUrl: 'https://cdn.contoh.test/cover.jpg' } } };
   for (const familyId of [undefined, 'gapura'] as const) {
     const page = renderGuestPage({ config: withFamily(withPhoto, familyId), invitation: corporate });
-    const label = /<p class="([^"]*)">Seminar<\/p>/.exec(page);
+    const label = /<(?:p|span) class="([^"]*)">Seminar<\/(?:p|span)>/.exec(page);
     assert.ok(label, `${familyId ?? 'legacy'}: category shown`);
     const chip = /\bw-fit\b/.test(label[1]) && /\brounded-2xl\b/.test(label[1]);
     // Gapura no longer sets text on the photo (s17 revision, S16-X1), so its label needs no chip.

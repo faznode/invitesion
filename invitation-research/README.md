@@ -22,6 +22,8 @@ Filing rules: documents go in a phase folder, scripts in `_tools/<group>/`, mach
 | Step | Tool | Reads | Writes |
 |---|---|---|---|
 | Visitor reads (robots first, paced) | `_tools/discovery/probe-homepages.py`, `discover-demos.mjs`, `profile-reads.py` | public pages | `raw/_discovery/`, `raw/<competitor>/discovery-*.json` |
+| Rendered read (one client-rendered page, s23r) | `_tools/discovery/rendered-read.py` (robots and stop rules from `profile-reads.py`) + `rendered-read.mjs` (one navigation in the capture browser) | one public page | `raw/_discovery/rendered-reads-*.jsonl` (facts only; DOM and text private) |
+| Own builds on one host (RQ-OWN-02, s23r) | `_tools/capture/own-build-bench.mjs` (`lighthouseArgs` of `capture-profile.mjs`; rotated rounds; `--merge`) | local builds of the own guest page | `04-template-benchmarks/own-builds/` (no capture rows) |
 | Capture | `_tools/capture/capture.mjs` via `run-batch.sh` (robots gate `robots.mjs`) | a queue in `04-template-benchmarks/queues/` | `raw/<competitor>/C-*.json`, `raw/_captures.csv` |
 | Profile check (before v2 captures) | `_tools/capture/verify-profiles.mjs` | a local 127.0.0.1 probe page | `raw/_setup/profile-verification-*.json` |
 | Summary + eligibility | `_tools/capture/summarize-captures.py`, `eligibility.py` (rules 1–8: exclusions, provisional evidence, measurement populations = profile + own build) | raw captures, `04-template-benchmarks/{benchmark-exclusions,benchmark-provisional}.csv` | `04-template-benchmarks/captures-summary.csv` |

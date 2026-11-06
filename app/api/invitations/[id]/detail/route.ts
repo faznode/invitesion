@@ -1,7 +1,7 @@
 import { getUser } from '@/lib/db/queries';
 import { apiError, parseId, validationError } from '@/lib/api/respond';
 import { detailConfigSchema } from '@/lib/invitation/detail-config';
-import { getDetailConfig, updateDetailConfig, OwnershipError } from '@/lib/invitation/service';
+import { getDetailConfig, updateDetailConfig, MediaReferenceError, OwnershipError } from '@/lib/invitation/service';
 
 export const dynamic = 'force-dynamic';
 
@@ -47,6 +47,8 @@ export async function PATCH(req: Request, { params }: Ctx) {
     return Response.json({ data: config });
   } catch (err) {
     if (err instanceof OwnershipError) return apiError(404, 'NOT_FOUND', 'Invitation not found');
+    // D-040: field paths only, never the stored values.
+    if (err instanceof MediaReferenceError) return apiError(400, 'INVALID_MEDIA', `Image not allowed here: ${err.issues.map((issue) => issue.path).join(', ')}`);
     throw err;
   }
 }

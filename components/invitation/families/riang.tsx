@@ -6,7 +6,9 @@ import {
   CeremonyProfileBody,
   PortraitsBody,
   EventFacts,
+  CorporateLogo,
   CorporateMark,
+  CoverEyebrow,
   GuestbookBlock,
   MapLink,
   PROGRAMME_HEADINGS,
@@ -261,6 +263,7 @@ export function RiangLayout({ props, view }: { props: GuestPageProps; view: Gues
     });
   }
 
+  const mark = view.corporateMark;
   return (
     <main className={`min-h-screen ${tone.bg} ${tone.ink}`} style={tone.style}>
       <header className={`overflow-hidden ${tone.soft} px-5 pb-14 pt-6 text-center`}>
@@ -269,10 +272,26 @@ export function RiangLayout({ props, view }: { props: GuestPageProps; view: Gues
           // eslint-disable-next-line @next/next/no-img-element
           <img src={view.coverImageSrc} alt="" aria-hidden className={`mx-auto mt-10 aspect-square w-36 rounded-full border-4 ${tone.line} object-cover`} />
         )}
-          {/* The cover is drawn on the soft tone, so a lost logo file is covered in that colour (s20 acceptance, M2). */}
-          <CorporateMark view={view} align="center" className="mt-10 [--inv-logo-bg:var(--inv-soft)]" />
-        <p className={`inv-rise mt-10 text-sm font-semibold uppercase tracking-[0.2em] ${tone.accent}`}>{config.theme?.cover?.headline || 'Kamu diundang'}</p>
-        <h1 className="mx-auto mt-4 max-w-2xl font-serif text-5xl leading-none text-balance [overflow-wrap:anywhere] sm:text-7xl">
+        {mark ? (
+          // S22-K2 (s23r): the logo alone, then the category and the cover headline on one eyebrow line.
+          <>
+            <CorporateLogo view={view} align="center" className="mx-auto mt-6 [--inv-logo-bg:var(--inv-soft)]" />
+            <CoverEyebrow category={mark.category} headline={config.theme?.cover?.headline || 'Kamu diundang'} tone={tone} align="center" className="inv-rise mt-5" />
+          </>
+        ) : (
+          <>
+            {/* The cover is drawn on the soft tone, so a lost logo file is covered in that colour (s20 acceptance, M2). */}
+            <CorporateMark view={view} align="center" className="mt-10 [--inv-logo-bg:var(--inv-soft)]" />
+            <p className={`inv-rise mt-10 text-sm font-semibold uppercase tracking-[0.2em] ${tone.accent}`}>{config.theme?.cover?.headline || 'Kamu diundang'}</p>
+          </>
+        )}
+        <h1
+          className={
+            view.headlineKind === 'event'
+              ? `mx-auto ${mark ? 'mt-3' : 'mt-4'} max-w-2xl font-serif text-4xl leading-tight text-balance [overflow-wrap:anywhere] sm:text-5xl`
+              : 'mx-auto mt-4 max-w-2xl font-serif text-5xl leading-none text-balance [overflow-wrap:anywhere] sm:text-7xl'
+          }
+        >
           {names?.length
             ? names.filter(Boolean).map((name, index) => (
                 <Fragment key={name ?? index}>
@@ -288,7 +307,7 @@ export function RiangLayout({ props, view }: { props: GuestPageProps; view: Gues
           </p>
         )}
         {tile && (
-          <div className="inv-rise mt-10 flex flex-wrap items-center justify-center gap-4">
+          <div className={`inv-rise ${mark ? 'mt-8' : 'mt-10'} flex flex-wrap items-center justify-center gap-4`}>
             <p className={`${block} px-6 py-4`}>
               <span className={`block text-xs uppercase tracking-widest ${tone.muted}`}>{tile.weekday}</span>
               <span className={`block font-serif text-6xl leading-none ${tone.accent}`}>{tile.day}</span>
@@ -305,7 +324,7 @@ export function RiangLayout({ props, view }: { props: GuestPageProps; view: Gues
           </div>
         )}
         {guest && (
-          <p className={`inv-rise mx-auto mt-10 inline-flex max-w-full flex-wrap items-center justify-center gap-x-2 ${chip} py-3 text-sm`}>
+          <p className={`inv-rise mx-auto ${mark ? 'mt-6' : 'mt-10'} inline-flex max-w-full flex-wrap items-center justify-center gap-x-2 ${chip} py-3 text-sm`}>
             <span className={tone.muted}>Untuk</span>
             <bdi className="font-semibold [overflow-wrap:anywhere]">{guest.name}</bdi>
           </p>

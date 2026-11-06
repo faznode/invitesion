@@ -6,6 +6,9 @@ import { invitations, invitationVersions, mediaAssets } from '@/lib/db/schema';
 import type { MediaAsset } from '@/lib/db/schema';
 import { normalizeStoredConfig, prepareConfigWrite } from './content-read';
 import type { DetailConfig } from './detail-config';
+import { MediaReferenceError, mediaReferenceIssues } from './media-ownership';
+
+export { MediaReferenceError } from './media-ownership';
 
 export class OwnershipError extends Error {
   constructor(message = 'Invitation not found') {
@@ -46,6 +49,9 @@ export async function updateDetailConfig(
   // S18-Q4 / D-035 (a stored condition naming a deleted question cannot block saving another section; a save of the form
   // itself is checked strictly) and D-036 (events keep their ids; new ones get fresh ids): `prepareConfigWrite`.
   const validated: DetailConfig = prepareConfigWrite(stored, patch);
+  // D-040: a protected path only in this type's child-photo field, and a child photo only from this invitation.
+  const mediaIssues = mediaReferenceIssues(validated, { invitationId, eventType: inv.eventType, touchedSections: Object.keys(patch) });
+  if (mediaIssues.length) throw new MediaReferenceError(mediaIssues);
 
   await db.transaction(async (tx) => {
     await tx

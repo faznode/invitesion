@@ -1,4 +1,4 @@
-import { isUploadedMediaPath, safeImageSrc } from './image-url';
+import { isProtectedMediaPath, isUploadedMediaPath, mediaPathInvitationId, safeChildPhotoSrc, safeImageSrc } from './image-url';
 
 /**
  * s20 (D-038): person photos on the guest page, the last stored-only ceremony field and the couple's and celebrant's photos.
@@ -75,7 +75,7 @@ export function birthdayPortrait(
   input: { fullName?: string; nickName?: string; photoUrl?: string; showPhoto?: boolean },
   audience: PortraitAudience,
 ): Portraits {
-  const src = safeImageSrc(input.photoUrl);
+  const src = safeChildPhotoSrc(input.photoUrl);
   if (!src) return null;
   if (!childPhotoAllowed(input.showPhoto, audience)) return null;
   const name = clean(input.fullName) ?? clean(input.nickName);
@@ -88,9 +88,11 @@ export function ceremonyPortrait(
   input: { honoureeName?: string; nickName?: string; photoUrl?: string; showPhoto?: boolean },
   audience: PortraitAudience,
 ): Portrait | null {
-  const src = safeImageSrc(input.photoUrl);
+  const child = eventType === 'aqiqah' || eventType === 'khitanan';
+  // A protected path in a tasyakuran (an adult's, public) renders nothing: protected uploads exist for children only.
+  const src = child ? safeChildPhotoSrc(input.photoUrl) : safeImageSrc(input.photoUrl);
   if (!src) return null;
-  if (eventType === 'aqiqah' || eventType === 'khitanan') {
+  if (child) {
     if (!childPhotoAllowed(input.showPhoto, audience)) return null;
   } else if (eventType !== 'tasyakuran') {
     return null;
@@ -113,15 +115,22 @@ export function childPhotoSlotOf(eventType: string): ChildPhotoSlot | null {
   return null;
 }
 
+/** An upload of this invitation's own: public (`/media/<id>/…`, before D-040) or protected (`/media/protected/<id>/…`). */
+export function isOwnInvitationUpload(src: string, invitationId: number): boolean {
+  return (isUploadedMediaPath(src) || isProtectedMediaPath(src)) && mediaPathInvitationId(src) === invitationId;
+}
+
 /**
  * The uploaded child photo a personal link may fetch for `slot`: the host's switch is on, the invitation type matches the
- * slot and the stored value is one of our uploads (`/media/<invitation>/<24 hex>.<ext>`). An absolute URL the host typed
- * is hosted elsewhere and never proxied, so it gets nothing here.
+ * slot and the stored value is an upload of this same invitation (D-040: a path naming another invitation or a user's
+ * avatar is refused, whatever the schema accepted). An absolute URL the host typed is hosted elsewhere and never
+ * proxied, so it gets nothing here.
  */
 export function childPhotoUpload(
   eventType: string,
   people: { birthdayPerson?: { photoUrl?: string; showPhoto?: boolean }; ceremonyProfile?: { photoUrl?: string; showPhoto?: boolean } },
   slot: ChildPhotoSlot,
+  invitationId: number,
 ): string | undefined {
   if (childPhotoSlotOf(eventType) !== slot) return undefined;
   const audience = { personalLink: true, preview: false };
@@ -129,5 +138,21 @@ export function childPhotoUpload(
     slot === 'celebrant'
       ? birthdayPortrait({ photoUrl: people.birthdayPerson?.photoUrl, showPhoto: people.birthdayPerson?.showPhoto }, audience)?.people[0]?.src
       : ceremonyPortrait(eventType, { photoUrl: people.ceremonyProfile?.photoUrl, showPhoto: people.ceremonyProfile?.showPhoto }, audience)?.src;
-  return src && isUploadedMediaPath(src) ? src : undefined;
+  return src && isOwnInvitationUpload(src, invitationId) ? src : undefined;
+}
+
+/**
+ * D-040: the `src` a page may carry for a child's photo it is allowed to show (`childPhotoAllowed` already passed).
+ * - An absolute URL the host typed is shown as typed: it is hosted elsewhere, so this origin neither controls nor proxies it.
+ * - An upload of another invitation, or an avatar, is dropped.
+ * - The host's preview keeps the stored path (the owner's session reads `/media/protected/…`).
+ * - A personal link gets its own photo route, never the storage path; without one (`guestPhotoPath` undefined) nothing.
+ */
+export function childPhotoSrcFor(
+  src: string,
+  context: { invitationId: number; preview: boolean; guestPhotoPath?: string },
+): string | undefined {
+  if (!isUploadedMediaPath(src) && !isProtectedMediaPath(src)) return src;
+  if (!isOwnInvitationUpload(src, context.invitationId)) return undefined;
+  return context.preview ? src : context.guestPhotoPath;
 }

@@ -137,6 +137,17 @@ export function invitationMediaKey(invitationId: number, ext: string) {
   return `${invitationId}/${randomName(ext)}`;
 }
 
+/**
+ * D-040: a child's photo (birthday celebrant, aqiqah / khitanan honouree). `/media` serves this prefix to the
+ * invitation's owner only (`lib/storage/serve-media.ts`); guests get it through their personal link's photo route.
+ * With the S3 driver the bucket must not grant public reads (every read is proxied through this origin anyway).
+ */
+export function protectedInvitationMediaKey(invitationId: number, ext: string) {
+  return `${PROTECTED_MEDIA_PREFIX}${invitationId}/${randomName(ext)}`;
+}
+
+export const PROTECTED_MEDIA_PREFIX = 'protected/';
+
 /** Public URL for a stored key, served by `app/media/[...path]`. */
 export function mediaUrl(key: string) {
   return `/media/${key}`;

@@ -116,6 +116,30 @@ export function productVerdict(pages: PageCensus[], problems: string[]): { verdi
   return problems.length ? { verdict: 'FAIL', reasons: problems } : { verdict: 'PASS', reasons: [] };
 }
 
+export type RelativeRow = { label: string; familyBytes: number; aboveLeanestBytes: number; aboveLeanestPercent: number };
+
+/**
+ * s23r: each family's bytes above the leanest layout of the same run on the same content. A comparison between layouts,
+ * kept apart from the budgets on purpose: it never changes the verdict, and it is not competitor-parity evidence.
+ */
+export function relativeToLeanest(attribution: Attribution): { leanest?: string; rows: RelativeRow[] } {
+  if (!attribution.families.length) return { rows: [] };
+  const leanest = attribution.families.reduce((min, family) => (family.familyBytes < min.familyBytes ? family : min));
+  return {
+    leanest: leanest.label,
+    rows: attribution.families.map((family) => {
+      const above = family.familyBytes - leanest.familyBytes;
+      return { label: family.label, familyBytes: family.familyBytes, aboveLeanestBytes: above, aboveLeanestPercent: leanest.familyBytes ? Math.round((above / leanest.familyBytes) * 1000) / 10 : 0 };
+    }),
+  };
+}
+
+export function formatRelative(relative: ReturnType<typeof relativeToLeanest>): string {
+  if (!relative.leanest) return 'relative: no pages';
+  const others = relative.rows.filter((row) => row.label !== relative.leanest).map((row) => `${row.label} +${kib(row.aboveLeanestBytes)} KiB (+${row.aboveLeanestPercent} %)`);
+  return `relative (a comparison between layouts, not a budget): leanest ${relative.leanest}; ${others.join(', ')}`;
+}
+
 /** UTF-8 bytes of the inline RSC payload scripts in a Next.js document. */
 export function inlinePayloadBytes(html: string): number {
   let bytes = 0;
@@ -277,8 +301,10 @@ async function main() {
     const attribution = attributeBytes(pages);
     const problems = checkProductBudgets(attribution);
     const { verdict, reasons } = productVerdict(pages, problems);
-    writeFileSync(join(out, 'product-bytes.json'), `${JSON.stringify({ tool: 'product-bytes', generatedAt: new Date().toISOString(), budgets: PRODUCT_PAGE_BUDGETS, verdict, reasons, attribution, pages }, null, 2)}\n`);
+    const relative = relativeToLeanest(attribution);
+    writeFileSync(join(out, 'product-bytes.json'), `${JSON.stringify({ tool: 'product-bytes', generatedAt: new Date().toISOString(), budgets: PRODUCT_PAGE_BUDGETS, verdict, reasons, attribution, relative, pages }, null, 2)}\n`);
     for (const line of formatAttribution(attribution)) console.log(line);
+    console.log(formatRelative(relative));
     for (const page of pages) if (page.excluded.length) console.log(`${page.label.padEnd(8)} not counted: ${page.excluded.map((resource) => `${resource.type} ${kib(resource.decodedBytes)} KiB`).join(', ')}`);
     console.log(`budgets: shell ≤ ${PRODUCT_PAGE_BUDGETS.shellKiB} KiB, family ≤ ${PRODUCT_PAGE_BUDGETS.familyKiB} KiB, page total ≤ ${PRODUCT_PAGE_BUDGETS.totalKiB} KiB decoded and ≤ ${PRODUCT_PAGE_BUDGETS.totalTransferKiB} KiB as served`);
     console.log(`overall: ${verdict}${reasons.length ? ` (${reasons.join('; ')})` : ''}`);

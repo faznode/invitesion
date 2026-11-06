@@ -1,7 +1,7 @@
 import { getUser } from '@/lib/db/queries';
 import { apiError } from '@/lib/api/respond';
 import { requireOwnedInvitation, OwnershipError } from '@/lib/invitation/service';
-import { invitationMediaKey, saveImage } from '@/lib/storage';
+import { invitationMediaKey, protectedInvitationMediaKey, saveImage } from '@/lib/storage';
 
 export const dynamic = 'force-dynamic';
 // Node runtime: the local driver writes to the filesystem, which Edge has not.
@@ -38,9 +38,14 @@ export async function POST(req: Request, { params }: Ctx) {
   if (!(file instanceof File)) return apiError(400, 'NO_FILE', 'Field "file" is required');
   if (file.size > MAX_BYTES) return apiError(413, 'FILE_TOO_LARGE', 'Max file size is 5MB');
 
+  // D-040: a child's photo is stored under `protected/`, which `/media` serves to this invitation's owner only.
+  const purpose = form.get('purpose');
+  if (purpose !== null && purpose !== 'child-photo') return apiError(400, 'BAD_REQUEST', 'Unknown upload purpose');
+  const keyFor = purpose === 'child-photo' ? protectedInvitationMediaKey : invitationMediaKey;
+
   // Type allowlisting, size re-check and magic-byte sniffing all live in
   // `saveImage`, so every upload path applies the same rules.
-  const url = await saveImage((ext) => invitationMediaKey(id, ext), file, MAX_BYTES);
+  const url = await saveImage((ext) => keyFor(id, ext), file, MAX_BYTES);
   if (!url) {
     return apiError(415, 'UNSUPPORTED_TYPE', 'Only PNG, JPG, WEBP, or GIF images up to 5MB are allowed');
   }
