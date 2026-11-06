@@ -24,11 +24,10 @@
  * `--skip-media` drops forced-colors and print (guest-independent) for stress-name runs. Writes design-acceptance.json;
  * exit 0 all PASS (or N/A), 1 any FAIL, 3 any INCOMPLETE without FAIL. Lab only: layout and rendering, not speed.
  */
-import { spawn } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { inflateSync } from 'node:zlib';
-import { findChrome } from './browser';
+import { findChrome, launchDevtoolsChrome } from './browser';
 
 export type Verdict = 'PASS' | 'FAIL' | 'INCOMPLETE' | 'N/A';
 export type Gap = { top: number; height: number };
@@ -377,8 +376,7 @@ async function main() {
   const chrome = findChrome();
   if (!chrome) throw new Error('Chrome not found (set CHROME_PATH or run bootstrap-sandbox.sh tools)');
   mkdirSync(out, { recursive: true });
-  const port = 9400 + Math.floor(Math.random() * 400);
-  const child = spawn(chrome, ['--headless=new', '--no-sandbox', '--disable-gpu', '--hide-scrollbars', `--remote-debugging-port=${port}`, 'about:blank'], { stdio: 'ignore' });
+  const { port, close } = await launchDevtoolsChrome(chrome, ['--hide-scrollbars']);
   const results: PageResult[] = [];
   try {
     const cdp = await connect(port);
@@ -394,7 +392,7 @@ async function main() {
     for (const target of targets) results.push(await acceptPage(cdp, target.label, target.url, args.includes('--skip-media'), dialogs));
     cdp.close();
   } finally {
-    child.kill('SIGKILL');
+    await close();
   }
   writeFileSync(join(out, 'design-acceptance.json'), `${JSON.stringify({ tool: 'design-acceptance', generatedAt: new Date().toISOString(), results }, null, 2)}\n`);
   const all = results.flatMap((result) => result.checks.map((check) => ({ ...check, label: result.label })));

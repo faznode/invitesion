@@ -11,10 +11,9 @@
  * PASS: a cover that failed to load makes any page fit), and horizontal overflow. PASS = images loaded, name bottom ≤
  * viewport height, no overflow. Writes `cover-fold.json`; exit 0 all PASS, 1 any FAIL, 3 any INCOMPLETE without FAIL.
  */
-import { spawn } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { findChrome } from './browser';
+import { findChrome, launchDevtoolsChrome } from './browser';
 
 export type FoldRow = {
   page: string; guest: string; viewport: string; verdict: 'PASS' | 'FAIL' | 'INCOMPLETE';
@@ -82,8 +81,7 @@ const MEASURE = (name: string) => `(() => {
 export async function measureFold(options: { base: string; pages: string[]; guests: string[]; viewports: string[]; expectBrokenLogo?: string[] }): Promise<FoldRow[]> {
   const chrome = findChrome();
   if (!chrome) throw new Error('Chrome not found (set CHROME_PATH or run bootstrap-sandbox.sh tools)');
-  const port = 9300 + Math.floor(Math.random() * 500);
-  const child = spawn(chrome, ['--headless=new', '--no-sandbox', '--disable-gpu', '--hide-scrollbars', `--remote-debugging-port=${port}`, 'about:blank'], { stdio: 'ignore' });
+  const { port, close } = await launchDevtoolsChrome(chrome, ['--hide-scrollbars']);
   const rows: FoldRow[] = [];
   try {
     const cdp = await connect(port);
@@ -107,7 +105,7 @@ export async function measureFold(options: { base: string; pages: string[]; gues
     }
     cdp.close();
   } finally {
-    child.kill('SIGKILL');
+    await close();
   }
   return rows;
 }

@@ -28,10 +28,9 @@
  * are recorded beside them. Exit 0 PASS, 1 FAIL (a budget exceeded), 3 INCOMPLETE (fewer than two pages, a page that
  * did not answer 200 or did not load). Lab only: it measures bytes, not speed.
  */
-import { spawn } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { findChrome } from './browser';
+import { findChrome, launchDevtoolsChrome } from './browser';
 import { FAMILY_BUDGET_BASIS, PRODUCT_PAGE_BUDGETS, type FamilyBudgetBasis } from './policy';
 
 export type Resource = { url: string; type: string; status: number; transferBytes: number; decodedBytes: number };
@@ -354,8 +353,7 @@ async function main() {
   const chrome = findChrome();
   if (!chrome) throw new Error('Chrome not found (set CHROME_PATH or run bootstrap-sandbox.sh tools)');
   mkdirSync(out, { recursive: true });
-  const port = 9334;
-  const child = spawn(chrome, ['--headless=new', '--no-sandbox', '--disable-gpu', `--remote-debugging-port=${port}`, 'about:blank'], { stdio: 'ignore' });
+  const { port, close } = await launchDevtoolsChrome(chrome);
   try {
     const cdp = await connect(await debuggerUrl(port));
     const pages: PageCensus[] = [];
@@ -380,7 +378,7 @@ async function main() {
     console.log(`overall: ${verdict}${reasons.length ? ` (${reasons.join('; ')})` : ''}`);
     process.exitCode = verdict === 'PASS' ? 0 : verdict === 'FAIL' ? 1 : 3;
   } finally {
-    child.kill('SIGKILL');
+    await close();
   }
 }
 

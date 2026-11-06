@@ -20,11 +20,9 @@
  * Per --manual page (`autoplay: false`): no gate, the control offered unpressed. Per --plain page: no gate, audio or control.
  * Writes cover-gate.json and a 360 × 800 screenshot of each gate; exit 0 when every check passes, 1 otherwise.
  */
-import { spawn } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { findChrome } from './browser';
+import { findChrome, launchDevtoolsChrome } from './browser';
 
 export type GateCheck = { name: string; pass: boolean; detail?: string };
 export type GateRow = { page: string; kind: 'music' | 'manual' | 'plain'; verdict: 'PASS' | 'FAIL'; checks: GateCheck[] };
@@ -175,12 +173,7 @@ type State = { gateShown: boolean; playing: boolean; pressed: string | null; ine
 export async function runCoverGate(options: { base: string; pages: string[]; manual: string[]; plain: string[]; guest: string; out: string }): Promise<GateRow[]> {
   const chrome = findChrome();
   if (!chrome) throw new Error('Chrome not found (set CHROME_PATH or run bootstrap-sandbox.sh tools)');
-  const port = 9800 + Math.floor(Math.random() * 400);
-  const profile = mkdtempSync(join(tmpdir(), 'invitesion-cover-gate-'));
-  const child = spawn(chrome, ['--headless=new', `--user-data-dir=${profile}`, '--no-sandbox', '--disable-gpu', '--hide-scrollbars', '--mute-audio', '--autoplay-policy=user-gesture-required', `--remote-debugging-port=${port}`, 'about:blank'], { stdio: 'ignore' });
-  const browserClosed = new Promise<void>((resolve) => child.once('close', () => resolve()));
-  // Avoid an unhandled process error if Chrome cannot launch; connect reports the missing target.
-  child.once('error', () => {});
+  const { port, close } = await launchDevtoolsChrome(chrome, ['--hide-scrollbars', '--mute-audio', '--autoplay-policy=user-gesture-required']);
   const rows: GateRow[] = [];
   try {
     const cdp = await connect(port);
@@ -314,9 +307,7 @@ export async function runCoverGate(options: { base: string; pages: string[]; man
     }
     cdp.close();
   } finally {
-    child.kill('SIGKILL');
-    await browserClosed;
-    rmSync(profile, { recursive: true, force: true });
+    await close();
   }
   return rows;
 }

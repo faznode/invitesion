@@ -1,5 +1,6 @@
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { createServer, type Server } from 'node:http';
 import { extname, join, normalize } from 'node:path';
 import { sha256 } from './files';
@@ -20,6 +21,43 @@ export function findChrome(): string | null {
     }
   }
   return null;
+}
+
+/**
+ * Start a disposable browser for the CDP gates. Recent Chrome releases may not expose
+ * debugging for the default profile; a fresh profile also prevents reuse of another
+ * gate's browser. Let Chrome choose the port so concurrent runs cannot collide.
+ */
+export async function launchDevtoolsChrome(chrome: string, extraArgs: string[] = []) {
+  const profile = mkdtempSync(join(tmpdir(), 'invitesion-chrome-'));
+  const child = spawn(chrome, [
+    '--headless=new', '--no-sandbox', '--disable-gpu', `--user-data-dir=${profile}`,
+    '--remote-debugging-port=0', ...extraArgs, 'about:blank',
+  ], { stdio: 'ignore' });
+  let launchError: Error | undefined;
+  child.once('error', (error) => { launchError = error; });
+  const closed = new Promise<void>((resolve) => child.once('close', () => resolve()));
+  const close = async () => {
+    child.kill('SIGKILL');
+    await closed;
+    rmSync(profile, { recursive: true, force: true, maxRetries: 3 });
+  };
+  const activePort = join(profile, 'DevToolsActivePort');
+  try {
+    for (let i = 0; i < 75; i++) {
+      if (launchError) throw launchError;
+      if (child.exitCode !== null || child.signalCode !== null) {
+        throw new Error(`Chrome exited before DevTools started (${child.exitCode ?? child.signalCode})`);
+      }
+      const port = existsSync(activePort) ? Number(readFileSync(activePort, 'utf8').split('\n', 1)[0]) : 0;
+      if (port > 0 && port <= 65535 && Number.isInteger(port)) return { port, close };
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    }
+    throw new Error('Chrome did not write its DevTools port within 15 seconds');
+  } catch (error) {
+    await close();
+    throw error;
+  }
 }
 
 export function findLighthouse(): string | null {
