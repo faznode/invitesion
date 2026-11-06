@@ -8,6 +8,7 @@ import { normalizeStoredConfig } from './content-read';
 import type { DetailConfig } from './detail-config';
 import { pickGuestForSegment } from './guest-link';
 import { writeInvitationView } from './view-writer';
+import { guestbookRules } from './wish-decision';
 
 export type PublicInvitation = Awaited<ReturnType<typeof loadPublicInvitation>>;
 
@@ -19,6 +20,19 @@ export type PublicInvitation = Awaited<ReturnType<typeof loadPublicInvitation>>;
  * how many wishes there are without paying to serialise them all.
  */
 export const GUESTBOOK_PAGE_SIZE = 50;
+
+const visibleOf = (invitationId: number) => and(eq(guestMessages.invitationId, invitationId), eq(guestMessages.isHidden, false));
+
+/**
+ * The newest page of an invitation's visible wishes. Newest first, capped: this query once had no bound at all, and a
+ * wedding with 800 guests leaving wishes meant thousands of rows re-serialised on every view of the page that receives a
+ * WhatsApp blast all at once. Exported (with the count) so `scripts/verify-wishes-api.ts` EXPLAINs exactly these
+ * queries against `guest_messages_invitation_visible_idx` (B-017).
+ */
+export const visibleWishes = (invitationId: number) =>
+  db.select().from(guestMessages).where(visibleOf(invitationId)).orderBy(desc(guestMessages.createdAt)).limit(GUESTBOOK_PAGE_SIZE);
+
+export const visibleWishCount = (invitationId: number) => db.select({ value: count() }).from(guestMessages).where(visibleOf(invitationId));
 
 /**
  * Loads everything the public renderer needs.
@@ -49,27 +63,16 @@ export const loadPublicInvitation = cache(async (slug: string, guestSlug?: strin
   if (guestSlug && !guest) return null;
 
   const config = readStoredConfig(invitation.id, invitation.config);
+  // R-04 (D-044): a closed guestbook and a hosts-only one list nothing, so neither guestbook query runs for them. The
+  // listed wishes are the visible ones; pending and hidden wishes never reach the page. B-017: both queries use
+  // `guest_messages_invitation_visible_idx`.
+  const rules = guestbookRules(config);
+  const listed = rules.enabled && rules.visibility === 'public';
 
   const [media, messages, messageCount] = await Promise.all([
     db.select().from(mediaAssets).where(eq(mediaAssets.invitationId, invitation.id)).orderBy(asc(mediaAssets.sortOrder), asc(mediaAssets.id)),
-    config.guestbook?.enabled === false
-      ? Promise.resolve([])
-      : db
-          .select()
-          .from(guestMessages)
-          .where(and(eq(guestMessages.invitationId, invitation.id), eq(guestMessages.isHidden, false)))
-          // Newest first, capped. This query previously had no bound at all: a
-          // wedding with 800 guests actively leaving wishes meant thousands of
-          // rows fetched and re-serialised on every single page view, on the
-          // hot path that receives a WhatsApp blast all at once.
-          .orderBy(desc(guestMessages.createdAt))
-          .limit(GUESTBOOK_PAGE_SIZE),
-    config.guestbook?.enabled === false
-      ? Promise.resolve([{ value: 0 }])
-      : db
-          .select({ value: count() })
-          .from(guestMessages)
-          .where(and(eq(guestMessages.invitationId, invitation.id), eq(guestMessages.isHidden, false))),
+    listed ? visibleWishes(invitation.id) : Promise.resolve([]),
+    listed ? visibleWishCount(invitation.id) : Promise.resolve([{ value: 0 }]),
   ]);
 
   const totalMessages = Number(messageCount[0]?.value ?? 0);

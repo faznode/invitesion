@@ -51,9 +51,14 @@ Alur baku ada di `AGENT_WORKFLOW.md`. Koordinasi lintas-agent lewat Kanban board
 6. Kalau nemu keputusan yang belum final, cek bagian **OPEN ITEMS** di `docs/PROJECT_OVERVIEW.md` — jangan asal tebak.
 
 ## Stack
-**Terpasang hari ini** (verifikasi `package.json`, 2026-07-27):
-Next.js 15.6-canary (App Router) · React 19.1.4 · TS · Tailwind 4 + Radix/shadcn ·
-**Drizzle** + PostgreSQL · **Clerk** (auth) · qrcode.
+**Terpasang hari ini** (verifikasi `package.json` dan `services/api/Cargo.toml`, 2026-11-06):
+Next.js 16.4.5 (App Router, `proxy.ts`, tanpa Cache Components) · React 19.3.1 · TS · Tailwind 4 + Radix/shadcn ·
+**Drizzle** + PostgreSQL (drizzle-kit satu-satunya pemilik migrasi) · **Clerk** (auth) · qrcode.
+
+**API domain Rust (ADR-A2):** `services/api` (axum 0.8, sqlx 0.9, utoipa; Rust 1.99) menjadi penulis per domain di
+balik `BACKEND_<DOMAIN>=next|rust` (default `next`, tanpa fallback): views (R-02), RSVP (R-03) dan ucapan (R-04). Next.js memanggilnya
+hanya dari server dengan tanda tangan layanan; klien bertipe dari `lib/api/schema.d.ts` (dibangkitkan dari
+`services/api/openapi.json`). Belum di-deploy. Detail: `services/api/README.md`.
 
 **Payment (2026-07-27):** QRIS untuk lokal (IDR) · Stripe untuk internasional. **Midtrans
 tidak dipakai.** Keduanya diimplementasi tanpa SDK — REST + signing sendiri, diuji terhadap

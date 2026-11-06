@@ -42,11 +42,11 @@ Rules carried into the custom skills: no client JavaScript on the guest page unl
   - 0014 answers per event.
   - 0015 `guests.invited_event_ids` (D-037).
   
-  **Still open:** an index on `guest_messages` (B-017; analytics lookups are served by 0011's index).
-- **s25 state of the read and write fixes above:**
+  **s28:** the `guest_messages` index exists (migration 0017, `guest_messages_invitation_visible_idx`, used by the guest page's list and count; E-060).
+- **s25 state of the read and write fixes above (s28 updates in brackets):**
   - `cache()` shipped (E-013); the invitation-level cache was not shipped (D-039).
   - The view tracker is atomic (E-012).
-  - Rate limits and moderation are still open (B-013, B-028).
+  - Rate limits and moderation were open (B-013, B-028). [s28: RSVP and wish limits exist on the Rust writers (E-059, E-060); moderation, replies and visibility shipped with R-04 (D-044).]
   - Children's photos follow D-040's access contract: ownership is checked at save, render and delivery, and `/media/protected/*` is owner-only.
 - **Template-owned data** (`art`, later section components) stays out of the strict per-invitation `DetailConfig` (ADR-O01).
 - **Payments** keep the rail interface and manual confirmation until a PJP contract exists (ADR-O03).
@@ -91,7 +91,7 @@ Hosting and database regions and plans, real Clerk keys (production middleware b
 ## 8. Target architecture (s26: ADR-A2 backend, ADR-F1 frontend)
 §1–§7 describe today's system and ADR-A1's measured history, which stand. This section is the target that the upgrade order (`06-backlog.md` "Upgrade order (s26)") implements. **It is not FINAL while the research gate is open** (`../_handoff/research-closure-s26.md`).
 
-**Implementation status (s27):** the product service exists in `services/api` with R-01's foundation and R-02's views slice (`../_handoff/IMPLEMENTATION-LOG.md` E-057, E-058; contract in `services/api/openapi.json`, writer selection in `lib/backend.ts`, views live on `next` until the rollout gates pass). F-01 moved the frontend to Next.js 16.4.5 stable with `proxy.ts` (E-056). The s26 experiment stays frozen research. Deployment, trace export and the 7-day observations are open operational steps.
+**Implementation status (s28):** R-04 completed in the sandbox (E-060, D-044): guest wishes, the host's moderation (show, hide, delete) and replies write through `BACKEND_WISHES` (default `next`, no fallback) with R-03's key, retry, limit and address contract; the guest page lists visible wishes only through migration 0017's index; `scripts/verify-wishes-api.ts` runs in the rust job. R-03 completed in the sandbox (`../_handoff/IMPLEMENTATION-LOG.md` E-059, D-043): both RSVP call sites write through `BACKEND_RSVP` (default `next`, no fallback) with an `Idempotency-Key` on every write and one retry under the same key, shared per-link and per-address limits, and a trusted-proxy client address (`lib/net/client-address.ts`); `scripts/verify-rsvp-api.ts` runs in the rust job. Its rollout is operational, like R-02's. **(s27):** the product service exists in `services/api` with R-01's foundation and R-02's views slice (`../_handoff/IMPLEMENTATION-LOG.md` E-057, E-058; contract in `services/api/openapi.json`, writer selection in `lib/backend.ts`, views live on `next` until the rollout gates pass). F-01 moved the frontend to Next.js 16.4.5 stable with `proxy.ts` (E-056). The s26 experiment stays frozen research. Deployment, trace export and the 7-day observations are open operational steps.
 
 ### 8.1 Decision
 - **Rust becomes the authoritative backend for domain rules and writes, one data domain at a time (strangler).** Next.js stays the presentation layer (§8.9).

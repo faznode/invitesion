@@ -36,6 +36,8 @@
  * invitation (as `--logo-files`; set UPLOAD_ROOT) and adds per layout: portraits (the full wedding with both photos and
  * parents lines), portraits-kid (an aqiqah photo the host switched on), portraits-kid-off (the same photo, switch off),
  * portraits-birthday (the celebrant's photo, switch on) and portraits-tasyakuran (an adult honouree, no switch needed).
+ * `--music-url <url>` (s28, B-009) adds per layout: music (the full wedding with music that plays on opening: the cover
+ * gate) and music-manual (play-on-open off: the control only). Point it at the generated tone, never a recording.
  * `--programme` (s23r, byte census) adds per layout: programme (a two-day corporate programme: 22 agenda rows, seven
  * speakers, two events, contact; no logo and no cover photo), the same content on every layout so `product-bytes.ts`
  * compares layouts rather than uploads, e.g. `--programme --match '-programme$'`.
@@ -414,6 +416,12 @@ export type ReviewOptions = {
   portraits?: boolean;
   /** `--programme` (s23r): per layout `programme`, the census's long corporate programme without host media. */
   programme?: boolean;
+  /**
+   * `--music-url <url>` (s28, B-009): per layout `music` (the full wedding with music that plays on opening, so the cover
+   * gate shows) and `music-manual` (the same music with play-on-open off). The URL should serve the generated tone
+   * (`tools/template-harness/cover-gate.ts --write-tone`), never a third-party recording.
+   */
+  musicUrl?: string;
 };
 
 export function familyReviewInvitations(options: ReviewOptions = {}): ReviewInvitation[] {
@@ -452,6 +460,15 @@ export function familyReviewInvitations(options: ReviewOptions = {}): ReviewInvi
   const programmeVariant = (layout: string, familyId?: FamilyId): ReviewInvitation[] =>
     withProgramme ? [make(`review-${layout}-programme`, corporateProgramme(familyId), corporateOptions)] : [];
   const fullPalette: Record<FamilyId, string> = { gapura: 'ivory', kartu: 'terracotta', riang: 'ocean', lontar: 'sage' };
+  const musicVariants = (layout: string, familyId?: FamilyId): ReviewInvitation[] => {
+    if (!options.musicUrl) return [];
+    const full = weddingFull(familyId ? fullPalette[familyId] : 'ivory', familyId);
+    const music = { enabled: true, assetUrl: options.musicUrl, title: 'Nada uji (fiktif)' };
+    return [
+      make(`review-${layout}-music`, { ...full, music }),
+      make(`review-${layout}-music-manual`, { ...full, music: { ...music, autoplay: false } }),
+    ];
+  };
   const ceremonyVariants = (layout: string, familyId?: FamilyId): ReviewInvitation[] =>
     withCeremony
       ? [
@@ -494,7 +511,9 @@ export function familyReviewInvitations(options: ReviewOptions = {}): ReviewInvi
   rows.push(make('review-legacy-corporate', corporate(undefined, logoUrl), { ...corporateOptions, logo: 'square' }));
   rows.push(...markVariants('legacy'));
   rows.push(...programmeVariant('legacy'));
+  rows.push(...musicVariants('legacy'));
   for (const familyId of FAMILY_IDS) {
+    rows.push(...musicVariants(familyId, familyId));
     rows.push(make(`review-${familyId}-full`, weddingFull(fullPalette[familyId], familyId)));
     if (coverImageUrl) rows.push(make(`review-${familyId}-photo`, weddingFull(fullPalette[familyId], familyId, coverImageUrl)));
     if (coverLowUrl) rows.push(make(`review-${familyId}-photo-low`, weddingFull(fullPalette[familyId], familyId, coverLowUrl)));
@@ -622,6 +641,7 @@ async function main() {
     questions: process.argv.includes('--questions'),
     portraits: process.argv.includes('--portraits'),
     programme: process.argv.includes('--programme'),
+    musicUrl: argValue('--music-url'),
   });
   const match = argValue('--match');
   const rows = match ? all.filter((row) => new RegExp(match).test(row.slug)) : all;

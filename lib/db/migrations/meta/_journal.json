@@ -120,6 +120,13 @@
       "when": 1793992095206,
       "tag": "0016_api_operational_state",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1793998675912,
+      "tag": "0017_guest_message_moderation",
+      "breakpoints": true
     }
   ]
 }

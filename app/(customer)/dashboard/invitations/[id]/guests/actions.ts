@@ -59,6 +59,8 @@ export async function updateGuestOperation(formData: FormData) {
       const ownerToken = await ownerSessionToken();
       if (!ownerToken) redirect('/sign-in');
       const outcome = await writeHostRsvpThroughApi({ invitationId, guestId, status, eventId, flags, ownerToken });
+      // The API refused the session's account (deleted, or an administrator): the same answer `context()` gives.
+      if (outcome.kind === 'signin') redirect('/sign-in');
       if (outcome.kind !== 'saved') redirect(`${path}?error=${outcome.kind}`);
     } else {
       const update = decideHostRsvp({ config, guest: owned, status, eventId, flags });

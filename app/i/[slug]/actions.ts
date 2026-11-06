@@ -12,7 +12,11 @@ import { normalizeStoredConfig } from '@/lib/invitation/content-read';
 import { findGuestByLinkSegment } from '@/lib/invitation/public';
 import { guestPath } from '@/lib/invitation/public-url';
 import { decideGuestRsvp, rsvpSubmissionFromForm, type GuestRsvpDecision, type RsvpFlags } from '@/lib/invitation/rsvp-decision';
-import { RSVP_KEY_PATTERN, writeGuestRsvpThroughApi, type GuestRsvpOutcome } from '@/lib/invitation/rsvp-writer';
+import { isFormKey, isRsvpFormKey } from '@/lib/invitation/rsvp-form-key';
+import { writeGuestRsvpThroughApi, type GuestRsvpOutcome } from '@/lib/invitation/rsvp-writer';
+import { decideGuestWish } from '@/lib/invitation/wish-decision';
+import { writeGuestWishThroughApi, type GuestWishOutcome } from '@/lib/invitation/wish-writer';
+import { clientAddressFrom, trustedProxyHops } from '@/lib/net/client-address';
 
 /**
  * Resolves the invitation + guest pair a public form submission refers to, and
@@ -44,21 +48,26 @@ function rsvpFlags(): RsvpFlags {
   };
 }
 
-/** The page's notice for a refused RSVP (`?rsvp=`; `rsvpe` names the unanswered event, `rsvpq` the question to fix). */
+/**
+ * The page's notice for an RSVP that was not saved (`?rsvp=`; `rsvpe` names the unanswered event, `rsvpq` the question
+ * to fix, `rsvpr` the seconds until a limit's window ends, `rsvpk` the key the re-rendered form must send again).
+ */
 function rsvpRefusalQuery(refusal: Exclude<GuestRsvpDecision, { kind: 'write' }> | Exclude<GuestRsvpOutcome, { kind: 'saved' }>): string {
   if (refusal.kind === 'events') return `rsvp=events&rsvpe=${encodeURIComponent(refusal.eventId)}`;
   if (refusal.kind === 'answers') return `rsvp=answers&rsvpq=${encodeURIComponent(refusal.questionId)}`;
-  if (refusal.kind === 'busy') return 'rsvp=busy';
+  if (refusal.kind === 'busy') return refusal.retryAfter ? `rsvp=busy&rsvpr=${refusal.retryAfter}` : 'rsvp=busy';
+  // R-03 (D-043): the outcome is unknown, so the form comes back with the same key; sending it again writes at most once.
+  if (refusal.kind === 'unconfirmed') return `rsvp=retry&rsvpk=${encodeURIComponent(refusal.key)}`;
   return refusal.kind === 'closed' ? 'rsvp=closed' : 'rsvp=invalid';
 }
 
 /**
- * The guest's public address for the per-address limit (B-013). Vercel overwrites `x-forwarded-for` at its edge; behind
- * another host, a trusted proxy must set it. Passed to the API only, which keeps a keyed hash and never the address.
+ * The guest's public address for the per-address limit (B-013), by the trusted-proxy contract (`TRUSTED_PROXY_HOPS`,
+ * `lib/net/client-address.ts`). Passed to the API only, which keeps a keyed hash and never the address.
  */
 async function clientAddress(): Promise<string | null> {
   const forwarded = await headers();
-  return forwarded.get('x-forwarded-for')?.split(',')[0]?.trim() || forwarded.get('x-real-ip')?.trim() || null;
+  return clientAddressFrom(forwarded.get('x-forwarded-for'), trustedProxyHops());
 }
 
 export async function submitRsvp(formData: FormData) {
@@ -70,14 +79,14 @@ export async function submitRsvp(formData: FormData) {
   // R-03: exactly one writer per call (`BACKEND_RSVP`, default `next`). This branch always ends in a redirect, so the
   // TypeScript writer below is never reached as a fallback.
   if (backendFor('RSVP') === 'rust') {
-    const key = String(formData.get('rsvpKey') ?? '');
+    const key = formData.get('rsvpKey');
     const outcome = await writeGuestRsvpThroughApi({
       slug,
       guestSlug,
       submission,
       flags,
       clientIp: await clientAddress(),
-      idempotencyKey: RSVP_KEY_PATTERN.test(key) ? key : null,
+      idempotencyKey: isRsvpFormKey(key) ? key : null,
     });
     if (outcome.kind !== 'saved') redirect(`${guestPath(slug, guestSlug)}?${rsvpRefusalQuery(outcome)}`);
     revalidatePath(guestPath(slug, guestSlug));
@@ -106,24 +115,47 @@ export async function submitRsvp(formData: FormData) {
   redirect(`${guestPath(slug, guestSlug)}?rsvp=saved`);
 }
 
+/** The page's notice after a wish (`?wish=`; `wishr` the seconds until a limit's window ends, `wishk` the key to resend). */
+function wishQuery(outcome: GuestWishOutcome): string {
+  if (outcome.kind === 'busy') return outcome.retryAfter ? `wish=busy&wishr=${outcome.retryAfter}` : 'wish=busy';
+  // R-04 (D-044): the outcome is unknown, so the form comes back with the same key; sending it again stores at most once.
+  if (outcome.kind === 'unconfirmed') return `wish=retry&wishk=${encodeURIComponent(outcome.key)}`;
+  return `wish=${outcome.kind}`;
+}
+
 export async function submitGuestMessage(formData: FormData) {
   const slug = String(formData.get('slug') || '');
   const guestSlug = String(formData.get('guestSlug') || '');
-  const message = String(formData.get('message') || '').trim();
+  const message = String(formData.get('message') || '');
+
+  // R-04: exactly one writer per call (`BACKEND_WISHES`, default `next`). This branch always ends in a redirect, so the
+  // TypeScript writer below is never reached as a fallback.
+  if (backendFor('WISHES') === 'rust') {
+    const key = formData.get('wishKey');
+    const outcome = await writeGuestWishThroughApi({
+      slug,
+      guestSlug,
+      message,
+      clientIp: await clientAddress(),
+      idempotencyKey: isFormKey(key) ? key : null,
+    });
+    if (outcome.kind === 'saved' || outcome.kind === 'pending') revalidatePath(guestPath(slug, guestSlug));
+    redirect(`${guestPath(slug, guestSlug)}?${wishQuery(outcome)}`);
+  }
 
   const context = await openInvitationFor(slug, guestSlug);
   if (!context) redirect(`${guestPath(slug, guestSlug)}?wish=closed`);
-  if (context.config.guestbook?.enabled === false) redirect(`${guestPath(slug, guestSlug)}?wish=closed`);
-
-  if (!message || message.length > 1000) {
-    redirect(`${guestPath(slug, guestSlug)}?wish=invalid`);
-  }
+  // R-04 (D-044): the switch, the message and moderation are one pure decision, shared with the Rust writer through
+  // contracts/vectors/wish-decisions.json; a refusal writes nothing.
+  const decision = decideGuestWish({ config: context.config, message });
+  if (decision.kind !== 'write') redirect(`${guestPath(slug, guestSlug)}?wish=${decision.kind}`);
 
   await db.insert(guestMessages).values({
     invitationId: context.invitation.id,
     guestId: context.guest.id,
     name: context.guest.name,
-    message,
+    message: decision.message,
+    isHidden: decision.isHidden,
   });
   await db.insert(analyticsEvents).values({
     invitationId: context.invitation.id,
@@ -132,5 +164,5 @@ export async function submitGuestMessage(formData: FormData) {
   });
 
   revalidatePath(guestPath(slug, guestSlug));
-  redirect(`${guestPath(slug, guestSlug)}?wish=saved`);
+  redirect(`${guestPath(slug, guestSlug)}?wish=${decision.isHidden ? 'pending' : 'saved'}`);
 }

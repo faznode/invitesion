@@ -213,6 +213,8 @@ fn state(pool: &PgPool, limits: Limits, owner: Option<Arc<OwnerVerifier>>) -> Ap
 const ROOMY: Limits = Limits {
     rsvp_per_link: Limit { max: 1000, window_seconds: 600 },
     rsvp_per_ip: Limit { max: 1000, window_seconds: 600 },
+    wish_per_link: Limit { max: 1000, window_seconds: 600 },
+    wish_per_ip: Limit { max: 1000, window_seconds: 600 },
 };
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -382,6 +384,7 @@ async fn idempotency_keys_replay_and_limits_refuse_without_writing() {
     let tight = Limits {
         rsvp_per_link: Limit { max: 3, window_seconds: 600 },
         rsvp_per_ip: Limit { max: 6, window_seconds: 600 },
+        ..ROOMY
     };
     let app = router(state(&f.pool, ROOMY, None));
     let limited = router(state(&f.pool, tight, None));

@@ -1,10 +1,10 @@
-import { randomUUID } from 'node:crypto';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { after } from 'next/server';
 import { PublicInvitationRenderer } from '@/components/invitation/public-renderer';
 import { invitationShareMetadata } from '@/lib/invitation/preview-image';
 import { loadPublicInvitation, trackInvitationView } from '@/lib/invitation/public';
+import { formKey, rsvpFormKey } from '@/lib/invitation/rsvp-form-key';
 
 // Rendered whole, never as a prerendered shell + stream (no Cache Components, no loading boundary above it), so an
 // unknown guest link answers 404 rather than 200 (B-011; next.config.ts).
@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic';
 
 type Params = {
   params: Promise<{ slug: string; guestSlug: string }>;
-  searchParams: Promise<{ rsvp?: string; wish?: string; rsvpq?: string; rsvpe?: string }>;
+  searchParams: Promise<{ rsvp?: string; wish?: string; rsvpq?: string; rsvpe?: string; rsvpr?: string; rsvpk?: string; wishr?: string; wishk?: string }>;
 };
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
@@ -56,7 +56,8 @@ export default async function PersonalInvitationPage({ params, searchParams }: P
       hiddenMessageCount={data.hiddenMessageCount}
       readOnly={data.readOnly}
       status={status}
-      rsvpKey={randomUUID()}
+      rsvpKey={rsvpFormKey(status.rsvp === 'retry' ? status.rsvpk : undefined)}
+      wishKey={formKey(status.wish === 'retry' ? status.wishk : undefined)}
     />
   );
 }

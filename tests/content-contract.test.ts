@@ -23,6 +23,7 @@ const guestPageFiles = [
   'components/invitation/public-renderer.tsx',
   'components/invitation/guest-view.ts',
   'components/invitation/guest-blocks.tsx',
+  'components/invitation/cover-audio.tsx',
   ...readdirSync(join(process.cwd(), 'components/invitation/families')).map((file) => `components/invitation/families/${file}`),
   'lib/invitation/headline.ts',
 ];
@@ -50,7 +51,12 @@ test('no field marked stored-only is read by the guest page (move it to rendered
 });
 
 test('editor notices come from the map: whole sections, field lists and caveats', () => {
-  assert.deepEqual(storedOnlyNotice('music', 'id'), { wholeSection: true, fields: [], caveat: undefined });
+  // B-009 (D-045): music plays now, so its tab no longer says the section is stored only.
+  assert.equal(storedOnlyNotice('music', 'id'), null);
+  // No section is stored-only as a whole any more; a partly rendered one lists only the fields guests do not see.
+  const streaming = storedOnlyNotice('streaming', 'id');
+  assert.equal(streaming?.wholeSection, false);
+  assert.deepEqual(streaming?.fields, ['platform', 'jadwal siaran']);
   // B-029 (s17) renders the hashtag and filter link, so the section no longer carries a notice; the ceremony profile
   // keeps one for its photo only.
   assert.equal(storedOnlyNotice('instagramStory', 'en'), null);
@@ -60,7 +66,8 @@ test('editor notices come from the map: whole sections, field lists and caveats'
   assert.equal(couple?.wholeSection, false);
   assert.deepEqual(couple?.fields, ['Instagram'], JSON.stringify(couple));
   assert.equal(new Set(couple?.fields).size, couple?.fields.length, 'bride and groom fields collapse into one label each');
-  assert.match(storedOnlyNotice('guestbook', 'id')?.caveat ?? '', /Moderasi belum aktif/);
+  // R-04 (D-044): moderation works now, so the guestbook tab no longer warns that it does not.
+  assert.equal(storedOnlyNotice('guestbook', 'id'), null);
   assert.equal(storedOnlyNotice('events', 'id'), null);
   assert.equal(storedOnlyNotice('quote', 'en'), null);
 });

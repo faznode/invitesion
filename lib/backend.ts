@@ -12,6 +12,11 @@ const DEFAULTS = {
    * `rsvp_event_answers`, and the RSVP `analytics_events` row).
    */
   RSVP: 'next',
+  /**
+   * R-04: wishes and their moderation (`guest_messages`: the guest's wish with its GUESTBOOK `analytics_events` row, the
+   * host's show / hide / delete and reply).
+   */
+  WISHES: 'next',
 } as const satisfies Record<string, Backend>;
 
 export type Backend = 'next' | 'rust';

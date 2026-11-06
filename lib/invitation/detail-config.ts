@@ -408,7 +408,13 @@ export const detailConfigSchema = z
         enabled: z.boolean().default(true),
         heading: optionalText(160),
         prompt: optionalText(500),
+        /** R-04 (D-044): new wishes wait for the host's approval before the page lists them. */
         moderation: z.boolean().default(false),
+        /**
+         * R-04 (D-044): `host` keeps the wishes for the hosts only; the page shows the form and no list. Absent = `public`
+         * (optional rather than defaulted, so existing configs are not rewritten on their next save).
+         */
+        visibility: z.enum(['public', 'host']).optional(),
       })
       .optional(),
 

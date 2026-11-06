@@ -22,6 +22,11 @@ const DEFAULTS = {
    * guest exactly as before; stored invitations (`guests.invited_event_ids`) are neither read nor written.
    */
   INVITE_ONLY_EVENTS: true,
+  /**
+   * B-009 (D-045): the host's background music, with the "Buka Undangan" cover that starts it on the guest's tap. Off
+   * renders every page exactly as before; the stored music settings are neither read nor removed.
+   */
+  GUEST_MUSIC: true,
 } as const;
 
 export type FlagName = keyof typeof DEFAULTS;

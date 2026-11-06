@@ -7,7 +7,7 @@
 use axum::Json;
 use axum::extract::rejection::{JsonRejection, PathRejection};
 use axum::extract::{Path, State};
-use axum::http::{HeaderMap, HeaderValue, StatusCode};
+use axum::http::HeaderMap;
 use axum::response::{IntoResponse, Response};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -19,11 +19,14 @@ use super::decision::{
     GuestDecision, GuestState, HostGuestState, RsvpFlags, RsvpSubmission, decide_guest_rsvp, decide_host_rsvp,
 };
 use crate::app::AppState;
-use crate::idempotency::{self, Prior, REPLAYED_HEADER};
+use crate::guest_link::{self, LinkCodes, check_open};
+use crate::idempotency::{self, replay};
 use crate::identity::resolve_owner;
-use crate::limits::{self, Limit};
+use crate::limits;
 use crate::problem::{ApiError, Problem, Subject};
 use crate::views::utc_now;
+
+const RSVP_LINK: LinkCodes = LinkCodes { not_found: "rsvp.link_not_found", closed: "rsvp.closed" };
 
 /// A guest's RSVP as the form submitted it.
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
@@ -31,8 +34,9 @@ use crate::views::utc_now;
 pub struct GuestRsvpRequest {
     pub submission: RsvpSubmission,
     pub flags: RsvpFlags,
-    /// The guest's public address as Next.js received it. Used only for the per-address limit: reduced to a keyed hash,
-    /// never stored or logged. Absent = no per-address limit.
+    /// The guest's public address as Next.js's trusted proxies reported it (`TRUSTED_PROXY_HOPS`). Used only for the
+    /// per-address limit: an IPv4 address, or the /64 of an IPv6 address, reduced to a keyed hash and never stored or
+    /// logged. Absent or not an IP literal = no per-address limit (the per-link limit still applies).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub client_ip: Option<String>,
 }
@@ -94,69 +98,6 @@ fn unix_ms(at: PrimitiveDateTime) -> i64 {
     (at.assume_utc().unix_timestamp_nanos() / 1_000_000) as i64
 }
 
-/// The guest page's visibility rule (`openInvitationFor`): drafts are not public; an expired invitation is read-only.
-fn check_open(status: &str, expires_at: Option<PrimitiveDateTime>, now: PrimitiveDateTime) -> Result<(), ApiError> {
-    if status == "DRAFT" {
-        return Err(ApiError::NotFound("rsvp.link_not_found"));
-    }
-    if status == "EXPIRED" || expires_at.is_some_and(|at| at < now) {
-        return Err(ApiError::Conflict("rsvp.closed", Some("expired".into())));
-    }
-    Ok(())
-}
-
-/// The invitation and guest a personal link names, by the B-011 rule: the token first, then the slug of a guest
-/// without a token.
-async fn resolve_guest_link(
-    state: &AppState,
-    slug: &str,
-    segment: &str,
-    now: PrimitiveDateTime,
-) -> Result<(i32, i32), ApiError> {
-    let invitation = sqlx::query!("select id, status, expires_at from invitations where slug = $1", slug)
-        .fetch_optional(&state.pool)
-        .await
-        .map_err(db("rsvp_invitation"))?
-        .ok_or(ApiError::NotFound("rsvp.link_not_found"))?;
-    check_open(&invitation.status, invitation.expires_at, now)?;
-    if segment.is_empty() {
-        return Err(ApiError::NotFound("rsvp.link_not_found"));
-    }
-    let rows = sqlx::query!(
-        "select id, link_token, slug from guests where invitation_id = $1 \
-         and (link_token = $2 or (link_token is null and slug = $2)) limit 2",
-        invitation.id,
-        segment
-    )
-    .fetch_all(&state.pool)
-    .await
-    .map_err(db("rsvp_guest_link"))?;
-    let guest = rows
-        .iter()
-        .find(|row| row.link_token.as_deref() == Some(segment))
-        .or_else(|| rows.iter().find(|row| row.link_token.is_none() && row.slug == segment))
-        .ok_or(ApiError::NotFound("rsvp.link_not_found"))?;
-    Ok((invitation.id, guest.id))
-}
-
-/// A committed response for this key replays (with `Idempotent-Replayed: true`); the key with another request is a 422.
-async fn replay(state: &AppState, scope: &str, key: &str, hash: &str) -> Result<Option<Response>, ApiError> {
-    match idempotency::lookup(&state.pool, scope, key, hash).await.map_err(db("idempotency_lookup"))? {
-        Prior::None => Ok(None),
-        Prior::Mismatch => Err(ApiError::Unprocessable("idempotency.key_reused", Subject::None)),
-        Prior::Replay { status, body } => {
-            let mut response = (StatusCode::from_u16(status).unwrap_or(StatusCode::OK), Json(body)).into_response();
-            response.headers_mut().insert(REPLAYED_HEADER, HeaderValue::from_static("true"));
-            Ok(Some(response))
-        }
-    }
-}
-
-async fn enforce(state: &AppState, bucket: &str, limit: Limit, now: PrimitiveDateTime) -> Result<(), ApiError> {
-    let verdict = limits::hit(&state.pool, bucket, limit, now).await.map_err(db("rate_limit"))?;
-    if verdict.allowed { Ok(()) } else { Err(ApiError::TooManyRequests { retry_after: verdict.retry_after }) }
-}
-
 #[utoipa::path(
     post,
     path = "/v1/guest-links/{slug}/{guest}/rsvp",
@@ -189,28 +130,27 @@ pub async fn guest_rsvp(
         body.map_err(|rejection| ApiError::BadRequest("request.invalid_body", rejection.body_text()))?;
     let key = idempotency::key_from(&headers)?;
     let now = utc_now();
-    let (invitation_id, guest_id) = resolve_guest_link(&state, &slug, &segment, now).await?;
+    let (invitation_id, guest_id) = guest_link::resolve(&state, &slug, &segment, now, RSVP_LINK).await?;
 
     let scope = format!("rsvp:guest:{guest_id}");
     // The address is left out: a retry from another network is still the same request.
     let hash = idempotency::request_hash(&(&request.submission, &request.flags));
     if let Some(key) = &key
-        && let Some(response) = replay(&state, &scope, key, &hash).await?
+        && let Some(response) = replay(&state.pool, &scope, key, &hash).await?
     {
         return Ok(response);
     }
-    enforce(&state, &format!("rsvp:link:{guest_id}"), state.limits.rsvp_per_link, now).await?;
-    if let Some(address) = request.client_ip.as_deref().map(str::trim).filter(|address| !address.is_empty()) {
-        let secret = state.service_secrets.first().map(Vec::as_slice).unwrap_or_default();
-        enforce(&state, &limits::ip_bucket(secret, "rsvp", address), state.limits.rsvp_per_ip, now).await?;
-    }
+    limits::enforce(&state.pool, &format!("rsvp:link:{guest_id}"), state.limits.rsvp_per_link, now).await?;
+    let secret = state.service_secrets.first().map(Vec::as_slice).unwrap_or_default();
+    limits::enforce_address(&state.pool, secret, "rsvp", request.client_ip.as_deref(), state.limits.rsvp_per_ip, now)
+        .await?;
 
     let mut tx = state.pool.begin().await.map_err(db("rsvp_begin"))?;
     let invitation = sqlx::query!("select status, expires_at, config from invitations where id = $1", invitation_id)
         .fetch_one(&mut *tx)
         .await
         .map_err(db("rsvp_invitation_tx"))?;
-    check_open(&invitation.status, invitation.expires_at, now)?;
+    check_open(&invitation.status, invitation.expires_at, now, RSVP_LINK)?;
     let guest = sqlx::query!(
         "select guest_count, invited_event_ids, rsvp_event_answers from guests \
          where id = $1 and invitation_id = $2 for update",
@@ -249,7 +189,7 @@ pub async fn guest_rsvp(
             .map_err(db("idempotency_record"))?
     {
         drop(tx);
-        return replay(&state, &scope, key, &hash).await?.ok_or(ApiError::Internal);
+        return replay(&state.pool, &scope, key, &hash).await?.ok_or(ApiError::Internal);
     }
 
     let answers = write.rsvp_answers.to_json();
@@ -334,7 +274,7 @@ pub async fn host_rsvp_override(
     let scope = format!("rsvp:host:{guest_id}");
     let hash = idempotency::request_hash(&request);
     if let Some(key) = &key
-        && let Some(response) = replay(&state, &scope, key, &hash).await?
+        && let Some(response) = replay(&state.pool, &scope, key, &hash).await?
     {
         return Ok(response);
     }
@@ -383,7 +323,7 @@ pub async fn host_rsvp_override(
             .map_err(db("idempotency_record"))?
     {
         drop(tx);
-        return replay(&state, &scope, key, &hash).await?.ok_or(ApiError::Internal);
+        return replay(&state.pool, &scope, key, &hash).await?.ok_or(ApiError::Internal);
     }
 
     let event_answers = update.event_answers.to_json();

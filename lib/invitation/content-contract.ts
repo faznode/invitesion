@@ -60,7 +60,9 @@ export const RENDER_CAPABILITIES = {
   theme: { rendered: ['paletteId', 'familyId', 'cover.imageUrl', 'cover.headline'], storedOnly: [], hostOnly: ['templateId'] },
   // D-037: `inviteOnly` decides who sees an event (`lib/invitation/event-eligibility.ts`) and is never shown itself, like `id`.
   events: { rendered: ['title', 'startAt', 'endAt', 'venueName', 'address', 'mapUrl', 'note'], storedOnly: [], hostOnly: ['id', 'inviteOnly'] },
-  music: { rendered: [], storedOnly: ['enabled', 'assetUrl', 'title', 'autoplay'] },
+  // B-009 (D-045): a playable http(s) source plays from the "Buka Undangan" cover (`autoplay` unset or on) or from the
+  // music control (`autoplay` off); the title names the control for screen readers.
+  music: { rendered: ['enabled', 'assetUrl', 'title', 'autoplay'], storedOnly: [] },
   greetings: { rendered: ['enabled', 'prayer'], storedOnly: [] },
   gift: { rendered: ['enabled', 'accounts', 'label', 'number', 'holder', 'note'], storedOnly: ['kind'] },
   // B-027: the deadline is shown in the event's wall clock and closes the form and the action from that instant on.
@@ -72,14 +74,8 @@ export const RENDER_CAPABILITIES = {
   // B-029 (s17): weddings show the hashtag and an http(s) filter link once switched on (`lib/invitation/share.ts`).
   instagramStory: { rendered: ['enabled', 'hashtag', 'filterUrl'], storedOnly: [] },
   quote: { rendered: ['enabled', 'text', 'author'], storedOnly: [] },
-  guestbook: {
-    rendered: ['enabled', 'heading', 'prompt'],
-    storedOnly: ['moderation'],
-    caveat: {
-      id: 'Moderasi belum aktif: ucapan tamu langsung tampil di undangan.',
-      en: 'Moderation is not active yet: guest wishes appear on the invitation right away.',
-    },
-  },
+  // R-04 (D-044): moderation holds new wishes for the host (the form says so) and `visibility: 'host'` lists none.
+  guestbook: { rendered: ['enabled', 'heading', 'prompt', 'moderation', 'visibility'], storedOnly: [] },
   eventPlanner: { rendered: [], storedOnly: [], hostOnly: ['enabled', 'eventName', 'coordinatorName', 'coordinatorPhone', 'notes', 'checklist'] },
   // B-027 (D-034, s17): the questions render inside the RSVP form once the host switches the form on; its own deadline,
   // capacity, plus-one and message are not shown, so the page never announces a second deadline the action ignores.
@@ -142,7 +138,6 @@ const FIELD_LABELS: Record<string, Label> = {
   layout: { id: 'tata letak galeri', en: 'gallery layout' },
   platform: { id: 'platform', en: 'platform' },
   scheduledAt: { id: 'jadwal siaran', en: 'stream time' },
-  moderation: { id: 'moderasi', en: 'moderation' },
   // Section-qualified keys win over the leaf name (`storedOnlyNotice`): this deadline is not the RSVP deadline.
   'registrationForm.deadline': { id: 'batas registrasi', en: 'registration deadline' },
   capacity: { id: 'kapasitas', en: 'capacity' },

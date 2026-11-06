@@ -12,6 +12,11 @@ use crate::rsvp::decision::{EventFields, RsvpFlags, RsvpSubmission};
 use crate::rsvp::http::{GuestRsvpRequest, HostRsvpFlags, HostRsvpRequest, HostRsvpStatus, RsvpSaved};
 use crate::service_auth::SIGNATURE_HEADER;
 use crate::views::{RecordView, ViewRecorded};
+use crate::wishes::decision::WishState;
+use crate::wishes::http::{
+    GuestWishRequest, ModeratedState, WishAction, WishModerated, WishModerationRequest, WishReplied, WishReplyRequest,
+    WishSaved,
+};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -26,7 +31,10 @@ use crate::views::{RecordView, ViewRecorded};
         crate::identity::me,
         crate::views::record_view,
         crate::rsvp::http::guest_rsvp,
-        crate::rsvp::http::host_rsvp_override
+        crate::rsvp::http::host_rsvp_override,
+        crate::wishes::http::guest_wish,
+        crate::wishes::http::moderate_wish,
+        crate::wishes::http::reply_to_wish
     ),
     components(schemas(
         Problem,
@@ -41,14 +49,24 @@ use crate::views::{RecordView, ViewRecorded};
         RsvpSaved,
         HostRsvpRequest,
         HostRsvpFlags,
-        HostRsvpStatus
+        HostRsvpStatus,
+        GuestWishRequest,
+        WishSaved,
+        WishState,
+        WishModerationRequest,
+        WishAction,
+        WishModerated,
+        ModeratedState,
+        WishReplyRequest,
+        WishReplied
     )),
     modifiers(&SecuritySchemes),
     tags(
         (name = "health", description = "Liveness and readiness"),
         (name = "identity", description = "Owner-token verification"),
         (name = "views", description = "Invitation opens (R-02)"),
-        (name = "rsvp", description = "Guest RSVP and the host's override (R-03)")
+        (name = "rsvp", description = "Guest RSVP and the host's override (R-03)"),
+        (name = "wishes", description = "Guest wishes and the host's moderation and replies (R-04)")
     )
 )]
 pub struct ApiDoc;

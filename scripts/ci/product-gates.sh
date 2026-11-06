@@ -8,6 +8,8 @@
 #   design-acceptance  overflow, stress names, T3 rhythm, reduced motion, forced-colour icons at 360 × 800
 #   cover-fold         the greeting fits the first viewport on phones and a laptop
 #   rendered-contrast  Lighthouse color-contrast on every layout and the dark palette
+#   cover-gate         B-009: the "Buka Undangan" cover and the music on every layout (no-JS opening, the tap that starts
+#                      the music, I-15's 1.5 s, reduced motion, the toggle, keyboard), with a tone generated in this copy
 # The fixture has no cover photos: photo pages need generated review assets, which never enter the repository, so the
 # legacy-over-photo INCOMPLETE pages (D-041) stay a manual run.
 set -euo pipefail
@@ -98,14 +100,29 @@ contrast() {
   npx tsx tools/template-harness/rendered-contrast.ts --out "$CI_OUT/contrast" "${args[@]}"
 }
 
+# B-009: the music fixture's audio is a tone generated here (no recording, no licence), placed under public/ of this
+# disposable copy before the build so the measurement build serves it.
+TONE_URL="$BASE/review/tone.wav"
+fixture_tone() { npx tsx tools/template-harness/cover-gate.ts --write-tone public/review/tone.wav; }
+
+gate() {
+  local pages=()
+  for layout in "${LAYOUTS[@]}"; do pages+=("review-$layout-music"); done
+  npx tsx tools/template-harness/cover-gate.ts --out "$CI_OUT/gate" --base "$BASE" --pages "$(IFS=,; echo "${pages[*]}")" \
+    --manual review-legacy-music-manual,review-gapura-music-manual --plain review-legacy-full,review-gapura-full
+}
+
 step "migrate (drizzle-kit)" pnpm db:migrate
 step "seed the theme catalog" pnpm db:seed:templates
-step "seed the review fixture (+ programme)" npx tsx invitation-research/_tools/setup/seed-family-review.ts --programme
+step "fixture tone (B-009, generated)" fixture_tone
+step "seed the review fixture (+ programme, music)" npx tsx invitation-research/_tools/setup/seed-family-review.ts --programme --music-url "$TONE_URL"
 step "build (measurement variant)" build_without_middleware
 step "serve on :$APP_PORT" start_server
 step "wrong links answer a real 404 (B-011)" real_404
 step "product bytes: wedding" bytes full
 step "product bytes: long programme" bytes programme
+step "product bytes: wedding with music (B-009)" bytes music
 step "design acceptance (360 × 800)" design
 step "cover fold (phones and laptop)" fold
 step "rendered contrast (Lighthouse)" contrast
+step "cover gate and music (B-009)" gate

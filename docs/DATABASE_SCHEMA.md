@@ -5,7 +5,7 @@
 > OWNER: Architect
 > DEPS: PROJECT_OVERVIEW.md
 > GREP: schema, drizzle, tabel, users, invitations, guests, orders, versions
-> UPDATED: 2026-11-06 (s20/s21: guests invited_event_ids migrasi 0015, events[].inviteOnly, D-037; showPhoto foto anak, D-038; s19: guests rsvp_event_answers migrasi 0014; id acara tetap di invitations.config.events migrasi data 0013, D-036; guests rsvp_answers, migrasi 0012; earlier: analytics_events view-dedupe index, guests attending_count, link_token)
+> UPDATED: 2026-11-06 (s28: guest_messages reviewed_at / host_reply / replied_at + index ucapan VISIBLE migrasi 0017, R-04 / D-044; api_rate_limits + api_idempotency_keys migrasi 0016, ditulis hanya oleh services/api, R-03 / D-043; s20/s21: guests invited_event_ids migrasi 0015, events[].inviteOnly, D-037; showPhoto foto anak, D-038; s19: guests rsvp_event_answers migrasi 0014; id acara tetap di invitations.config.events migrasi data 0013, D-036; guests rsvp_answers, migrasi 0012; earlier: analytics_events view-dedupe index, guests attending_count, link_token)
 > ORM DECISION (whyme 2026-07-15): pakai **Drizzle** (bukan Prisma) — ikut fondasi nextjs/saas-starter biar backend cepat jalan. Schema di bawah = kanonik, diimplementasi sbg Drizzle schema (lib/db/schema.ts).
 
 ## Prinsip
@@ -73,7 +73,14 @@ guests
 guest_messages
   id, invitation_id→invitations, guest_id→guests(nullable),
   name, message, is_hidden, created_at
+  reviewed_at timestamp null       ← 0017, R-04 / D-044: null + is_hidden = PENDING (buku tamu dimoderasi saat ucapan masuk);
+                                     terisi + is_hidden = HIDDEN (disembunyikan tuan rumah); is_hidden false = VISIBLE
+  host_reply text null             ← 0017: balasan tuan rumah, tampil di bawah ucapan yang VISIBLE; kosong = dihapus
+  replied_at timestamp null        ← 0017
+  index guest_messages_invitation_visible_idx (invitation_id, is_hidden, created_at)   ← 0017, B-017: daftar + hitungan
+                                     ucapan VISIBLE di halaman tamu (EXPLAIN dibuktikan di verify-wishes-api)
 ```
+> Ucapan (R-04, D-044): penulis tunggal per panggilan, `BACKEND_WISHES=next|rust`. Halaman tamu hanya membaca ucapan VISIBLE; buku tamu `guestbook.visibility = 'host'` tidak menampilkan daftar sama sekali; `guestbook.moderation = true` menyimpan ucapan baru sebagai PENDING. Tuan rumah menampilkan / menyembunyikan / menghapus / membalas di `/dashboard/invitations/<id>/wishes`. Migrasi 0017 aditif (tiga kolom null + satu index); baris lama tetap VISIBLE atau tersembunyi seperti sebelumnya (tersembunyi lama terbaca PENDING sampai ditinjau).
 
 ### COMMERCE
 > REVISI 2026-07-27: Midtrans diganti QRIS (lokal) + Stripe (internasional).
@@ -144,7 +151,21 @@ analytics_events
   event_type[VIEW|RSVP|GUESTBOOK|CHECKIN], meta(json), created_at
   index analytics_events_view_dedupe_idx (invitation_id, guest_id, event_type, created_at)   -- 0011, B-017a
 ```
-> VIEW dicatat atomik (B-017a, `lib/invitation/view-tracking.ts`): satu transaksi per guest (atau per undangan untuk buka anonim) dikunci `pg_advisory_xact_lock`, lalu cek window 30 menit → insert → `guests.opened_count + 1`. Dua buka bersamaan tidak lagi menghasilkan dua baris.
+> VIEW dicatat atomik (B-017a, `lib/invitation/view-tracking.ts`): satu transaksi per guest (atau per undangan untuk buka anonim) dikunci `pg_advisory_xact_lock`, lalu cek window 30 menit �� insert → `guests.opened_count + 1`. Dua buka bersamaan tidak lagi menghasilkan dua baris.
+
+### API OPERATIONAL STATE (migrasi 0016, R-03, D-043)
+```
+api_rate_limits                       -- ditulis hanya oleh services/api (B-013)
+  bucket varchar(120) PK              -- rsvp:link:<guest id> | rsvp:ip:<HMAC 32 hex> | wish:link:<guest id> | wish:ip:<HMAC>;
+                                      -- tidak pernah alamat IP
+  window_start timestamp, hits int    -- window tetap; baris > 1 hari dipangkas saat window baru dibuka
+  index api_rate_limits_window_idx (window_start)
+api_idempotency_keys                  -- ditulis hanya oleh services/api
+  PK (scope varchar(120), key varchar(255))   -- scope: rsvp:guest:<id> | rsvp:host:<id> | wish:guest:<id> | wish:host:<wish id> | wish:reply:<wish id>
+  request_hash varchar(64), response_status int, response_body jsonb, created_at timestamp
+  index api_idempotency_keys_created_idx (created_at)   -- disimpan 24 jam
+```
+> Bukan data domain: penghitung batas tulis dan kunci idempotensi, dicatat di transaksi yang sama dengan tulisan yang dilindunginya (replay jawaban yang sudah commit, 422 untuk kunci yang dipakai ulang dengan isi lain). Migrasi aditif; Next.js tidak membaca atau menulisnya.
 
 ## Nunggu OPEN ITEMS
 - #1 opsi B → tambah tabel `wa_devices(id, user_id, fonnte_token, status)`.

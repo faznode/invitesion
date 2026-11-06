@@ -166,17 +166,29 @@ export const guests = pgTable(
   }),
 );
 
-export const guestMessages = pgTable('guest_messages', {
-  id: serial('id').primaryKey(),
-  invitationId: integer('invitation_id')
-    .notNull()
-    .references(() => invitations.id),
-  guestId: integer('guest_id').references(() => guests.id),
-  name: varchar('name', { length: 150 }).notNull(),
-  message: text('message').notNull(),
-  isHidden: boolean('is_hidden').notNull().default(false),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-});
+// R-04 (B-028, D-044): a wish is visible (`is_hidden` false), awaiting the host (hidden and never reviewed: the
+// guestbook's moderation was on when it arrived) or hidden by the host (hidden and reviewed). `host_reply` renders under
+// a visible wish. B-017: the guest page reads the newest visible wishes of one invitation through the index.
+export const guestMessages = pgTable(
+  'guest_messages',
+  {
+    id: serial('id').primaryKey(),
+    invitationId: integer('invitation_id')
+      .notNull()
+      .references(() => invitations.id),
+    guestId: integer('guest_id').references(() => guests.id),
+    name: varchar('name', { length: 150 }).notNull(),
+    message: text('message').notNull(),
+    isHidden: boolean('is_hidden').notNull().default(false),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    reviewedAt: timestamp('reviewed_at'),
+    hostReply: text('host_reply'),
+    repliedAt: timestamp('replied_at'),
+  },
+  (t) => ({
+    visibleIdx: index('guest_messages_invitation_visible_idx').on(t.invitationId, t.isHidden, t.createdAt),
+  }),
+);
 
 // ─────────────────────────────────────────────
 // COMMERCE  (Midtrans one-time, bukan subscription)
@@ -333,7 +345,7 @@ export const customerSessionSummary = pgTable('customer_session_summary', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 
-// ─────────────────────────────────────────────
+// ─────────���───────────────────────────────────
 // ANALYTICS
 // ─────────────────────────────────────────────
 export const analyticsEvents = pgTable(
@@ -402,7 +414,7 @@ export const messagesRelations = relations(messages, ({ one }) => ({
 }));
 
 // ─────────────────────────────────────────────
-// API OPERATIONAL STATE (R-03, D-042): written only by the Rust API (services/api); no domain data
+// API OPERATIONAL STATE (R-03, D-043): written only by the Rust API (services/api); no domain data
 // ─────────────────────────────────────────────
 // Fixed-window write counters shared by every API instance (B-013). `bucket` names what is limited:
 // `rsvp:link:<guest id>` or `rsvp:ip:<keyed hash>`; an address never reaches this table. Rows older than a day are pruned.

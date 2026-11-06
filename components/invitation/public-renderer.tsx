@@ -1,5 +1,6 @@
 import { InvitationIcon } from '@/components/invitation/icons';
 import { Countdown } from '@/components/invitation/countdown';
+import { CoverAudio, type CoverGateContent } from '@/components/invitation/cover-audio';
 import { GapuraLayout } from '@/components/invitation/families/gapura';
 import { KartuLayout } from '@/components/invitation/families/kartu';
 import { LontarLayout } from '@/components/invitation/families/lontar';
@@ -47,7 +48,39 @@ export function PublicInvitationRenderer(props: GuestPageProps) {
   const view = buildGuestView(props);
   const family = familyOf(props.config.theme?.familyId);
   const Layout = family ? FAMILY_LAYOUTS[family.id] : LegacyLayout;
-  return <Layout props={props} view={view} />;
+  const page = <Layout props={props} view={view} />;
+  // B-009 (D-045): only an invitation with playable music gets the island; every other page renders exactly as before.
+  if (!view.music) return page;
+  return (
+    <CoverAudio music={view.music} gate={coverGateOf(props, view)} style={view.tone.style}>
+      {page}
+    </CoverAudio>
+  );
+}
+
+const GATE_KICKERS: Record<string, string> = {
+  wedding: 'Undangan Pernikahan',
+  birthday: 'Undangan Ulang Tahun',
+  aqiqah: 'Undangan Aqiqah',
+  khitanan: 'Undangan Khitanan',
+  tasyakuran: 'Undangan Tasyakuran',
+  corporate: 'Undangan Acara',
+};
+
+/**
+ * B-009: the cover gate exists to give the music its tap, so it is shown only when the music plays on opening. A guest
+ * coming back from a form post (`?rsvp=`, `?wish=`) is already inside: the gate would cover the notice they came back for.
+ * Typographic on purpose: it carries no photo (T1 keeps photos framed in the layouts) and paints with the first byte.
+ */
+function coverGateOf({ invitation, config, guest, status }: GuestPageProps, view: GuestView): CoverGateContent | null {
+  if (!view.music?.playOnOpen || status.rsvp || status.wish) return null;
+  const names = (view.names ?? []).filter((name): name is string => Boolean(name));
+  return {
+    kicker: config.theme?.cover?.headline?.trim() || GATE_KICKERS[invitation.eventType] || 'Undangan',
+    names: names.length ? names : [config.settings?.title || 'Undangan'],
+    dateText: (view.primaryEvent?.startAt && view.formatDate(view.primaryEvent.startAt)) || undefined,
+    guestName: guest?.name ?? undefined,
+  };
 }
 
 function Section({ children, className = '' }: { children: React.ReactNode; className?: string }) {

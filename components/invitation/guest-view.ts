@@ -1,4 +1,5 @@
 import { isFlagOn } from '@/lib/flags';
+import { safeAudioSrc } from '@/lib/invitation/audio-url';
 import { calendarEventsFromConfig } from '@/lib/invitation/calendar';
 import { ceremonyProfileOf } from '@/lib/invitation/ceremony-profile';
 import { corporateMarkOf } from '@/lib/invitation/corporate-mark';
@@ -18,7 +19,8 @@ import { rsvpDeadlinePassed } from '@/lib/invitation/rsvp-rules';
 import { shareOf } from '@/lib/invitation/share';
 import type { Guest, Invitation, MediaAsset } from '@/lib/db/schema';
 
-export type GuestMessage = { id: number; name: string; message: string; createdAt: Date };
+/** A listed wish; `hostReply` is the host's answer (R-04), rendered under it. */
+export type GuestMessage = { id: number; name: string; message: string; createdAt: Date; hostReply?: string | null };
 
 export type GuestPageProps = {
   invitation: Invitation;
@@ -35,7 +37,11 @@ export type GuestPageProps = {
    * Outcome of the last submit (`?rsvp=`, `?wish=`); `rsvpq` names the question an `rsvp=answers` refusal is about and
    * `rsvpe` the event an `rsvp=events` refusal is about (D-036).
    */
-  status: { rsvp?: string; wish?: string; rsvpq?: string; rsvpe?: string };
+  /**
+   * Notices after a form post: `rsvpr` / `wishr` = seconds until a limit's window ends, `rsvpk` / `wishk` = the key a
+   * retry must reuse.
+   */
+  status: { rsvp?: string; wish?: string; rsvpq?: string; rsvpe?: string; rsvpr?: string; rsvpk?: string; wishr?: string; wishk?: string };
   /** The host's own preview (`/preview/[id]`): every event is shown, invite-only ones included (D-037). */
   preview?: boolean;
   /**
@@ -43,6 +49,8 @@ export type GuestPageProps = {
    * (`Idempotency-Key` on the Rust writer). Only the personal guest page mints one; without it the form has no key.
    */
   rsvpKey?: string;
+  /** R-04: the same for the wish form, so a double submit stores one wish. */
+  wishKey?: string;
 };
 
 /**
@@ -118,6 +126,10 @@ export function buildGuestView({ invitation, config, guest, media, readOnly, pre
   // switched off after the guest's page was rendered is announced by `SwitchedOffNotices` instead.
   const rsvpShown = config.rsvp?.enabled !== false;
   const guestbookShown = config.guestbook?.enabled !== false;
+  // R-04 (D-044): a hosts-only guestbook shows the form and no list; a moderated one tells the guest that a wish waits for
+  // the host. The writers and the loader apply the same switches (`guestbookRules`).
+  const wishesListed = config.guestbook?.visibility !== 'host';
+  const wishesModerated = config.guestbook?.moderation === true;
   // A stored cover can be any absolute URL the schema has ever accepted; the page requests only an upload path or an
   // http(s) URL, the same rule as the organiser's logo (E-022). Every layout reads this, never the stored value.
   const coverImageSrc = safeImageSrc(config.theme?.cover?.imageUrl);
@@ -257,10 +269,17 @@ export function buildGuestView({ invitation, config, guest, media, readOnly, pre
   // display sizes were drawn for; families set it a step smaller so it does not wrap the greeting off the first screen.
   const headlineKind: 'people' | 'event' = invitation.eventType === 'corporate' ? 'event' : 'people';
 
+  // B-009 (D-045): the host's background music. Only a playable source counts: every wedding preset stores
+  // `music: { enabled: true }` without a URL, and that renders nothing. `autoplay` unset means "play when the guest opens
+  // the invitation" (the editor's default), which is what the cover gate is for; `false` keeps only the music control.
+  const musicSrc = isFlagOn('GUEST_MUSIC') && config.music?.enabled === true ? safeAudioSrc(config.music?.assetUrl) : undefined;
+  const music = musicSrc ? { src: musicSrc, title: config.music?.title?.trim() || undefined, playOnOpen: config.music?.autoplay !== false } : null;
+
   return {
     headlineKind,
+    music,
     tone, formatDate, formatTime, dateParts, names, events, primaryEvent, renderedAt, primaryStartMs, showCountdown, primaryCalendarEvent, gallery,
-    canRespond, canRsvp, rsvpMaybe, rsvpQuestions, rsvpEvents, rsvpDeadlineText, rsvpClosedByDeadline, rsvpShown, guestbookShown, coverImageSrc, coverText, programme,
+    canRespond, canRsvp, rsvpMaybe, rsvpQuestions, rsvpEvents, rsvpDeadlineText, rsvpClosedByDeadline, rsvpShown, guestbookShown, wishesListed, wishesModerated, coverImageSrc, coverText, programme,
     organiser, corporateMark, ceremonyProfile, share, portraits,
   };
 }

@@ -20,6 +20,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/guest-links/{slug}/{guest}/wishes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["guest_wish"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/health": {
         parameters: {
             query?: never;
@@ -64,6 +80,38 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["host_rsvp_override"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/invitations/{invitation}/wishes/{wish}/moderation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["moderate_wish"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/invitations/{invitation}/wishes/{wish}/reply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["reply_to_wish"];
         delete?: never;
         options?: never;
         head?: never;
@@ -116,8 +164,19 @@ export interface components {
             submission: components["schemas"]["RsvpSubmission"];
             flags: components["schemas"]["RsvpFlags"];
             /**
-             * @description The guest's public address as Next.js received it. Used only for the per-address limit: reduced to a keyed hash,
-             *     never stored or logged. Absent = no per-address limit.
+             * @description The guest's public address as Next.js's trusted proxies reported it (`TRUSTED_PROXY_HOPS`). Used only for the
+             *     per-address limit: an IPv4 address, or the /64 of an IPv6 address, reduced to a keyed hash and never stored or
+             *     logged. Absent or not an IP literal = no per-address limit (the per-link limit still applies).
+             */
+            clientIp?: string | null;
+        };
+        /** @description A guest's wish as the form submitted it. */
+        GuestWishRequest: {
+            /** @description As typed; trimmed and judged by the rules (1 to 1,000 UTF-16 units after trimming). */
+            message: string;
+            /**
+             * @description The guest's public address as Next.js's trusted proxies reported it (`TRUSTED_PROXY_HOPS`), for the per-address
+             *     limit only: reduced to a keyed hash, never stored or logged. Absent or not an IP literal = no per-address limit.
              */
             clientIp?: string | null;
         };
@@ -148,6 +207,8 @@ export interface components {
             /** @description `CUSTOMER` or `ADMIN`, from `users.role`. */
             role: string;
         };
+        /** @enum {string} */
+        ModeratedState: "VISIBLE" | "HIDDEN" | "DELETED";
         /** @description An error response. `code` is stable and machine-readable; `title` and `detail` are for people and may change. */
         Problem: {
             /** @description `https://invitesion.id/problems/<code>`. */
@@ -213,6 +274,38 @@ export interface components {
             /** @description False when the open fell inside the dedupe window of an earlier one. */
             recorded: boolean;
         };
+        /** @enum {string} */
+        WishAction: "SHOW" | "HIDE" | "DELETE";
+        WishModerated: {
+            /** Format: int32 */
+            id: number;
+            state: components["schemas"]["ModeratedState"];
+        };
+        /** @description The host shows, hides or deletes one wish. */
+        WishModerationRequest: {
+            action: components["schemas"]["WishAction"];
+        };
+        WishReplied: {
+            /** Format: int32 */
+            id: number;
+            /** @description The stored reply, trimmed; null after clearing. */
+            hostReply?: string | null;
+        };
+        /** @description The host's reply to one wish; an empty or blank reply clears it. */
+        WishReplyRequest: {
+            reply: string;
+        };
+        WishSaved: {
+            /** Format: int32 */
+            id: number;
+            /** @description `VISIBLE`, or `PENDING` while the guestbook is moderated. */
+            state: components["schemas"]["WishState"];
+        };
+        /**
+         * @description A wish as the guest page and the host see it.
+         * @enum {string}
+         */
+        WishState: "VISIBLE" | "PENDING" | "HIDDEN";
     };
     responses: never;
     parameters: never;
@@ -298,6 +391,94 @@ export interface operations {
                 };
             };
             /** @description Too many RSVP writes for this link or address (`rate_limit.exceeded`); nothing was written */
+            429: {
+                headers: {
+                    /** @description Seconds until the limit's window ends */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    guest_wish: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description 1–255 visible ASCII characters; a retry with the same key and message replays the stored wish for 24 hours */
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                /** @description The invitation's slug */
+                slug: string;
+                /** @description The last segment of the guest's personal link: an opaque token, or the slug of a guest without one (B-011) */
+                guest: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GuestWishRequest"];
+            };
+        };
+        responses: {
+            /** @description Stored, or replayed (`Idempotent-Replayed: true`) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WishSaved"];
+                };
+            };
+            /** @description Malformed body or idempotency key */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Missing or invalid service signature */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description No published invitation, or no guest for this link (`wish.link_not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The guestbook is closed (`wish.closed`; detail `disabled` or `expired`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An empty or too long message (`wish.message_invalid`), or `idempotency.key_reused` */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too many wishes for this link or address (`rate_limit.exceeded`); nothing was written */
             429: {
                 headers: {
                     /** @description Seconds until the limit's window ends */
@@ -435,6 +616,178 @@ export interface operations {
                 };
             };
             /** @description An event the guest is not asked about, or an event answer without per-event RSVP (`rsvp.override_invalid`); `idempotency.key_reused` */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Owner tokens are not configured or the signing keys are unreachable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    moderate_wish: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description As for the guest's wish; a retried delete replays instead of answering 404 */
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                /** @description The owner's invitation */
+                invitation: number;
+                /** @description A wish of that invitation */
+                wish: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WishModerationRequest"];
+            };
+        };
+        responses: {
+            /** @description Applied, or replayed (`Idempotent-Replayed: true`) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WishModerated"];
+                };
+            };
+            /** @description Malformed path, body or idempotency key */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Missing or invalid signature or owner token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description A token for no live customer (`owner.unknown_user`, `owner.role_not_allowed`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not this owner's invitation, or not its wish (`invitation_or_wish.not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description `idempotency.key_reused` */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Owner tokens are not configured or the signing keys are unreachable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    reply_to_wish: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description As for the guest's wish */
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                /** @description The owner's invitation */
+                invitation: number;
+                /** @description A wish of that invitation */
+                wish: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WishReplyRequest"];
+            };
+        };
+        responses: {
+            /** @description Stored or cleared, or replayed (`Idempotent-Replayed: true`) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WishReplied"];
+                };
+            };
+            /** @description Malformed path, body or idempotency key */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Missing or invalid signature or owner token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description A token for no live customer (`owner.unknown_user`, `owner.role_not_allowed`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not this owner's invitation, or not its wish (`invitation_or_wish.not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description A reply longer than 1,000 UTF-16 units (`wish.reply_invalid`), or `idempotency.key_reused` */
             422: {
                 headers: {
                     [name: string]: unknown;

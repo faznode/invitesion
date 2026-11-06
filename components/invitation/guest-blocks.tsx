@@ -700,6 +700,9 @@ export function RsvpBlock({
   // D-036: with an answer per event there is one submit button; the action derives the overall answer from the events.
   const perEvent = rsvpEvents.length > 0;
   const refusedEvent = status.rsvp === 'events' ? rsvpEvents.find((event) => event.id === status.rsvpe) : undefined;
+  // B-013: whole minutes until the limit's window ends, when the refusal said (`rsvpr`, seconds).
+  const retrySeconds = status.rsvp === 'busy' && /^\d{1,5}$/.test(status.rsvpr ?? '') ? Number(status.rsvpr) : 0;
+  const retryMinutes = retrySeconds > 0 ? Math.ceil(retrySeconds / 60) : 0;
   // "Required" means required for "hadir" (D-034): the other answers skip the browser's check, the action applies the same rule.
   const skipRequired = rsvpQuestions.length > 0 || undefined;
   const closedText = readOnly
@@ -713,7 +716,16 @@ export function RsvpBlock({
       {status.rsvp === 'invalid' && <Notice kind="error">Pilihan kehadiran tidak dikenali. Silakan coba lagi.</Notice>}
       {status.rsvp === 'closed' && <Notice kind="error">{RSVP_REFUSED}</Notice>}
       {status.rsvp === 'busy' && (
-        <Notice kind="error">Konfirmasimu belum tersimpan karena terlalu banyak percobaan dalam waktu singkat. Silakan coba lagi beberapa menit lagi.</Notice>
+        <Notice kind="error">
+          Konfirmasimu belum tersimpan karena terlalu banyak percobaan dalam waktu singkat.{' '}
+          {retryMinutes ? `Silakan coba lagi dalam ${retryMinutes} menit.` : 'Silakan coba lagi beberapa menit lagi.'}
+        </Notice>
+      )}
+      {status.rsvp === 'retry' && (
+        <Notice kind="error">
+          Konfirmasimu belum bisa dipastikan tersimpan karena gangguan sambungan. Silakan kirim sekali lagi; jawaban yang sama
+          tidak akan tercatat dua kali.
+        </Notice>
       )}
       {status.rsvp === 'answers' && (
         <Notice kind="error">
@@ -884,17 +896,38 @@ export function GuestbookBlock({
   listClassName?: string;
 }) {
   const { invitation, guest, messages, status, totalMessages = messages.length, hiddenMessageCount = 0 } = props;
-  const { tone, canRespond } = view;
+  const { tone, canRespond, wishesListed, wishesModerated } = view;
+  // B-013: whole minutes until the limit's window ends, when the refusal said (`wishr`, seconds).
+  const retrySeconds = status.wish === 'busy' && /^\d{1,5}$/.test(status.wishr ?? '') ? Number(status.wishr) : 0;
+  const retryMinutes = retrySeconds > 0 ? Math.ceil(retrySeconds / 60) : 0;
+  // R-04 (D-044): on a hosts-only guestbook nothing is listed, so "saved" and "pending" both mean delivered to the hosts.
+  const delivered = 'Terima kasih. Ucapanmu sudah tersampaikan kepada tuan rumah.';
   return (
     <>
-      {status.wish === 'saved' && <Notice kind="success">Terima kasih atas ucapanmu.</Notice>}
-      {status.wish === 'invalid' && <Notice kind="error">Ucapan tidak boleh kosong.</Notice>}
+      {status.wish === 'saved' && <Notice kind="success">{wishesListed ? 'Terima kasih atas ucapanmu.' : delivered}</Notice>}
+      {status.wish === 'pending' && (
+        <Notice kind="success">{wishesListed ? 'Terima kasih. Ucapanmu akan tampil setelah disetujui tuan rumah.' : delivered}</Notice>
+      )}
+      {status.wish === 'invalid' && <Notice kind="error">Ucapan tidak boleh kosong atau lebih dari 1.000 karakter.</Notice>}
       {status.wish === 'closed' && <Notice kind="error">{WISH_REFUSED}</Notice>}
+      {status.wish === 'busy' && (
+        <Notice kind="error">
+          Ucapanmu belum tersimpan karena terlalu banyak ucapan dalam waktu singkat.{' '}
+          {retryMinutes ? `Silakan coba lagi dalam ${retryMinutes} menit.` : 'Silakan coba lagi beberapa menit lagi.'}
+        </Notice>
+      )}
+      {status.wish === 'retry' && (
+        <Notice kind="error">
+          Ucapanmu belum bisa dipastikan tersimpan karena gangguan sambungan. Silakan kirim sekali lagi; ucapan yang sama tidak akan
+          tercatat dua kali.
+        </Notice>
+      )}
 
       {canRespond && guest && (
         <form action={submitGuestMessage} className={formClassName}>
           <input type="hidden" name="slug" value={invitation.slug} />
           <input type="hidden" name="guestSlug" value={guestLinkSegment(guest)} />
+          {props.wishKey && <input type="hidden" name="wishKey" value={props.wishKey} />}
           <label className="block space-y-1.5">
             <span className="text-sm font-semibold">Ucapan dari {guest.name}</span>
             <textarea
@@ -902,32 +935,46 @@ export function GuestbookBlock({
               rows={4}
               required
               maxLength={1000}
+              aria-describedby={!wishesListed || wishesModerated ? `wish-note-${invitation.id}` : undefined}
               className={`w-full rounded-lg border ${tone.line} ${tone.field} p-3 text-sm ${tone.placeholder}`}
               placeholder="Tulis doa dan ucapan terbaikmu…"
             />
           </label>
+          {(!wishesListed || wishesModerated) && (
+            <p id={`wish-note-${invitation.id}`} className={`text-sm ${tone.muted}`}>
+              {!wishesListed ? 'Ucapanmu hanya dibaca oleh tuan rumah.' : 'Ucapan tampil di sini setelah disetujui tuan rumah.'}
+            </p>
+          )}
           <button type="submit" className={`min-h-11 w-full rounded-lg border border-current px-4 text-sm font-semibold ${tone.accent}`}>
             Kirim ucapan
           </button>
         </form>
       )}
 
-      <div className={listClassName}>
-        {hiddenMessageCount > 0 && (
-          // The list is capped for payload reasons. Saying so is better than
-          // letting a guest assume the earlier wishes were lost.
-          <p className={`text-center text-sm ${tone.muted}`}>
-            Menampilkan {messages.length} ucapan terbaru dari {totalMessages}.
-          </p>
-        )}
-        {messages.map((message) => (
-          <article key={message.id} className={messageClassName}>
-            <p className="font-semibold">{message.name}</p>
-            <p className="mt-2 text-sm leading-7">{message.message}</p>
-          </article>
-        ))}
-        {!messages.length && <p className={`text-center text-sm ${tone.muted}`}>Belum ada ucapan. Jadilah yang pertama.</p>}
-      </div>
+      {wishesListed && (
+        <div className={listClassName}>
+          {hiddenMessageCount > 0 && (
+            // The list is capped for payload reasons. Saying so is better than
+            // letting a guest assume the earlier wishes were lost.
+            <p className={`text-center text-sm ${tone.muted}`}>
+              Menampilkan {messages.length} ucapan terbaru dari {totalMessages}.
+            </p>
+          )}
+          {messages.map((message) => (
+            <article key={message.id} className={messageClassName}>
+              <p className="font-semibold">{message.name}</p>
+              <p className="mt-2 text-sm leading-7">{message.message}</p>
+              {message.hostReply && (
+                <div className={`mt-4 border-t ${tone.line} pt-3`}>
+                  <p className="text-xs font-semibold uppercase tracking-wider">Balasan tuan rumah</p>
+                  <p className="mt-1 text-sm leading-7">{message.hostReply}</p>
+                </div>
+              )}
+            </article>
+          ))}
+          {!messages.length && <p className={`text-center text-sm ${tone.muted}`}>Belum ada ucapan. Jadilah yang pertama.</p>}
+        </div>
+      )}
     </>
   );
 }

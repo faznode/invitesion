@@ -3,14 +3,16 @@
 //! RSVP button, a retried request after a timeout). Refused requests write nothing and record nothing, so they are
 //! simply evaluated again. A key reused with a different request is a 422. Records are kept for 24 hours.
 
-use axum::http::HeaderMap;
+use axum::Json;
+use axum::http::{HeaderMap, HeaderValue, StatusCode};
+use axum::response::{IntoResponse, Response};
 use serde::Serialize;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use sqlx::{PgPool, Postgres, Transaction};
 use time::{Duration, PrimitiveDateTime};
 
-use crate::problem::ApiError;
+use crate::problem::{ApiError, Subject};
 
 pub const KEY_HEADER: &str = "idempotency-key";
 pub const REPLAYED_HEADER: &str = "idempotent-replayed";
@@ -59,6 +61,19 @@ pub async fn lookup(pool: &PgPool, scope: &str, key: &str, hash: &str) -> Result
         }
         Some(_) => Prior::Mismatch,
     })
+}
+
+/// A committed response for this key replays (with `Idempotent-Replayed: true`); the key with another request is a 422.
+pub async fn replay(pool: &PgPool, scope: &str, key: &str, hash: &str) -> Result<Option<Response>, ApiError> {
+    match lookup(pool, scope, key, hash).await.map_err(|error| ApiError::internal("idempotency_lookup", error))? {
+        Prior::None => Ok(None),
+        Prior::Mismatch => Err(ApiError::Unprocessable("idempotency.key_reused", Subject::None)),
+        Prior::Replay { status, body } => {
+            let mut response = (StatusCode::from_u16(status).unwrap_or(StatusCode::OK), Json(body)).into_response();
+            response.headers_mut().insert(REPLAYED_HEADER, HeaderValue::from_static("true"));
+            Ok(Some(response))
+        }
+    }
 }
 
 /// Records the key with the response inside the write's transaction. False when another request with this key

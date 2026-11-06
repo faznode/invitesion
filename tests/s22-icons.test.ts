@@ -8,7 +8,8 @@ import type { DetailConfig } from '../lib/invitation/detail-config';
 import { fixtureGuest, LAYOUTS, renderGuestPage, withFamily } from './support/render-guest-page';
 
 const read = (path: string) => readFileSync(join(process.cwd(), path), 'utf8');
-const NAMES = ['calendar-days', 'calendar-plus', 'clock', 'gift', 'map-pin', 'quote', 'radio'] as const;
+// B-009 adds the music control's two icons; the control lives outside `<main>`, so only the stylesheet test sees them.
+const NAMES = ['calendar-days', 'calendar-plus', 'clock', 'gift', 'map-pin', 'quote', 'radio', 'volume-2', 'volume-x'] as const;
 
 const config: DetailConfig = {
   couple: { bride: { nickName: 'Laras' }, groom: { nickName: 'Dimas' } },

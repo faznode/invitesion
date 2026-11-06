@@ -5,6 +5,7 @@
 
 mod app;
 pub mod config;
+pub mod guest_link;
 pub mod health;
 pub mod idempotency;
 pub mod identity;
@@ -16,6 +17,7 @@ pub mod rsvp;
 pub mod service_auth;
 pub mod telemetry;
 pub mod views;
+pub mod wishes;
 
 pub use app::{AppState, StartupError, router};
 

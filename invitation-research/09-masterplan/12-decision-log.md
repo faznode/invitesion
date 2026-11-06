@@ -1,11 +1,11 @@
 <!-- SUMMARY (first 7 lines — greppable) -->
 # 12-decision-log.md — architecture and research decisions (ADRs) for the Invitesion masterplan
 > WHAT: ADRs with context, options, decision, consequences, confidence and revisit triggers. Short decisions D-001… live in `../_progress.md`; this file holds the decisions the masterplan depends on.
-> STATUS: **s26 (2026-11-06): five decisions added:** ADR-O11 (owner sequencing: research, then the final masterplan, then the upgrade; ADR-O08 superseded for sequencing only), ADR-O12 (owner: RQ-COMP-04 / -05 qualified by availability, strict counts 13 / 21 and 4 / 15 kept; the research gate passes as qualified), ADR-A2 (Rust as the authoritative backend, one data domain at a time), ADR-F1 (Next.js stays the frontend) and D-041 (legacy contrast INCOMPLETE stays INCOMPLETE; legacy frozen for compatibility). ADR texts W1, O01…O10 and A1 are unchanged. **s25 (2026-11-06): extended to current decisions:** ADR-A1 outcome (D-039; the ADR stands, no revisit trigger fired), a table of the product decisions since s14 (D-034…D-040) and Q-D17 (Q-O11 resolved, s25), and the owner's s25 deferrals (DA-01 / DA-02, not ADRs). ADR texts W1, O01…O10 and A1 are unchanged. Earlier: verified s10 (2026-11-04; v1 s09). ADR-W1 **decided** (s08), fallback met → planning gate met through ADR-W1 (reduced confidence, not literal Wave 1). ADR-W1 is the historical authorization to plan with reduced confidence; it is **not** the missing evidence and does not close any research requirement (strict Wave 1 stays NOT MET, RQ-DEMO-01). Owner-question ADRs **ADR-O01…O07 accepted autonomously** in s08 as safe, reversible defaults with revisit triggers (the owner can override any of them). **ADR-A1** (s09): keep the Next.js stack, measured. s10 additions: Viding coverage 3 → 6 themes, D-026 / D-027, open owner question Q-O08 (§ "Session 10 decisions"). s12 decisions D-030 / D-031 entered and verified in s13 (§ "Session 12 decisions"); s13 decision D-032 (measurement profiles, § "Session 13 decisions"); open owner questions Q-O08 (residual), Q-O09, Q-O10.
+> STATUS: **s28 (2026-11-06): D-043 (R-03 RSVP through the Rust API), D-044 (R-04 wishes: moderation, replies, visibility) and D-045 (B-009 music and the cover gate) added.** **s26 (2026-11-06): five decisions added:** ADR-O11 (owner sequencing: research, then the final masterplan, then the upgrade; ADR-O08 superseded for sequencing only), ADR-O12 (owner: RQ-COMP-04 / -05 qualified by availability, strict counts 13 / 21 and 4 / 15 kept; the research gate passes as qualified), ADR-A2 (Rust as the authoritative backend, one data domain at a time), ADR-F1 (Next.js stays the frontend) and D-041 (legacy contrast INCOMPLETE stays INCOMPLETE; legacy frozen for compatibility). ADR texts W1, O01…O10 and A1 are unchanged. **s25 (2026-11-06): extended to current decisions:** ADR-A1 outcome (D-039; the ADR stands, no revisit trigger fired), a table of the product decisions since s14 (D-034…D-040) and Q-D17 (Q-O11 resolved, s25), and the owner's s25 deferrals (DA-01 / DA-02, not ADRs). ADR texts W1, O01…O10 and A1 are unchanged. Earlier: verified s10 (2026-11-04; v1 s09). ADR-W1 **decided** (s08), fallback met → planning gate met through ADR-W1 (reduced confidence, not literal Wave 1). ADR-W1 is the historical authorization to plan with reduced confidence; it is **not** the missing evidence and does not close any research requirement (strict Wave 1 stays NOT MET, RQ-DEMO-01). Owner-question ADRs **ADR-O01…O07 accepted autonomously** in s08 as safe, reversible defaults with revisit triggers (the owner can override any of them). **ADR-A1** (s09): keep the Next.js stack, measured. s10 additions: Viding coverage 3 → 6 themes, D-026 / D-027, open owner question Q-O08 (§ "Session 10 decisions"). s12 decisions D-030 / D-031 entered and verified in s13 (§ "Session 12 decisions"); s13 decision D-032 (measurement profiles, § "Session 13 decisions"); open owner questions Q-O08 (residual), Q-O09, Q-O10.
 > OWNER: Architect (research agent acting autonomously, brief 03 §5.1)
 > DEPS: ../_handoff/review-20261101.md §2, ../_open-questions.md §B, ../_evidence-index.md, ../04-template-benchmarks/benchmark-exclusions.csv, ../03-teardowns/*/dossier.md; owner instructions supplied outside the repository; code at `2c94140`: lib/invitation/{detail-config,create,template-sync,templates}.ts, lib/pricing.ts, app/marketing-copy.ts, app/globals.css, app/layout.tsx
-> GREP: adr, decision, wave 1, ADR-W1, planning gate, reduced confidence, fallback, revisit, D-039, D-040, Q-D17, deferred
-> UPDATED: 2026-11-06 (s26)
+> GREP: adr, decision, wave 1, ADR-W1, planning gate, reduced confidence, fallback, revisit, D-039, D-040, Q-D17, deferred, D-043, D-044, moderation
+> UPDATED: 2026-11-06 (s28)
 
 ## ADR-W1 — Wave-1 reduced-confidence fallback for competitors without safe public demos
 **Status:** DECIDED 2026-11-03 (session 08); fallback requirements met 16:54Z → planning gate met through ADR-W1 · **Type:** reduced-confidence exception, **not** literal satisfaction of strict Wave 1 · **Authority:** brief 05 §14 ("If the bounded search confirms unavailable or insufficient safe public demos, this prompt authorizes ADR-W1").
@@ -264,6 +264,83 @@ Answers to the three gate questions in `../_handoff/sessions/session-14-20261104
   - rejecting stored values that predate the rule: it would stop hosts from saving unrelated sections.
 - **Evidence:** E-054 (tests 13 / 13; `verify-theme-entitlement` 14 / 14 with a negative control).
 - **Revisit:** a catalog change that moves a palette across tiers (a unit test pins today's set), or B-036.
+
+### D-043 — RSVP writes through the Rust API: keyed retries, shared limits, a trusted-proxy address (R-03; code s27, completed s28)
+- **Context [OBSERVED]:**
+  - ADR-A2 allows one writer per column group and no fallback after an ambiguous write; a fallback after a timeout could write a second time for a request the first writer committed.
+  - RSVP is the core guest write and had no limit (B-013). Guests arrive in WhatsApp blasts, often many behind one carrier NAT, and IPv6 subscribers routinely hold a whole /64.
+  - `X-Forwarded-For` is appended by every proxy; only entries written by trusted proxies are facts. Vercel's edge replaces the header with the client's address alone.
+  - The s27 code minted a form key per rendering but sent none from the host's dashboard, retried nothing, threw on a transport failure (a generic error page), and read the leftmost forwarded entry or `X-Real-IP`.
+- **Decision:**
+  - (1) Every RSVP write to the API carries an `Idempotency-Key`, recorded with the response in the write's own transaction (`api_idempotency_keys`, kept 24 h). The guest page mints one per rendered form; the writer mints one when a form has none and for every host override.
+  - (2) An unknown outcome (status 0, any 5xx) is sent exactly once more under the same key: a committed write replays, an uncommitted one writes once. The other writer is never tried. If the retry is unknown too, the guest sees "unconfirmed" and the re-rendered form carries the same key (`?rsvp=retry&rsvpk=`), so the next send writes at most once; the host sees `?error=unconfirmed` and the list shows the state. Codes and status are logged, never guest data.
+  - (3) Fixed-window limits in `api_rate_limits`, shared by every instance: per link (default 10 / 600 s) and per address (60 / 600 s), refused with 429 and `Retry-After`; the guest's notice says how many minutes. Replays answer before the limiter.
+  - (4) The address is the `X-Forwarded-For` entry `TRUSTED_PROXY_HOPS` places from the right (default 1; 0 trusts no header; an unreadable value trusts none). Only IP literals are sent. The API keys IPv4 (and IPv4-mapped IPv6) by address and IPv6 by its /64, and stores an HMAC of the key under the service secret, never the address.
+  - (5) Refusals map to the notices the TypeScript writer gives (closed, invalid, the event or question to fix, busy). The owner check's 403 sends the host to sign-in, as `context()` does; 400 and 401 are deployment errors and propagate.
+  - (6) Migration 0016 is additive and written only by the API; drizzle-kit stays the single migration owner. Stored guest shapes are unchanged.
+- **Rejected:**
+  - a fallback to the TypeScript writer after a failure: it could write twice;
+  - the leftmost forwarded entry or `X-Real-IP`: client-controlled unless a proxy is contracted to set them;
+  - per-address IPv6 limits: one line can rotate through 2⁶⁴ addresses;
+  - storing or logging addresses (UU PDP).
+- **Limits:**
+  - Concurrent sends of one form each pass the limiter before one commits, so at the boundary a twin can see "busy" while the other saved; sequential re-sends replay before the limiter.
+  - The per-address limit is only as good as the deployment's proxy contract; without a trusted proxy (`0`) only the per-link limit applies.
+  - A double click on a dashboard control is two overrides with one result (two RSVP analytics rows); the key covers one override's retry.
+- **Evidence:** E-059 (`verify-rsvp-api` through both call sites and the running binary, with negative controls; unit tests for the writer, the client and the address contract).
+- **Revisit:** a deployment behind other proxies (set `TRUSTED_PROXY_HOPS`), or limits that real traffic proves too tight or too loose.
+
+### D-044 — Wishes: moderation, replies and visibility, written through one writer (R-04; s28)
+- **Context [OBSERVED]:**
+  - B-028: `guest_messages.is_hidden` existed and the guest page already skipped hidden rows, but nothing set the flag. Hosts could not approve, hide, delete or reply, so every wish was listed and counted.
+  - B-013: wishes had no write limit. B-017: the guest page's newest-wishes list and count had no index.
+  - ADR-A2 and D-043 fix the slice mechanics: one writer per column group, an `Idempotency-Key` on every API write, one retry under the same key, no fallback.
+- **Decision:**
+  - (1) Three states from the existing column plus one timestamp: **VISIBLE** (`is_hidden` false), **PENDING** (hidden, `reviewed_at` null: the guestbook was moderated when the wish arrived), **HIDDEN** (hidden by the host, `reviewed_at` set). `is_hidden` keeps its meaning, so the guest page's rule stays "not hidden".
+  - (2) Two host settings in the guestbook section: `moderation` (default off) stores new wishes PENDING, and the form tells the guest; `visibility: 'host'` (default `public`) keeps every wish for the hosts: the page shows the form and no list, and the loader runs no wish query. An unreadable section reads as open, unmoderated and public.
+  - (3) Host operations on `/dashboard/invitations/<id>/wishes`: show (approve a pending wish or restore a hidden one), hide, delete, reply (trimmed, at most 1,000 UTF-16 units; blank clears). A reply is stored on any wish and rendered only under a visible one. Only the invitation's owner; administrators sign in; the wish must belong to the invitation.
+  - (4) One pure decision, `lib/invitation/wish-decision.ts`: the switch first, then the message (trimmed, 1–1,000 UTF-16 units, no U+0000), then moderation. `contracts/vectors/wish-decisions.json` runs it in both languages.
+  - (5) Writer selection `BACKEND_WISHES` (default `next`) with D-043's contract: the guest form's key comes from the per-render key helper; each host action mints its own key, so a retried delete replays instead of answering "not found". Unknown outcomes are retried once and then shown as `?wish=retry&wishk=`. Limits are per link (5 / 600 s) and per address (60 / 600 s, IPv6 per /64), shown as `?wish=busy&wishr=`. A form key reused with another message is treated as a new wish and sent under a fresh key, not refused.
+  - (6) Migration 0017 is additive (`reviewed_at`, `host_reply`, `replied_at`, index `guest_messages_invitation_visible_idx (invitation_id, is_hidden, created_at)`); drizzle-kit owns it. The guest page still shows the newest 50 visible wishes, oldest first.
+- **Rejected:**
+  - a separate status column: a second source of truth beside `is_hidden`, and a changed read rule for the guest page;
+  - refusing a reused form key with a changed message: a guest who brings an old page back would lose what they typed;
+  - hiding the form on a hosts-only guestbook: the wish still reaches the hosts, and the form says who reads it.
+- **Limits:**
+  - The TypeScript writer applies no limits. It is the rollback path until the rollout removes it.
+  - Concurrent twins at a limit boundary behave as in D-043.
+  - A moderated guestbook shows a new wish to nobody until the host approves it. The notice says so.
+- **Evidence:** E-060 (`verify-wishes-api` through both writers and the running binary, `EXPLAIN` on the guest page's queries, five negative controls; unit and vector tests in both languages).
+- **Revisit:** limits that real traffic proves wrong, or a request to show pending wishes to their author.
+
+### D-045 — Background music opens from a typographic cover gate, only when the music can play (B-009; s28)
+- **Context [OBSERVED]:**
+  - B-009: `config.music` was stored and never rendered. Cover plus music appear on 8–9 of 9 Indonesian vendors (C-ENV-122, C-INV-111, C-WEV-104, S-IDI-006). Browsers start sound only after the guest's own gesture, and opening is not playback (D-016).
+  - I-15 is B-009's acceptance (dispositions s26). The opening takes at most 1.5 s, the control is tappable and labelled from first paint, and reduced motion is honoured. The observed problem is premium vendors' 10 s intros and text-less cover controls (C-ENV-122, B-ENV-001).
+  - Every wedding preset stores `music: { enabled: true }` without a URL. Uploads accept images only.
+  - D-041 freezes the legacy layout, the four families are experiments, and T1 keeps photos framed.
+- **Decision:**
+  - (1) Music renders only from a playable source: `music.enabled` and an http(s) `assetUrl`, under the same rule as images (`lib/invitation/audio-url.ts`). Flag `GUEST_MUSIC`, default on.
+  - (2) The gate exists to give the music its gesture. It shows when the music plays on opening (`autoplay` unset or true; the editor now presents this as the default "Putar saat undangan dibuka") and never after a form post (`?rsvp=`, `?wish=`). With `autoplay: false` the page offers only the control.
+  - (3) One shared client island wraps every layout (`components/invitation/cover-audio.tsx`) and sits outside `<main>`. The layouts' markup is unchanged (`<main>` byte-identical), and a page without playable music renders byte-identical HTML. Next.js lists a route's client chunks statically, so every guest page downloads the island's chunk (5.6 KB decoded), which runs only where music plays. A lazy boundary was rejected: it could stream the gate after the content it covers.
+  - (4) The gate is typographic: the kicker (the host's cover headline, or the occasion), the names, the date, "Kepada Yth." with the guest's name on a personal link, then "Buka Undangan" and "Buka tanpa musik". It uses palette tokens only and carries no photo (T1), so it paints with the first byte. It is a modal dialog placed before the layout in the DOM.
+  - (5) It opens without JavaScript: both links point at the gate, and `:target` hides it. With JavaScript, the same tap starts the audio inside the click handler. Escape and "Buka tanpa musik" open without sound. After hydration the page behind is inert and the document does not scroll. After opening, focus moves into the page.
+  - (6) The only motion is the gate's exit (0.7 s), removed under reduced motion.
+  - (7) One `<audio preload="none" loop>`, so no audio byte is fetched before a tap. A toggle with `aria-pressed` appears after hydration, and none appears if the source cannot play.
+- **Rejected:**
+  - a gate on every invitation: friction without the music it exists for;
+  - a gate per family layout: five implementations, and a legacy change under D-041;
+  - a gate that needs JavaScript: a tap before hydration would be lost, so it would not be operable from first paint;
+  - the `autoplay` attribute, or starting sound from an effect: browsers block it, and it would be sound without a gesture;
+  - a cover photo on the gate: text over a photo stays unmeasurable (T1);
+  - audio uploads in this item: the storage allowlist, Range support and size limits are their own change.
+- **Limits:**
+  - Playback is proven in headless Chrome only. Devices and in-app browsers (WhatsApp, Instagram) are unverified (D-016, EXT).
+  - A host URL that is not an audio file fails quietly: the gate still opens and no control is offered.
+  - The audio host sees the address of a guest who taps, as with external images.
+  - An enforced CSP (B-038) will need `media-src` for hosts' audio origins.
+- **Evidence:** E-061.
+- **Revisit:** audio uploads, evidence from devices, or a host asking for a gate without music.
 
 ## Decisions since session 14 referenced by the masterplan (recorded s25; full text where linked)
 Product decisions taken during implementation under ADR-O08. Each has its full text, reasons and reversal in `../_progress.md`, its implementation in `../_handoff/IMPLEMENTATION-LOG.md`, and its domain rule in `docs/systems/`.

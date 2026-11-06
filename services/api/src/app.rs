@@ -12,7 +12,7 @@ use crate::config::{Config, ConfigError};
 use crate::limits::Limits;
 use crate::owner_auth::{OwnerAuthError, OwnerVerifier};
 use crate::problem::ApiError;
-use crate::{health, identity, rsvp, service_auth, telemetry, views};
+use crate::{health, identity, rsvp, service_auth, telemetry, views, wishes};
 
 /// Longer than the pool's 5 s acquire timeout, so an unreachable database answers its own 503 first.
 pub const REQUEST_TIMEOUT: Duration = Duration::from_secs(10);
@@ -57,6 +57,9 @@ pub fn router(state: AppState) -> Router {
         .route("/v1/views", post(views::record_view))
         .route("/v1/guest-links/{slug}/{guest}/rsvp", post(rsvp::http::guest_rsvp))
         .route("/v1/invitations/{invitation}/guests/{guest}/rsvp-override", post(rsvp::http::host_rsvp_override))
+        .route("/v1/guest-links/{slug}/{guest}/wishes", post(wishes::http::guest_wish))
+        .route("/v1/invitations/{invitation}/wishes/{wish}/moderation", post(wishes::http::moderate_wish))
+        .route("/v1/invitations/{invitation}/wishes/{wish}/reply", post(wishes::http::reply_to_wish))
         .route_layer(from_fn_with_state(state.clone(), service_auth::require_signature));
     let app =
         Router::new().route("/v1/health", get(health::health)).merge(signed).with_state(state).layer(from_fn(timeout));

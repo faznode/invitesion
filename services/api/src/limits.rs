@@ -3,10 +3,14 @@
 //! refused with a 429 problem and writes nothing else. A client address is reduced to a keyed hash before it reaches the
 //! database and is never logged (UU PDP). Rows older than a day are pruned as new windows open.
 
+use std::net::IpAddr;
+
 use hmac::{Hmac, KeyInit, Mac};
 use sha2::Sha256;
 use sqlx::PgPool;
 use time::{Duration, PrimitiveDateTime};
+
+use crate::problem::ApiError;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Limit {
@@ -23,12 +27,16 @@ impl Limit {
     }
 }
 
-/// The limits per write path. Defaults allow a guest to change an answer several times and tolerate many guests behind
-/// one carrier-grade NAT; `RATE_LIMIT_RSVP_LINK` / `RATE_LIMIT_RSVP_IP` override them.
+/// The limits per write path. Defaults allow a guest to change an answer several times, or to add a wish or two after
+/// a first one, and tolerate many guests behind one carrier-grade NAT or venue network; `RATE_LIMIT_RSVP_LINK`,
+/// `RATE_LIMIT_RSVP_IP`, `RATE_LIMIT_WISH_LINK` and `RATE_LIMIT_WISH_IP` override them.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Limits {
     pub rsvp_per_link: Limit,
     pub rsvp_per_ip: Limit,
+    /// R-04: a wish is a public text of up to 1,000 characters, so a link gets fewer of them than RSVP changes.
+    pub wish_per_link: Limit,
+    pub wish_per_ip: Limit,
 }
 
 impl Default for Limits {
@@ -36,6 +44,8 @@ impl Default for Limits {
         Self {
             rsvp_per_link: Limit { max: 10, window_seconds: 600 },
             rsvp_per_ip: Limit { max: 60, window_seconds: 600 },
+            wish_per_link: Limit { max: 5, window_seconds: 600 },
+            wish_per_ip: Limit { max: 60, window_seconds: 600 },
         }
     }
 }
@@ -89,6 +99,50 @@ pub async fn hit(pool: &PgPool, bucket: &str, limit: Limit, now: PrimitiveDateTi
     Ok(Verdict { allowed: hits <= limit.max, retry_after: retry_after(now, limit) })
 }
 
+/// One hit for `bucket`; a refusal is the 429 problem with `Retry-After`.
+pub async fn enforce(pool: &PgPool, bucket: &str, limit: Limit, now: PrimitiveDateTime) -> Result<(), ApiError> {
+    let verdict = hit(pool, bucket, limit, now).await.map_err(|error| ApiError::internal("rate_limit", error))?;
+    if verdict.allowed { Ok(()) } else { Err(ApiError::TooManyRequests { retry_after: verdict.retry_after }) }
+}
+
+/// The per-address limit of a guest write path (`scope` = `rsvp`, `wish`). Absent or blank = none; a value that is not an
+/// IP literal is skipped with a log line that never carries the value (Next.js sends only IP literals, so it is a caller
+/// bug); the per-link limit applies either way.
+pub async fn enforce_address(
+    pool: &PgPool,
+    secret: &[u8],
+    scope: &str,
+    client_ip: Option<&str>,
+    limit: Limit,
+    now: PrimitiveDateTime,
+) -> Result<(), ApiError> {
+    let Some(raw) = client_ip.map(str::trim).filter(|address| !address.is_empty()) else { return Ok(()) };
+    match address_key(raw) {
+        Some(address) => enforce(pool, &ip_bucket(secret, scope, &address), limit, now).await,
+        None => {
+            tracing::warn!(scope, "client address is not an IP literal; per-address limit skipped");
+            Ok(())
+        }
+    }
+}
+
+/// The limiter's identity for a client address (D-043): an IPv4 address as itself, IPv4-mapped IPv6 included, and an IPv6
+/// address by its /64 prefix, since one subscriber line is routinely given a whole /64 and could otherwise rotate through
+/// it. None for anything that is not an IP literal; the caller then skips the per-address limit (the per-link one stays).
+pub fn address_key(raw: &str) -> Option<String> {
+    let ip: IpAddr = raw.trim().parse().ok()?;
+    Some(match ip {
+        IpAddr::V4(v4) => v4.to_string(),
+        IpAddr::V6(v6) => match v6.to_ipv4_mapped() {
+            Some(v4) => v4.to_string(),
+            None => {
+                let s = v6.segments();
+                format!("{:x}:{:x}:{:x}:{:x}::/64", s[0], s[1], s[2], s[3])
+            }
+        },
+    })
+}
+
 /// A bucket for a client address: `<scope>:ip:` and 32 hex digits of HMAC-SHA256 under a key derived from the service
 /// secret, so the table never holds an address and the hash is useless without the secret.
 pub fn ip_bucket(secret: &[u8], scope: &str, address: &str) -> String {
@@ -130,6 +184,23 @@ mod tests {
         assert_eq!(retry_after(datetime(10, 7, 30, 0), limit), 150);
         assert_eq!(retry_after(datetime(10, 9, 59, 500), limit), 1);
         assert_eq!(retry_after(datetime(10, 10, 0, 0), limit), 600);
+    }
+
+    #[test]
+    fn address_keys_group_an_ipv6_line_by_its_64_prefix() {
+        assert_eq!(address_key(" 203.0.113.7 ").as_deref(), Some("203.0.113.7"));
+        assert_eq!(
+            address_key("::ffff:203.0.113.7").as_deref(),
+            Some("203.0.113.7"),
+            "IPv4-mapped is the IPv4 address"
+        );
+        let line = address_key("2001:db8:aa:bb::1");
+        assert_eq!(line.as_deref(), Some("2001:db8:aa:bb::/64"));
+        assert_eq!(address_key("2001:0db8:00aa:00bb:ffff:1:2:3"), line, "any address of the /64, in any spelling");
+        assert_ne!(address_key("2001:db8:aa:bc::1"), line, "the next /64 is another line");
+        for junk in ["", "localhost", "203.0.113.7:443", "[2001:db8::1]", "fe80::1%eth0", "203.0.113.256"] {
+            assert_eq!(address_key(junk), None, "{junk:?}");
+        }
     }
 
     #[test]

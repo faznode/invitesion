@@ -104,8 +104,12 @@ test('B-027: wiring — both actions refuse before writing, with the page rule a
   assert.ok(decidedAt > 0 && decidedAt < rsvp.indexOf('db.update(guests)'), 'RSVP decides at the request clock before the write');
   const decision = readFileSync(join(process.cwd(), 'lib/invitation/rsvp-decision.ts'), 'utf8');
   assert.match(decision, /const closed = rsvpClosedReason\(config\.rsvp, input\.now\);\n\s*if \(closed\) return \{ kind: 'closed', reason: closed \};/, 'RSVP checks its switch and deadline');
-  assert.ok(wish.indexOf('context.config.guestbook?.enabled === false') > 0, 'the guestbook checks its switch');
-  assert.ok(wish.indexOf('guestbook?.enabled === false') < wish.indexOf('db.insert(guestMessages)'), 'the guestbook refuses before the write');
+  // R-04 (D-044): the switch is the first rule of the shared wish decision, which runs before the one write.
+  const wishDecidedAt = wish.indexOf('decideGuestWish({ config: context.config, message })');
+  assert.ok(wishDecidedAt > 0 && wishDecidedAt < wish.indexOf('db.insert(guestMessages)'), 'the guestbook refuses before the write');
+  const wishRules = readFileSync(join(process.cwd(), 'lib/invitation/wish-decision.ts'), 'utf8');
+  assert.match(wishRules, /enabled: section\?\.enabled !== false/, 'the guestbook checks its switch');
+  assert.match(wishRules, /if \(!rules\.enabled\) return \{ kind: 'closed', reason: 'disabled' \};/, 'before judging the message');
   const view = readFileSync(join(process.cwd(), 'components/invitation/guest-view.ts'), 'utf8');
   assert.match(view, /rsvpDeadlinePassed\(rsvpDeadline, renderedAt\)/, 'the page closes the form with the same rule');
 });

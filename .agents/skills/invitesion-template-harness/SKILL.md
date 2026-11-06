@@ -83,6 +83,11 @@ for one run. Always report a verdict together with its basis.
 **Cover fold** (`cover-fold.ts`, s23r): per page × guest × viewport, whether the guest's name ends inside the first
 viewport with every cover image loaded (a missing image is INCOMPLETE, never PASS); `--expect-broken-logo` for pages
 whose logo is meant to fail.
+**Cover gate** (`cover-gate.ts`, s28, B-009 / D-045): the "Buka Undangan" cover and the music on the `music` fixture pages
+(seed with `--music-url <origin>/review/tone.wav` after `cover-gate.ts --write-tone public/review/tone.wav`, a generated
+tone, never a recording). It checks no-JS opening, the tap that starts the music, I-15's 1.5 s, reduced motion, the
+`aria-pressed` toggle, keyboard and Escape, and that the audio is not fetched before a tap. The gate is one shared island
+around every layout; a layout never builds its own cover gate or `<audio>`.
 Fixture pages: `/i/review-<legacy|gapura|kartu|riang|lontar>-<full|photo|corporate|sparse|birthday|expired|dark>/<guest>`
 (legacy: full, photo, corporate); guests `budi-hartono`, `nama-panjang`, `hostile-name`, `rtl-name`, `emoji-name`, plus one
 opaque-link guest per invitation (token in the seed output); palette sweep `/i/review-<layout>-p-<paletteId>/budi-hartono`.

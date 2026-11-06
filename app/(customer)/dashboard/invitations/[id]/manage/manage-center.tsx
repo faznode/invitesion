@@ -14,6 +14,7 @@ const modules: Module[] = [
   { slug: 'website', title: 'Invitation Website', description: 'Edit pages, copy, gallery, and the public invitation experience.', status: 'Active', icon: FileText, href: 'edit' },
   { slug: 'registration-rsvp', title: 'Registration & RSVP', description: 'Shape attendance fields and review responses as the RSVP foundation grows.', status: 'Configurable', icon: CheckCircle2 },
   { slug: 'guests', title: 'Guests', description: 'Manage your guest list, personalised links, and RSVP follow-up.', status: 'Active', icon: Users, href: 'guests' },
+  { slug: 'wishes', title: 'Wishes', description: 'Approve, hide, delete and reply to the wishes your guests leave.', status: 'Active', icon: MessageSquare, href: 'wishes' },
   { slug: 'custom-questions', title: 'Custom Questions', description: 'Prepare event-specific questions for a future RSVP form builder.', status: 'Foundation', icon: MessageSquare },
   { slug: 'meals-dietary', title: 'Meals & Dietary', description: 'Capture meal preferences and dietary requirements when collection is enabled.', status: 'Foundation', icon: Utensils },
   { slug: 'communications', title: 'Communications', description: 'Plan guest updates and message templates. Delivery integrations are not active.', status: 'Integration required', icon: Mail },

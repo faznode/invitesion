@@ -1,6 +1,6 @@
-// R-01 / R-02: the TypeScript side of the Rust API boundary. The signature vectors are shared with
-// services/api/tests/contract_vectors.rs; the client must send exactly the bytes it signed; BACKEND_VIEWS selects
-// exactly one writer and never falls back to the other.
+// R-01 / R-02 / R-03: the TypeScript side of the Rust API boundary. The signature vectors are shared with
+// services/api/tests/contract_vectors.rs; the client must send exactly the bytes it signed, templated paths included;
+// BACKEND_VIEWS, BACKEND_RSVP and BACKEND_WISHES each select exactly one writer and never fall back to the other.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -97,6 +97,86 @@ test('R-02: the guest page records opens through the writer selection, with no f
   assert.match(loader, /await writeInvitationView\(invitationId, guestId\);/);
   assert.doesNotMatch(loader, /recordInvitationView\(/, 'the TypeScript writer is reached only through the selection');
   for (const page of ['app/i/[slug]/page.tsx', 'app/i/[slug]/[guestSlug]/page.tsx']) assert.match(source(page), /after\(\(\) => trackInvitationView\(/, page);
+});
+
+test('R-03: BACKEND_RSVP selects one writer by the same rule as views', () => {
+  assert.equal(backendFor('RSVP', {}), 'next');
+  assert.equal(backendFor('RSVP', { BACKEND_RSVP: 'rust' }), 'rust');
+  assert.equal(backendFor('RSVP', { BACKEND_RSVP: 'rust', BACKEND_VIEWS: 'next' }), 'rust', 'domains switch independently');
+  assert.equal(backendFor('VIEWS', { BACKEND_RSVP: 'rust' }), 'next');
+  for (const odd of ['', 'both', 'Rust,next']) assert.equal(backendFor('RSVP', { BACKEND_RSVP: odd }), 'next', odd);
+});
+
+test('R-03: a templated path encodes each parameter as exactly one segment, which the URL parser leaves alone', () => {
+  const { expandPath, ApiConfigError } = client();
+  const path = expandPath('/v1/guest-links/{slug}/{guest}/rsvp', { slug: 'a b/c?d#e%f', guest: 'ñ..\\x' });
+  assert.equal(path, '/v1/guest-links/a%20b%2Fc%3Fd%23e%25f/%C3%B1..%5Cx/rsvp');
+  assert.equal(new URL(`http://api.test${path}`).pathname, path, 'what is signed is what is sent');
+  assert.equal(expandPath('/v1/invitations/{invitation}/guests/{guest}/rsvp-override', { invitation: 7, guest: 42 }), '/v1/invitations/7/guests/42/rsvp-override');
+  assert.throws(() => expandPath('/v1/guest-links/{slug}/{guest}/rsvp', { slug: 'x' }), ApiConfigError);
+});
+
+test('R-03: apiPostTo signs the expanded path and the exact body, and sends the key and owner token', async () => {
+  const { apiPostTo } = client();
+  const captured: Captured[] = [];
+  const config = { baseUrl: 'http://api.test', secret: SECRET, fetch: fakeFetch(200, '{"status":"PENDING","attendingCount":null}', captured) };
+  const body = { status: 'PENDING' as const, flags: { perEvent: false, inviteOnlyEvents: false } };
+  await apiPostTo(config, '/v1/invitations/{invitation}/guests/{guest}/rsvp-override', { invitation: 3, guest: 9 }, body, { ownerToken: 'tok', idempotencyKey: 'key-0123456789abcdef' });
+  const [sent] = captured;
+  assert.equal(sent.url, 'http://api.test/v1/invitations/3/guests/9/rsvp-override');
+  assert.equal(sent.body, JSON.stringify(body));
+  assert.equal(sent.headers.authorization, 'Bearer tok');
+  assert.equal(sent.headers['idempotency-key'], 'key-0123456789abcdef');
+  const t = Number(/^t=(\d+),/.exec(sent.headers[SIGNATURE_HEADER])?.[1]);
+  assert.equal(sent.headers[SIGNATURE_HEADER], signServiceRequest(SECRET, t, 'POST', '/v1/invitations/3/guests/9/rsvp-override', sent.body));
+});
+
+test('R-03: a problem carries the event or question it names and the Retry-After of a 429', async () => {
+  const { apiPostTo, ApiProblem } = client();
+  const params = { slug: 's', guest: 'g' };
+  const body = { submission: { status: 'CONFIRMED', guestCount: null, events: {}, answers: {} }, flags: { maybe: true, perEvent: true, inviteOnlyEvents: true, questions: true } };
+  const answer = async (status: number, problem: object, headers: Record<string, string> = {}) => {
+    const fetch = (async () => new Response(JSON.stringify(problem), { status, headers })) as unknown as typeof globalThis.fetch;
+    return apiPostTo({ baseUrl: 'http://api.test', secret: SECRET, fetch }, '/v1/guest-links/{slug}/{guest}/rsvp', params, body).then(
+      () => null,
+      (e: unknown) => e,
+    );
+  };
+  const event = await answer(422, { code: 'rsvp.event_answer_missing', eventId: 'resepsi' });
+  assert.ok(event instanceof ApiProblem && event.extras.eventId === 'resepsi' && event.extras.questionId === undefined);
+  const question = await answer(422, { code: 'rsvp.answer_invalid', questionId: 'menu' });
+  assert.ok(question instanceof ApiProblem && question.extras.questionId === 'menu');
+  const limited = await answer(429, { code: 'rate_limit.exceeded' }, { 'retry-after': '42' });
+  assert.ok(limited instanceof ApiProblem && limited.status === 429 && limited.extras.retryAfter === 42);
+  for (const odd of ['0', '-5', '1.5', 'Wed, 21 Oct 2026 07:28:00 GMT']) {
+    const e = await answer(429, { code: 'rate_limit.exceeded' }, { 'retry-after': odd });
+    assert.ok(e instanceof ApiProblem && e.extras.retryAfter === undefined, odd);
+  }
+  const wrongTypes = await answer(422, { code: 'rsvp.answer_invalid', questionId: 7, eventId: ['x'] });
+  assert.ok(wrongTypes instanceof ApiProblem && wrongTypes.extras.questionId === undefined && wrongTypes.extras.eventId === undefined);
+});
+
+test('R-04: BACKEND_WISHES selects one writer by the same rule, independently of the other domains', () => {
+  assert.equal(backendFor('WISHES', {}), 'next');
+  assert.equal(backendFor('WISHES', { BACKEND_WISHES: ' Rust ' }), 'rust');
+  assert.equal(backendFor('WISHES', { BACKEND_RSVP: 'rust', BACKEND_VIEWS: 'rust' }), 'next', 'domains switch independently');
+  assert.equal(backendFor('RSVP', { BACKEND_WISHES: 'rust' }), 'next');
+  for (const odd of ['', 'both', 'rust next']) assert.equal(backendFor('WISHES', { BACKEND_WISHES: odd }), 'next', odd);
+});
+
+test('R-04: the wish paths expand, sign and type like the RSVP ones', async () => {
+  const { apiPostTo, expandPath } = client();
+  assert.equal(expandPath('/v1/guest-links/{slug}/{guest}/wishes', { slug: 'a/b', guest: '%2e%2e' }), '/v1/guest-links/a%2Fb/%252e%252e/wishes');
+  const captured: Captured[] = [];
+  const config = { baseUrl: 'http://api.test', secret: SECRET, fetch: fakeFetch(200, '{"id":5,"hostReply":null}', captured) };
+  await apiPostTo(config, '/v1/invitations/{invitation}/wishes/{wish}/reply', { invitation: 3, wish: 5 }, { reply: '' }, { ownerToken: 'tok', idempotencyKey: 'key-0123456789abcdef' });
+  const [sent] = captured;
+  assert.equal(sent.url, 'http://api.test/v1/invitations/3/wishes/5/reply');
+  const t = Number(/^t=(\d+),/.exec(sent.headers[SIGNATURE_HEADER])?.[1]);
+  assert.equal(sent.headers[SIGNATURE_HEADER], signServiceRequest(SECRET, t, 'POST', '/v1/invitations/3/wishes/5/reply', '{"reply":""}'));
+  const schema = source('lib/api/schema.d.ts');
+  for (const name of ['GuestWishRequest', 'WishSaved', 'WishModerationRequest', 'WishReplied']) assert.match(schema, new RegExp(`${name}: \\{`));
+  assert.match(schema, /WishAction: "SHOW" \| "HIDE" \| "DELETE"/);
 });
 
 test('R-01: the generated client types describe the committed OpenAPI document', () => {
