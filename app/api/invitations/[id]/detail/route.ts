@@ -1,7 +1,7 @@
 import { getUser } from '@/lib/db/queries';
 import { apiError, parseId, validationError } from '@/lib/api/respond';
 import { detailConfigSchema } from '@/lib/invitation/detail-config';
-import { getDetailConfig, updateDetailConfig, MediaReferenceError, OwnershipError } from '@/lib/invitation/service';
+import { getDetailConfig, updateDetailConfig, MediaReferenceError, OwnershipError, ThemeEntitlementError } from '@/lib/invitation/service';
 
 export const dynamic = 'force-dynamic';
 
@@ -49,6 +49,8 @@ export async function PATCH(req: Request, { params }: Ctx) {
     if (err instanceof OwnershipError) return apiError(404, 'NOT_FOUND', 'Invitation not found');
     // D-040: field paths only, never the stored values.
     if (err instanceof MediaReferenceError) return apiError(400, 'INVALID_MEDIA', `Image not allowed here: ${err.issues.map((issue) => issue.path).join(', ')}`);
+    // B-041: paths and reasons only; the package decides, never the request.
+    if (err instanceof ThemeEntitlementError) return apiError(403, 'THEME_NOT_ENTITLED', 'Theme not included in this invitation', err.issues);
     throw err;
   }
 }

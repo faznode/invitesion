@@ -1,11 +1,11 @@
 <!-- SUMMARY (first 7 lines — greppable) -->
 # 05-feature-matrix — evidence-linked feature matrix (brief 03 §15, brief 05 §15)
 > WHAT: 187 stable feature rows (FM-001…FM-187) × Invitesion today + the 15 Tier-A competitors; every known cell cites evidence; measured rows come from eligible captures only.
-> STATUS: Verified s10 (2026-11-04; curated cells s08). Measured cells rebuilt s10 with C-VID-107…109 (Viding now six themes; totals unchanged). Evidence cutoff = `../_evidence-index.md` session 08 for curated cells, session 10 for measured cells. The "Invitesion today" column is the **pre-P0 baseline** (`22ed99e`); the P0 delta is in `../01-codebase-audit/revalidation-s10.md` §3. Planning gate met through ADR-W1 (reduced confidence for IDI, PLO, SMO guest pages); Sitemu BLOCKED (D-026).
+> STATUS: **s26 (2026-11-06): the curated Invitesion column describes `2a6015f`** (20 cells re-assessed from code with `REPO@2a6015f` and E- entries; 59 Full / 24 Partial / 104 None, was 42 / 29 / 116); the pre-switch files are frozen in `baseline/` (`feature-matrix-s25.csv`, `coverage-summary-s25.md`, `invitesion-assessment-s25.csv`); derived own cells stay on the pre-P0 build `22ed99e` and say so; competitor cells unchanged; `build-matrix.py --check` exit 0. Verified s10 (2026-11-04; curated cells s08). Measured cells rebuilt s10 with C-VID-107…109 (Viding now six themes; totals unchanged). Evidence cutoff = `../_evidence-index.md` session 08 for curated cells, session 10 for measured cells. The "Invitesion today" column is the **pre-P0 baseline** (`22ed99e`); the P0 delta is in `../01-codebase-audit/revalidation-s10.md` §3. Planning gate met through ADR-W1 (reduced confidence for IDI, PLO, SMO guest pages); Sitemu BLOCKED (D-026).
 > OWNER: Research agent (autonomous, brief 05 §16)
 > DEPS: ../01-codebase-audit/{feature-inventory.csv,module-map.md,quality-audit.md,revalidation-s10.md}, ../03-teardowns/*/dossier.md, ../raw/*/C-*.json, ../_tools/capture/eligibility.py, ../04-template-benchmarks/benchmark-exclusions.csv
-> GREP: feature matrix, FM-, Full, Partial, None, Unknown, coverage, niche
-> UPDATED: 2026-11-04
+> GREP: feature matrix, FM-, Full, Partial, None, Unknown, coverage, niche, baseline, own column
+> UPDATED: 2026-11-06
 
 ## Files
 | File | What | Edited by |

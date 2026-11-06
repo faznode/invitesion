@@ -30,10 +30,10 @@
 | EVT | Evite | US | substantive | S-EVT-001, S-EVT-002 |
 | BHP | Biihappy | VN | substantive | S-BHP-001, S-BHP-002 |
 | SNT | Sonett | KR | **partial (s23r)**: rendered read of the homepage (2,065 characters; the static HTML had 25); product and positioning, no public prices | S-SNT-001…003 |
-| WMG | WedMeGood | IN | **blocked** (HTTP 403 to the first s12 request; robots no longer the reason) | S-WMG-001, S-WMG-002 |
-| GRV | Greenvelope | US | **blocked** (HTTP 403 on robots.txt and homepage) | S-GRV-001 |
-| MTD | Minted | US | **blocked** (HTTP 403) | S-MTD-001 |
-| CNV | Canva invitations | AU | **blocked** (D-030: site-written legacy-token group of undocumented purpose, restriction kept; HTTP 403 earlier) | S-CNV-001, S-CNV-002 |
+| WMG | WedMeGood | IN | **blocked** (HTTP 403 to the first s12 request; robots no longer the reason. s26: no Wikipedia article; G2 and Product Hunt refuse our reader) | S-WMG-001, S-WMG-002, S-WMG-003 |
+| GRV | Greenvelope | US | **blocked** (HTTP 403 on robots.txt and homepage. s26: no Wikipedia article; G2 refused our reader before its page was requested) | S-GRV-001, S-GRV-002 |
+| MTD | Minted | US | **blocked** (HTTP 403). s26 third-party facts only: Wikipedia describes a premium design brand selling independent artists' stationery through crowdsourced challenges; nothing on digital invitations, prices or RSVP, so still counted as blocked | S-MTD-001, S-MTD-002 |
+| CNV | Canva invitations | AU | **blocked** (D-030: site-written legacy-token group of undocumented purpose, restriction kept; HTTP 403 earlier). s26 third-party facts only: Wikipedia reports a freemium design platform with print services and ≈ 31 M paid users at end-2025; nothing on invitation features or prices, so still counted as blocked | S-CNV-001, S-CNV-002, S-CNV-004 |
 | EQX | Eqxiu 易企秀 | CN | **substantive (s12)**; one re-request with `Accept-Encoding: gzip, deflate` decoded the page | S-EQX-001, S-EQX-002 |
 
 **Counts toward RQ-COMP-01 (`../_handoff/acceptance-matrix.md`):** Indonesian substantive profiles = 10 Tier-A dossiers (Sitemu v1 written s12) + 7 here = **17**; **16** without the provisional Enviory evidence (D-031; the Enviory dossier itself rests mostly on marketing reads, but it is counted out to stay conservative). International = 5 Tier-A dossiers + 6 here = **11**. Both minimums (≥ 12, ≥ 10) are met either way. Required Tier-B one-pagers: **13 / 21 substantive** (RQ-COMP-04 PARTIAL). Of the other eight:

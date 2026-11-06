@@ -1,0 +1,163 @@
+# B-020 (U1 Guardrails): every push and pull request runs the checks that AGENTS.md requires before work is called
+# done, the B-012 product-page gates, the research checks and the Rust suite. Each job only calls a script in
+# scripts/ci/, and scripts/ci/local.sh runs the same scripts in a sandbox, so a local PASS and a CI PASS mean the same.
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NEXT_TELEMETRY_DISABLED: '1'
+  NODE_VERSION: '24'
+  PNPM_VERSION: '10'
+
+jobs:
+  app:
+    name: Typecheck, tests, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: bash scripts/ci/app.sh
+
+  database:
+    name: Migrations, drift, payment and view-dedupe checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: invitesion
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      POSTGRES_URL: postgres://postgres@127.0.0.1:5432/invitesion
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: bash scripts/ci/database.sh
+
+  product-gates:
+    name: Product-page gates (B-012)
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: invitesion
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      POSTGRES_URL: postgres://postgres@127.0.0.1:5432/invitesion
+      LIGHTHOUSE_VERSION: '12.8.2'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Chrome and Lighthouse
+        run: |
+          npm install --global "lighthouse@${LIGHTHOUSE_VERSION}"
+          echo "LH_BIN=$(command -v lighthouse)" >> "$GITHUB_ENV"
+          echo "CHROME_PATH=$(command -v google-chrome)" >> "$GITHUB_ENV"
+          google-chrome --version
+      - run: bash scripts/ci/product-gates.sh
+        env:
+          CI_OUT: ${{ runner.temp }}/invitesion-ci
+      - name: Gate reports (fictional fixture data only)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: product-gates
+          path: ${{ runner.temp }}/invitesion-ci
+          if-no-files-found: ignore
+          retention-days: 14
+
+  research:
+    name: Research checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: bash scripts/ci/research.sh
+
+  rust:
+    name: Rust suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: invitesion
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      POSTGRES_URL: postgres://postgres@127.0.0.1:5432/invitesion
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            invitation-research/08-backend-rust-plan/feasibility-s26
+      - run: bash scripts/ci/rust.sh

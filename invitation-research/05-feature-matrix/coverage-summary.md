@@ -5,7 +5,7 @@
 
 | Column | Full | Partial | None | Unknown | Known cells | Measured (derived) cells | Eligible captures (cold-load / page) |
 |---|---|---|---|---|---|---|---|
-| Invitesion (today) (`invitesion`) | 42 | 29 | 116 | 0 | 187 | 8 | 3 (2 themes) / 3 (2 themes) |
+| Invitesion (2a6015f) (`invitesion`) | 59 | 24 | 104 | 0 | 187 | 8 | 3 (2 themes) / 3 (2 themes) |
 | Indoinvite (`IDI`) | 56 | 2 | 3 | 126 | 61 | 0 | 0 (0 themes) / 0 (0 themes) |
 | PALEO (`PLO`) | 22 | 1 | 3 | 161 | 26 | 0 | 0 / 0 |
 | Satu Momen (`SMO`) | 45 | 9 | 4 | 129 | 58 | 0 | 0 / 0 |
@@ -26,7 +26,7 @@
 
 | Column | guest | host | business | platform |
 |---|---|---|---|---|
-| Invitesion (today) | 66/66 | 57/57 | 35/35 | 29/29 |
+| Invitesion (2a6015f) | 66/66 | 57/57 | 35/35 | 29/29 |
 | Indoinvite | 24/66 | 13/57 | 17/35 | 7/29 |
 | PALEO | 12/66 | 7/57 | 1/35 | 6/29 |
 | Satu Momen | 22/66 | 16/57 | 13/35 | 7/29 |
@@ -48,8 +48,8 @@
 | Row | Column | Curated | Derived | Derived basis |
 |---|---|---|---|---|
 | FM-014 | INV | Partial | Full | keyword detector: 4/6 structure-eligible theme(s) |
-| FM-018 | invitesion | Partial | Full | zone label present on 2/2 theme(s); correctness for WITA/WIT not verifiable |
 | FM-018 | WEV | Partial | Full | zone label present on 4/6 theme(s); correctness for WITA/WIT not verifiable |
+| FM-047 | invitesion | Full | Partial | og:image on 0/2 theme(s), og:title on 2/2 · pre-P0 own build 22ed99e (v1.2 population), not the current build |
 
 ## Sensitivity: cells that change when provisional evidence is admitted (D-031, not in the matrix files)
 

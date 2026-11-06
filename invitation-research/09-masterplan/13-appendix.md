@@ -1,7 +1,7 @@
 <!-- SUMMARY (first 7 lines — greppable) -->
 # 13-appendix.md — evidence and dossier index, skills-lock summary, glossary
 > WHAT: Where every kind of evidence lives, the curated skills in use, and the terms used across the masterplan.
-> STATUS: **s25 (2026-11-06): index, skills and glossary brought to the current repository** (own-build comparison, design-family briefs and review, rendered-contrast sweep, product harness gates, deferred acceptance, decisions through ADR-O10 / D-040 / Q-D17; the first project skill `invitesion-template-harness`; terms for families, byte attribution and verdicts). Earlier: verified s10 (v2 s09, v1 s08).
+> STATUS: **s26 (2026-11-06): new records indexed: `../_handoff/research-closure-s26.md`, `../_handoff/masterplan-gate-s26.md`, `../06-gap-analysis/dispositions-s26.csv`, `../05-feature-matrix/baseline/`, `../08-backend-rust-plan/feasibility-s26/`, `../_tools/ops/checkpoint.sh`; decisions ADR-O11, ADR-A2, ADR-F1, D-041.** **s25 (2026-11-06): index, skills and glossary brought to the current repository** (own-build comparison, design-family briefs and review, rendered-contrast sweep, product harness gates, deferred acceptance, decisions through ADR-O10 / D-040 / Q-D17; the first project skill `invitesion-template-harness`; terms for families, byte attribution and verdicts). Earlier: verified s10 (v2 s09, v1 s08).
 > OWNER: Research agent
 > DEPS: ../_evidence-index.md, ../03-teardowns/, ../../SKILLS-LOCK.md, ../README.md, ../_handoff/acceptance-matrix.md
 > GREP: appendix, index, glossary, skills, evidence, design family, design bytes, deferred acceptance
@@ -29,7 +29,7 @@
 | Own builds compared (RQ-OWN-02, s23r) | `../04-template-benchmarks/own-builds/` (comparison, 18 runs, merged JSON): a separate population, never pooled with captures |
 | Backlog state at s25 | `06-backlog.md` ("State at s25": 15 DONE, 7 PARTIAL, 20 OPEN) |
 | Deferred acceptance (owner, s25) | `../_handoff/deferred-acceptance.md` (DA-01 real-Clerk signed-in acceptance; DA-02 the children's-photo migration in real environments; both NOT RUN) |
-| Decisions | `12-decision-log.md` (ADR-W1, ADR-O01…O10, ADR-A1); `../_progress.md` (D-001…D-040); `../_open-questions.md` (Q-D01…Q-D17 taken autonomously, Q-O questions for the owner) |
+| Decisions | `12-decision-log.md` (ADR-W1, ADR-O01…O11, ADR-A1, ADR-A2, ADR-F1, D-041); `../_progress.md` (D-001…D-040); `../_open-questions.md` (Q-D01…Q-D17 taken autonomously, Q-O questions for the owner) |
 | Handoff | `../_handoff/LATEST.md`, `../_handoff/sessions/`, `../_handoff/IMPLEMENTATION-LOG.md` (E-001…E-053) |
 
 ## 2. Skills-lock summary

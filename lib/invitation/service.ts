@@ -1,14 +1,17 @@
 import 'server-only';
-import { and, asc, eq, max } from 'drizzle-orm';
+import { and, asc, eq, max, or } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '@/lib/db/drizzle';
-import { invitations, invitationVersions, mediaAssets } from '@/lib/db/schema';
+import { invitations, invitationVersions, mediaAssets, orders, templates } from '@/lib/db/schema';
 import type { MediaAsset } from '@/lib/db/schema';
+import type { Tier } from '@/lib/pricing';
 import { normalizeStoredConfig, prepareConfigWrite } from './content-read';
 import type { DetailConfig } from './detail-config';
 import { MediaReferenceError, mediaReferenceIssues } from './media-ownership';
+import { changedThemeFields, needsTierLookup, storedThemeFields, ThemeEntitlementError, themeChangeIssues } from './theme-entitlement';
 
 export { MediaReferenceError } from './media-ownership';
+export { ThemeEntitlementError } from './theme-entitlement';
 
 export class OwnershipError extends Error {
   constructor(message = 'Invitation not found') {
@@ -52,6 +55,14 @@ export async function updateDetailConfig(
   // D-040: a protected path only in this type's child-photo field, and a child photo only from this invitation.
   const mediaIssues = mediaReferenceIssues(validated, { invitationId, eventType: inv.eventType, touchedSections: Object.keys(patch) });
   if (mediaIssues.length) throw new MediaReferenceError(mediaIssues);
+  // B-041 / D-042: a theme write may not take a palette or theme the invitation's package does not include.
+  if ('theme' in patch) {
+    const changed = changedThemeFields(storedThemeFields(stored), validated.theme);
+    // The tier is consulted only for a Premium palette, so other theme saves cost no extra query.
+    const tier: Tier = needsTierLookup(changed) ? await themeTier(inv.id, inv.templateId) : 'standard';
+    const themeIssues = themeChangeIssues(changed, { tier, templateId: inv.templateId });
+    if (themeIssues.length) throw new ThemeEntitlementError(themeIssues);
+  }
 
   await db.transaction(async (tx) => {
     await tx
@@ -79,6 +90,24 @@ export async function updateDetailConfig(
   });
 
   return validated;
+}
+
+/**
+ * The tier an invitation's theme writes are entitled to (B-041). Premium when its own catalog theme is Premium, since
+ * checkout charges that tier for it, or when a PAID order bought a Premium tier for this invitation. Otherwise Standard.
+ */
+async function themeTier(invitationId: number, templateId: number | null): Promise<Tier> {
+  if (templateId !== null) {
+    const [template] = await db.select({ isPremium: templates.isPremium }).from(templates).where(eq(templates.id, templateId)).limit(1);
+    if (template?.isPremium) return 'premium';
+  }
+  const [premiumOrder] = await db
+    .select({ id: orders.id })
+    .from(orders)
+    .leftJoin(templates, eq(templates.id, orders.templateId))
+    .where(and(eq(orders.invitationId, invitationId), eq(orders.status, 'PAID'), or(eq(orders.tier, 'premium'), eq(templates.isPremium, true))))
+    .limit(1);
+  return premiumOrder ? 'premium' : 'standard';
 }
 
 // ── Media ordering ───────────────────────────────────────────

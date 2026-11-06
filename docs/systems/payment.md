@@ -1,11 +1,11 @@
 <!-- SUMMARY (first 7 lines — greppable) -->
 # payment.md — Sistem Pembayaran (QRIS lokal + Stripe internasional)
 > WHAT: Dua rail pembayaran, webhook idempotent, dan aktivasi undangan setelah bayar.
-> STATUS: LIVE (implemented; acquirer QRIS belum dipilih)
+> STATUS: LIVE (implemented; acquirer QRIS belum dipilih). s26: entitlement tema di sisi server saat menyimpan (B-041)
 > OWNER: Operator
-> DEPS: DATABASE_SCHEMA.md (orders, payments, payment_events), lib/payment/*
-> GREP: payment, qris, stripe, webhook, idempotent, signature, order, rail, currency
-> UPDATED: 2026-07-27
+> DEPS: DATABASE_SCHEMA.md (orders, payments, payment_events), lib/payment/*, lib/invitation/theme-entitlement.ts
+> GREP: payment, qris, stripe, webhook, idempotent, signature, order, rail, currency, entitlement, palette, B-041
+> UPDATED: 2026-11-06
 
 > **Perubahan keputusan (2026-07-27, whyme):** Midtrans **tidak dipakai**. Pembayaran lokal
 > lewat **QRIS**, internasional lewat **Stripe**. Dokumen ini menggantikan seluruh rancangan
@@ -107,6 +107,25 @@ adalah entry point tersendiri, mencapainya tidak butuh merender halaman yang men
 
 Publish ulang setelah unpublish tetap gratis: masa aktif sudah dibayar.
 
+## Entitlement tema saat menyimpan (B-041, s26)
+
+Checkout menagih sesuai tier tema katalog undangan (`invitations.template_id` → `templates.is_premium`), sedangkan
+tamu melihat `config.theme.paletteId`. Karena itu `updateDetailConfig` (`lib/invitation/service.ts`), satu-satunya
+penulis `config` setelah undangan dibuat, memeriksa setiap perubahan tema sebelum transaksinya. Aturannya ada di
+`lib/invitation/theme-entitlement.ts` (D-042):
+
+- **Palet Premium** = palet yang tidak dipakai satu pun tema katalog gratis. Palet fallback (`ivory`) selalu Standard,
+  karena halaman tanpa palet pun merendernya. Saat ini: `blossom`, `gold-noir`, `midnight`, `orchid`.
+- Palet Premium hanya boleh dipilih jika tema undangan itu sendiri Premium, atau sudah ada order `PAID` ber-tier
+  Premium untuk undangan itu.
+- Palet yang tidak terdaftar ditolak. `theme.templateId` hanya boleh menunjuk tema katalog undangan itu sendiri; ganti
+  tema adalah B-036.
+- Yang diperiksa hanya field yang **berubah**. Menyimpan bagian lain dari config lama tidak pernah gagal, dan
+  menghapus palet tidak butuh entitlement.
+
+PATCH `/api/invitations/{id}/detail` menjawab `403 THEME_NOT_ENTITLED` berisi path dan alasan saja, tanpa nilai yang
+tersimpan. Penolakan tidak menulis apa pun: config dan riwayat versi tetap.
+
 ## Environment
 
 ```
@@ -126,6 +145,9 @@ Endpoint webhook: `POST /api/payments/{stripe|qris}/webhook`
   `29B1`), signature Stripe termasuk replay dan rotasi secret.
 - `npx tsx scripts/verify-payment.ts` — terhadap database sungguhan: aktivasi, retry no-op,
   double-settlement ditolak, underpayment ditolak.
+- `tests/b041-theme-entitlement.test.ts` dan `npx tsx scripts/verify-theme-entitlement.ts` (database sungguhan):
+  undangan Standard yang sudah publish tidak bisa memakai palet atau tema Premium tanpa order; setelah order Premium
+  `PAID` boleh. Ketiga skrip ini dijalankan CI di setiap push (`scripts/ci/database.sh`).
 
 ## Belum dikerjakan
 

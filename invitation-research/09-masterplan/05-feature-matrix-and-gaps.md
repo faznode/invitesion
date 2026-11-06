@@ -1,10 +1,10 @@
 <!-- SUMMARY (first 7 lines — greppable) -->
 # 05-feature-matrix-and-gaps.md — comparison, gap analysis and upgrade map (summary + links)
 > WHAT: The masterplan view of `../05-feature-matrix/` and `../06-gap-analysis/`: what we compare, the headline gaps and leads, and how they become backlog items.
-> STATUS: **s25 (2026-11-06): §2 and §4 brought to current code** (the delta since the comparison now runs to s25; the matrix's "Invitesion today" column is still the baseline, and switching it is an explicit open data task now that RQ-OWN-02 is verified). Counts unchanged. Earlier: verified s10 (2026-11-04; v1 s08); s13 rebuild under D-031. Counts re-checked with `build-matrix.py --check`, which since s13 also fails on stale outputs (187 rows, **633 / 2,805** competitor cells known in the unconditional population; 643 with the provisional Enviory captures) and the upgrade map (68 gaps: 12 P0, 30 P1, 26 P2). The comparison describes our **pre-P0 baseline**; what P0 changed is in §4.
+> STATUS: **s26 (2026-11-06): the curated Invitesion column switched to `2a6015f`** (§4: 20 cells re-assessed from code; own column 42 / 29 / 116 → 59 / 24 / 104 Full / Partial / None; competitor cells unchanged; pre-switch files frozen in `../05-feature-matrix/baseline/`), which closes the s25 open data task (RQ-ANL-01). Every gap and idea now has one disposition in `../06-gap-analysis/dispositions-s26.csv` (gaps 31 adopt now / 29 later / 6 investigate / 2 reject), feeding the upgrade order in `06-backlog.md`. **s25 (2026-11-06): §2 and §4 brought to current code** (the delta since the comparison now runs to s25; at s25 the matrix's "Invitesion today" column was still the baseline). Counts unchanged. Earlier: verified s10 (2026-11-04; v1 s08); s13 rebuild under D-031. Counts re-checked with `build-matrix.py --check`, which since s13 also fails on stale outputs (187 rows, **633 / 2,805** competitor cells known in the unconditional population; 643 with the provisional Enviory captures) and the upgrade map (68 gaps: 12 P0, 30 P1, 26 P2). The comparison describes our **pre-P0 baseline**; what P0 changed is in §4.
 > OWNER: Research agent
 > DEPS: ../05-feature-matrix/{feature-matrix.csv,feature-matrix-long.csv,coverage-summary.md,niche-coverage.md}, ../06-gap-analysis/{upgrade-map.csv,gap-analysis.md,where-we-lead.md,pricing-packaging.md,template-catalog-roadmap.md,must-have-p0.md}, ../01-codebase-audit/revalidation-s10.md
-> GREP: feature matrix, gaps, upgrade map, leads, niches, p0 delta, delta s25
+> GREP: feature matrix, gaps, upgrade map, leads, niches, p0 delta, delta s25, own column 2a6015f, dispositions s26
 > UPDATED: 2026-11-06
 
 ## 1. Supporting files
@@ -49,4 +49,9 @@ The matrix's "Invitesion today" column stays the baseline (`22ed99e`) so every g
 - **Photos:** person photos, and children's photos behind an access contract (D-038, D-040).
 - **Unchanged:** cover gate, music, gallery depth, QR, gift copy / QRIS / personal-link gating, guest privacy notice, rate limits.
 
-**Open data task:** RQ-OWN-02 has been VERIFIED since s23r (own builds on one host), so the precondition above is met. But the "Invitesion today" column has not been switched: that needs new Invitesion assessments and a `build-matrix.py --check` rebuild. Until then every gap keeps its baseline evidence, and the s25 state lives in `06-backlog.md` ("State at s25").
+**Switched in s26 (formerly the open data task):** the curated Invitesion column now describes `2a6015f`.
+- 20 cells were re-assessed from code, each citing `REPO@2a6015f` and its implementation entry: FM-008 / 012 / 017 / 018 / 021 / 023–026 / 028 / 041 / 044 / 047 / 051 / 056 / 057 / 077 / 086 / 106 / 122.
+- Own column: 42 Full / 29 Partial / 116 None → **59 / 24 / 104**. Competitor cells are unchanged (633 / 2,805), and `build-matrix.py --check` exits 0.
+- The pre-switch matrix, coverage summary and curated column are frozen in `../05-feature-matrix/baseline/` (`*-s25.*`), so every gap keeps the evidence it was prioritised on.
+- Derived own-column measurements stay on the pre-P0 build `22ed99e` (v1.2 population) and say so in their notes. The current build's speed is the separate RQ-OWN-02 population.
+- Still None at `2a6015f`, matching the dispositions: cover gate and music (FM-003…005), lightbox (FM-015), QRIS gift (FM-034), share button (FM-043), privacy notice (FM-060), rate limits (FM-167).

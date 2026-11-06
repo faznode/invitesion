@@ -524,3 +524,65 @@ Baseline reproduced: typecheck 0; tests 279 / 278 / 1 (the E-047 assertion); mig
   - Reverse the decision: set `FAMILY_BUDGET_BASIS = 'family'` and update the policy test and Q-D17.
   - Reverse it for one run: `--family-basis family`.
   - Full revert: `policy.ts`, `product-bytes.ts` and the test file.
+
+## Session 26 (2026-11-06; baseline `2a6015f`; upgrade phase U1 under ADR-O11 after both gates passed, ADR-O12)
+
+### E-054 · B-041: server-side theme entitlement on config writes (s26, U1)
+- **Behaviour before (confirmed in code at `2a6015f`):**
+  - `updateDetailConfig` stored any positive `theme.templateId` and any palette text.
+  - Checkout charges by the tier of `invitations.template_id`, but guests see `config.theme.paletteId`.
+  - So a Standard invitation could render a Premium palette, before or after paying. Only publishing asked the orders table.
+- **Acceptance (U1 exit):** a published Standard invitation cannot switch to a Premium theme without an order; a refused write changes nothing; stored configs keep saving.
+- **Change (D-042):**
+  - New `lib/invitation/theme-entitlement.ts` (pure): `paletteTier`, `storedThemeFields`, `changedThemeFields`, `needsTierLookup`, `themeChangeIssues`, `ThemeEntitlementError`.
+    - A palette is Premium when no free catalog theme uses it; the fallback `ivory` is always Standard.
+    - Unregistered palettes are refused, and `theme.templateId` is pinned to the invitation's catalog theme.
+    - Only changed fields are checked.
+  - `lib/invitation/service.ts`: `updateDetailConfig` checks changed theme fields before its transaction. `themeTier` (Premium theme, or a PAID Premium order) is queried only for a Premium palette.
+  - `app/api/invitations/[id]/detail/route.ts`: 403 `THEME_NOT_ENTITLED` with paths and reasons only.
+  - `docs/systems/payment.md`: new section "Entitlement tema saat menyimpan".
+- **Tests:**
+  - `tests/b041-theme-entitlement.test.ts`, 13 / 13: the palette classification over the whole catalog (today's Premium set pinned), the fallback, unknown ids, Standard vs Premium, unchanged and cleared fields, the theme pin, lenient stored reads, the error text, and the writer and route wiring.
+  - `scripts/verify-theme-entitlement.ts` (database), **14 / 14** on a scratch database:
+    - a real catalog invitation published by a settled Standard order refuses `midnight` (config and versions untouched), another catalog theme, and an unknown palette;
+    - it still saves a layout change and another Standard palette;
+    - after a settled Premium order, `midnight` is accepted;
+    - an unpaid Standard draft refuses `gold-noir`; a Premium draft accepts it.
+    - It leaves 0 rows behind.
+  - **Negative control:** with the check removed in a throw-away copy, the same script reports 7 / 14 FAIL, exactly the leak.
+- **Checks:**
+  - Typecheck 0.
+  - CI database job (`scripts/ci/local.sh database`): 30 / 30 (payment 10, view-dedupe 6, theme entitlement 14).
+- **Limits:**
+  - The editor's theme tab never offered palette changes; the check closes the API path, which is where the leak was.
+  - Versions restored from before s26 may carry a palette the rule would now refuse. A restore goes through the same writer, so the check applies.
+  - The feature matrix's own column (FM-106) still describes `2a6015f` until the next column switch.
+- **Risk / rollback:** a host with a legitimately Premium look keeps it (unchanged fields pass). Revert the module, the service block and the route mapping; there is no schema change.
+
+### E-055 · B-020 CI: the required checks, the B-012 product gates, research checks and the Rust suite on every push (s26, U1)
+- **Behaviour before:** no CI workflow. The B-012 gates, `verify-payment` and `verify-view-dedupe` ran only by hand (B-020 PARTIAL, B-012 PARTIAL).
+- **Change:**
+  - `.github/workflows/ci.yml`, five jobs, each a script in `scripts/ci/`:
+    - `app`: typecheck, unit tests, production build with middleware;
+    - `database`: migrations from empty, schema drift through `drizzle-kit generate`, seeds, `verify-payment`, `verify-view-dedupe`, `verify-theme-entitlement`;
+    - `product-gates`: review fixture, measurement build, server, byte budgets on wedding and programme content, design acceptance, cover fold and rendered contrast; reports uploaded as an artifact;
+    - `research`: references, commit guard, matrix / ideas / benchmark-pack reproduction, `check-dispositions.py`, four research-tool unit files;
+    - `rust`: migrated database, then fmt / clippy / test for `services/api` once it exists, and the feasibility suite.
+  - `scripts/ci/local.sh` runs the same scripts here, in a disposable copy with a fresh database.
+  - New `invitation-research/06-gap-analysis/check-dispositions.py`: dispositions vs sources and vs 06's upgrade order. On its first run it found S26-8: G-065 and I-02 sat in U1 but 06's U1 row did not name them, and G-008 was "investigate further" with phase U2. Fixed in 06 and the CSV.
+- **Evidence (this sandbox, `scripts/ci/local.sh`):**
+  - `research` PASS in 6 s.
+  - `app` PASS in 63 s: typecheck 0; 311 / 311 before E-054; build `rPHzw-tyrc5tpBU8ySpGU` with middleware and no reachable database, which proves no page queries at build time.
+  - `database` PASS in 10 s.
+  - `rust` PASS in 7 s: 17 / 17.
+  - `product-gates` PASS on build `_nORILbxzU1BJmJNPRcTi`:
+    - bytes PASS on both contents (shell 614.1 KiB of 640);
+    - design acceptance 174 PASS / 0 FAIL / 0 INCOMPLETE over 29 pages;
+    - cover fold 90 / 90 PASS;
+    - rendered contrast 9 / 9 PASS.
+  - Two fixes found by these runs: the build needs `POSTGRES_URL` set (an unreachable placeholder is enough), and `verify-payment` / `verify-view-dedupe` need the customer and demo seeds.
+- **Limits:**
+  - The first GitHub Actions run is EXT: agents never push.
+  - Photo pages are not in CI because generated review assets never enter the repository, so the D-041 legacy-over-photo pages stay a manual run.
+  - The workflow pins Lighthouse 12.8.2 and uses the runner's Google Chrome; the sandbox uses Chrome for Testing 158.
+- **Risk / rollback:** none for the product. Delete `.github/workflows/ci.yml` and `scripts/ci/`.

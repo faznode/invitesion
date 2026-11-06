@@ -1,7 +1,7 @@
 <!-- SUMMARY (first 7 lines — greppable) -->
 # 00-README.md — Invitesion masterplan: index, reading order, status, evidence rules
 > WHAT: Entry point to the 14 masterplan chapters (00–13): what each answers, how confident it is, where its evidence lives, and whether the plan is complete.
-> STATUS: **s25 (2026-11-06): chapter bodies 01–13 brought from `7a00a6d` to the current code and evidence**, one unit at a time with a checkpoint each (session 25 file, Task 4); this index, the completion list and the implementation map refreshed with them. **Completion OPEN, not FINAL:** criterion 1 is open on RQ-COMP-04, RQ-COMP-05 and RQ-BENCH-05, and the legacy contrast INCOMPLETE pages stay explicit (`../_handoff/acceptance-matrix.md` §9). Earlier: verified s10 against `7a00a6d`; v1 s09 (baseline `64678cf`).
+> STATUS: **s26 (2026-11-06): FINAL as one implementation specification (≈ 16:50Z)**. The research gate passed as qualified after the owner's ADR-O12 (RQ-COMP-04 / -05 qualified by availability, strict 13 / 21 and 4 / 15 kept); before that the plan was reconciled but not FINAL (ADR-O11). FINAL covers the plan only, not any implementation or deployment acceptance. Contents: target architecture ADR-A2 / ADR-F1 (09 §8), the executable upgrade order U1–U7 with chains (06), the template / content contract and taste process (08 §8–§9), D-041, the own column switched to `2a6015f` (05), RQ-BENCH-05 closed; `../_handoff/masterplan-gate-s26.md` has the gate evaluation. **s25 (2026-11-06): chapter bodies 01–13 brought from `7a00a6d` to the current code and evidence**, one unit at a time with a checkpoint each (session 25 file, Task 4); this index, the completion list and the implementation map refreshed with them. **Completion OPEN, not FINAL:** criterion 1 is open on RQ-COMP-04, RQ-COMP-05 and RQ-BENCH-05, and the legacy contrast INCOMPLETE pages stay explicit (`../_handoff/acceptance-matrix.md` §9). Earlier: verified s10 against `7a00a6d`; v1 s09 (baseline `64678cf`).
 > OWNER: Research agent (Architect role)
 > DEPS: every file in this folder; ../_evidence-index.md; ../_handoff/acceptance-matrix.md; ../_handoff/LATEST.md
 > GREP: masterplan, index, reading order, chapters, confidence, evidence classes, completion, s25
@@ -24,9 +24,24 @@ The masterplan is **verified but not complete**. Open required criteria, each wi
   - `22ed99e`, `9bbd813` (= `0b5eb1b`) and the s23r tree on one host, interleaved, 6 Lighthouse runs each.
   - The s23r page paints ≈ 0.67–0.82 s earlier and transfers ≈ 67–69 KB less than both older builds. LCP, TBT and score are not established (`../04-template-benchmarks/own-builds/own-build-comparison-s23r.md`).
   - Since s25, chapters 01, 02, 04 and 09 cite it **beside** the competitor comparison, which still uses `22ed99e` (C-INV-005): separate populations, never pooled.
-- **Legacy contrast findings stay explicit:** 2 pages INCOMPLETE on the s23r / s24 fixture (3 on the s21 fixture). Both are the legacy headline over a cover photo. They are never relabelled PASS; the owner decision is pending (B-016, LATEST §4).
+- **Legacy contrast findings stay explicit:** 2 pages INCOMPLETE on the s23r / s24 fixture (3 on the s21 fixture). Both are the legacy headline over a cover photo. **Decided in s26 (D-041):**
+  - they stay INCOMPLETE in every report, never PASS;
+  - legacy is frozen as a compatibility layout;
+  - new invitations will default to a family that passes the gate (F-02, U3).
+- **s26 research attempts (RQ-COMP-04 / -05):**
+  - one more URL-less search pilot;
+  - Apple's review feeds are robots-disallowed;
+  - G2 and Product Hunt refuse our reader (403);
+  - Wikipedia gives company facts only for Canva and Minted.
+  Both rows stayed PARTIAL until the owner qualified them by availability (ADR-O12, ≈ 16:50Z). The strict counts stay at 13 / 21 and 4 / 15, and the conclusions in `../_handoff/research-closure-s26.md` §7 remain unsupported. The **research gate passed as qualified** (§8.1 there).
 - **Deferred acceptance (owner, s25):** DA-01 (real-Clerk signed-in flows) and DA-02 (the children's-photo migration in real environments). Not gate criteria, NOT RUN, never reported as passed (`../_handoff/deferred-acceptance.md`).
-- **RQ-BENCH-05 PARTIAL** — only the 412×915 cold load was measured; 360×800, 390×844, reduced motion, in-app browsers, audio and INP are unresolved.
+- **RQ-BENCH-05 VERIFIED (s26, explicit limits, the row's own criterion).** Earlier text here said only 412 × 915 was measured, which was wrong:
+  - Protocol v2 measured `v2-412`, `v2-360`, `v2-390` and `v2-412-rm` (reduced motion) for 21 competitor themes (WEV 6, VID 6, INV 6, BRN 3) and our build (`queue-v2-s13.tsv` 94 / 94, espresso 4 / 4; `../04-template-benchmarks/benchmark-pack.md` §7).
+  - Remaining limits, stated rather than measured:
+    - Invitato and Katsudoto not re-capturable (tokenized URLs, D-019);
+    - Enviory provisional (Q-O09);
+    - Indoinvite, PALEO and Satu Momen without safe demos (ADR-O10);
+    - physical in-app browsers, real audio and field INP (EXT).
 - **RQ-MP-06 / RQ-MP-15** — no longer partial: s12 wrote acceptance, verification and rollback for the remaining 26 P1 and 26 P2 items, s13 added rollout, and the s14 table scan found every cell filled.
 - Independent Guardian review (RQ-VER-03) has not happened; its scope is in `../_handoff/review-request-s14.md`. Owner decision ADR-O09 authorizes self-review, labelled as such; it is not that review.
 

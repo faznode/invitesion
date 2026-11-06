@@ -1,10 +1,10 @@
 <!-- SUMMARY (first 7 lines — greppable) -->
 # 06-backlog.md — prioritized backlog B-001… (P0 / P1 / P2)
 > WHAT: Every item with problem, evidence, module/path mapping, solution, acceptance criteria, tests, impact, effort, risk, dependencies, rollback. P0 is capped at 12 (brief 03 §19).
-> STATUS: **s25 (2026-11-06): reconciled against code and records** ("State at s25": 15 DONE, 7 PARTIAL, 20 OPEN of 42; B-009 is the open P0, unblocked; B-041 re-checked open; P2 none started; one record defect, the QA-026 collision). Chains below keep their wording, with status lines updated for B-009, B-012, B-015 and B-016. s12 (2026-11-04; verified s10, v2 s09, v1 s08). The 12 P0 items and the four next-phase P1 items (B-014, B-015, B-016, B-017a) carry the full chain inline. **s12:** the other 26 P1 items and the 26 P2 gaps now have proposed behaviour, acceptance, verification and rollback in "Chains for the remaining P1 and P2 items" below, which completes their chain together with `upgrade-map.csv` (RQ-MP-06 / RQ-MP-15). Checks needing real Clerk keys, a PJP sandbox or legal review are marked EXT. (Earlier status text follows.) The other P1 / P2 items have evidence, modules / paths, effort / risk and dependencies (through `../06-gap-analysis/upgrade-map.csv`) but no acceptance, verification or rollback yet; write them before an item enters a sprint (RQ-MP-06 in `../_handoff/acceptance-matrix.md`). Implementation status per item: `../_handoff/IMPLEMENTATION-LOG.md`.
+> STATUS: **s26 (2026-11-06): "Upgrade order (s26)" added**: phases U1–U7 built from `../06-gap-analysis/dispositions-s26.csv`, with an exit criterion per phase and full chains for the new items R-01…R-04 (Rust slices, ADR-A2), F-01 (stable Next.js line, ADR-F1) and F-02 (family default, D-041). Both gates passed ≈ 16:50Z (ADR-O12), so the order is executable (ADR-O11). Item states change only as U-phase work lands; see the implementation log. **s25 (2026-11-06): reconciled against code and records** ("State at s25": 15 DONE, 7 PARTIAL, 20 OPEN of 42; B-009 is the open P0, unblocked; B-041 re-checked open; P2 none started; one record defect, the QA-026 collision). Chains below keep their wording, with status lines updated for B-009, B-012, B-015 and B-016. s12 (2026-11-04; verified s10, v2 s09, v1 s08). The 12 P0 items and the four next-phase P1 items (B-014, B-015, B-016, B-017a) carry the full chain inline. **s12:** the other 26 P1 items and the 26 P2 gaps now have proposed behaviour, acceptance, verification and rollback in "Chains for the remaining P1 and P2 items" below, which completes their chain together with `upgrade-map.csv` (RQ-MP-06 / RQ-MP-15). Checks needing real Clerk keys, a PJP sandbox or legal review are marked EXT. (Earlier status text follows.) The other P1 / P2 items have evidence, modules / paths, effort / risk and dependencies (through `../06-gap-analysis/upgrade-map.csv`) but no acceptance, verification or rollback yet; write them before an item enters a sprint (RQ-MP-06 in `../_handoff/acceptance-matrix.md`). Implementation status per item: `../_handoff/IMPLEMENTATION-LOG.md`.
 > OWNER: Research agent (autonomous, brief 05 §16)
 > DEPS: ../06-gap-analysis/{upgrade-map.csv,must-have-p0.md}, ../05-feature-matrix/feature-matrix.csv, 12-decision-log.md, ../01-codebase-audit/{quality-audit.md,revalidation-s10.md}, ../08-backend-rust-plan/spike/results/s09-20261103-r1/summary.md
-> GREP: backlog, B-0, P0, P1, P2, acceptance, rollback, reconciled, state at s25
+> GREP: backlog, B-0, P0, P1, P2, acceptance, rollback, reconciled, state at s25, upgrade order, U1, R-01, F-01, F-02
 > UPDATED: 2026-11-06
 
 Scales: impact 1–5; effort S ≤ 2 dev-days, M ≤ 2 weeks, L > 2 weeks; risk L/M/H (breakage of published invitations, payments, authorization, or irreversible data change). Every P0 is **revalidated against current code before coding**. Product code at `64678cf` is identical to `2c94140` and, for the renderer, editor, analytics route, `lib/invitation/` and `app/i/`, to the audited `22ed99e` (s09 git diff). Re-verified live in s09: QA-005 (allowance 2 → 1 on every spike arm), QA-003's 200 for unknown guests, B-002's "Rp0", B-003's three quotes, B-005's `/${slug}` link and `addons.theme` gate.
@@ -16,14 +16,14 @@ Scales: impact 1–5; effort S ≤ 2 dev-days, M ≤ 2 weeks, L > 2 weeks; risk 
 - Items with no log entry were searched in `app/`, `lib/`, `components/` and `middleware.ts`. The search terms are summarised in the evidence column; a negative search means nothing was found, not proof of absence.
 - Each entry's chain below keeps its s08–s12 wording, with status lines added or updated where the state moved.
 
-**Totals:** 42 items (B-001…B-041 plus B-017a): **15 DONE, 7 PARTIAL, 20 OPEN** (one of them EXT).
+**Totals:** 42 items (B-001…B-041 plus B-017a). **s26 Phase C: 18 DONE, 5 PARTIAL, 19 OPEN** (one of them EXT). B-041 is done; B-020 and B-012 are done in the repository and await their first GitHub Actions run (EXT). At s25: 15 DONE, 7 PARTIAL, 20 OPEN.
 
 | Item | State (s25) | Evidence |
 |---|---|---|
 | B-001…B-008, B-010 | **DONE** (s09) | E-001…E-008, E-010 |
 | B-009 cover gate, music, pause | **OPEN, not started**: the next P0. Its dependency B-012 is met for product pages | `config.music` is stored but never rendered; no `<audio>` in `components/invitation/` |
 | B-011 opaque guest links | **DONE** behind `FLAG_OPAQUE_GUEST_LINKS`, default off | E-011; owner's "slug without token" decision |
-| B-012 budgets in the harness | **PARTIAL**: gates exist and pass on harness templates and product pages; they are run by hand, and no CI runs them (B-020) | E-019 rendered contrast; E-044 / E-049 / E-053 byte budgets; E-050 design acceptance; cover fold |
+| B-012 budgets in the harness | **DONE s26 for product pages (E-055):** CI's `product-gates` job runs the byte budgets (wedding and long programme), design acceptance, cover fold and rendered contrast on every push. In this sandbox all five passed through `scripts/ci/local.sh`. Photo pages stay a manual run (generated review assets never enter the repository), and the first GitHub Actions run is EXT (agents never push). At s25: PARTIAL, run by hand | E-019 rendered contrast; E-044 / E-049 / E-053 byte budgets; E-050 design acceptance; cover fold; E-055 |
 | B-014 render cost | **PARTIAL**: step 1 done; step 2 evaluated and not shipped (D-039); 22.2 ms per view after E-042 / E-043; target ≤ 2 × `next-min` not met | E-013, D-039, E-043 |
 | B-015 no Clerk on guest pages | **DONE**; real-Clerk signed-in acceptance deferred (DA-01, not run) | E-042, `../_handoff/deferred-acceptance.md` |
 | B-016 palette tokens | **DONE**; 2 legacy pages INCOMPLETE on the s23r / s24 fixture (3 on s21's): headline over a cover photo; owner decision pending, never relabelled PASS | E-015, E-019, contrast runs 1–12 |
@@ -31,7 +31,7 @@ Scales: impact 1–5; effort S ≤ 2 dev-days, M ≤ 2 weeks, L > 2 weeks; risk 
 | B-027 RSVP depth | **DONE**: deadline, "maybe", custom questions, an answer per event, invite-only events with host override; flags on | E-020, E-024, E-025, E-029…E-036, E-038; D-034…D-037 |
 | B-029 dress code, agenda, ceremony blocks, hashtag | **DONE** in code, with corporate covers on phones | E-017, E-021, E-026, E-048, E-051 |
 | B-017 indexes | **PARTIAL** (incidental): `analytics_events_view_dedupe_idx` (B-017a) serves analytics lookups; no index on `guest_messages` | `lib/db/schema.ts` |
-| B-020 tests and CI | **PARTIAL**: 38 test files, 311 tests (renderer, guest actions, harness); no CI workflow | `tests/`; no CI workflow directory in the repository |
+| B-020 tests and CI | **DONE s26 in the repository (E-055):** `.github/workflows/ci.yml` runs five jobs (app, database, product-gates, research, rust), each a script in `scripts/ci/`. All five passed in this sandbox through `scripts/ci/local.sh`, which runs the same scripts. The first GitHub Actions run is EXT (agents never push). At s25: PARTIAL, 311 tests and no CI | `.github/workflows/ci.yml`, `scripts/ci/`, `tests/` |
 | B-023 couple profiles | **PARTIAL**: parents lines and person photos render (via B-029 slice 3 and D-038), but there is no acceptance record against G-026 | E-026, E-039 |
 | B-030 template system v2 | **PARTIAL**: four design families, opt-in per invitation (legacy stays the default), and harness gates. Not built: a manifest-driven section contract for product templates; motion tiers | E-016, E-018, E-027, E-028, E-032, E-040, E-045, E-046, E-048, E-051 |
 | B-034 analytics and follow-up lists | **PARTIAL**: the host's RSVP counts on the dashboards; no WhatsApp follow-up lists | E-033 |
@@ -48,12 +48,12 @@ Scales: impact 1–5; effort S ≤ 2 dev-days, M ≤ 2 weeks, L > 2 weeks; risk 
 | B-032 memorial preset | **OPEN** | — |
 | B-033 bulk import, self-registration | **OPEN** | — |
 | B-035 live preview, autosave | **OPEN** (B-005's preview opens the real page; no autosave) | — |
-| B-036 free theme switching in tier | **OPEN**; comes after B-041 | — |
+| B-036 free theme switching in tier | **OPEN**; its prerequisite B-041 is done (s26) | — |
 | B-037 wizard | **OPEN** | — |
 | B-038 enforced CSP | **OPEN**: a nonce CSP is sent **report-only** from `middleware.ts` (already so at `7a00a6d`) | `middleware.ts` |
 | B-039 payments via a licensed PJP | **OPEN, EXT**: QRIS and Stripe rails are implemented without SDKs, but no QRIS acquirer is chosen (owner contract, ADR-O03) | `docs/systems/payment.md` |
 | B-040 entry-tier experiment | **OPEN** (owner decision) | — |
-| B-041 server-side theme entitlement | **OPEN**, re-checked s25: `detailConfigSchema` accepts any positive `theme.templateId` and any palette text, and `updateDetailConfig` (`lib/invitation/service.ts`) checks neither; only publishing asks the orders table | `detail-config.ts`, `service.ts`, `lib/payment/service.ts` |
+| B-041 server-side theme entitlement | **DONE s26 (E-054; D-042):** `updateDetailConfig` checks every changed theme field before its transaction. A Premium palette needs a Premium entitlement, unregistered palettes are refused, and `theme.templateId` is pinned to the invitation's catalog theme; the PATCH answers 403 `THEME_NOT_ENTITLED`. Tests 13 / 13; `verify-theme-entitlement` 14 / 14 on a scratch database, with a negative control (7 / 14 FAIL without the check). At s25: OPEN, `detailConfigSchema` accepted any positive `theme.templateId` and any palette text | `lib/invitation/theme-entitlement.ts`, `service.ts`, `tests/b041-theme-entitlement.test.ts`, `scripts/verify-theme-entitlement.ts` |
 
 **Also done** (not backlog items):
 - The content contract (E-014).
@@ -64,13 +64,39 @@ Scales: impact 1–5; effort S ≤ 2 dev-days, M ≤ 2 weeks, L > 2 weeks; risk 
 
 **Record defect found:** the s09 entitlement finding is cited as "QA-026 (s09)", but `../01-codebase-audit/quality-audit.md`'s QA-026 is a different defect (the editor advertises SVG uploads). Read B-041's QA-026 as the s09 finding.
 
-**Remaining order** (from dependencies and risk; LATEST §4 holds the session-level order):
-1. B-041 (S, a revenue and authorization defect).
+**Remaining order (s25; superseded by "Upgrade order (s26)" below, kept for history):**
+1. B-041 (S, a revenue and authorization defect). Done s26 (E-054).
 2. B-009 (the open P0; needs licensed audio and a device check for playback).
 3. B-026 with G-021 (personal data).
-4. B-020's CI, so the B-012 gates run unattended.
+4. B-020's CI, so the B-012 gates run unattended. Done s26 in the repository (E-055).
 5. B-013 / B-028.
 6. The rest by impact.
+
+## Upgrade order (s26; both gates passed ≈ 16:50Z after ADR-O12, so executable under ADR-O11)
+Source of every disposition: `../06-gap-analysis/dispositions-s26.csv` (68 gaps, B-041, 32 ideas). It is the gate-time snapshot of dispositions: progress is recorded in the state table above and in `../_handoff/IMPLEMENTATION-LOG.md`, not in that file. `check-dispositions.py` (run by CI) keeps it in agreement with this table. Existing B-items keep their chains below. New items get their full chain here. A phase starts when its predecessor's exit criterion holds; items inside a phase follow the listed order.
+
+| Phase | Items in order | Exit criterion |
+|---|---|---|
+| **U1 Guardrails** | B-020 CI (typecheck, tests, build, the B-012 harness gates on product pages, which makes G-065 and I-02 enforced rather than manual, research checks, the Rust suite) → **B-041** server-side theme entitlement (fixed in today's Next.js domain code; it must not wait for the migration) → F-01 stable Next.js line (investigate) | CI green on every push; B-041's tests prove a published Standard invitation cannot switch to a Premium theme without an order |
+| **U2 Rust foundation + guest interactions** | R-01 API foundation (+ G-020 telemetry) → R-02 views → R-03 RSVP (+ B-013 on RSVP) → R-04 wishes (+ B-028, B-013 on wishes, B-017 index) | Each slice live behind its flag for 7 days within SLO; TypeScript writers removed |
+| **U3 Guest experience** | B-009 cover gate and music (I-15 motion rules as acceptance) → B-026 + G-021 gift block and personal-link-only accounts (I-03, I-18) → F-02 family as the default for new invitations (D-041) → B-023 acceptance → B-018 → B-019 image derivatives (Rust jobs, I-28 Save-Data) → B-025 → B-021 notice (owner-approved text) | All P0 closed; contrast gate 0 FAIL on the new default; bytes within Q-D17 budgets |
+| **U4 Host operations** | B-034 + I-06 / I-29 follow-up lists → B-033 import and self-registration (roster domain to Rust) → B-035 → B-036 → B-037 + I-08 → B-024 + I-01 / I-27 guest pass, scanner and offline sync (Rust; its own exposure ADR) → G-044 → G-045 → I-04, I-22 | Roster and editor writes in Rust; guest-pass acceptance on a device (EXT for physical devices) |
+| **U5 Trust and compliance** | B-038 enforced CSP → B-022 claims audit → B-031 retention and policy (EXT: legal) | CSP enforced on every route without violations |
+| **U6 Commerce** | B-039 PJP (EXT contract) with payments to Rust → G-050 → B-040 (owner pricing decision) → G-053 → G-052 / I-25 → G-061 | Webhooks authoritative in Rust; `verify-payment` vectors green on both implementations |
+| **U7 Template system v2 and catalog** | B-030 manifests → G-016 licensed art → G-041 → G-062 → B-032 / I-13 → I-11 (owner-approved corpus) → G-018 / I-31 → G-035 / I-16 → G-036 / I-05 → G-055 / I-30 → G-029, G-046, G-047, I-21 | Every catalog template validated by the manifest schema and the gates |
+| Continuous | G-067, G-068 guardrails; G-065 once U1's CI enforces it; G-066 (done) kept by the contrast gate | — |
+| Investigate | G-008 remainder (RSC payload), G-038, G-048, G-054, G-056 / I-23, G-063 / I-19, I-09, I-12, I-14, I-26, I-32 | A measured or owner-decided reason to adopt |
+| Rejected (this horizon) | G-057 / I-17 video, G-064 native host app, I-24 AI wishes digest | — |
+
+### Chains for the new items (s26)
+| Item | Evidence → problem | Behaviour | Modules / contracts | Acceptance | Verification | Priority / deps | Rollout | Rollback |
+|---|---|---|---|---|---|---|---|---|
+| **R-01** API foundation | ADR-A2; `../08-backend-rust-plan/feasibility-s26/` (17 / 17) → no service, contract pipeline or telemetry exists | A Rust service in new `services/api/` with health, problem errors, the service signature, owner-token verification, OpenAPI generation, JSON logs and traces; no domain endpoint live | new `services/api/` (axum, sqlx); `openapi.json`; generated client under `lib/api/`; `INTERNAL_API_SECRET`; Vercel Rust function in `sin1` | CI builds and tests it on a migrated Postgres; OpenAPI drift check fails on change; preview deploy answers health within SLO; cold start recorded | CI job; preview probe; trace visible | P1 · after B-020 | Preview only | Remove the function; nothing calls it |
+| **R-02** views | B-017a (E-012); the experiment's port and vectors → first domain to prove the slice mechanics on low-risk data | Next.js guest page records opens through `POST /v1/views` when `BACKEND_VIEWS=rust`; exactly one writer | `lib/invitation/view-tracking.ts` (call site), new `services/api/src/views.rs`; `vectors/view-dedupe.json` run by both suites | `verify-view-dedupe` scenarios pass against the API; vectors green in both languages; tracking stays best-effort (an API error never fails the page) | CI; preview load test; 7 days of metrics | P1 · R-01 | Flag: preview → production | Flag back to `next` |
+| **R-03** RSVP | B-027 (D-034…D-037), B-013, ADR-A1 RSVP burst figures → RSVP writes are the core guest write and have no rate limit | Guest form and host override write through `/v1/guest-links/{slug}/{guest}/rsvp` and `/v1/invitations/{id}/guests/{guest}/rsvp-override`; eligibility, deadline, maybe, questions and per-event rules in Rust; per-link and per-IP limits; `Idempotency-Key` | `app/i/[slug]/actions.ts`, dashboard guest actions (call sites); Rust RSVP module; vectors for eligibility (D-037), questions (D-035) and deadline | Every existing RSVP test scenario passes against the API; the vectors pass in both languages; a burst above the limit gets 429 problem responses; no change to stored shapes | CI; E-029 / E-035-style acceptance on preview | P1 · R-02 | Flag | Flag back; columns unchanged |
+| **R-04** wishes | B-028, B-013, B-017 (no `guest_messages` index) → wishes have no moderation flow, no limits and an unindexed read | Wish writes, the host's hide / delete / reply and visibility move to Rust with limits; additive index | Migration (drizzle-kit, additive index); Rust wishes module; guest page read unchanged | Hidden wishes never render; replies render; limits answer 429; the index is used by the guest-page query (`EXPLAIN`) | CI; preview acceptance | P1 · R-03 | Flag | Flag back; the index stays (additive) |
+| **F-01** stable Next.js line | ADR-F1; the app runs `15.6.0-canary.59`; `middleware` → `proxy` deprecation (LATEST §6) → canary builds carry unsupported behaviour | Upgrade on a branch; gates and the RQ-OWN-02 method compare before and after | `package.json`, `middleware.ts` → `proxy.ts`, `next.config.ts` | Typecheck, tests, build, harness gates and payment / view-dedupe checks pass; no guest-page regression beyond run variation | CI plus the same-host interleaved bench | Investigate in U1 → adopt in U2 if it holds | Branch → production | Revert the upgrade commit |
+| **F-02** family default | D-041; contrast 54 / 0 / 2 with both INCOMPLETE on legacy → new invitations start on the only layout that cannot be measured over a photo | New invitations default to a design family chosen by event type; legacy stays selectable; existing invitations untouched | `lib/invitation/create.ts`, template defaults, editor theme tab | New invitations of each type render a family; contrast gate 0 FAIL / 0 INCOMPLETE on them; legacy pages byte-identical | Unit tests; rendered contrast run on new-invitation fixtures | P1 · U3 | Flag `DEFAULT_FAMILY` | Flag off; created invitations keep their choice |
 
 ## P0 (dependency order)
 **Status at s25** (the table above): B-001…B-008, B-010 and B-011 are done (E-001…E-011). B-012 is delivered as manual gates on harness templates and product pages, but no CI runs them. B-009 is open and now unblocked. (At `7a00a6d`: done s09 B-001…B-008, B-010, B-011; open B-009 and B-012.)

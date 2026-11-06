@@ -17,7 +17,8 @@ Rules
   * Status is Full, Partial, None or Unknown. A missing cell is Unknown, and Unknown is never turned into None.
   * Every Full / Partial / None cell cites at least one evidence ID that resolves: S-/C-/D-/H-/P-/B- IDs from
     ../_evidence-index.md or ../04-template-benchmarks/captures-summary.csv, LONGLIST:<CODE> rows of the longlist; our own
-    column may also cite F-/M-/QA- IDs from ../01-codebase-audit/ or REPO@<baseline commit>.
+    column may also cite F-/M-/QA- IDs from ../01-codebase-audit/, E- entries of ../_handoff/IMPLEMENTATION-LOG.md, or
+    REPO@<BASELINE or CURRENT>. Since s26 the curated own column describes CURRENT; baseline/ keeps the pre-switch files.
   * Derived cells: Lighthouse rows from cold-load-eligible captures (median per theme first), page rows from
     structure-eligible captures. Keyword features only ever derive "Full" (seen in at least one eligible theme): the detector
     reads Indonesian/English text, so no detection says nothing (Korean pages are read by hand).
@@ -38,10 +39,14 @@ sys.path.insert(0, os.path.join(RESEARCH, '_tools', 'capture'))
 import eligibility  # noqa: E402
 
 BASELINE = '2c94140'
+# s26: the curated own column describes this checkpoint; the pre-switch column is frozen in baseline/ and derived own
+# cells stay on the v1.2 population of the pre-P0 build (their notes say so).
+CURRENT = '2a6015f'
+OWN_MEASURED_POPULATION = 'pre-P0 own build 22ed99e (v1.2 population), not the current build'
 STATUSES = ('Full', 'Partial', 'None', 'Unknown')
 BASES = ('CODE', 'MEASURED', 'OBSERVED', 'CLAIMED', 'INFERRED')
 COLUMNS = ['invitesion', 'IDI', 'PLO', 'SMO', 'WEV', 'VID', 'ENV', 'IVT', 'INV', 'KAT', 'STM', 'BRN', 'PPO', 'RSV', 'JOY', 'PTF']
-LABELS = {'invitesion': 'Invitesion (today)', 'IDI': 'Indoinvite', 'PLO': 'PALEO', 'SMO': 'Satu Momen', 'WEV': 'Wevitation',
+LABELS = {'invitesion': f'Invitesion ({CURRENT})', 'IDI': 'Indoinvite', 'PLO': 'PALEO', 'SMO': 'Satu Momen', 'WEV': 'Wevitation',
           'VID': 'Viding', 'ENV': 'Enviory', 'IVT': 'Invitato', 'INV': 'INVI.ID', 'KAT': 'Katsudoto', 'STM': 'Sitemu',
           'BRN': 'Barunson', 'PPO': 'Paperless Post', 'RSV': 'RSVPify', 'JOY': 'Joy', 'PTF': 'Partiful'}
 RAW_DIRS = {'invitesion': 'invitesion', 'IDI': 'indoinvite', 'WEV': 'wevitation', 'VID': 'viding', 'ENV': 'enviory',
@@ -54,7 +59,7 @@ KEYWORD_ROWS = {'coverGate': 'FM-003', 'toGuest': 'FM-002', 'countdown': 'FM-008
                 'loveStory': 'FM-013', 'gallery': 'FM-014', 'dressCode': 'FM-041', 'quranVerse': 'FM-010',
                 'instagramFilter': 'FM-044', 'musicControl': 'FM-005'}
 MOTION_LIBS = ('aos', 'scrollTrigger', 'wow', 'animateCss')
-EVIDENCE_TOKEN = re.compile(r'^(?:[SCDHPB]-[A-Z]{2,4}(?:-\d{3})?|V-REA-\d{3}|F-\d{3}|M-\d{3}[a-z]?|QA-\d{3}|LONGLIST:[A-Z]{3}|REPO@[0-9a-f]{7,40})$')
+EVIDENCE_TOKEN = re.compile(r'^(?:[SCDHPB]-[A-Z]{2,4}(?:-\d{3})?|V-REA-\d{3}|F-\d{3}|M-\d{3}[a-z]?|QA-\d{3}|E-\d{3}|LONGLIST:[A-Z]{3}|REPO@[0-9a-f]{7,40})$')
 
 
 def read_csv(path):
@@ -84,6 +89,8 @@ def known_ids():
     for name, pattern in (('module-map.md', r'\bM-\d{3}[a-z]?\b'), ('quality-audit.md', r'\bQA-\d{3}\b')):
         with open(os.path.join(audit, name), encoding='utf-8') as handle:
             ids.update(re.findall(pattern, handle.read()))
+    with open(os.path.join(RESEARCH, '_handoff', 'IMPLEMENTATION-LOG.md'), encoding='utf-8') as handle:
+        ids.update(re.findall(r'^#{2,4} *(E-\d{3})\b', handle.read(), re.M))
     with open(os.path.join(RESEARCH, '02-competitor-discovery', 'competitor-longlist.csv'), encoding='utf-8') as handle:
         longlist = handle.read()
     return ids, longlist
@@ -95,8 +102,9 @@ def resolve(token, column, ids, longlist):
     if token.startswith('LONGLIST:'):
         return None if re.search(rf'(^|,){token[9:]}(,|$)', longlist, re.M) else f'{token}: code not in the longlist'
     if token.startswith('REPO@'):
-        return None if (column == 'invitesion' and BASELINE.startswith(token[5:12])) else f'{token}: only for our column at {BASELINE}'
-    if re.match(r'^(F|M|QA)-', token) and column != 'invitesion':
+        known = column == 'invitesion' and any(commit.startswith(token[5:12]) for commit in (BASELINE, CURRENT))
+        return None if known else f'{token}: only for our column at {BASELINE} or {CURRENT}'
+    if re.match(r'^(F|M|QA|E)-', token) and column != 'invitesion':
         return f'{token}: codebase IDs describe our product, not {column}'
     return None if token in ids else f'{token}: not in the evidence index, captures summary or audit files'
 
@@ -175,6 +183,8 @@ def derive(columns_with_raw, sensitivity=False):
 
         def put(fid, status, ids, note):
             if status:
+                if column == 'invitesion':
+                    note = f'{note} · {OWN_MEASURED_POPULATION}'
                 derived[(fid, column)] = {'status': status, 'basis': 'MEASURED', 'evidence': sorted(ids)[:6],
                                           'note': note, 'source': 'derived'}
 

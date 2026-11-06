@@ -5,7 +5,7 @@
 > OWNER: Oracle (research)
 > DEPS: raw/_captures.csv (machine index of C- IDs), _rea-playbook.md
 > GREP: evidence, capture, observed, source, C-, H-, P-, S-
-> UPDATED: 2026-11-04 (s13: session 12 rows indexed from the committed records; session 13 verification reads)
+> UPDATED: 2026-11-06 (s26: pass D third-party reads and the review-source policy audit). 2026-11-04 (s13: session 12 rows indexed from the committed records; session 13 verification reads)
 
 ## ID scheme
 | Prefix | Meaning | Where the artefact lives |
@@ -245,3 +245,17 @@ The first four rows index s13 batch captures that s13 stored but never indexed; 
 | — (RSV) | — | RSVPify rendered read considered (owner's preferred reference direction) | **Not requested.** The origin answered our reader with 403 (S-RSV-003, s14) and `/pricing/` with a Cloudflare challenge (S-RSV-002, s07). A browser would be another client after a denial (playbook §5); no rendered RSVPify finding exists |
 | — (RQ-COMP-05) | ≈ 13:12 | Seven bounded searches, one per vendor (VID, KAT, INV, SMO, IVT, ENV, STM), with the platform search tool for public review threads | Every answer was a synthesized summary with citation markers and **no source URL** (as s14's attempt 1), several in a vendor-testimonial tone. Nothing can be robots-checked, attributed or re-read, so **nothing is cited and no page was requested**; search-engine result pages themselves are robots-disallowed for generic agents |
 | OWN02-s23r | 13:16:20–13:20:56 | RQ-OWN-02: `22ed99e`, `9bbd813` and the s23r tree on one host, 2 × 3 interleaved rounds of Lighthouse 12.8.2 (`v1-412` arguments), `_tools/capture/own-build-bench.mjs` | 18 / 18 runs OK; results, method and limits in `04-template-benchmarks/own-builds/own-build-comparison-s23r.md` (per-run CSV with report hashes, merged JSON). A separate population: no capture row |
+
+## Session 26 additions (2026-11-06; times UTC)
+Pass D (`raw/_discovery/review-targets-2026-11-06-s26-d.tsv` → `raw/_discovery/review-reads-2026-11-06-s26-d.jsonl`, `profile-reads.py --no-follow`; page text in the private directory only). Third-party origins with predictable public URLs whose robots.txt allows the path for `*` and holds no applicable D-030 opt-out (s26 audit); never a vendor's own denied origin, a cache or an archive of it. Reviewer names never recorded.
+
+| ID | Time | Source | Result |
+|---|---|---|---|
+| — (RQ-COMP-05) | 16:20 | One capability pilot with the platform search tool (Greenvelope complaints) | Synthesized paragraph, citation markers [1]–[5], **no URL** (as s23r–s25). Nothing cited, no page requested, not repeated |
+| — (policy) | 16:21 | robots.txt audit: `itunes.apple.com`, `apps.apple.com`, `hn.algolia.com`, G2, Product Hunt, Capterra, Wikipedia, HN, Google Play, TrustRadius, GetApp | `itunes.apple.com` disallows `/search*`, `/*/rss/*`, `/*/lookup?` for `*` (Apple search, lookup and review feed **not permitted**); TrustRadius 403 on robots.txt; the others allow product / article paths |
+| S-RSV-005 | 16:21:51 | `www.g2.com/products/rsvpify/reviews` (robots 200, 314 lines, path allowed) | **HTTP 403** access block: G2 origin stopped; the PPO and GRV G2 pages were not requested |
+| S-RSV-006 | 16:21:54 | `www.producthunt.com/products/rsvpify` (robots 200, 49 lines, path allowed) | **HTTP 403** access block: Product Hunt origin stopped; the PPO and JOY pages were not requested |
+| S-CNV-004 | 16:22 | `en.wikipedia.org/wiki/Canva` (200, ≈ 25 K characters) | Third-party company facts (as reported by the article): design platform on a freemium model with print services; ≈ 265 M monthly active and ≈ 31 M paid users at end-2025. Nothing on the invitation product, its prices or RSVP: the profile stays thin |
+| S-MTD-002 | 16:22 | `en.wikipedia.org/wiki/Minted` (200, ≈ 4.6 K characters) | Third-party company facts: premium design brand selling stationery, art and decor by independent artists through crowdsourced design challenges; San Francisco. Nothing on digital invitations, prices or RSVP: the profile stays blocked-origin plus company facts |
+| S-WMG-003 | 16:22 | `en.wikipedia.org/wiki/WedMeGood` | 404: no article |
+| S-GRV-002 | 16:22 | `en.wikipedia.org/wiki/Greenvelope` | 404: no article |

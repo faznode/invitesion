@@ -1,11 +1,11 @@
 <!-- SUMMARY (first 7 lines — greppable) -->
 # 12-decision-log.md — architecture and research decisions (ADRs) for the Invitesion masterplan
 > WHAT: ADRs with context, options, decision, consequences, confidence and revisit triggers. Short decisions D-001… live in `../_progress.md`; this file holds the decisions the masterplan depends on.
-> STATUS: **s25 (2026-11-06): extended to current decisions:** ADR-A1 outcome (D-039; the ADR stands, no revisit trigger fired), a table of the product decisions since s14 (D-034…D-040) and Q-D17 (Q-O11 resolved, s25), and the owner's s25 deferrals (DA-01 / DA-02, not ADRs). ADR texts W1, O01…O10 and A1 are unchanged. Earlier: verified s10 (2026-11-04; v1 s09). ADR-W1 **decided** (s08), fallback met → planning gate met through ADR-W1 (reduced confidence, not literal Wave 1). ADR-W1 is the historical authorization to plan with reduced confidence; it is **not** the missing evidence and does not close any research requirement (strict Wave 1 stays NOT MET, RQ-DEMO-01). Owner-question ADRs **ADR-O01…O07 accepted autonomously** in s08 as safe, reversible defaults with revisit triggers (the owner can override any of them). **ADR-A1** (s09): keep the Next.js stack, measured. s10 additions: Viding coverage 3 → 6 themes, D-026 / D-027, open owner question Q-O08 (§ "Session 10 decisions"). s12 decisions D-030 / D-031 entered and verified in s13 (§ "Session 12 decisions"); s13 decision D-032 (measurement profiles, § "Session 13 decisions"); open owner questions Q-O08 (residual), Q-O09, Q-O10.
+> STATUS: **s26 (2026-11-06): five decisions added:** ADR-O11 (owner sequencing: research, then the final masterplan, then the upgrade; ADR-O08 superseded for sequencing only), ADR-O12 (owner: RQ-COMP-04 / -05 qualified by availability, strict counts 13 / 21 and 4 / 15 kept; the research gate passes as qualified), ADR-A2 (Rust as the authoritative backend, one data domain at a time), ADR-F1 (Next.js stays the frontend) and D-041 (legacy contrast INCOMPLETE stays INCOMPLETE; legacy frozen for compatibility). ADR texts W1, O01…O10 and A1 are unchanged. **s25 (2026-11-06): extended to current decisions:** ADR-A1 outcome (D-039; the ADR stands, no revisit trigger fired), a table of the product decisions since s14 (D-034…D-040) and Q-D17 (Q-O11 resolved, s25), and the owner's s25 deferrals (DA-01 / DA-02, not ADRs). ADR texts W1, O01…O10 and A1 are unchanged. Earlier: verified s10 (2026-11-04; v1 s09). ADR-W1 **decided** (s08), fallback met → planning gate met through ADR-W1 (reduced confidence, not literal Wave 1). ADR-W1 is the historical authorization to plan with reduced confidence; it is **not** the missing evidence and does not close any research requirement (strict Wave 1 stays NOT MET, RQ-DEMO-01). Owner-question ADRs **ADR-O01…O07 accepted autonomously** in s08 as safe, reversible defaults with revisit triggers (the owner can override any of them). **ADR-A1** (s09): keep the Next.js stack, measured. s10 additions: Viding coverage 3 → 6 themes, D-026 / D-027, open owner question Q-O08 (§ "Session 10 decisions"). s12 decisions D-030 / D-031 entered and verified in s13 (§ "Session 12 decisions"); s13 decision D-032 (measurement profiles, § "Session 13 decisions"); open owner questions Q-O08 (residual), Q-O09, Q-O10.
 > OWNER: Architect (research agent acting autonomously, brief 03 §5.1)
 > DEPS: ../_handoff/review-20261101.md §2, ../_open-questions.md §B, ../_evidence-index.md, ../04-template-benchmarks/benchmark-exclusions.csv, ../03-teardowns/*/dossier.md; owner instructions supplied outside the repository; code at `2c94140`: lib/invitation/{detail-config,create,template-sync,templates}.ts, lib/pricing.ts, app/marketing-copy.ts, app/globals.css, app/layout.tsx
 > GREP: adr, decision, wave 1, ADR-W1, planning gate, reduced confidence, fallback, revisit, D-039, D-040, Q-D17, deferred
-> UPDATED: 2026-11-06 (s25)
+> UPDATED: 2026-11-06 (s26)
 
 ## ADR-W1 — Wave-1 reduced-confidence fallback for competitors without safe public demos
 **Status:** DECIDED 2026-11-03 (session 08); fallback requirements met 16:54Z → planning gate met through ADR-W1 · **Type:** reduced-confidence exception, **not** literal satisfaction of strict Wave 1 · **Authority:** brief 05 §14 ("If the bounded search confirms unavailable or insufficient safe public demos, this prompt authorizes ADR-W1").
@@ -145,7 +145,7 @@ Brief 05 §16 makes these routine decisions: choose safe, reversible options, re
 Answers to the three gate questions in `../_handoff/sessions/session-14-20261104-1420.md`. They are owner direction, not research findings.
 
 ### ADR-O08 — Start implementation while research rows stay open
-- **Status:** ACCEPTED (owner) · **Confidence:** n/a (owner direction).
+- **Status:** ACCEPTED (owner) · **Confidence:** n/a (owner direction). **Sequencing superseded by ADR-O11 (s26)**; kept as the authority for the s14–s25 implementation work.
 - **Context [OBSERVED]:** the gate (`../_handoff/acceptance-matrix.md` §9) was closed on RQ-DEMO-01 and RQ-VER-03 (BLOCKED) and on four PARTIAL rows (RQ-COMP-04, RQ-COMP-05, RQ-OWN-02, RQ-BENCH-05). The session instruction forbids entering implementation by silent waiver.
 - **Decision:** implementation starts now, with the open rows kept open and listed. CPU-heavy work keeps its order: the running v2 batch, output regeneration and the RQ-OWN-02 same-host comparison first; then B-016, the design harness and three families, with B-014 step 2 in parallel.
 - **Consequences:** the gate reads "not passed; implementation authorized by ADR-O08", never "passed". Claims that depend on an open row (own-build comparisons, B-012 budgets, public-review themes) stay qualified until the row closes.
@@ -164,6 +164,106 @@ Answers to the three gate questions in `../_handoff/sessions/session-14-20261104
 - **Decision:** the requirement is qualified by availability: 4 / 8 strict, 5 / 8 counting the provisional ENV themes (D-028). It no longer blocks the gate.
 - **Consequences:** comparisons involving IDI, PLO or SMO stay marked as not demo-backed. The ADR-W1 trigger stays open, and the s08 search is not repeated without new evidence.
 - **Revisit:** a vendor publishes a placeholder demo, or the owner supplies consented sample invitations.
+
+## Owner decision (session 26, 2026-11-06)
+
+### ADR-O11 — Research, then the final masterplan, then the upgrade
+- **Status:** ACCEPTED (owner) · **Confidence:** n/a (owner direction). Supersedes ADR-O08's sequencing; ADR-O08 stays as the historical authority for the work done under it (s14–s25).
+- **Decision:** the order is (1) complete the remaining research, (2) reconcile and finalize the masterplan, (3) begin the codebase upgrade by that final plan. No new product feature and no backend migration starts before the research gate (`../_handoff/acceptance-matrix.md` §9) and the final-masterplan gate pass. Research tooling, evidence correction, architecture investigation and isolated feasibility experiments are allowed meanwhile. Once both gates pass, implementation continues without a further approval.
+- **Unchanged:** ADR-O09, ADR-O10, Q-D17, DA-01 / DA-02 (deferred, NOT RUN; neither blocks either gate).
+- **Consequence (s26):** at first the research gate did not pass (RQ-COMP-04, RQ-COMP-05; `../_handoff/research-closure-s26.md` §8), so until ≈ 16:50Z the masterplan was reconciled but not labelled FINAL and no product feature or migration was started. ADR-O12 then qualified both rows; both gates passed and the upgrade began under this decision.
+
+### ADR-O12 — RQ-COMP-04 and RQ-COMP-05 are qualified by availability
+- **Status:** ACCEPTED (owner, s26, ≈ 16:50Z, answering the gate question in the session) · **Confidence:** n/a (owner direction); the evidence behind both rows keeps its own levels.
+- **Context [OBSERVED]:** RQ-COMP-04 needs one-page profiles for 21 Tier-B vendors; 13 are substantive. WNK, BRS, MMO and SNT publish too little (no pricing page, "Coming Soon", a homepage-only shell); WMG, GRV and MTD answer 403; CNV is a D-030 uncertain class. RQ-COMP-05 needs public-complaint themes in all 15 Tier-A dossiers; 4 have them. For the other 11, every permitted route was tried s14–s26: search answers without source URLs (s14, s23r, s24, s25, s26), Apple's feeds disallowed by robots, G2 and Product Hunt 403, Trustpilot restricted (D-030 / Q-O08), and Capterra ids only a search would return (`../_handoff/research-closure-s26.md` §3.3–§3.4).
+- **Decision:** both rows are qualified by availability, as ADR-O10 did for demos. The strict counts stay as they are: **13 / 21** substantive profiles and **4 / 15** complaint sections. Neither row blocks the research gate any longer.
+- **Consequences:**
+  - The conclusions in `../_handoff/research-closure-s26.md` §7 stay unsupported and are never stated as findings: complaint themes for ENV, IVT, INV, VID, SMO, KAT, STM, BRN, PPO, JOY and RSV; price comparisons with WNK, BRS, MMO, SNT, WMG, GRV, MTD and CNV; RSVPify's rendered design.
+  - Every comparison that touches one of those vendors is marked as limited by availability.
+  - The searches already recorded are not repeated without a new capability.
+  - With RQ-DEMO-01 (ADR-O10) and RQ-VER-03 (ADR-O09) already qualified, criterion 1 holds. The research gate passes as **qualified**, which unblocks the final-masterplan gate (`../_handoff/masterplan-gate-s26.md`).
+- **Revisit:** a search client that returns source URLs, owner-supplied review threads or profiles, a vendor publishing prices, or Q-O08 ruled for Trustpilot / CNV.
+
+## Architecture and product decisions (session 26; full specification in `09-backend-and-frontend-architecture.md` §8)
+
+### ADR-A2 — Rust as the authoritative backend, one data domain at a time
+- **Status:** ACCEPTED (s26) as the target architecture. Owner direction plus the evidence below. Implementation waits for the gates (ADR-O11). ADR-A1 is preserved as the measured history and stays true for the render path.
+- **Context [OBSERVED]:**
+  - ADR-A1 (s09) showed the guest page's cost is the React render, which Rust does not remove; option (a) was followed through D-039 and E-042 / E-043.
+  - The owner now asks for Rust as the primary backend.
+  - Planned work brings ADR-A1's own revisit triggers within reach: QR check-in with offline sync, jobs, webhook fan-out.
+  - An isolated experiment (`../08-backend-rust-plan/feasibility-s26/`) ran on the real schema and matched the TypeScript writer: 17 / 17 tests and the parity guard.
+- **Options:**
+  - (a) keep everything in Next.js;
+  - (b) a Rust service owning domain rules and writes, migrated per domain behind flags, with Next.js as the presentation layer;
+  - (c) a full rewrite including the frontend (for example Leptos).
+- **Decision:** (b). Rejected:
+  - (c): it rebuilds the frontend only to change technology (ADR-F1);
+  - (a): it ignores the owner's direction without a measured reason to overrule it.
+- **Rules:**
+  - one writer per column group, never two at once;
+  - drizzle-kit stays the single migration owner, and changes are expand → migrate → contract;
+  - OpenAPI from Rust types with a generated TypeScript client and drift checks;
+  - RFC 9457 errors;
+  - owner tokens verified against the JWKS;
+  - guest links checked by the same rules;
+  - an internal HMAC signature on every call;
+  - a Postgres job table instead of Redis;
+  - the Vercel Rust runtime (beta) in `sin1`, with a container fallback;
+  - telemetry and SLOs before cutover;
+  - flag rollback per slice.
+- **Order:** U2 guest interactions (views → RSVP with the host override → wishes with rate limits and moderation) → U3 media derivatives → U4 roster and editor API → U6 payments (`06-backlog.md` "Upgrade order (s26)").
+- **Revisit:**
+  - the beta runtime fails a slice gate: container fallback;
+  - a shared rule cannot be kept in parity by vectors: move rendering's read to a Rust view model first;
+  - guest-write p95 or the error rate breaks the SLO after cutover: roll back the flag and reassess;
+  - cost exceeds the Next.js-only baseline without a functional gain.
+
+### ADR-F1 — Next.js stays the frontend
+- **Status:** ACCEPTED (s26).
+- **Evidence:** the comparison in `09-backend-and-frontend-architecture.md` §8.9:
+  - measured guest-page lead (RQ-OWN-02);
+  - per-invitation share previews (E-010);
+  - full reuse of five layouts, the editor, 311 tests and the harness gates;
+  - none of Astro, SvelteKit, React Router 7 or Leptos shows a measured gain on a problem we have.
+- **Decision:** Next.js renders all HTML, owns sessions, metadata and OG images, and never writes a migrated domain. Two follow-ups:
+  - leave the canary release for a supported stable line, behind the gates;
+  - the RSC payload is the next render lever.
+- **Revisit:**
+  - a measured guest-page problem that a framework change demonstrably fixes (harness gates plus the RQ-OWN-02 method);
+  - the framework line we depend on losing support.
+
+### D-041 — Legacy layout contrast: INCOMPLETE stays INCOMPLETE; legacy is frozen for compatibility
+- **Context [OBSERVED]:**
+  - Rendered contrast on the s23r / s24 fixture: 54 PASS, 0 FAIL, **2 INCOMPLETE** (`legacy-corp-wide`, `legacy-photo`). In both, the legacy headline sits over a cover photo, where no solid background exists to measure.
+  - Legacy is byte-identical by design and still the default layout. The four families pass.
+  - LATEST §4 item 4 left this open: move the text, or accept INCOMPLETE.
+- **Decision:**
+  - (1) Legacy is a **frozen compatibility layout**: existing invitations keep rendering byte-identically, and no host sees a visual change they did not choose.
+  - (2) The two verdicts stay **INCOMPLETE** in every report and total. They are never relabelled or counted as PASS. The legacy gate reads "no FAIL; INCOMPLETE listed".
+  - (3) New invitations default to a design family that passes the gate (a U3 product slice; legacy stays selectable).
+- **Rejected:**
+  - a scrim or moved headline on legacy now: it changes every existing invitation, and the families already solve it for new ones;
+  - accepting INCOMPLETE silently.
+- **Revisit:** a legacy change becomes acceptable only if a rendered run measures the two pages as PASS **and** the owner approves the host-visible change.
+
+### D-042 — What a theme write may change: the Premium palette rule (B-041, s26 Phase C)
+- **Context [OBSERVED]:**
+  - Checkout charges by the tier of the invitation's catalog theme (`invitations.template_id` → `templates.is_premium`).
+  - Guests see `config.theme.paletteId`. The content contract marks `theme.templateId` host-only.
+  - `updateDetailConfig` stored any palette text and any positive `templateId`, before or after payment, so a Standard invitation could render a Premium palette.
+  - Of 18 registered palettes, 13 are used by at least one free catalog theme. `ivory` is used only by a Premium theme, but it is also what `palette()` renders for a missing or unknown id.
+- **Decision:**
+  - (1) A palette is **Premium** when no free catalog theme uses it. The fallback palette is always Standard, since removing the palette would render it anyway. Today that leaves `blossom`, `gold-noir`, `midnight` and `orchid`.
+  - (2) A changed Premium palette needs a **Premium entitlement**: the invitation's own theme is Premium (checkout will charge Premium), or a PAID order with the Premium tier exists for it.
+  - (3) A changed palette must be registered. A changed `theme.templateId` may only name the invitation's own catalog theme; switching themes is B-036.
+  - (4) Only changed fields are checked. A stored config always saves again unchanged, so legacy rows are never locked, and clearing a field needs no entitlement.
+  - (5) The PATCH answers 403 `THEME_NOT_ENTITLED` with paths and reasons only. A refused write changes nothing.
+- **Rejected:**
+  - tying palettes to the exact catalog theme: it would block the 13 shared palettes for no revenue reason;
+  - rejecting stored values that predate the rule: it would stop hosts from saving unrelated sections.
+- **Evidence:** E-054 (tests 13 / 13; `verify-theme-entitlement` 14 / 14 with a negative control).
+- **Revisit:** a catalog change that moves a palette across tiers (a unit test pins today's set), or B-036.
 
 ## Decisions since session 14 referenced by the masterplan (recorded s25; full text where linked)
 Product decisions taken during implementation under ADR-O08. Each has its full text, reasons and reversal in `../_progress.md`, its implementation in `../_handoff/IMPLEMENTATION-LOG.md`, and its domain rule in `docs/systems/`.

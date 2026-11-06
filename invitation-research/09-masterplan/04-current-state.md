@@ -97,7 +97,7 @@
 | ADR-O02 | "Rp0 / GRATIS" in marketing vs the checkout price | Q-O02 | Fixed s09 (B-002, E-002) |
 | QA-015 | Qur'an translations of unknown provenance in presets | code | Fixed s09 (B-003, E-003). The verified corpus is still empty (0 entries; ADR-O04) |
 | QA-009 | No per-invitation link-preview image | C-INV-001 | Fixed s09 for Latin-script names (B-010, E-010) |
-| QA-026 (s09) | The config PATCH accepts any `theme.templateId` / `paletteId` without an entitlement check. Not the quality audit's QA-026, which is about SVG uploads | found doing B-005 | **Open, re-checked s25** (B-041): `updateDetailConfig` checks neither; only publishing asks the orders table |
+| QA-026 (s09) | The config PATCH accepts any `theme.templateId` / `paletteId` without an entitlement check. Not the quality audit's QA-026, which is about SVG uploads | found doing B-005 | **Fixed s26 (B-041, E-054; D-042):** `updateDetailConfig` refuses a changed palette or theme the package does not include (403 `THEME_NOT_ENTITLED`). Re-checked open at s25 |
 | QA-013 / 016 / 022 / 023 / 024 | wa.me everywhere; no image pipeline; accounts visible without a guest link; undisclosed tracking; over-claiming pages | `../01-codebase-audit/quality-audit.md` | Open (B-018, B-019, B-026 / G-021, B-021, B-022). s25 spot checks found the marketing roadmap honestly labelled |
 | Review findings s16–s24 | Fold, photo and form defects found in rendered reviews: S17-G1, S18-G2, S18-Q1…Q4, S18-E1, S21-K1, S22-K2, S23r-P1, M1, M2 | `../_handoff/family-review-20261104-s16.md` | All fixed (E-027…E-051). Still open: **R1** (legacy does not isolate bidirectional names) and **M3** (in Kartu and Lontar an Arabic organisation name aligns right under a left-aligned mark; a design decision) |
 
@@ -128,7 +128,7 @@
 - Gift accounts are visible without a guest link (QA-022; G-021 with B-026). Bank details are personal data under UU PDP.
 - Per-guest tracking without notice (QA-023, B-021).
 - No retention or deletion (F-099, B-031, pending legal review).
-- The theme entitlement is not checked on save (B-041).
+- The theme entitlement is checked on save since s26 (B-041, E-054). It was not checked at `2a6015f`.
 - Residual exposure in git history (ADR-O07, `../00-setup/privacy-hygiene.md` §4).
 
 **Not accepted in this phase** (owner, s25; `../_handoff/deferred-acceptance.md`):

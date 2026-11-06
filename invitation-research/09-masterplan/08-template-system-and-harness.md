@@ -1,7 +1,7 @@
 <!-- SUMMARY (first 7 lines — greppable) -->
 # 08-template-system-and-harness.md — template contract (manifest v1), tier budgets, quality gates, harness CLI, dogfood plan
 > WHAT: How a template is declared, checked and shipped: the machine-readable manifest, budgets with their provenance, every gate and its honest limit, the CLI, the verified-religious-text rule, and the path from today's palette-only renderer to template system v2 (B-030).
-> STATUS: **s25 (2026-11-06): body brought to current code.** §1 has today's five layouts; new §4a covers the product guest-page gates (contrast, byte census on the Q-D17 basis, cover fold, design acceptance, page review), run by hand with no CI (B-012 delivered as manual gates); §6's sample reports are still s10's; §7 records the path taken (four families behind `theme.familyId`, not manifests; B-030 partial). The manifest contract (§2–§5) is unchanged; budgets stay internal, not competitor parity. Earlier: verified s10 (v1 s09).
+> STATUS: **s26 (2026-11-06): §8 template and content contract and §9 taste process added** (owner / template split, editable-field map, version compatibility, family capabilities, media, generation workflow; reference → validated principle with T1 / T3; gates separate from visual approval, D-041). **s25 (2026-11-06): body brought to current code.** §1 has today's five layouts; new §4a covers the product guest-page gates (contrast, byte census on the Q-D17 basis, cover fold, design acceptance, page review), run by hand with no CI (B-012 delivered as manual gates); §6's sample reports are still s10's; §7 records the path taken (four families behind `theme.familyId`, not manifests; B-030 partial). The manifest contract (§2–§5) is unchanged; budgets stay internal, not competitor parity. Earlier: verified s10 (v1 s09).
 > OWNER: Research agent (Architect role)
 > DEPS: ../01-codebase-audit/template-system.md, ../06-gap-analysis/template-catalog-roadmap.md, ../05-feature-matrix/feature-matrix.csv, ../04-template-benchmarks/benchmark-pack.md, 06-backlog.md (B-003, B-009, B-012, B-030), 12-decision-log.md (ADR-O04, ADR-O05), C-INV-001…005
 > GREP: template, manifest, harness, budget, gate, reduced motion, 3D, fallback, license, originality, religious, snapshot, dogfood, product gates, design families, Q-D17
@@ -121,3 +121,71 @@ Limits: one lab run each on the harness's static server (no CDN, no compression)
 - **Rollback stays per family:** an invitation without `theme.familyId` renders the classic layout.
 
 Next steps from the reconciled backlog: B-020's CI, so §4a runs unattended, then manifests for the families before any motion tier, so that B-009's audio and any motion are declared with licences and budgets.
+
+## 8. Template and content contract (s26 specification; implemented by U3 and U7, `06-backlog.md` "Upgrade order (s26)")
+
+**Two owners, never mixed:**
+- The **template** (family plus manifest) owns layout, ornament, motion tier, fonts, palettes and art, each with a licence (ADR-O01).
+- The **invitation** owns content in `DetailConfig` (strict zod schema, `CONTENT_SCHEMA_VERSION = 2`).
+- Nothing template-owned enters the invitation config, and nothing invitation-owned is hard-coded in a template.
+
+**Editable fields:**
+- `RENDER_CAPABILITIES` in `lib/invitation/content-contract.ts` is the single map. For each section it lists:
+  - `rendered`: what the guest page shows;
+  - `storedOnly`: stored, and labelled in the editor as "not on the invitation yet";
+  - `hostOnly`: never guest-facing;
+  - `caveat`.
+- A test keeps the map and the renderer in agreement. A field moves from `storedOnly` to `rendered` in the change that renders it.
+- From U2, the map plus the zod schema are exported as JSON Schema for the Rust validators, so both sides reject the same input.
+
+**Version compatibility:**
+- The content version only rises with a reader migration (`content-read.ts`, lenient read path) and, where stored rows change, a backfill migration. Version 2 = durable event ids (D-036, migration 0013).
+- Saved versions are never rewritten. A restore goes through `rekeyRestoredEvents` so answers keyed by event id survive.
+- A template change never requires a content change: a family must render every version-2 config, including empty optional sections.
+
+**Family capabilities (manifest, U7 step 1):** each family declares:
+- the sections it renders and their order rules;
+- supported event types;
+- photo slots (cover, couple, person, gallery) with aspect windows;
+- logo frames;
+- motion tier;
+- whether it can render music and the cover gate (B-009);
+- palettes as tokens (B-016);
+- byte budget (Q-D17).
+
+The harness validates the manifest. A family without a section degrades to the shared block, never to a blank.
+
+**Media:**
+- Uploads stay host-owned.
+- Derivatives come from Rust jobs (U3): fixed widths, AVIF / WebP, and Save-Data variants (I-28).
+- Children's photos follow D-040 (protected namespace, personal-link route, ownership at save, render and delivery).
+- Audio (B-009) only from licensed files with a recorded licence. It never autoplays before the guest's tap.
+
+**Design-generation workflow:**
+1. Brief (`templates/_briefs/`).
+2. Family component over the shared blocks.
+3. Manifest.
+4. Gates: contrast, bytes, cover fold, design acceptance, page review.
+5. Rendered review against the taste principles.
+6. Fix.
+7. Promote a principle only after evidence on at least two families.
+
+No competitor HTML, CSS, assets or copy at any step (`AGENTS.md`).
+
+## 9. Taste process (s26)
+Invitesion's taste is emerging. Its record, in order:
+
+| Step | What it is | Where |
+|---|---|---|
+| Reference | Owner-supplied directions and our own measured pages; competitors only as principle-level observations | Owner: the **modern, elegant direction he associates with RSVPify** is an owner reference, not an observation (no rendered RSVPify finding exists, `../_handoff/research-closure-s26.md` §4) |
+| Principles | Candidate rules phrased as testable statements | skill `invitesion-template-harness` (emerging taste) |
+| Directions | Two or three concrete directions per brief | `templates/_briefs/` |
+| Prototype | A family component on fictional fixtures | `components/invitation/families/` |
+| Rendered critique | Screenshots at 360 / 390 / 412 / 1280 px with the gates' figures; findings with ids (S16-…, S23r-P1) | `../_handoff/family-review-20261104-s16.md` §1–§15 |
+| Refinement | Fixes with before / after evidence | IMPLEMENTATION-LOG (E-027, E-028, E-032, E-040, E-045, E-048, E-051) |
+| Validated principle | Promoted only with evidence on two or more families | **T1** "frame the photo, never fade it behind text" (s18); **T3** "one rhythm on phones, no screen-high gaps" (s23r). Candidates: T5 (organiser's mark as one row), T6 (greeting before a decorative photo on phones) |
+
+**Technical gates are separate from visual approval.**
+- A page can pass every gate and still be rejected in the rendered critique.
+- A visual approval never overrides a FAIL or INCOMPLETE gate verdict (D-041).
+- Licensed assets, accessibility (contrast, forced colours, reduced motion), responsive behaviour and the Q-D17 byte budgets are preconditions of any visual approval.

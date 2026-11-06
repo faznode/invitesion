@@ -1,7 +1,7 @@
 <!-- SUMMARY (first 7 lines — greppable) -->
 # 10-data-privacy-security-payments.md — privacy, abuse prevention, input safety, tenancy, money, WhatsApp, professional review
 > WHAT: Rules and planned controls for guest data, host data, payments and messaging; open questions that need professional (legal / compliance) review, which this research does not answer.
-> STATUS: **s25 (2026-11-06): body brought to current code.** §1 adds person photos and the children's-photo access contract (D-038, D-040) and the RSVP data added since s17; the gaps that did not move are restated at s25 (gift accounts, tracking notice, retention, rate limits, CSP report-only, theme entitlement); §4 records the implemented rails with no acquirer; DA-01 / DA-02 are deferred acceptance, not passed. Professional reviews remain external (§7). Earlier: verified s10 (v1 s08).
+> STATUS: **s26 (2026-11-06): the target ownership of each data domain, owner-token and guest-link verification, the internal service signature, payment idempotency and the job table are specified in `09-backend-and-frontend-architecture.md` §8.3–§8.6 (ADR-A2); this chapter's current-state body is unchanged (no product code changed in s26).** **s25 (2026-11-06): body brought to current code.** §1 adds person photos and the children's-photo access contract (D-038, D-040) and the RSVP data added since s17; the gaps that did not move are restated at s25 (gift accounts, tracking notice, retention, rate limits, CSP report-only, theme entitlement); §4 records the implemented rails with no acquirer; DA-01 / DA-02 are deferred acceptance, not passed. Professional reviews remain external (§7). Earlier: verified s10 (v1 s08).
 > OWNER: Research agent
 > DEPS: ../01-codebase-audit/{quality-audit.md,revalidation-s10.md}, ../00-setup/privacy-hygiene.md, 12-decision-log.md (ADR-O03, ADR-O04, ADR-O07), 06-backlog.md
 > GREP: privacy, security, pdp, abuse, rate limit, tenancy, payments, qris, whatsapp, compliance, children's photos, D-040, protected media
@@ -28,7 +28,7 @@ Indonesia's Personal Data Protection law (UU PDP) obligations (lawful basis, not
   - No rate limits exist on RSVP or wishes. The `moderation` flag is stored and not honoured (B-013, B-028).
   - The nonce CSP from `middleware.ts` is still report-only (B-038).
   - Hostile names, RTL and emoji are exercised by the review fixture's stress guests on all five layouts (E-050 design acceptance; review R1 is still open for legacy's bidi isolation).
-  - **B-041 is open:** the config PATCH stores any positive `theme.templateId` and palette, and only publishing checks orders. An authorization and revenue defect, not a data leak.
+  - **B-041 fixed s26 (E-054; D-042):** the config writer refuses a changed Premium palette without a Premium entitlement, an unregistered palette, and a `theme.templateId` other than the invitation's own (403 `THEME_NOT_ENTITLED`, paths only). Until then the PATCH stored any positive `theme.templateId` and palette, and only publishing checked orders: an authorization and revenue defect, not a data leak.
 
 ## 3. Tenancy and authorization
 Single-owner invitations with ownership checks on every query (good). Additions: invitation members (co-host, usher) with scoped permissions; reseller workspaces later with tenant IDs on invitations and per-tenant quotas (G-052). Admin entry stays private (M-031).
