@@ -316,7 +316,15 @@ export function RiangLayout({ props, view }: { props: GuestPageProps; view: Gues
               </span>
             </p>
             {(startTime || primaryEvent?.venueName) && (
-              <ul className="flex max-w-60 flex-col items-center gap-2 text-center text-sm sm:items-start sm:text-left">
+              // S23r-P1 (s24): with an organiser's mark the facts stay beside the date card on phones too, as they do from
+              // 640 px, so the date and its facts read as one row; the column takes the width the card leaves and wraps.
+              <ul
+                className={
+                  mark
+                    ? 'flex min-w-0 max-w-60 flex-1 flex-col items-start gap-2 text-left text-sm [overflow-wrap:anywhere] sm:flex-initial'
+                    : 'flex max-w-60 flex-col items-center gap-2 text-center text-sm sm:items-start sm:text-left'
+                }
+              >
                 {startTime && <li className={chip}>{startTime}</li>}
                 {primaryEvent?.venueName && <li className={chip}>{primaryEvent.venueName}</li>}
               </ul>

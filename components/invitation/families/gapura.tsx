@@ -41,9 +41,11 @@ export function GapuraLayout({ props, view }: { props: GuestPageProps; view: Gue
     <main className={`min-h-screen ${tone.bg} ${tone.ink}`} style={tone.style}>
       {/* S16-X2 (s17): full-height only from 640 px; on a phone the cover ends with its content, so the first section
           follows at the section rhythm instead of after ≈ 180 px of empty page. */}
-      <header className="flex flex-col items-center justify-center px-5 pt-14 text-center sm:min-h-[90vh] sm:pb-14 sm:pt-10">
+      {/* S23r-P1 (s24): a corporate gate holds logo, eyebrow, title, organiser and date, so on a phone it takes the
+          desktop's top space (pt-10) and a tighter rhythm inside the window; from 640 px nothing changes. */}
+      <header className={`flex flex-col items-center justify-center px-5 ${mark ? 'pt-10' : 'pt-14'} text-center sm:min-h-[90vh] sm:pb-14 sm:pt-10`}>
         <div className={`w-full max-w-sm rounded-t-full border ${tone.line} p-2`}>
-          <div className={`overflow-hidden rounded-t-full border ${tone.accentLine} pb-12 ${photo ? '' : 'pt-20'}`}>
+          <div className={`overflow-hidden rounded-t-full border ${tone.accentLine} ${mark ? 'pb-10 sm:pb-12' : 'pb-12'} ${photo ? '' : 'pt-20'}`}>
             {photo && (
               // S16-X1 (s17): the photo fills the gate's window at full strength and no text is set on it, so it reads as
               // a photograph with any photo and the cover text keeps the page's own contrast. S17-G1: a 4:3 window below
@@ -59,7 +61,7 @@ export function GapuraLayout({ props, view }: { props: GuestPageProps; view: Gue
                 className="block aspect-[4/3] w-full object-cover sm:aspect-auto sm:h-[clamp(11rem,calc(100svh_-_36.5rem),22.75rem)]"
               />
             )}
-            <div className={`flex flex-col items-center px-6 ${photo ? 'pt-8' : ''}`}>
+            <div className={`flex flex-col items-center px-6 ${photo ? (mark ? 'pt-6 sm:pt-8' : 'pt-8') : ''}`}>
               {mark ? (
                 // S22-K2 (s23r): the organiser's logo crowns the window in the diamond's place, and the category and the
                 // cover headline share one eyebrow line.
@@ -99,7 +101,9 @@ export function GapuraLayout({ props, view }: { props: GuestPageProps; view: Gue
                   {organiser}
                 </p>
               )}
-              {primaryEvent?.startAt && <p className={`inv-rise mt-8 text-sm tracking-wide ${tone.accent}`}>{formatDate(primaryEvent.startAt)}</p>}
+              {primaryEvent?.startAt && (
+                <p className={`inv-rise ${mark ? 'mt-6 sm:mt-8' : 'mt-8'} text-sm tracking-wide ${tone.accent}`}>{formatDate(primaryEvent.startAt)}</p>
+              )}
             </div>
           </div>
         </div>

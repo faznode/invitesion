@@ -1,17 +1,17 @@
 <!-- SUMMARY (first 7 lines — greppable) -->
 # 03-market-and-competitors.md — landscape and compact Tier-A profiles
 > WHAT: Archetypes in the Indonesian digital-invitation market, one compact profile per Tier-A competitor (positioning, pricing, features, technology, strengths, weaknesses, lessons) and the Tier-B summary. Detail: `../03-teardowns/<vendor>/dossier.md`, `../03-teardowns/tier-b-profiles.md`.
-> STATUS: Verified s10 (2026-11-04; v1 s08). Added the Tier-B summary (§4) and the Sitemu status (§5); Viding figures now cover six themes (C-VID-107…109); speed ranges recomputed theme-first from the benchmark pack. **Open:** Sitemu dossier BLOCKED (RQ-COMP-02), Tier-B 11 / 21 substantive (RQ-COMP-04), public complaints researched for one vendor only (RQ-COMP-05); see `../_handoff/acceptance-matrix.md`.
+> STATUS: **s25 (2026-11-06): states brought to the current evidence:** Sitemu's Tier-A row filled from its v1 dossier (level C, s12; §5), Tier-B coverage at 13 / 21 with Sonett partial (s23r) and the blocked set re-stated (§4). **Open:** RQ-COMP-04 PARTIAL (13 / 21; the rest exhausted or blocked by access controls); RQ-COMP-05 PARTIAL and blocked on tooling (store-listing themes for four vendors; the search tool returns no source URLs, s23r–s25); `../_handoff/acceptance-matrix.md`. No new competitor research in s25. Earlier: verified s10 (v1 s08).
 > OWNER: Research agent
 > DEPS: ../02-competitor-discovery/{shortlist.md,competitor-longlist.csv}, ../03-teardowns/*/dossier.md, ../03-teardowns/tier-b-profiles.md, ../04-template-benchmarks/benchmark-pack.md, ../05-feature-matrix/, ../06-gap-analysis/pricing-packaging.md
 > GREP: market, competitor, archetype, profile, positioning, lessons, tier b, sitemu
-> UPDATED: 2026-11-04
+> UPDATED: 2026-11-06
 
 ## 1. Landscape (52-candidate longlist, weighted rubric, `../02-competitor-discovery/shortlist.md`)
 | Archetype | Vendors | What they sell | Price band (IDR) |
 |---|---|---|---|
 | Mass-market DIY + app | Indoinvite, PALEO, Wevitation | cheap invitations, apps, huge catalogs or ecosystems | 39k–129k |
-| DIY → custom ladder | Satu Momen (Sitemu blocked, §5) | self-edit to custom design and corporate | 79k–850k |
+| DIY → custom ladder | Satu Momen; Sitemu (done for you after payment, bespoke from Rp 300k; §5) | self-edit to custom design and corporate | 79k–850k |
 | Platform + guest operations | Viding, Invitato, Katsudoto | invitation + check-in, WhatsApp, seating, staff | 100k–6.25M |
 | Premium design / motion | Enviory, Katsudoto | art-directed themes, motion | 75k–700k |
 | Website-as-a-service + resellers | INVI.ID | cheap packs under resellers' brands | 13k–45k per invitation to resellers |
@@ -29,7 +29,7 @@
 | **Invitato** (IVT) | done-for-you + RSVP assistance + guestbook staff | from 400k; services from 1M / 2M | opaque guest codes, one-time QR pass, strict / flexi check-in, envelope labels | heavy video, 7,192 KiB | end-to-end operations | weight, no self-serve, demos tied to real couples | opaque guest links; desk workflows |
 | **INVI.ID** (INV) | cheap website invitations + reseller business | 198k / 298k list (149k with a public coupon); packs 13–45k | multi-niche themes (khitan, aqiqah, walimatussafar), exports, white label | WordPress + Elementor, GTM | niche themes, reseller economics | 760 KB JS, TBT 3.7 s, commercial fonts unverified | Islamic family-event themes; exports |
 | **Katsudoto** (KAT) | invitation + guestbook + planner | Lite 100k; 300k–700k + 24 add-ons; WA Rp 1k/message | selfie check-in, auto thank-you, tables, souvenirs, planner | jQuery, AOS, Video.js; zoom blocked | wedding ops suite | 5,984 KiB, TBT 4.2 s | ops features inside the price; Lite fighter tier |
-| **Sitemu** (STM) | DIY elegant invitations, "jadi 5 menit" (historical longlist claim, 2026-10-29, not re-verified) | [UNKNOWN] | [UNKNOWN] | [UNKNOWN] | [UNKNOWN] | [UNKNOWN] | **BLOCKED** (§5): no profile, no conclusions drawn |
+| **Sitemu** (STM) | Low-price themed invitations; **paid invitations are done for you after payment** (level C, v1 s12, §5) | Free lane for 3 months (RSVP, envelope, music as paid add-ons); Rp 50k–100k per theme one-time, against permanent-looking 50 % anchors; bespoke from Rp 300k (wedding) / 450k (corporate) | a no-photo ("Tanpa Foto") variant priced above the photo variant; QR check-in in the corporate bespoke ladder; numbered, unnamed themes | [UNKNOWN] (no guest page measured) | Price floor; a service promise | Anchor pricing; numbered themes | "No-photo" as a design capability of the content contract; honest one-time prices (ADR-O02); named design families (now B-030) |
 | **Barunson** (BRN) | Korean mobile invitations from a paper brand | free for members; licensed 9,900 KRW | per-side card gift money with automatic payout, paper ↔ QR, per-area editing | jQuery, Kakao SDK; TBT 0 | closest foreign format | 4,461 KiB fonts, no OG | per-side gifts; printed QR to the live page |
 | **Paperless Post** (PPO) | designer digital stationery | coins; Plus unlock; Pro subscription | multi-channel sends, reminders per channel, co-hosts, surveys, password | unmeasured | craft, delivery | opaque coin pricing | channel-aware reminders; co-hosts |
 | **RSVPify** (RSV) | event operations | free ≤ 100; plans [UNKNOWN] | forms, ticketing, seating, QR check-in with badges, MCP | unmeasured | ops depth, trust signals | pricing behind bot protection | check-in as a first-class app |
@@ -51,12 +51,16 @@
 ## 4. Tier-B summary (`../03-teardowns/tier-b-profiles.md`, session 10, evidence level C)
 Public marketing and pricing pages only (robots first, ≥ 3 s per origin, no demos, forms or logins); no guest page was measured, so nothing here changes the speed findings in §3.
 
+**Coverage at s25** (acceptance matrix RQ-COMP-04, **PARTIAL**: 13 / 21; s10's split is kept in the line under the table):
+
 | Coverage | Vendors |
 |---|---|
-| Substantive, Indonesia (6) | Undangan Virtual (UVR), Janiva (JNV), Sannubari (SAN), sangmempelai.id (SMP), PunyaAcara (PAC), Wedew (WDW) |
-| Substantive, international (5) | Invitee (INE, MY), Zola (ZOL, US), The Knot (TKN, US), Evite (EVT, US), Biihappy (BHP, VN) |
-| Thin (3) | WebNikah (WNK, homepage only), Bridestory (BRS, marketplace homepage), MEMO Wedding (MMO, "Coming Soon") |
-| Blocked or unreadable (7) | Harikita (HRK) and Sonett (SNT): robots.txt AI-agent opt-out (D-026); WedMeGood (WMG), Greenvelope (GRV), Minted (MTD), Canva (CNV): HTTP 403 and / or opt-out; Eqxiu (EQX): undecodable body, not re-requested |
+| Substantive, Indonesia (7) | Undangan Virtual (UVR), Janiva (JNV), Sannubari (SAN), sangmempelai.id (SMP), PunyaAcara (PAC), Wedew (WDW); **Harikita (HRK, added s12** after D-030 replaced D-026) |
+| Substantive, international (6) | Invitee (INE, MY), Zola (ZOL, US), The Knot (TKN, US), Evite (EVT, US), Biihappy (BHP, VN); **Eqxiu (EQX, CN, added s12)** |
+| Thin or partial (4) | WebNikah (WNK: no further page reachable from static HTML); Bridestory (BRS: two more pages in s12, no prices); MEMO Wedding (MMO: "Coming Soon", nothing else exists); **Sonett (SNT, partial since s23r**: a rendered read profiled positioning and product, with no prices on the page; S-SNT-003) |
+| Blocked (4) | WedMeGood (WMG), Greenvelope (GRV), Minted (MTD): HTTP 403, no route without bypass; Canva (CNV): D-030 uncertain class (Q-O08). No access-control bypass and no alternate reader are used |
+
+*s10 split, superseded:* 11 substantive, 3 thin, 7 blocked or unreadable. In s10, HRK and SNT counted as blocked under D-026, and EQX had an undecodable body.
 
 **What Tier B adds to the Tier-A picture**
 1. **Free publishing is common at the bottom of the market** (Wedew free forever, Invitee RM 0, Biihappy free, Zola and The Knot free websites); paid value moves to messaging, check-in devices, events / languages or services. Our "free drafting, paid publish" stance (ADR-O02) is a deliberate choice, not the market default.

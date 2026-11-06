@@ -1,14 +1,21 @@
 <!-- SUMMARY (first 7 lines — greppable) -->
 # 08-template-system-and-harness.md — template contract (manifest v1), tier budgets, quality gates, harness CLI, dogfood plan
 > WHAT: How a template is declared, checked and shipped: the machine-readable manifest, budgets with their provenance, every gate and its honest limit, the CLI, the verified-religious-text rule, and the path from today's palette-only renderer to template system v2 (B-030).
-> STATUS: Verified s10 (2026-11-04; v1 s09). **Implementation status:** the harness CLI, its self-tests and three sample reports exist (all PASS with valid Lighthouse results after the s10 report-validity fix, §6); the product renderer is not a harness template, so no product guest page is gated and no CI runs the gates (B-012 partly delivered, B-030 open). Budgets are internal, not competitor parity (§3). Per-command status: `../_handoff/IMPLEMENTATION-LOG.md`.
+> STATUS: **s25 (2026-11-06): body brought to current code.** §1 has today's five layouts; new §4a covers the product guest-page gates (contrast, byte census on the Q-D17 basis, cover fold, design acceptance, page review), run by hand with no CI (B-012 delivered as manual gates); §6's sample reports are still s10's; §7 records the path taken (four families behind `theme.familyId`, not manifests; B-030 partial). The manifest contract (§2–§5) is unchanged; budgets stay internal, not competitor parity. Earlier: verified s10 (v1 s09).
 > OWNER: Research agent (Architect role)
 > DEPS: ../01-codebase-audit/template-system.md, ../06-gap-analysis/template-catalog-roadmap.md, ../05-feature-matrix/feature-matrix.csv, ../04-template-benchmarks/benchmark-pack.md, 06-backlog.md (B-003, B-009, B-012, B-030), 12-decision-log.md (ADR-O04, ADR-O05), C-INV-001…005
-> GREP: template, manifest, harness, budget, gate, reduced motion, 3D, fallback, license, originality, religious, snapshot, dogfood
-> UPDATED: 2026-11-04
+> GREP: template, manifest, harness, budget, gate, reduced motion, 3D, fallback, license, originality, religious, snapshot, dogfood, product gates, design families, Q-D17
+> UPDATED: 2026-11-06
 
 ## 1. Today (audit baseline `64678cf`; s09 changes marked)
 A template is a data row in `lib/invitation/templates.ts` (64 entries; tiers free 34 / premium 24 / signature 6; 18 palettes, now in `lib/invitation/palettes.ts` since E-010; 27 categories). Guests see **one layout for every template**: `components/invitation/public-renderer.tsx` varies only the palette. Theme art is hot-linked Unsplash; fonts are Manrope + Instrument Serif self-hosted by `next/font`; no audio element, no motion, no 3D, no per-template assets, licenses or budgets. At the baseline, catalog-created invitations lost their preset and three presets carried Qur'an translations of unknown provenance; both were fixed in s09 (B-001, B-003; the verified corpus `content/verified-religious-texts/` is empty).
+
+**Today (s25):** the 64 registry entries and 18 palettes are unchanged.
+- **Layouts:** guests see one of **five layouts**. The classic renderer stays the default and is byte-identical by design. Four design families — Gapura, Kartu, Riang, Lontar — are chosen per invitation through `theme.familyId` (B-030; E-016, E-018 and their revisions; briefs in `../../templates/_briefs/`; review record `../_handoff/family-review-20261104-s16.md` §1–§15).
+- **What the families share:** the data path and the blocks (content contract E-014), the shell's fonts and stylesheet, and the palette tokens. Since B-016 / E-015 those tokens are contrast-safe pairs with a photo bound.
+- **What differs per family:** composition and ornament only. A family's own bytes are its document plus the few files only it loads (§4a).
+- **Still absent:** no audio element (B-009) and no 3D. Motion is limited to what the design-acceptance gate checks under reduced motion. No per-template manifest exists for the product yet.
+- **Corpus:** the verified corpus still has 0 entries (ADR-O04).
 
 ## 2. Contract: `template.manifest.json` (schema v1)
 Machine-readable, validated by `tools/template-harness/schema.ts` (zod, strict: unknown keys fail). Every template directory holds the manifest, its own files (`template.html`, `template.css`, optional `template.js`), and an `assets/` folder.
@@ -66,6 +73,22 @@ Measured from files, not from manifest claims: a declared `bytes` that differs f
 | Originality | no competitor brand, domain or asset reference (list from the research shortlist) in any template file or asset source | cannot prove visual dissimilarity; reviewer sign-off in the report |
 | Religious text | quotes only by `corpusId` present in the corpus with source, edition, permission, verifier, date; inline religious text fails | the corpus starts empty: no quote blocks until the owner approves entries |
 
+## 4a. Product guest-page gates (s16–s25)
+The product renderer is still not a harness template, so the manifest gates of §4 do not apply to it. Since s16, standalone tools in `tools/template-harness/` gate the product's rendered guest pages instead.
+- **How they run:** on the review fixture, by hand, against a D-012 build (no middleware). There is no CI (B-020).
+- **Content:** the review fixture renders the same content through every layout, plus stress guests and variants. Only fictional data, generated outside the repo.
+- **Ownership:** the skill `invitesion-template-harness` owns how to run the tools and how to read their verdicts.
+
+| Tool | What it decides | Since | Honest limit |
+|---|---|---|---|
+| `rendered-contrast.ts` | Lighthouse `color-contrast` on rendered pages. A page passes only when every node was judged: a node over a photo is INCOMPLETE, never PASS | E-019 (s16); runs 1–12 | The legacy headline over a cover photo stays INCOMPLETE (2 pages on the s23r / s24 fixture). The photo bound never turns INCOMPLETE into PASS |
+| `product-bytes.ts` | Byte census per layout: the shared shell once, each family's own bytes, each page's total. Budgets `PRODUCT_PAGE_BUDGETS` (shell ≤ 640, family ≤ 80, page ≤ 720 KiB decoded and ≤ 320 KiB served). **The family budget judges design bytes** (family minus host uploads; `FAMILY_BUDGET_BASIS`, Q-D17). Host uploads stay in both page totals and are reported per layout; every run stores the other basis's verdict | E-044 (s21), E-049, E-052, E-053 | Budgets are internal, anchored on build `NqzpKCeG8LELJLqtDZ24K` with ≈ 5 % headroom on the shell and ≈ 30 % on the largest family [ASSUMPTION]. Lab bytes, not speed. Decoded bytes judge; transfer is recorded |
+| `cover-fold.ts` | Whether the guest's name ends inside the first viewport with every cover image loaded, per page × guest × viewport | E-048 (s23r), E-051 (s24): 105 / 105 | Emulated viewports, one font environment. Gapura's three-line name has 16 px of margin at 360 × 800 |
+| `design-acceptance.ts` | Phone rhythm (T3), stress names, reduced motion, and icons in forced colours and print | E-050 (s23r): 144 / 144 and 80 / 80; on E-051's changed pages 78 / 78 | Headless Chrome, not a device or an in-app browser |
+| `page-review.ts` | Full-page screenshots and horizontal overflow for review contact sheets | s16 | Screenshots stay outside the repo; a human review judges taste (ADR-O09 self-review) |
+
+**Verdict style:** PASS / FAIL / INCOMPLETE as in §5. An INCOMPLETE is never relabelled. Every census verdict names its family-budget basis.
+
 ## 5. CLI (`pnpm harness <command>`, implemented in `tools/template-harness/`)
 `new <dir> --tier --niche --locale` (scaffold that passes `check`), `check <dir>` (all static gates, exit 1 on failure, JSON + text), `bench <dir>` (budgets + Lighthouse when available), `preview <dir>` (`preview.html` + fixture variants in `$TMPDIR/invitesion-harness/<id>/`), `snapshot <dir>` (three viewports + four fixtures + reduced motion when Chrome is available), `report <dir>` (writes `GENERATION-REPORT.md`; STATUS is PASS only when static gates, proofs, a valid Lighthouse result and every planned snapshot are present, INCOMPLETE when a browser check is missing or invalid, FAIL otherwise; exit 0 / 3 / 1). Self-tests in `tests/template-harness.test.ts` prove the happy path and the deliberate failures: oversized asset, unlicensed font, missing reduced motion, unsafe guest input, unverified religious text, external script.
 
@@ -75,7 +98,7 @@ Measured from files, not from manifest claims: a declared `bytes` that differs f
 3. **Signature 3D / motion** — level-3 motion with reduced-motion fallback, a lazily loaded 3D scene behind an interaction, fallback image.
 Assets are generated or drawn for this repository (`provenance: own-work` / `generated`), fonts only OFL with the license file alongside. Each has a generation report with pass evidence and the deliberate-failure proofs.
 
-**Reports at s10** (`templates/_harness-samples/*/GENERATION-REPORT.md`, regenerated 2026-11-04 with Chrome for Testing 156.0.8078.4 and Lighthouse 12.8.2 after the validity fix; the s09 basic report that said PASS with performance 0 / LCP 0 ms was invalid and is superseded):
+**Reports at s10, not regenerated since** (the three reports were generated 2026-11-04 01:35–01:36Z; `templates/_harness-samples/*/GENERATION-REPORT.md`, regenerated 2026-11-04 with Chrome for Testing 156.0.8078.4 and Lighthouse 12.8.2 after the validity fix; the s09 basic report that said PASS with performance 0 / LCP 0 ms was invalid and is superseded):
 
 | Sample | Status | Lighthouse perf / a11y | LCP | CLS | Transfer | Snapshots |
 |---|---|---|---|---|---|---|
@@ -90,3 +113,11 @@ Limits: one lab run each on the harness's static server (no CDN, no compression)
 2. Section components per template family behind the manifest's section list; `DetailConfig` stays the per-invitation content schema (strict; ADR-O01 keeps template-owned keys such as `art` out of it).
 3. `check` in CI for every changed template; `bench` on a nightly runner with Chrome.
 4. Rollback: the manifest is additive; the current renderer stays the fallback for templates without section components.
+
+**State at s25 (B-030 PARTIAL):**
+- **Step 2 happened in a different form:** layout components per design family, behind `theme.familyId`, over the shared blocks and the strict `DetailConfig`. A retired family id falls back to the legacy layout (`.catch`).
+- **Step 1 has not started:** there are no manifests for the 64 registry entries, and the palettes still live in `lib/invitation/palettes.ts`.
+- **Step 3 has not started:** there is no CI. The product-page gates of §4a run by hand.
+- **Rollback stays per family:** an invitation without `theme.familyId` renders the classic layout.
+
+Next steps from the reconciled backlog: B-020's CI, so §4a runs unattended, then manifests for the families before any motion tier, so that B-009's audio and any motion are declared with licences and budgets.

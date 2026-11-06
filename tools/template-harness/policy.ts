@@ -23,6 +23,18 @@ export const TIER_BUDGETS: Record<Tier, { coldLoadKiB: number; jsKiB: number; fo
  */
 export const PRODUCT_PAGE_BUDGETS = { shellKiB: 640, familyKiB: 80, totalKiB: 720, totalTransferKiB: 320 };
 
+/**
+ * What the family budget measures (Q-O11, resolved s25 under the owner's delegation; reversible). `design`: a family's
+ * own bytes minus the host's uploads (`isHostUpload` in `product-bytes.ts`), so a layout is judged on what it costs and
+ * not on the size of a file a host uploaded. The uploads are not excluded from the measurement: they stay inside both
+ * page totals (720 KiB decoded, 320 KiB as served) and are reported separately per family. `family` is the s21–s24
+ * basis, which also counted the uploads against the family budget. On a page without host uploads both bases give the
+ * same verdict, so the anchoring above and every verdict on such pages are unchanged. Reverse by setting `family` here,
+ * or for one run with `product-bytes.ts --family-basis family`; every run stores both verdicts.
+ */
+export type FamilyBudgetBasis = 'design' | 'family';
+export const FAMILY_BUDGET_BASIS: FamilyBudgetBasis = 'design';
+
 export const MAX_FONT_FAMILIES = 2;
 
 /** SPDX ids (plus `own-work`) an asset may carry; fonts are narrower. */

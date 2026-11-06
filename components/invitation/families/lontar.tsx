@@ -43,6 +43,18 @@ export function LontarLayout({ props, view }: { props: GuestPageProps; view: Gue
   // S17-L1: the band and the photo are independent. A saved photo sits beside the band when both exist and is framed on
   // its own otherwise, so an invitation without date, time or venue still shows it.
   const band = Boolean(date || start || primaryEvent?.venueName);
+  // S23r-P1 (s24): on a phone a corporate cover greets the guest right after the date band and shows the photo after the
+  // greeting; the photo is decorative (aria-hidden), so the reading order does not change. From 640 px the photo stays
+  // beside the band and the greeting below both, as before.
+  const greetBeforePhoto = Boolean(mark && band && photo && guest);
+  const greeting = guest && (
+    <div className={greetBeforePhoto ? 'mt-4 sm:col-span-2 sm:row-start-2' : mark ? 'mt-8' : 'mt-10'}>
+      <p className={`text-xs uppercase tracking-widest ${tone.muted}`}>Kepada Yth.</p>
+      <p dir="auto" className="mt-1 font-serif text-2xl [overflow-wrap:anywhere]">
+        {guest.name}
+      </p>
+    </div>
+  );
 
   return (
     <main className={`min-h-screen ${tone.bg} ${tone.ink}`} style={tone.style}>
@@ -84,7 +96,7 @@ export function LontarLayout({ props, view }: { props: GuestPageProps; view: Gue
         {(band || photo) && (
           <div className={`${mark ? 'mt-6' : 'mt-8'} grid gap-4 ${band && photo ? 'sm:grid-cols-[1fr_13rem]' : ''}`}>
             {band && (
-              <div className={`relative rounded-3xl ${tone.soft} px-6 pb-6 pt-11`}>
+              <div className={`relative rounded-3xl ${tone.soft} px-6 pb-6 pt-11${greetBeforePhoto ? ' sm:col-start-1 sm:row-start-1' : ''}`}>
                 <Binding tone={tone} />
                 {date && <p className={`text-xs font-semibold uppercase tracking-[0.2em] ${tone.muted}`}>{date}</p>}
                 {start && <p className="mt-2 font-serif text-3xl leading-tight">{start}</p>}
@@ -96,6 +108,7 @@ export function LontarLayout({ props, view }: { props: GuestPageProps; view: Gue
                 )}
               </div>
             )}
+            {greetBeforePhoto && greeting}
             {photo && (
               // A lone photo is bounded by its width: the unlayered `img { max-width: 100% }` in app/globals.css overrides every
               // max-w-* utility on an image (S18-E1).
@@ -104,20 +117,13 @@ export function LontarLayout({ props, view }: { props: GuestPageProps; view: Gue
                 src={photo}
                 alt=""
                 aria-hidden
-                className={`aspect-[4/3] w-full rounded-3xl border ${tone.line} object-cover ${band ? 'sm:aspect-auto sm:h-full' : 'sm:w-96'}`}
+                className={`aspect-[4/3] w-full rounded-3xl border ${tone.line} object-cover ${band ? 'sm:aspect-auto sm:h-full' : 'sm:w-96'}${greetBeforePhoto ? ' mt-2 sm:col-start-2 sm:row-start-1 sm:mt-0' : ''}`}
               />
             )}
           </div>
         )}
 
-        {guest && (
-          <div className={mark ? 'mt-8' : 'mt-10'}>
-            <p className={`text-xs uppercase tracking-widest ${tone.muted}`}>Kepada Yth.</p>
-            <p dir="auto" className="mt-1 font-serif text-2xl [overflow-wrap:anywhere]">
-              {guest.name}
-            </p>
-          </div>
-        )}
+        {!greetBeforePhoto && greeting}
         {config.greetings?.enabled !== false && (config.greetings?.prayer || config.settings?.openingCopy) && (
           <div className="mt-6 max-w-prose">
             {config.greetings?.prayer && <p className={`font-serif text-lg leading-relaxed text-pretty ${tone.accent}`}>{config.greetings.prayer}</p>}

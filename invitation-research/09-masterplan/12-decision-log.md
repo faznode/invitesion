@@ -1,11 +1,11 @@
 <!-- SUMMARY (first 7 lines — greppable) -->
 # 12-decision-log.md — architecture and research decisions (ADRs) for the Invitesion masterplan
 > WHAT: ADRs with context, options, decision, consequences, confidence and revisit triggers. Short decisions D-001… live in `../_progress.md`; this file holds the decisions the masterplan depends on.
-> STATUS: Verified s10 (2026-11-04; v1 s09). ADR-W1 **decided** (s08), fallback met → planning gate met through ADR-W1 (reduced confidence, not literal Wave 1). ADR-W1 is the historical authorization to plan with reduced confidence; it is **not** the missing evidence and does not close any research requirement (strict Wave 1 stays NOT MET, RQ-DEMO-01). Owner-question ADRs **ADR-O01…O07 accepted autonomously** in s08 as safe, reversible defaults with revisit triggers (the owner can override any of them). **ADR-A1** (s09): keep the Next.js stack, measured. s10 additions: Viding coverage 3 → 6 themes, D-026 / D-027, open owner question Q-O08 (§ "Session 10 decisions"). s12 decisions D-030 / D-031 entered and verified in s13 (§ "Session 12 decisions"); s13 decision D-032 (measurement profiles, § "Session 13 decisions"); open owner questions Q-O08 (residual), Q-O09, Q-O10.
+> STATUS: **s25 (2026-11-06): extended to current decisions:** ADR-A1 outcome (D-039; the ADR stands, no revisit trigger fired), a table of the product decisions since s14 (D-034…D-040) and Q-D17 (Q-O11 resolved, s25), and the owner's s25 deferrals (DA-01 / DA-02, not ADRs). ADR texts W1, O01…O10 and A1 are unchanged. Earlier: verified s10 (2026-11-04; v1 s09). ADR-W1 **decided** (s08), fallback met → planning gate met through ADR-W1 (reduced confidence, not literal Wave 1). ADR-W1 is the historical authorization to plan with reduced confidence; it is **not** the missing evidence and does not close any research requirement (strict Wave 1 stays NOT MET, RQ-DEMO-01). Owner-question ADRs **ADR-O01…O07 accepted autonomously** in s08 as safe, reversible defaults with revisit triggers (the owner can override any of them). **ADR-A1** (s09): keep the Next.js stack, measured. s10 additions: Viding coverage 3 → 6 themes, D-026 / D-027, open owner question Q-O08 (§ "Session 10 decisions"). s12 decisions D-030 / D-031 entered and verified in s13 (§ "Session 12 decisions"); s13 decision D-032 (measurement profiles, § "Session 13 decisions"); open owner questions Q-O08 (residual), Q-O09, Q-O10.
 > OWNER: Architect (research agent acting autonomously, brief 03 §5.1)
 > DEPS: ../_handoff/review-20261101.md §2, ../_open-questions.md §B, ../_evidence-index.md, ../04-template-benchmarks/benchmark-exclusions.csv, ../03-teardowns/*/dossier.md; owner instructions supplied outside the repository; code at `2c94140`: lib/invitation/{detail-config,create,template-sync,templates}.ts, lib/pricing.ts, app/marketing-copy.ts, app/globals.css, app/layout.tsx
-> GREP: adr, decision, wave 1, ADR-W1, planning gate, reduced confidence, fallback, revisit
-> UPDATED: 2026-11-04 (s13)
+> GREP: adr, decision, wave 1, ADR-W1, planning gate, reduced confidence, fallback, revisit, D-039, D-040, Q-D17, deferred
+> UPDATED: 2026-11-06 (s25)
 
 ## ADR-W1 — Wave-1 reduced-confidence fallback for competitors without safe public demos
 **Status:** DECIDED 2026-11-03 (session 08); fallback requirements met 16:54Z → planning gate met through ADR-W1 · **Type:** reduced-confidence exception, **not** literal satisfaction of strict Wave 1 · **Authority:** brief 05 §14 ("If the bounded search confirms unavailable or insufficient safe public demos, this prompt authorizes ADR-W1").
@@ -134,6 +134,11 @@ Brief 05 §16 makes these routine decisions: choose safe, reversible options, re
 - **Decision:** (a). (b) is deferred behind explicit triggers; (c) is rejected (no measured need, duplicates every domain rule, cannot render the React template system).
 - **Consequences:** B-014 (cached invitation-level render with per-guest parts rendered per request, one loader call for the database, no Clerk / locale cookie on `/i/*`) is the performance lever, measured against the spike (target ≤ 2 × the `next-min` server CPU); B-017a makes view tracking atomic; B-007 and B-011 stay P0; telemetry (`../08-backend-rust-plan/README.md` §6) precedes any further performance claim; the spike stays as test equipment, not product code; the project skill `invitesion-rust-backend` (no vetted third-party Rust skill is locked) records the triggers, the measurement method and the rules for an incremental service, so a future agent does not start a rewrite without them.
 - **Revisit:** telemetry after B-014 shows guest-page CPU dominating cost or p95 above the SLO while the database has headroom; a non-React hot path appears (venue QR check-in with offline sync, webhook fan-out, bulk WhatsApp sending); the database stops being the limit (pooler, replicas) and runtime CPU is what remains.
+- **Outcome (s11–s21, recorded s25):** the ADR stands; option (a) was followed.
+  - One loader call per request (E-013).
+  - The cached invitation shell was built with `'use cache'` and measured, then **not shipped** (D-039): it saved ≈ 1 ms of ≈ 29.6 ms per view, because Next replays the cached Flight stream.
+  - Clerk was removed from guest pages (E-042) and date formatters shared (E-043): 28.5 → 22.2 ms per view on one host.
+  - The ≤ 2 × `next-min` target is not met, and no telemetry exists yet, so no revisit trigger has fired.
 
 ## Owner decisions (session 14, 2026-11-04 ≈ 14:58Z)
 
@@ -159,3 +164,23 @@ Answers to the three gate questions in `../_handoff/sessions/session-14-20261104
 - **Decision:** the requirement is qualified by availability: 4 / 8 strict, 5 / 8 counting the provisional ENV themes (D-028). It no longer blocks the gate.
 - **Consequences:** comparisons involving IDI, PLO or SMO stay marked as not demo-backed. The ADR-W1 trigger stays open, and the s08 search is not repeated without new evidence.
 - **Revisit:** a vendor publishes a placeholder demo, or the owner supplies consented sample invitations.
+
+## Decisions since session 14 referenced by the masterplan (recorded s25; full text where linked)
+Product decisions taken during implementation under ADR-O08. Each has its full text, reasons and reversal in `../_progress.md`, its implementation in `../_handoff/IMPLEMENTATION-LOG.md`, and its domain rule in `docs/systems/`.
+
+| ID | Session | Decision (one line) | Implementation |
+|---|---|---|---|
+| D-034 | s17 | A guest's answers to the host's custom questions live in one nullable `guests.rsvp_answers` jsonb column, written by the same UPDATE as the RSVP | E-029…E-031 (B-027 slice 2b) |
+| D-035 | s18 | Questions that can never apply are not shown. A broken stored question costs only itself, and a deleted source never costs its dependants' answers. Hosts author conditions on earlier choice questions only | E-030, E-031 |
+| D-036 | s19 | Events carry durable ids (content version 2, migration 0013). An answer per event lives in `guests.rsvp_event_answers`, keyed by event id | E-034…E-036 (B-027 slice 2c) |
+| D-037 | s20 | Invite-only events: the config marks an event `inviteOnly`, and the guest row lists the invited events (`guests.invited_event_ids`, migration 0015). Audiences are guest / public / owner; flag `INVITE_ONLY_EVENTS` | E-038 |
+| D-038 | s20 | Person photos: adults' photos show once uploaded. Children's photos need the host's switch and a personal link or the host preview | E-039 |
+| D-039 | s21 | B-014 step 2 does not ship a cached invitation shell; the measured render-cost levers ship instead (ADR-A1 outcome above) | E-042, E-043 |
+| D-040 | s23r | Children's photos get an access contract, not only a rendering rule. Protected storage namespace; owner-only `/media/protected/*`; a personal-link photo route; ownership at save, render and delivery; a byte-verified migration with rollback | E-047 |
+| Q-D17 | s25 | Q-O11 resolved under the owner's delegation: the family byte budget judges design bytes, host uploads stay inside both page totals and are reported separately, and both verdicts are stored. Reversible in `policy.ts` | E-053 (harness only) |
+
+**Owner clarification, s25 (not an ADR; recorded in `../_handoff/deferred-acceptance.md`):**
+- **DA-01:** real-Clerk signed-in acceptance is deferred out of the codebase-rebuild phase.
+- **DA-02:** running the children's-photo migration in real environments belongs to deployment.
+
+Both are NOT RUN and are never reported as passed. The authentication implementation and its security boundaries stay as they are.

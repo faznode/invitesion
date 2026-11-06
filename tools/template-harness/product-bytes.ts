@@ -17,6 +17,13 @@
  *   build the same URL means the same bytes. The shell is counted once.
  * - **family**: the page's document (markup and inline RSC payload, which the family's layout renders for the shared
  *   content, the shared blocks inside it included) plus every counted resource that not every page requested.
+ * - **host uploads** (s24): the part of a family's own resources that is the host's upload (`/media/<id>/…`, protected
+ *   and avatar paths included; each invitation's upload has its own URL, so it always lands in family bytes), with
+ *   `design` = family − host uploads.
+ * Verdict basis (Q-O11, s25; `FAMILY_BUDGET_BASIS` in `policy.ts`): the family budget judges `design`; the host uploads
+ * stay inside both page totals and are reported separately per family. Nothing is dropped from the record: the JSON
+ * keeps every resource, the family figure with the uploads, and the verdict under the other basis (`otherBasis`).
+ * `--family-basis family` reproduces the s21–s24 verdict for one run.
  * Budgets use decoded bytes (what the phone parses; independent of the host's compression). Transfer bytes as served
  * are recorded beside them. Exit 0 PASS, 1 FAIL (a budget exceeded), 3 INCOMPLETE (fewer than two pages, a page that
  * did not answer 200 or did not load). Lab only: it measures bytes, not speed.
@@ -25,7 +32,7 @@ import { spawn } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { findChrome } from './browser';
-import { PRODUCT_PAGE_BUDGETS } from './policy';
+import { FAMILY_BUDGET_BASIS, PRODUCT_PAGE_BUDGETS, type FamilyBudgetBasis } from './policy';
 
 export type Resource = { url: string; type: string; status: number; transferBytes: number; decodedBytes: number };
 export type PageCensus = {
@@ -46,6 +53,12 @@ export type FamilyBytes = {
   own: Resource[];
   familyBytes: number;
   familyTransferBytes: number;
+  /** Own resources that are the host's uploads (Q-O11); already inside `familyBytes`. */
+  hostMedia: Resource[];
+  hostMediaBytes: number;
+  hostMediaTransferBytes: number;
+  /** `familyBytes` − `hostMediaBytes`: what the layout itself costs on this content. */
+  designBytes: number;
   totalBytes: number;
   totalTransferBytes: number;
 };
@@ -61,6 +74,17 @@ export const COUNTED_TYPES = ['Document', 'Script', 'Stylesheet', 'Font', 'Image
 const sum = (resources: Resource[], key: 'decodedBytes' | 'transferBytes') => resources.reduce((total, resource) => total + resource[key], 0);
 const kib = (bytes: number) => Math.round((bytes / 1024) * 10) / 10;
 
+/** The upload paths `lib/invitation/image-url.ts` accepts (public, protected, avatar), matched on the URL's path. */
+const HOST_UPLOAD_PATH = /^\/media\/(?:protected\/|avatars\/)?[1-9]\d*\/[0-9a-f]{24}\.[a-z0-9]+$/i;
+
+export function isHostUpload(url: string): boolean {
+  try {
+    return HOST_UPLOAD_PATH.test(new URL(url, 'http://localhost').pathname);
+  } catch {
+    return false;
+  }
+}
+
 export function attributeBytes(pages: PageCensus[]): Attribution {
   const nonDocument = (page: PageCensus) => page.counted.filter((resource) => resource.type !== 'Document');
   const urlSets = pages.map((page) => new Set(nonDocument(page).map((resource) => resource.url)));
@@ -75,6 +99,8 @@ export function attributeBytes(pages: PageCensus[]): Attribution {
     const documentBytes = sum(documents, 'decodedBytes');
     const familyBytes = documentBytes + sum(own, 'decodedBytes');
     const familyTransferBytes = sum(documents, 'transferBytes') + sum(own, 'transferBytes');
+    const hostMedia = own.filter((resource) => isHostUpload(resource.url));
+    const hostMediaBytes = sum(hostMedia, 'decodedBytes');
     return {
       label: page.label,
       documentBytes,
@@ -83,6 +109,10 @@ export function attributeBytes(pages: PageCensus[]): Attribution {
       own,
       familyBytes,
       familyTransferBytes,
+      hostMedia,
+      hostMediaBytes,
+      hostMediaTransferBytes: sum(hostMedia, 'transferBytes'),
+      designBytes: familyBytes - hostMediaBytes,
       totalBytes: shell.bytes + familyBytes,
       totalTransferBytes: shell.transferBytes + familyTransferBytes,
     };
@@ -90,18 +120,31 @@ export function attributeBytes(pages: PageCensus[]): Attribution {
   return { shell, families };
 }
 
-export function checkProductBudgets(attribution: Attribution, budgets: ProductBudgets = PRODUCT_PAGE_BUDGETS): string[] {
+/**
+ * The family budget judges `design` or `family` bytes (`basis`, Q-O11); the shell and both page totals are the same
+ * on either basis, and the totals always contain the host's uploads.
+ */
+export function checkProductBudgets(attribution: Attribution, budgets: ProductBudgets = PRODUCT_PAGE_BUDGETS, basis: FamilyBudgetBasis = FAMILY_BUDGET_BASIS): string[] {
   const problems: string[] = [];
   const over = (what: string, bytes: number, limitKiB: number) => {
     if (bytes > limitKiB * 1024) problems.push(`${what} ${kib(bytes)} KiB > ${limitKiB} KiB`);
   };
   over('shell', attribution.shell.bytes, budgets.shellKiB);
   for (const family of attribution.families) {
-    over(`${family.label}: family bytes`, family.familyBytes, budgets.familyKiB);
+    if (basis === 'design') over(`${family.label}: design bytes`, family.designBytes, budgets.familyKiB);
+    else over(`${family.label}: family bytes`, family.familyBytes, budgets.familyKiB);
     over(`${family.label}: page total`, family.totalBytes, budgets.totalKiB);
     over(`${family.label}: page total as served`, family.totalTransferBytes, budgets.totalTransferKiB);
   }
   return problems;
+}
+
+export const otherBasis = (basis: FamilyBudgetBasis): FamilyBudgetBasis => (basis === 'design' ? 'family' : 'design');
+
+export function parseFamilyBasis(value: string | undefined): FamilyBudgetBasis {
+  if (value === undefined) return FAMILY_BUDGET_BASIS;
+  if (value === 'design' || value === 'family') return value;
+  throw new Error(`--family-basis must be design or family, not ${value}`);
 }
 
 export function productVerdict(pages: PageCensus[], problems: string[]): { verdict: Verdict; reasons: string[] } {
@@ -273,16 +316,36 @@ export function formatAttribution(attribution: Attribution): string[] {
   const lines = [`shell  ${kib(attribution.shell.bytes)} KiB decoded (${kib(attribution.shell.transferBytes)} KiB transfer), ${attribution.shell.resources.length} resources: ${Object.entries(attribution.shell.bytesByType).map(([type, bytes]) => `${type} ${kib(bytes)}`).join(', ')}`];
   for (const family of attribution.families) {
     lines.push(
-      `${family.label.padEnd(8)} family ${kib(family.familyBytes)} KiB (document ${kib(family.documentBytes)}: markup ${kib(family.markupBytes)} + RSC payload ${kib(family.payloadBytes)}; own resources ${family.own.length}, ${kib(family.familyBytes - family.documentBytes)}) · page total ${kib(family.totalBytes)} KiB decoded, ${kib(family.totalTransferBytes)} KiB transfer`,
+      `${family.label.padEnd(8)} family ${kib(family.familyBytes)} KiB (document ${kib(family.documentBytes)}: markup ${kib(family.markupBytes)} + RSC payload ${kib(family.payloadBytes)}; own resources ${family.own.length}, ${kib(family.familyBytes - family.documentBytes)}${family.hostMedia.length ? `, of which host uploads ${family.hostMedia.length}, ${kib(family.hostMediaBytes)}; design ${kib(family.designBytes)}` : ''}) · page total ${kib(family.totalBytes)} KiB decoded, ${kib(family.totalTransferBytes)} KiB transfer`,
     );
   }
   return lines;
+}
+
+export type HostUploadRow = { label: string; count: number; decodedBytes: number; transferBytes: number };
+
+export function hostUploadRows(attribution: Attribution): HostUploadRow[] {
+  return attribution.families.map((family) => ({ label: family.label, count: family.hostMedia.length, decodedBytes: family.hostMediaBytes, transferBytes: family.hostMediaTransferBytes }));
+}
+
+/**
+ * Host uploads per layout, reported apart from the family budget (Q-O11). Every page renders the same content, so the
+ * layouts should fetch the same uploads; when they do not, the difference is the layout's choice (an eager gallery, a
+ * hidden logo), which only the page totals limit. Undefined when no page fetched an upload.
+ */
+export function formatHostUploads(attribution: Attribution): string | undefined {
+  const rows = hostUploadRows(attribution);
+  if (!rows.some((row) => row.count)) return undefined;
+  const differ = new Set(rows.map((row) => `${row.count}:${row.decodedBytes}`)).size > 1;
+  const list = rows.map((row) => `${row.label} ${row.count} (${kib(row.decodedBytes)} KiB decoded, ${kib(row.transferBytes)} served)`).join(', ');
+  return `host uploads, in the page totals and not in the family budget: ${list}${differ ? '; the layouts fetch different uploads for the same content (a layout choice: check the first render)' : ''}`;
 }
 
 async function main() {
   const args = process.argv.slice(2);
   const valueAfter = (flag: string) => (args.includes(flag) ? args[args.indexOf(flag) + 1] : undefined);
   const out = valueAfter('--out') ?? join(process.env.TMPDIR ?? '/tmp', 'invitesion-product-bytes');
+  const basis = parseFamilyBasis(valueAfter('--family-basis'));
   const targets = args
     .flatMap((arg, index) => (arg === '--url' ? [args[index + 1] ?? ''] : []))
     .map((pair) => ({ label: pair.slice(0, pair.indexOf('=')), url: pair.slice(pair.indexOf('=') + 1) }))
@@ -299,14 +362,21 @@ async function main() {
     for (const target of targets) pages.push(await census(cdp, target.label, target.url));
     cdp.close();
     const attribution = attributeBytes(pages);
-    const problems = checkProductBudgets(attribution);
-    const { verdict, reasons } = productVerdict(pages, problems);
+    const { verdict, reasons } = productVerdict(pages, checkProductBudgets(attribution, PRODUCT_PAGE_BUDGETS, basis));
+    const other = { basis: otherBasis(basis), ...productVerdict(pages, checkProductBudgets(attribution, PRODUCT_PAGE_BUDGETS, otherBasis(basis))) };
     const relative = relativeToLeanest(attribution);
-    writeFileSync(join(out, 'product-bytes.json'), `${JSON.stringify({ tool: 'product-bytes', generatedAt: new Date().toISOString(), budgets: PRODUCT_PAGE_BUDGETS, verdict, reasons, attribution, relative, pages }, null, 2)}\n`);
+    const hostUploads = hostUploadRows(attribution);
+    writeFileSync(
+      join(out, 'product-bytes.json'),
+      `${JSON.stringify({ tool: 'product-bytes', generatedAt: new Date().toISOString(), budgets: PRODUCT_PAGE_BUDGETS, familyBudgetBasis: basis, verdict, reasons, otherBasis: other, hostUploads, attribution, relative, pages }, null, 2)}\n`,
+    );
     for (const line of formatAttribution(attribution)) console.log(line);
+    const uploads = formatHostUploads(attribution);
+    if (uploads) console.log(uploads);
     console.log(formatRelative(relative));
     for (const page of pages) if (page.excluded.length) console.log(`${page.label.padEnd(8)} not counted: ${page.excluded.map((resource) => `${resource.type} ${kib(resource.decodedBytes)} KiB`).join(', ')}`);
-    console.log(`budgets: shell ≤ ${PRODUCT_PAGE_BUDGETS.shellKiB} KiB, family ≤ ${PRODUCT_PAGE_BUDGETS.familyKiB} KiB, page total ≤ ${PRODUCT_PAGE_BUDGETS.totalKiB} KiB decoded and ≤ ${PRODUCT_PAGE_BUDGETS.totalTransferKiB} KiB as served`);
+    console.log(`budgets: shell ≤ ${PRODUCT_PAGE_BUDGETS.shellKiB} KiB, family ≤ ${PRODUCT_PAGE_BUDGETS.familyKiB} KiB on ${basis} bytes, page total ≤ ${PRODUCT_PAGE_BUDGETS.totalKiB} KiB decoded and ≤ ${PRODUCT_PAGE_BUDGETS.totalTransferKiB} KiB as served`);
+    if (uploads) console.log(`on the ${other.basis} basis (stored, not the verdict): ${other.verdict}${other.reasons.length ? ` (${other.reasons.join('; ')})` : ''}`);
     console.log(`overall: ${verdict}${reasons.length ? ` (${reasons.join('; ')})` : ''}`);
     process.exitCode = verdict === 'PASS' ? 0 : verdict === 'FAIL' ? 1 : 3;
   } finally {

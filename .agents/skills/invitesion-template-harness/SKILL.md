@@ -73,7 +73,13 @@ A new family is judged on its own bytes; the total keeps the guest page inside t
 Run it on two contents (s23r): the wedding (`-full`) and the long corporate programme (`-programme`, seeded with
 `--programme`; no logo or cover, so uploads do not count as family bytes). The `relative` line (bytes above the leanest
 layout) compares layouts only; it is not a budget and not competitor parity. An uploaded logo or cover has a different
-URL per invitation, so it lands in each family's own bytes: compare documents when a fixture carries host media.
+URL per invitation, so it lands in each family's own bytes.
+
+Since s25 (E-053; Q-O11 resolved as Q-D17), the family budget judges `design` bytes: family bytes minus host uploads
+(`FAMILY_BUDGET_BASIS` in `policy.ts`). The uploads stay inside both page totals and are printed per layout on their
+own line. If layouts fetch different uploads for the same content, that is a layout choice: check the first render.
+Every run stores the other basis's verdict (`otherBasis`), and `--family-basis family` reproduces the s21–s24 verdict
+for one run. Always report a verdict together with its basis.
 **Cover fold** (`cover-fold.ts`, s23r): per page × guest × viewport, whether the guest's name ends inside the first
 viewport with every cover image loaded (a missing image is INCOMPLETE, never PASS); `--expect-broken-logo` for pages
 whose logo is meant to fail.
