@@ -168,10 +168,16 @@ test('B-027 2b wiring: the action checks answers after every refusal and before 
   const action = source('app/i/[slug]/actions.ts');
   const rsvp = action.slice(action.indexOf('export async function submitRsvp'), action.indexOf('export async function submitGuestMessage'));
   const write = rsvp.indexOf('db.update(guests)');
-  for (const marker of ['rsvpClosedReason(', "isFlagOn('RSVP_MAYBE')", "isFlagOn('RSVP_QUESTIONS')", 'parseRsvpAnswers(formData, questions, status)', '?rsvp=answers&rsvpq=']) {
-    const at = rsvp.indexOf(marker);
-    assert.ok(at > 0 && at < write, `${marker} before the write`);
-  }
+  // R-03: every refusal is decided before the one write, in the decision's order: closed, the answer, then the questions.
+  const decide = rsvp.indexOf('decideGuestRsvp({');
+  const refused = rsvp.indexOf("if (decision.kind !== 'write') redirect(");
+  assert.ok(decide > 0 && refused > decide && refused < write, 'the decision and its refusals come before the write');
+  assert.ok(action.indexOf("maybe: isFlagOn('RSVP_MAYBE')") > 0 && action.indexOf("questions: isFlagOn('RSVP_QUESTIONS')") > 0, 'both flags are read');
+  assert.match(action, /rsvp=answers&rsvpq=\$\{encodeURIComponent\(refusal\.questionId\)\}/);
+  const decision = source('lib/invitation/rsvp-decision.ts');
+  const body = decision.slice(decision.indexOf('export function decideGuestRsvp'), decision.indexOf('export const HOST_RSVP_STATUSES'));
+  const order = ['rsvpClosedReason(', 'isRsvpStatus(submitted, { maybe })', 'input.flags.questions ?', 'parseRsvpAnswers(form, questions, status)', "return { kind: 'answers', questionId: parsed.questionId }"].map((marker) => body.indexOf(marker));
+  assert.ok(order.every((at, index) => at > 0 && (index === 0 || at > order[index - 1])), `decision order ${order.join(', ')}`);
   assert.match(rsvp, /\.\.\.\(rsvpAnswers !== undefined && \{ rsvpAnswers \}\)/, 'undefined leaves stored answers untouched');
   assert.equal((rsvp.match(/db\.update\(guests\)/g) ?? []).length, 1, 'status, headcount and answers in one statement');
   assert.doesNotMatch(rsvp, /meta: \{[^}]*answers/i, 'answers never enter analytics events');

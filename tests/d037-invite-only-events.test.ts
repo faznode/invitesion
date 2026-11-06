@@ -140,15 +140,20 @@ test('export: one invited column per invite-only event, only when one exists; li
 
 test('wiring: the action and the dashboard read the same rules, and every host write is scoped to the owner\u2019s invitation', () => {
   const action = read('app/i/[slug]/actions.ts');
-  assert.match(action, /visibleEvents\(listed, guestAudience\(context\.guest\), isFlagOn\('INVITE_ONLY_EVENTS'\)\)/);
-  assert.match(action, /singleAnswerEventAnswers\(/);
+  // R-03: the guest's and the host's rules live in the shared decision; each caller passes the flag its page used.
+  const decision = read('lib/invitation/rsvp-decision.ts');
+  assert.match(action, /inviteOnlyEvents: isFlagOn\('INVITE_ONLY_EVENTS'\)/);
+  assert.match(decision, /visibleEvents\(listed, guestAudience\(guest\), input\.flags\.inviteOnlyEvents\)/);
+  assert.match(decision, /singleAnswerEventAnswers\(/);
   assert.equal(action.match(/db\.update\(guests\)/g)?.length, 1, 'still one UPDATE per RSVP');
   const host = read('app/(customer)/dashboard/invitations/[id]/guests/actions.ts');
   assert.match(host, /eq\(invitations\.userId, user\.id\)/);
   for (const write of host.match(/await db\.update\(guests\)[\s\S]*?\.where\([^;]*/g) ?? []) {
     assert.match(write, /eq\(guests\.invitationId, ?invitationId\)|eq\(guests\.id,guestId\)/, write.slice(0, 80));
   }
-  assert.match(host, /hostRsvpUpdate\(/);
+  assert.match(host, /inviteOnlyEvents: isFlagOn\('INVITE_ONLY_EVENTS'\)/);
+  assert.match(host, /decideHostRsvp\(\{ config, guest: owned, status, eventId, flags \}\)/);
+  assert.match(decision, /const asked = visibleEvents\(listed, guestAudience\(guest\), flags\.inviteOnlyEvents\);\n\s*return hostRsvpUpdate\(/);
   assert.doesNotMatch(host, /meta:\{status:update\.rsvpStatus,source:'dashboard',/, 'no answer data in analytics');
   assert.match(read('app/i/[slug]/calendar.ics/route.ts'), /visibleEvents\(summary\.config\.events, \{ kind: 'public' \}/);
   assert.match(read('app/preview/[id]/page.tsx'), /guest=\{null\}\s+preview/);

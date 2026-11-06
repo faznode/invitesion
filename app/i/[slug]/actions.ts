@@ -2,24 +2,17 @@
 
 import { eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
+import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
+import { backendFor } from '@/lib/backend';
 import { db } from '@/lib/db/drizzle';
 import { analyticsEvents, guestMessages, guests, invitations } from '@/lib/db/schema';
 import { isFlagOn } from '@/lib/flags';
 import { normalizeStoredConfig } from '@/lib/invitation/content-read';
-import { guestAudience, visibleEvents } from '@/lib/invitation/event-eligibility';
 import { findGuestByLinkSegment } from '@/lib/invitation/public';
 import { guestPath } from '@/lib/invitation/public-url';
-import { parseRsvpAnswers, rsvpQuestionsOf, type RsvpAnswers } from '@/lib/invitation/rsvp-questions';
-import {
-  mergeEventAnswers,
-  parseEventAnswers,
-  perEventRsvpEvents,
-  readEventAnswers,
-  singleAnswerEventAnswers,
-  type EventAnswers,
-} from '@/lib/invitation/rsvp-events';
-import { isRsvpStatus, rsvpAttendance, rsvpClosedReason, type RsvpStatus } from '@/lib/invitation/rsvp-rules';
+import { decideGuestRsvp, rsvpSubmissionFromForm, type GuestRsvpDecision, type RsvpFlags } from '@/lib/invitation/rsvp-decision';
+import { RSVP_KEY_PATTERN, writeGuestRsvpThroughApi, type GuestRsvpOutcome } from '@/lib/invitation/rsvp-writer';
 
 /**
  * Resolves the invitation + guest pair a public form submission refers to, and
@@ -41,56 +34,63 @@ async function openInvitationFor(slug: string, guestSlug: string) {
   return { invitation, guest, config };
 }
 
+/** The switches this deployment renders the guest page with; the Rust writer receives the same values (R-03). */
+function rsvpFlags(): RsvpFlags {
+  return {
+    maybe: isFlagOn('RSVP_MAYBE'),
+    perEvent: isFlagOn('RSVP_PER_EVENT'),
+    inviteOnlyEvents: isFlagOn('INVITE_ONLY_EVENTS'),
+    questions: isFlagOn('RSVP_QUESTIONS'),
+  };
+}
+
+/** The page's notice for a refused RSVP (`?rsvp=`; `rsvpe` names the unanswered event, `rsvpq` the question to fix). */
+function rsvpRefusalQuery(refusal: Exclude<GuestRsvpDecision, { kind: 'write' }> | Exclude<GuestRsvpOutcome, { kind: 'saved' }>): string {
+  if (refusal.kind === 'events') return `rsvp=events&rsvpe=${encodeURIComponent(refusal.eventId)}`;
+  if (refusal.kind === 'answers') return `rsvp=answers&rsvpq=${encodeURIComponent(refusal.questionId)}`;
+  if (refusal.kind === 'busy') return 'rsvp=busy';
+  return refusal.kind === 'closed' ? 'rsvp=closed' : 'rsvp=invalid';
+}
+
+/**
+ * The guest's public address for the per-address limit (B-013). Vercel overwrites `x-forwarded-for` at its edge; behind
+ * another host, a trusted proxy must set it. Passed to the API only, which keeps a keyed hash and never the address.
+ */
+async function clientAddress(): Promise<string | null> {
+  const forwarded = await headers();
+  return forwarded.get('x-forwarded-for')?.split(',')[0]?.trim() || forwarded.get('x-real-ip')?.trim() || null;
+}
+
 export async function submitRsvp(formData: FormData) {
   const slug = String(formData.get('slug') || '');
   const guestSlug = String(formData.get('guestSlug') || '');
+  const submission = rsvpSubmissionFromForm(formData);
+  const flags = rsvpFlags();
+
+  // R-03: exactly one writer per call (`BACKEND_RSVP`, default `next`). This branch always ends in a redirect, so the
+  // TypeScript writer below is never reached as a fallback.
+  if (backendFor('RSVP') === 'rust') {
+    const key = String(formData.get('rsvpKey') ?? '');
+    const outcome = await writeGuestRsvpThroughApi({
+      slug,
+      guestSlug,
+      submission,
+      flags,
+      clientIp: await clientAddress(),
+      idempotencyKey: RSVP_KEY_PATTERN.test(key) ? key : null,
+    });
+    if (outcome.kind !== 'saved') redirect(`${guestPath(slug, guestSlug)}?${rsvpRefusalQuery(outcome)}`);
+    revalidatePath(guestPath(slug, guestSlug));
+    redirect(`${guestPath(slug, guestSlug)}?rsvp=saved`);
+  }
 
   const context = await openInvitationFor(slug, guestSlug);
   if (!context) redirect(`${guestPath(slug, guestSlug)}?rsvp=closed`);
-  // B-027: a hidden form is not a closed one. RSVP switched off, or past its deadline, refuses every POST, including a
-  // page that was rendered while it was still open.
-  if (rsvpClosedReason(context.config.rsvp, Date.now())) redirect(`${guestPath(slug, guestSlug)}?rsvp=closed`);
-
-  const maybe = isFlagOn('RSVP_MAYBE');
-  let status: RsvpStatus;
-  let attendingCount: number | null;
-  // Undefined leaves the column as it is (flag off: per-event answers are neither read nor written).
-  let rsvpEventAnswers: EventAnswers | null | undefined;
-  const perEventOn = isFlagOn('RSVP_PER_EVENT');
-  const listed = perEventRsvpEvents({ perEvent: context.config.rsvp?.perEvent, events: context.config.events }, perEventOn);
-  // D-037: the guest answers only the listed events their page shows (open ones and the invite-only ones they are
-  // invited to), by the rule the page used; fields naming any other event are never read.
-  const events = visibleEvents(listed, guestAudience(context.guest), isFlagOn('INVITE_ONLY_EVENTS'));
-  const storedEventAnswers = readEventAnswers(context.guest.rsvpEventAnswers);
-  if (events.length >= 2) {
-    // B-027 slice 2c (D-036): one answer per listed event, by event id; the overall status and headcount follow from them.
-    // A form without them (rendered before the switch, or before an event was added) is refused, naming the event.
-    const parsed = parseEventAnswers(formData, events, context.guest.guestCount, { maybe });
-    if (!parsed.ok) redirect(`${guestPath(slug, guestSlug)}?rsvp=events&rsvpe=${encodeURIComponent(parsed.eventId)}`);
-    status = parsed.status;
-    attendingCount = parsed.attendingCount;
-    rsvpEventAnswers = mergeEventAnswers(storedEventAnswers, parsed.answers);
-  } else {
-    const submitted = String(formData.get('status') || '');
-    // B-027: "maybe" is accepted only while its flag is on, so switching the flag off also refuses stale forms.
-    if (!isRsvpStatus(submitted, { maybe })) redirect(`${guestPath(slug, guestSlug)}?rsvp=invalid`);
-    status = submitted;
-    // The answer goes to attending_count; guest_count is the host's allowance and is never written here (B-007).
-    attendingCount = rsvpAttendance(status, Number(formData.get('guestCount') || 1), context.guest.guestCount);
-    // D-036: one answer for the whole invitation replaces earlier per-event answers, so they never contradict the latest;
-    // D-037: a guest invited to one listed event answers for that event.
-    rsvpEventAnswers = singleAnswerEventAnswers({ flagOn: perEventOn, listed, asked: events, stored: storedEventAnswers, answer: { status, attending: attendingCount } });
-  }
-
-  // B-027 (D-034): answers to the host's questions, by the rules the form was rendered with. Undefined leaves the column
-  // as it is (flag off or no questions), so switching either off never erases stored answers; null clears on a decline.
-  let rsvpAnswers: RsvpAnswers | null | undefined;
-  const questions = isFlagOn('RSVP_QUESTIONS') ? rsvpQuestionsOf(context.config.registrationForm ?? {}) : [];
-  if (questions.length) {
-    const parsed = parseRsvpAnswers(formData, questions, status);
-    if (!parsed.ok) redirect(`${guestPath(slug, guestSlug)}?rsvp=answers&rsvpq=${encodeURIComponent(parsed.questionId)}`);
-    rsvpAnswers = parsed.answers;
-  }
+  // R-03: closed (B-027), the single or per-event answer (B-007, D-036, D-037) and the questions (D-034, D-035) are one
+  // pure decision, shared with the Rust writer through contracts/vectors/rsvp-decisions.json.
+  const decision = decideGuestRsvp({ config: context.config, guest: context.guest, submission, flags, now: Date.now() });
+  if (decision.kind !== 'write') redirect(`${guestPath(slug, guestSlug)}?${rsvpRefusalQuery(decision)}`);
+  const { status, attendingCount, rsvpAnswers, rsvpEventAnswers } = decision;
 
   // One statement: status, headcount, question answers and per-event answers never disagree after a write (D-034, D-036).
   await db.update(guests).set({ rsvpStatus: status, attendingCount, ...(rsvpAnswers !== undefined && { rsvpAnswers }), ...(rsvpEventAnswers !== undefined && { rsvpEventAnswers }) }).where(eq(guests.id, context.guest.id));

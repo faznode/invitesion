@@ -2,7 +2,7 @@
 process.env.TZ = 'UTC';
 
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { isFlagOn } from '../lib/flags';
@@ -220,10 +220,18 @@ test('B-011: wiring — one lookup rule for page and actions, flag-gated minting
     source('lib/db/migrations/0010_guest_link_token.sql').trim(),
     'ALTER TABLE "guests" ADD COLUMN "link_token" varchar(32);--> statement-breakpoint\nCREATE UNIQUE INDEX "guests_link_token_unique" ON "guests" USING btree ("link_token");',
   );
-  assert.match(source('next.config.ts'), /ppr: 'incremental'/);
-  assert.match(source('app/layout.tsx'), /export const experimental_ppr = true;/);
+  // F-01 (Next 16): `experimental.ppr` is gone, and its successor (Cache Components) would flush a prerendered shell's
+  // 200 before a guest page can call notFound(). The real 404 rests on the facts below; CI's product-gates job also
+  // requests wrong links over HTTP against a production build.
+  assert.doesNotMatch(source('next.config.ts'), /^\s*(cacheComponents|ppr)\s*:/m, 'no prerendered shell');
+  assert.doesNotMatch(source('app/layout.tsx'), /experimental_ppr|<Suspense/);
   for (const page of ['app/i/[slug]/page.tsx', 'app/i/[slug]/[guestSlug]/page.tsx']) {
-    assert.match(source(page), /export const experimental_ppr = false;/, page);
+    assert.match(source(page), /^export const dynamic = 'force-dynamic';$/m, page);
+    assert.match(source(page), /if \(!data\) notFound\(\);/, page);
+    assert.doesNotMatch(source(page), /experimental_ppr|<Suspense/, page);
+  }
+  for (const boundary of ['app/loading.tsx', 'app/i/loading.tsx', 'app/i/[slug]/loading.tsx', 'app/i/[slug]/[guestSlug]/loading.tsx']) {
+    assert.equal(existsSync(join(process.cwd(), boundary)), false, `${boundary} would stream a 200 before notFound()`);
   }
 });
 

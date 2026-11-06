@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "select config from invitations where id = $1 and user_id = $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "config",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "invitations",
+            "name": "config"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "bc205d45737692adf83cc3e6f94a1c702ba2c4aac39ac5103b0902b3dbbdbe44"
+}

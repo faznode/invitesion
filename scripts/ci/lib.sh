@@ -27,7 +27,7 @@ step() {
   fi
 }
 
-# Builds write .next and the product gates set middleware.ts aside, so they run only where the workspace is thrown
+# Builds write .next and the product gates set proxy.ts aside, so they run only where the workspace is thrown
 # away afterwards: a CI runner, or the copy that scripts/ci/local.sh makes. In this repository's v0 sandbox the
 # platform's dev server serves the project folder from its own .next.
 ci_require_disposable() {

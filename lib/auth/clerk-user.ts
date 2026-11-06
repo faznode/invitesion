@@ -105,6 +105,16 @@ async function provision(clerkUserId: string): Promise<User | null> {
 }
 
 /**
+ * The signed-in account's Clerk session token, sent as the owner token to the Rust API's owner endpoints (R-03). The
+ * API verifies it against Clerk's keys and resolves the owner and role from `users`, never from the token. Null when
+ * nobody is signed in.
+ */
+export async function ownerSessionToken(): Promise<string | null> {
+  const { getToken } = await auth();
+  return getToken();
+}
+
+/**
  * Role stays local, deliberately.
  *
  * Admin is granted by setting `role = 'ADMIN'` on the database row, not in the

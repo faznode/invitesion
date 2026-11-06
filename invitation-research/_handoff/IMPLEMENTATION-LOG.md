@@ -4,8 +4,8 @@
 > STATUS: ACTIVE (started session 09, 2026-11-03; baseline `64678cf`). B-001…B-008, B-010, B-011 DONE s09; B-009 and B-012 open. s11 (baseline `e873680`): E-012 B-017a, E-013 B-014 step 1, E-014 content contract. s14–s16 (baseline `e983700` for s16): E-015 B-016, E-016 / E-018 B-030 families, E-017 B-029 slice 1, E-019 rendered-contrast gate. s17 (baseline `f2fd128`): E-023 cover guard, E-024 switched-off notices, E-025 "maybe", E-026 B-029 slice 3.
 > OWNER: Operator role (research agent)
 > DEPS: ../09-masterplan/06-backlog.md, ../09-masterplan/08-template-system-and-harness.md, sessions/session-09-20261103-1816.md
-> GREP: implementation, P0, B-0, acceptance, tests, rollback, verify, migration
-> UPDATED: 2026-11-04
+> GREP: implementation, P0, B-0, acceptance, tests, rollback, verify, migration, F-01, R-01, R-02, next 16, rust
+> UPDATED: 2026-11-06 (s27: E-056 F-01 adopted, E-057 R-01, E-058 R-02; newest entries last)
 
 ## How checks are run
 Product checks run in the local-stack snapshot (`/vercel/share/work/app`, refreshed with `local-stack.sh sync`; `app/spike-min` and stale `.next/types` removed first so spike files never mask a product result): `pnpm typecheck`, `pnpm test`, `pnpm build` (the repository's required gates, `AGENTS.md`). Database steps run against the disposable Postgres (`127.0.0.1:5433`, identity checked: `invitesion|127.0.0.1|5433|/vercel/share/work/pgdata`). Build = production build without `middleware.ts` (placeholder Clerk keys, P-INV-010), so middleware behaviour is not validated here. Results are quoted from the run, never assumed.
@@ -586,3 +586,65 @@ Baseline reproduced: typecheck 0; tests 279 / 278 / 1 (the E-047 assertion); mig
   - Photo pages are not in CI because generated review assets never enter the repository, so the D-041 legacy-over-photo pages stay a manual run.
   - The workflow pins Lighthouse 12.8.2 and uses the runner's Google Chrome; the sandbox uses Chrome for Testing 158.
 - **Risk / rollback:** none for the product. Delete `.github/workflows/ci.yml` and `scripts/ci/`.
+- **s27 addendum:** the first GitHub Actions run passed all five jobs on `87e14dc` (run `42262922026`, 17:34:45–17:42:12Z, read through the public API). U1's exit criterion "CI green on every push" therefore holds for the first push; it stays a standing rule.
+
+## Session 27 (2026-11-06; baseline `87e14dc`, tree `632f4e8`; U1 F-01 closed, U2 R-01 / R-02 built in the sandbox)
+Every figure below was executed in s27 unless marked *reported*. "Copy" = the isolated scratch tree `/vercel/share/work/f01`; "deliverable" = `/vercel/share/v0-project`. CI jobs ran through `scripts/ci/local.sh` (disposable copy, fresh database).
+
+### E-056 · F-01: Next.js 16.4.5 stable adopted (s27; investigated under U1, adopted at the start of U2)
+- **Behaviour before (code at `87e14dc`):** `next 15.6.0-canary.59`, React 19.1.4; `middleware.ts` (deprecated convention, AUDIT-2026-07-27 B4); `experimental.ppr: 'incremental'` with per-segment `experimental_ppr`; `experimental.clientSegmentCache`. *Reported (owner, s26):* a Next 16.4.5 copy passed 324 tests and built; a follow-up `middleware.ts` → `proxy.ts` copy built with an invalid Proxy runtime configuration and FAILED; nothing was adopted.
+- **Releases and migration rules (official sources, checked s27):** npm registry dist-tags: `next` latest 16.4.5 (canary 16.5.0-canary.42, backport 15.5.29); `react` / `react-dom` latest 19.3.1; `@types/react` / `@types/react-dom` 19.3.0; `next@16.4.5` accepts React `^19.0.0`. Next.js "How to upgrade to version 16" (nextjs.org/docs/app/guides/upgrading/version-16): `middleware` becomes `proxy`, Proxy runs on Node.js and takes no runtime config, `experimental.ppr` is removed (Cache Components replace it), Turbopack is the default.
+- **Acceptance (06 F-01):** typecheck, tests, build, harness gates and payment / view-dedupe checks pass; no guest-page regression beyond run variation; verified by CI plus the same-host interleaved bench. Additionally (brief): real 404s, protected-media coverage, authorisation, locale behaviour and Clerk-free guest pages preserved; no Cache Components; no weakened assertion.
+- **Change:**
+  - `package.json` / `pnpm-lock.yaml`: next 16.4.5, react / react-dom 19.3.1, @types/react / @types/react-dom 19.3.0 (exact pins); `dev` is `next dev`. Clerk unchanged.
+  - `middleware.ts` → `proxy.ts` with the handler unchanged; the `runtime: 'nodejs'` key removed (the cause of the s26 build failure).
+  - `next.config.ts`: no `experimental` block (ppr removed; the client segment cache is Next 16's default router); no `cacheComponents`, whose prerendered shell would flush a 200 before `notFound()` (B-011, QA-003); `agentRules: false` (below).
+  - `app/layout.tsx` and both guest pages: `experimental_ppr` exports removed; the guest pages stay `force-dynamic`.
+  - `lib/storage/index.ts`: `/*turbopackIgnore: true*/` on the env-dependent upload root, so Next 16's file tracing does not copy the project into the server output.
+  - `local-stack.sh`, `scripts/ci/app.sh`, `scripts/ci/lib.sh`: the measurement variant sets aside either file name; labels.
+  - Tests rewritten to the new facts, not loosened: `content-contract` (locale cookie in `proxy.ts`); `e047-child-photo-access` (the proxy covers `/media/protected/*`, `middleware.ts` absent, no `runtime` key); `p0-guest-features` (B-011's real 404 now rests on: no `ppr` / `cacheComponents`, no `experimental_ppr` or `<Suspense>` in the layout or guest pages, `force-dynamic` and `notFound()` on both pages, no `loading.tsx` above them). New `tests/f01-next-stable.test.ts` (3: exact stable pins, `agentRules`, one interception file).
+  - `README.md` product-code row. AUDIT-2026-07-27 B4 is resolved by this entry.
+- **Found during adoption:** the first `next dev` of 16.4.5 appended a "nextjs-agent-rules" instruction block to the owner-authored `AGENTS.md` (18:37Z). Restored byte-identical from `87e14dc`; `agentRules: false` (documented option, `node_modules/next/dist/docs/…/agentRules.md`) stops it and removes such a block; `AGENTS.md` stayed identical across the next dev restart. Negative control: with the option removed and the block present, the new test fails (1 / 3).
+- **Evidence:**
+  - Copy, app job: typecheck 0, **324 / 324**, production build with `proxy.ts` (`ƒ Proxy (Middleware)`). Baseline `87e14dc`, same job: 324 / 324, build with middleware.
+  - Copy, product gates (Next 16 measurement build): real 404 × 3; wedding and programme bytes PASS; design acceptance **174 / 174**; cover fold **90 / 90**; rendered contrast **9 / 9**. Same verdicts as the baseline run on `87e14dc` in this session.
+  - Copy, database job: **30 / 30** (payment 10, view-dedupe 6, theme entitlement 14).
+  - Same-host interleaved bench, 12 + 12 Lighthouse runs (`../04-template-benchmarks/own-builds/own-build-comparison-s27-f01.md`): transfer **−3,768 B** in every run (document 12.4 → 9.2 KB, one request fewer; exact p 7.4 × 10⁻⁷); FCP, LCP, SI, TBT, TTI, CLS and score do not separate (p 0.29–1.0). LCP is not established either way (different clusters, means 2.39 vs 2.34 s).
+  - Deliverable (final tree with E-057 / E-058): see the closing check run after E-058.
+- **Decision: ADOPT.** Every acceptance criterion holds; the only separated metric improved.
+- **Limits:** measurement builds run without the interception file (D-012: placeholder Clerk keys), so the proxy's CSP, locale cookie and Clerk session are verified by build, tests and code, not served; a real-key run belongs to DA-01 (deferred, NOT RUN). Clerk 7 on Next 16 is proven to build, not to sign in. The platform preview has no database (guest routes answer 500 `POSTGRES_URL is not set` there, before and after).
+- **Risk / rollback:** revert the upgrade (package.json, lockfile, `proxy.ts` back to `middleware.ts` with its runtime key, `next.config.ts`, the pages and tests); no data change.
+
+### E-057 · R-01: the Rust API foundation in `services/api` (s27, U2)
+- **Behaviour before:** no service, contract pipeline or telemetry (06 R-01); only the isolated s26 experiment.
+- **Acceptance (06 R-01):** CI builds and tests it on a migrated Postgres; the OpenAPI drift check fails on change; the preview deployment answers health within SLO; cold start recorded; trace visible.
+- **Change (reviewed against the experiment's limits before promotion):**
+  - `services/api` (axum 0.8.9, sqlx 0.9 with rustls, utoipa 6, jsonwebtoken 11, Rust 1.99, edition 2024): `GET /v1/health` (liveness, unsigned), `GET /v1/health/ready` (signed; one Postgres round trip, else 503 `database.unavailable`), `GET /v1/me` (signed + owner token), `POST /v1/views` (E-058).
+  - RFC 9457 problem documents with a stable `code` (`domain.reason`) for every error, including a 10 s request timeout (`request.timeout`); `x-request-id` taken from Next.js or minted, on every response.
+  - Internal service signature: `x-invitesion-signature: t=<unix>,v1=<HMAC-SHA256 of t.METHOD.path_and_query.sha256(body)>`, 60 s skew, two secrets during a rotation, secrets ≥ 32 bytes, bodies bounded to 64 KiB and verified before any extractor.
+  - Owner tokens: RS256 only, against the issuer's JWKS (cached; refetched on an unknown `kid` at most once per interval); issuer, `exp` and `nbf` with 5 s leeway; `azp` among the allowed origins; `sub` → `users.clerk_user_id` (not deleted), role from the database, never from the token; without configuration owner endpoints answer 503.
+  - Contract pipeline `scripts/api/contract.sh generate|check`: `services/api/openapi.json` (OpenAPI 3.1 from the code), `lib/api/schema.d.ts` (openapi-typescript **7.13.0**, exact devDependency), `.sqlx` offline query metadata described against a drizzle-migrated database. drizzle-kit stays the only migration owner; the service runs no DDL.
+  - Next.js side: `lib/api/signature.ts`, `lib/api/client.ts` (typed by the generated schema, signs exactly the bytes it sends, 3 s timeout, `ApiProblem` with stable codes, fails closed without `API_BASE_URL` / a 32-character `INTERNAL_API_SECRET`).
+  - Shared vectors `contracts/vectors/service-signature.json` (expected values from an independent implementation) run by `tests/api-contract.test.ts` and `services/api/tests/contract_vectors.rs`.
+  - Telemetry (G-020): one JSON log line per request (request id, matched route, method, status, latency).
+  - Deployment files: `services/api/vercel.json` (every path to `api/index.rs`, region `sin1`; Vercel's Rust runtime is beta on Fluid compute), container fallback `src/main.rs`.
+  - CI (`scripts/ci/rust.sh`, job name unchanged so a required check keeps matching): fmt; clippy with `SQLX_OFFLINE=true` and `-D warnings`; tests; the contract check; the views slice end to end; Swatinem cache covers `services/api`. `.gitignore`: generated Rust build directories (ignored, not repository content). `.env.example`: the Next.js-side variables.
+- **Evidence (deliverable, `local.sh rust`):** fmt and clippy clean; **20 / 20** Rust tests (signature vectors 3, database 3, HTTP contract 8, owner tokens 6); `contract.sh check` current; feasibility 17 / 17. TypeScript: `tests/api-contract.test.ts` 7 / 7 inside the app job. Drift negative control (scratch copy): a mutated `openapi.json` and a mutated `schema.d.ts` each fail the check (exit 1, both named).
+- **Not done (tracked):** OpenTelemetry trace export (spans exist in the JSON logs; export needs a collector endpoint, an operational dependency); the preview deployment, its health SLO and cold-start figures (owner steps: a Vercel project with root `services/api`, `INTERNAL_API_SECRET`, database URL); the first GitHub Actions run of the extended job (agents never push).
+- **Risk / rollback:** nothing calls the service unless a domain is switched to `rust`; remove the deployment.
+
+### E-058 · R-02: invitation opens behind `BACKEND_VIEWS`, exactly one writer (s27, U2)
+- **Behaviour before:** the guest page recorded opens only through `recordInvitationView` in Next.js (B-017a, E-012).
+- **Acceptance (06 R-02):** `verify-view-dedupe` scenarios pass against the API; vectors green in both languages; tracking stays best-effort (an API error never fails the page). Rollout: preview load test, 7 days of metrics.
+- **Change:**
+  - `lib/backend.ts`: `BACKEND_<DOMAIN>=next|rust`, default `next`; an unknown value selects the default, never the other writer.
+  - `lib/invitation/view-writer.ts`: one writer per call; with `rust` it calls `POST /v1/views` and never falls back (a failed call loses one open instead of risking a second writer); errors propagate to `trackInvitationView`, which stays best-effort. `lib/invitation/public.ts` reaches the TypeScript writer only through this selection.
+  - `services/api/src/views.rs`: the same transaction-scoped advisory lock (namespace "VIEW", key = guest id or −invitation id), the same 30-minute window with an inclusive lower bound, two statements so both use `analytics_events_view_dedupe_idx`, VIEW insert and `opened_at` / `opened_count` in one transaction; non-positive ids → 400, an unknown invitation or guest → 404 `invitation_or_guest.not_found`. Stored shapes unchanged.
+  - Shared vectors `contracts/vectors/view-dedupe.json`, run against the TypeScript writer (`scripts/verify-view-dedupe.ts`, three new checks) and the Rust writer (`services/api/tests/database.rs`).
+  - `scripts/verify-views-api.ts`: the scenarios through the Next.js call site against the running binary.
+- **Evidence (deliverable):** `verify-views-api` **9 / 9** in the rust job (20 concurrent first opens → one row and one counter bump; repeats inside the window write nothing; after the window one more; 20 concurrent anonymous opens → one row; unknown guest → 404 problem; with `rust` and the API down nothing is written; with `next` the API is never called). Database job: view-dedupe 9 / 9 (6 + 3 vector checks). `tests/api-contract.test.ts` asserts the no-fallback shape and the `after()` call sites.
+- **Not done (tracked):** preview load test and 7 days of production metrics, then removal of the TypeScript writer (U2 exit); both are owner / operational steps. Flag stays `next` by default.
+- **Risk / rollback:** `BACKEND_VIEWS=next` (or unset). Both writers take the same lock and write the same columns.
+
+### s27 tool change · `own-build-bench.mjs`: the exact Mann-Whitney test counts instead of enumerating
+- The merge of two invocations (12 + 12 runs) hit the old 20-value limit of the enumerating test. Assignments are now counted per doubled mid-rank sum (the same exact distribution, ties included), limited to 50 pooled values. `own-build-bench.test.mjs` 7 / 7, including a cross-check against full enumeration on 60 random tied samples and C(24, 12) = 2,704,156 assignments for 12 vs 12.

@@ -159,5 +159,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: |
+            services/api
             invitation-research/08-backend-rust-plan/feasibility-s26
       - run: bash scripts/ci/rust.sh
+        env:
+          CI_OUT: ${{ runner.temp }}/invitesion-ci

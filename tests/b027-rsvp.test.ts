@@ -99,8 +99,11 @@ test('B-027: wiring — both actions refuse before writing, with the page rule a
   const rsvp = actions.slice(actions.indexOf('export async function submitRsvp'), actions.indexOf('export async function submitGuestMessage'));
   const wish = actions.slice(actions.indexOf('export async function submitGuestMessage'));
   assert.match(actions, /normalizeStoredConfig\(invitation\.config/);
-  assert.ok(rsvp.indexOf('rsvpClosedReason(context.config.rsvp, Date.now())') > 0, 'RSVP checks its switch and deadline');
-  assert.ok(rsvp.indexOf('rsvpClosedReason(') < rsvp.indexOf('db.update(guests)'), 'RSVP refuses before the write');
+  // R-03: the shared decision checks the switch and the deadline first, at this request's clock, before the one write.
+  const decidedAt = rsvp.indexOf('now: Date.now() })');
+  assert.ok(decidedAt > 0 && decidedAt < rsvp.indexOf('db.update(guests)'), 'RSVP decides at the request clock before the write');
+  const decision = readFileSync(join(process.cwd(), 'lib/invitation/rsvp-decision.ts'), 'utf8');
+  assert.match(decision, /const closed = rsvpClosedReason\(config\.rsvp, input\.now\);\n\s*if \(closed\) return \{ kind: 'closed', reason: closed \};/, 'RSVP checks its switch and deadline');
   assert.ok(wish.indexOf('context.config.guestbook?.enabled === false') > 0, 'the guestbook checks its switch');
   assert.ok(wish.indexOf('guestbook?.enabled === false') < wish.indexOf('db.insert(guestMessages)'), 'the guestbook refuses before the write');
   const view = readFileSync(join(process.cwd(), 'components/invitation/guest-view.ts'), 'utf8');

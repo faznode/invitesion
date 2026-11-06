@@ -62,7 +62,51 @@ test('exact Mann-Whitney U: known values, symmetry and ties', () => {
   const interleaved = mannWhitneyExact([1, 3, 5], [2, 4, 6]);
   assert.ok(interleaved.p > 0.5 && interleaved.p <= 1);
   assert.deepEqual(mannWhitneyExact([], [1]), { u: null, p: null, assignments: 0 });
-  assert.throws(() => mannWhitneyExact(new Array(11).fill(1), new Array(10).fill(2)), /more than 20/);
+});
+
+/** The definition the counted distribution must match: every assignment of the pooled mid-ranks, enumerated. */
+function enumeratedMannWhitney(x, y) {
+  const pooled = [...x, ...y];
+  const order = pooled.map((value, index) => [value, index]).sort((p, q) => p[0] - q[0]);
+  const ranks = new Array(pooled.length);
+  for (let i = 0; i < order.length;) {
+    let j = i;
+    while (j + 1 < order.length && order[j + 1][0] === order[i][0]) j += 1;
+    for (let k = i; k <= j; k += 1) ranks[order[k][1]] = (i + j + 2) / 2;
+    i = j + 1;
+  }
+  const n1 = x.length;
+  const uOf = (picked) => picked.reduce((s, i) => s + ranks[i], 0) - (n1 * (n1 + 1)) / 2;
+  const observed = uOf([...Array(n1).keys()]);
+  const nullMean = (n1 * y.length) / 2;
+  let extreme = 0;
+  let total = 0;
+  const walk = (start, picked) => {
+    if (picked.length === n1) {
+      total += 1;
+      if (Math.abs(uOf(picked) - nullMean) >= Math.abs(observed - nullMean) - 1e-9) extreme += 1;
+      return;
+    }
+    for (let i = start; i <= pooled.length - (n1 - picked.length); i += 1) walk(i + 1, [...picked, i]);
+  };
+  walk(0, []);
+  return { u: observed, p: extreme / total, assignments: total };
+}
+
+test('exact Mann-Whitney U: the counted distribution equals full enumeration, ties included, and covers merged runs', () => {
+  let seed = 20261106;
+  const random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  for (let trial = 0; trial < 60; trial += 1) {
+    const draw = () => Math.floor(random() * 5);
+    const x = Array.from({ length: 1 + Math.floor(random() * 7) }, draw);
+    const y = Array.from({ length: 1 + Math.floor(random() * 7) }, draw);
+    assert.deepEqual(mannWhitneyExact(x, y), enumeratedMannWhitney(x, y), `${x} | ${y}`);
+  }
+  const twelve = mannWhitneyExact([...Array(12).keys()], [...Array(12).keys()].map((i) => i + 100));
+  assert.equal(twelve.assignments, 2704156);
+  assert.equal(twelve.p, 2 / 2704156);
+  assert.equal(twelve.u, 0);
+  assert.throws(() => mannWhitneyExact(new Array(26).fill(1), new Array(25).fill(2)), /more than 50/);
 });
 
 test('extractRun keeps the metrics, sizes and host fields of one report', () => {

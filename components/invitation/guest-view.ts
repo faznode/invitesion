@@ -38,6 +38,11 @@ export type GuestPageProps = {
   status: { rsvp?: string; wish?: string; rsvpq?: string; rsvpe?: string };
   /** The host's own preview (`/preview/[id]`): every event is shown, invite-only ones included (D-037). */
   preview?: boolean;
+  /**
+   * R-03: a key minted for this rendering of the RSVP form and sent back with it, so a double submit writes once
+   * (`Idempotency-Key` on the Rust writer). Only the personal guest page mints one; without it the form has no key.
+   */
+  rsvpKey?: string;
 };
 
 /**

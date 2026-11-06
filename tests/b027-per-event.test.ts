@@ -142,13 +142,16 @@ test('without per-event answers the form is exactly the single answer', () => {
 
 test('the action writes per-event answers in the same UPDATE as the status, scoped to the guest, and keeps them out of analytics', () => {
   const action = source('app/i/[slug]/actions.ts');
-  assert.match(action, /parseEventAnswers\(formData, events, context\.guest\.guestCount, \{ maybe \}\)/);
-  assert.match(action, /\?rsvp=events&rsvpe=\$\{encodeURIComponent\(parsed\.eventId\)\}/);
+  // R-03: the rules live in the shared decision (run as vectors in both languages); the action keeps the one write.
+  const decision = source('lib/invitation/rsvp-decision.ts');
+  assert.match(decision, /parseEventAnswers\(form, events, guest\.guestCount, \{ maybe \}\)/);
+  assert.match(decision, /if \(!parsed\.ok\) return \{ kind: 'events', eventId: parsed\.eventId \};/);
+  assert.match(action, /rsvp=events&rsvpe=\$\{encodeURIComponent\(refusal\.eventId\)\}/);
   // D-037 reads the stored answers once for both paths; the merge is unchanged.
-  assert.match(action, /const storedEventAnswers = readEventAnswers\(context\.guest\.rsvpEventAnswers\);/);
-  assert.match(action, /mergeEventAnswers\(storedEventAnswers, parsed\.answers\)/);
+  assert.match(decision, /const storedEventAnswers = readEventAnswers\(guest\.rsvpEventAnswers\);/);
+  assert.match(decision, /mergeEventAnswers\(storedEventAnswers, parsed\.answers\)/);
   // D-037 moved the rule into `singleAnswerEventAnswers` (flag off: untouched; per-event off: null), unit-tested in tests/d037-*.
-  assert.match(action, /rsvpEventAnswers = singleAnswerEventAnswers\(\{ flagOn: perEventOn, listed,/, 'a single answer replaces per-event answers only while the flag is on');
+  assert.match(decision, /rsvpEventAnswers = singleAnswerEventAnswers\(\{ flagOn: perEventOn, listed,/, 'a single answer replaces per-event answers only while the flag is on');
   assert.match(action, /\.\.\.\(rsvpEventAnswers !== undefined && \{ rsvpEventAnswers \}\) \}\)\.where\(eq\(guests\.id, context\.guest\.id\)\);/);
   assert.equal((action.match(/db\.update\(guests\)/g) ?? []).length, 1, 'one statement');
   assert.match(action, /meta: \{ status, guestCount: attendingCount, source: 'public' \}/, 'analytics carries no answers');

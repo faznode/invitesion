@@ -712,6 +712,9 @@ export function RsvpBlock({
       {status.rsvp === 'saved' && <Notice kind="success">Terima kasih, konfirmasimu sudah kami terima.</Notice>}
       {status.rsvp === 'invalid' && <Notice kind="error">Pilihan kehadiran tidak dikenali. Silakan coba lagi.</Notice>}
       {status.rsvp === 'closed' && <Notice kind="error">{RSVP_REFUSED}</Notice>}
+      {status.rsvp === 'busy' && (
+        <Notice kind="error">Konfirmasimu belum tersimpan karena terlalu banyak percobaan dalam waktu singkat. Silakan coba lagi beberapa menit lagi.</Notice>
+      )}
       {status.rsvp === 'answers' && (
         <Notice kind="error">
           Konfirmasimu belum tersimpan.{' '}
@@ -741,6 +744,7 @@ export function RsvpBlock({
         <form action={submitRsvp} className={formClassName}>
           <input type="hidden" name="slug" value={invitation.slug} />
           <input type="hidden" name="guestSlug" value={guestLinkSegment(guest)} />
+          {props.rsvpKey && <input type="hidden" name="rsvpKey" value={props.rsvpKey} />}
 
           {rsvpDeadlineText && (
             <p className={`text-sm ${tone.muted}`}>

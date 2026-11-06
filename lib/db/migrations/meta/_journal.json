@@ -113,6 +113,13 @@
       "when": 1793891132551,
       "tag": "0015_guest_invited_event_ids",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1793992095206,
+      "tag": "0016_api_operational_state",
+      "breakpoints": true
     }
   ]
 }

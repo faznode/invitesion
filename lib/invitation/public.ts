@@ -7,7 +7,7 @@ import { guestMessages, guests, invitations, mediaAssets } from '@/lib/db/schema
 import { normalizeStoredConfig } from './content-read';
 import type { DetailConfig } from './detail-config';
 import { pickGuestForSegment } from './guest-link';
-import { recordInvitationView } from './view-tracking';
+import { writeInvitationView } from './view-writer';
 
 export type PublicInvitation = Awaited<ReturnType<typeof loadPublicInvitation>>;
 
@@ -139,11 +139,12 @@ function readStoredConfig(invitationId: number, stored: unknown): DetailConfig {
  * collapse into the first one, atomically (B-017a, `view-tracking.ts`).
  *
  * Best-effort: a tracking failure must never stop a guest from seeing their
- * invitation.
+ * invitation. The writer (Next.js or the Rust API) is chosen per call by
+ * `BACKEND_VIEWS` (R-02, `view-writer.ts`).
  */
 export async function trackInvitationView(invitationId: number, guestId?: number | null) {
   try {
-    await recordInvitationView(db, invitationId, guestId);
+    await writeInvitationView(invitationId, guestId);
   } catch (error) {
     console.error('Failed to record invitation view', error);
   }

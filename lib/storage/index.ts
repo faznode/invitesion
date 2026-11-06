@@ -18,9 +18,12 @@ export { InvalidKeyError, assertSafeKey } from './driver';
  * against wherever the process was launched from, which is not necessarily the
  * project directory. Set `UPLOAD_ROOT` explicitly anywhere it matters — the
  * resolved value is logged on first use so it is never a mystery.
+ *
+ * Runtime storage, never a build input: `turbopackIgnore` keeps Next 16's file tracing from following this
+ * env-dependent path, which otherwise traces the whole project (and any local uploads) into the server output (F-01).
  */
 export const UPLOAD_ROOT = path.resolve(
-  process.env.UPLOAD_ROOT ?? path.join(process.cwd(), 'storage', 'uploads'),
+  /*turbopackIgnore: true*/ process.env.UPLOAD_ROOT ?? path.join(process.cwd(), 'storage', 'uploads'),
 );
 
 /**

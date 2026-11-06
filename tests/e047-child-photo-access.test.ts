@@ -2,7 +2,7 @@
 // storage namespace, owner-only `/media/protected/*`, personal-link photo route, ownership at save / render / delivery.
 // Fictional data and fake storage only; no network, database or Clerk.
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import type { DetailConfig } from '../lib/invitation/detail-config';
@@ -278,10 +278,14 @@ test('save: ownership and placement the schema cannot see, reported for touched 
 
 // ── Wiring ────────────────────────────────────────────────────
 
-test('wiring: Clerk middleware covers /media/protected (its general matcher skips images), uploads pick the namespace by purpose', () => {
-  const middleware = read('middleware.ts');
-  assert.ok(middleware.includes("'/media/protected/(.*)'"), 'explicit matcher');
-  assert.match(middleware, /if \(pathname\.startsWith\('\/media\/protected\/'\)\) return NextResponse\.next\(\);/);
+test('wiring: the Clerk proxy covers /media/protected (its general matcher skips images), uploads pick the namespace by purpose', () => {
+  // F-01: Next 16 names the file proxy.ts. Only one of the two conventions may exist, and a Proxy may not declare a
+  // runtime (Next 16 refuses to build it).
+  assert.equal(existsSync(join(process.cwd(), 'middleware.ts')), false, 'middleware.ts is gone');
+  const proxy = read('proxy.ts');
+  assert.ok(proxy.includes("'/media/protected/(.*)'"), 'explicit matcher');
+  assert.match(proxy, /if \(pathname\.startsWith\('\/media\/protected\/'\)\) return NextResponse\.next\(\);/);
+  assert.doesNotMatch(proxy, /^\s*runtime\s*:/m, 'no runtime key on a Proxy');
   const general = new RegExp('^/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|gif|webp|svg|ico|css|js)$).*)$');
   assert.equal(general.test(`/media/protected/1/${HEX}.jpg`), false, 'the general pattern alone would never run Clerk here');
   const upload = read('app/api/invitations/[id]/upload/route.ts');

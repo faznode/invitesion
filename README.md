@@ -112,7 +112,7 @@ Research checks (evidence references, feature matrix, benchmark pack, privacy) a
 
 | Path | What |
 |---|---|
-| `app/`, `components/`, `lib/`, `middleware.ts` | Product code (Next.js App Router) |
+| `app/`, `components/`, `lib/`, `proxy.ts` | Product code (Next.js 16 App Router; `proxy.ts` was `middleware.ts` before F-01) |
 | `lib/db/` | Schema and migrations |
 | `tests/`, `scripts/` | Unit tests, catalog seed, database smoke checks |
 | `tools/template-harness/`, `templates/_harness-samples/` | Template contract checker and its original samples |

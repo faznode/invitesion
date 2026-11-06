@@ -29,13 +29,17 @@ const securityHeaders = [
   { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains' },
 ];
 
+/**
+ * No `cacheComponents` (F-01, Next 16). Next 16 removed `experimental.ppr`; its successor, Cache Components, would give
+ * every route a prerendered shell again, and a shell's 200 is flushed before a guest page can call notFound(), so a
+ * wrong link would stop answering a real 404 (B-011, QA-003). Without it every dynamic page renders whole before its
+ * first byte. Adopting Cache Components is a separate decision with its own 404 proof. The client segment cache that
+ * `experimental.clientSegmentCache` enabled is the default router in Next 16.
+ */
 const nextConfig: NextConfig = {
-  experimental: {
-    // Opt-in per segment: the root layout opts every route in; the public guest pages opt out so a wrong link gets a
-    // real 404 (with PPR the shell's 200 is flushed before the page can call notFound()) — B-011, QA-003.
-    ppr: 'incremental',
-    clientSegmentCache: true,
-  },
+  // `next dev` in Next 16 otherwise writes its own instruction block into AGENTS.md, which the owner authors and which
+  // governs agents in this repository (seen in s27 at the first dev start). With `false` it also removes such a block.
+  agentRules: false,
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }];
   },

@@ -117,7 +117,7 @@ test('B-014 step 1: guest pages get no locale cookie; other routes still do', ()
   assert.equal(mirrorsLocaleCookie('/'), true);
   assert.equal(mirrorsLocaleCookie('/invitations'), true, 'a path that merely starts with "i" keeps the cookie');
   assert.equal(mirrorsLocaleCookie('/dashboard'), true);
-  assert.match(source('middleware.ts'), /if \(mirrorsLocaleCookie\(pathname\)\) \{\s*res\.cookies\.set\('locale'/);
+  assert.match(source('proxy.ts'), /if \(mirrorsLocaleCookie\(pathname\)\) \{\s*res\.cookies\.set\('locale'/);
 });
 
 test('B-014 step 1: one loader call per request — the loader is wrapped in React cache()', () => {

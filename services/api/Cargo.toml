@@ -1,0 +1,68 @@
+[package]
+name = "invitesion-api"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.99"
+publish = false
+description = "Invitesion domain API (ADR-A2, R-01): the authoritative writer for one data domain at a time, selected in Next.js by BACKEND_<DOMAIN>."
+default-run = "invitesion-api"
+
+[lib]
+path = "src/lib.rs"
+
+# Standalone server: local runs, CI's end-to-end contract check and the container fallback (09 §8.8).
+[[bin]]
+name = "invitesion-api"
+path = "src/main.rs"
+
+# Vercel Rust runtime entry (beta, Fluid compute): the same router behind the runtime's axum layer.
+[[bin]]
+name = "index"
+path = "api/index.rs"
+
+# Prints the OpenAPI document; CI compares it with the committed openapi.json (contract drift).
+[[bin]]
+name = "openapi"
+path = "src/bin/openapi.rs"
+
+[dependencies]
+axum = "0.8.9"
+tokio = { version = "1.54", features = ["rt-multi-thread", "macros", "net", "time", "signal", "sync"] }
+tower = { version = "0.5", features = ["util"] }
+tower-http = { version = "0.7", features = ["request-id", "trace"] }
+sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "tls-rustls-ring-webpki", "postgres", "time", "macros", "json"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+time = { version = "0.3", features = ["serde"] }
+thiserror = "2"
+hmac = "0.13"
+sha2 = "0.11"
+hex = "0.4"
+jsonwebtoken = { version = "11", default-features = false, features = ["rust_crypto"] }
+reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider", "json"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+# WHATWG URL parsing, the standard zod's `.url()` applies through `new URL()` (R-03 lenient config read).
+url = "2.5"
+uuid = { version = "1", features = ["v4"] }
+utoipa = { version = "6", features = ["preserve_order"] }
+vercel_runtime = { version = "2.4", features = ["axum"] }
+
+[dev-dependencies]
+http-body-util = "0.1"
+rsa = "0.9"
+base64 = "0.23"
+rand = "0.8"
+
+# Test-time RSA key generation is slow unoptimised.
+[profile.dev.package.num-bigint-dig]
+opt-level = 3
+
+[profile.dev.package.rsa]
+opt-level = 3
+
+[profile.release]
+codegen-units = 1
+lto = "fat"
+opt-level = 3

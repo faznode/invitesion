@@ -42,10 +42,14 @@ measurement_middleware() {
   # first middleware-matched request (100 % CPU, RSS +570 MB in 15 s; same with a resolvable frontend-API host).
   # Without real keys we therefore build the snapshot WITHOUT middleware.ts (copy only, product code untouched).
   # Effect on measurements: no CSP header, no `locale` cookie, no Clerk headers; page payload is unchanged.
-  # Set KEEP_MIDDLEWARE=1 when real Clerk keys are available.
-  if [ "${KEEP_MIDDLEWARE:-0}" != "1" ] && [ -f "$APP/middleware.ts" ]; then
-    mv "$APP/middleware.ts" "$APP/.middleware.ts.measurement-off"
-    echo "build: measurement variant (middleware.ts set aside in $APP only)"
+  # Set KEEP_MIDDLEWARE=1 when real Clerk keys are available. Next 16 names the file proxy.ts (F-01); either is set aside.
+  if [ "${KEEP_MIDDLEWARE:-0}" != "1" ]; then
+    for file in middleware.ts proxy.ts; do
+      if [ -f "$APP/$file" ]; then
+        mv "$APP/$file" "$APP/.$file.measurement-off"
+        echo "build: measurement variant ($file set aside in $APP only)"
+      fi
+    done
   fi
 }
 

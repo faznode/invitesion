@@ -18,6 +18,8 @@ Scales: impact 1–5; effort S ≤ 2 dev-days, M ≤ 2 weeks, L > 2 weeks; risk 
 
 **Totals:** 42 items (B-001…B-041 plus B-017a). **s26 Phase C: 18 DONE, 5 PARTIAL, 19 OPEN** (one of them EXT). B-041 is done; B-020 and B-012 are done in the repository and await their first GitHub Actions run (EXT). At s25: 15 DONE, 7 PARTIAL, 20 OPEN.
 
+**s27 (new items, see "Chains for the new items" below and `../_handoff/IMPLEMENTATION-LOG.md`):** the first GitHub Actions run passed all five jobs on `87e14dc`, so B-020 / B-012 no longer wait for it. **F-01 DONE** (E-056: Next.js 16.4.5 adopted after CI and the same-host bench). **R-01 and R-02 built and verified in the sandbox** (E-057, E-058) and **PARTIAL** until their operational steps: R-01's preview deployment, health SLO, cold start and trace export; R-02's preview load test, 7 days of metrics and removal of the TypeScript writer. **R-03 and R-04 OPEN.** U1's exit criterion holds; U2's (7 days live per slice) is operational.
+
 | Item | State (s25) | Evidence |
 |---|---|---|
 | B-001…B-008, B-010 | **DONE** (s09) | E-001…E-008, E-010 |

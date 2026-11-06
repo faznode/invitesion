@@ -68,34 +68,45 @@ function midRanks(pooled) {
   return ranks;
 }
 
-function* combinations(n, k, start = 0, picked = []) {
-  if (picked.length === k) { yield picked; return; }
-  for (let i = start; i <= n - (k - picked.length); i += 1) yield* combinations(n, k, i + 1, [...picked, i]);
-}
+/** Largest pooled sample whose assignment counts stay exact in a double: C(50, 25) ≈ 1.3e14 < 2^53. */
+const MAX_POOLED = 50;
 
 /**
- * Exact two-sided Mann-Whitney U test by enumerating every assignment of the pooled mid-ranks to the first sample.
+ * Exact two-sided Mann-Whitney U test over every assignment of the pooled mid-ranks to the first sample. The
+ * assignments are counted per rank sum by dynamic programming (mid-ranks doubled to integers) rather than enumerated,
+ * so the distribution is the same exact one, ties included, while merged invocations (12 + 12 runs, s27) stay cheap.
  * Returns U for x, the p-value (share of assignments at least as far from the null mean as observed) and the number
- * of assignments. Limited to 20 pooled values (184,756 assignments).
+ * of assignments, C(n1 + n2, n1). Limited to 50 pooled values.
  */
 export function mannWhitneyExact(x, y) {
   const a = x.filter(Number.isFinite);
   const b = y.filter(Number.isFinite);
   if (a.length === 0 || b.length === 0) return { u: null, p: null, assignments: 0 };
-  if (a.length + b.length > 20) throw new Error('mannWhitneyExact: more than 20 pooled values');
-  const ranks = midRanks([...a, ...b]);
+  if (a.length + b.length > MAX_POOLED) throw new Error(`mannWhitneyExact: more than ${MAX_POOLED} pooled values`);
+  const doubled = midRanks([...a, ...b]).map((rank) => Math.round(rank * 2));
   const n1 = a.length;
-  const uOf = (rankSum) => rankSum - (n1 * (n1 + 1)) / 2;
-  const observed = uOf(ranks.slice(0, n1).reduce((s, r) => s + r, 0));
+  const maxSum = doubled.reduce((s, r) => s + r, 0);
+  // ways[k][s]: assignments of k pooled values to the first sample whose doubled rank sum is s (each value used once).
+  const ways = Array.from({ length: n1 + 1 }, () => new Float64Array(maxSum + 1));
+  ways[0][0] = 1;
+  doubled.forEach((rank, index) => {
+    for (let k = Math.min(index + 1, n1); k >= 1; k -= 1) {
+      const from = ways[k - 1];
+      const to = ways[k];
+      for (let s = maxSum - rank; s >= 0; s -= 1) if (from[s]) to[s + rank] += from[s];
+    }
+  });
+  const uOf = (doubledSum) => doubledSum / 2 - (n1 * (n1 + 1)) / 2;
+  const observed = uOf(doubled.slice(0, n1).reduce((s, r) => s + r, 0));
   const nullMean = (n1 * b.length) / 2;
   const distance = Math.abs(observed - nullMean);
   let extreme = 0;
   let total = 0;
-  for (const pick of combinations(ranks.length, n1)) {
-    total += 1;
-    const u = uOf(pick.reduce((s, i) => s + ranks[i], 0));
-    if (Math.abs(u - nullMean) >= distance - 1e-9) extreme += 1;
-  }
+  ways[n1].forEach((count, sum) => {
+    if (!count) return;
+    total += count;
+    if (Math.abs(uOf(sum) - nullMean) >= distance - 1e-9) extreme += count;
+  });
   return { u: observed, p: extreme / total, assignments: total };
 }
 

@@ -91,6 +91,8 @@ Hosting and database regions and plans, real Clerk keys (production middleware b
 ## 8. Target architecture (s26: ADR-A2 backend, ADR-F1 frontend)
 §1–§7 describe today's system and ADR-A1's measured history, which stand. This section is the target that the upgrade order (`06-backlog.md` "Upgrade order (s26)") implements. **It is not FINAL while the research gate is open** (`../_handoff/research-closure-s26.md`).
 
+**Implementation status (s27):** the product service exists in `services/api` with R-01's foundation and R-02's views slice (`../_handoff/IMPLEMENTATION-LOG.md` E-057, E-058; contract in `services/api/openapi.json`, writer selection in `lib/backend.ts`, views live on `next` until the rollout gates pass). F-01 moved the frontend to Next.js 16.4.5 stable with `proxy.ts` (E-056). The s26 experiment stays frozen research. Deployment, trace export and the 7-day observations are open operational steps.
+
 ### 8.1 Decision
 - **Rust becomes the authoritative backend for domain rules and writes, one data domain at a time (strangler).** Next.js stays the presentation layer (§8.9).
 - ADR-A1's measurements remain true: the guest-page cost is the React render (≈ 85–90 %), and Rust does not remove it, so speed is **not** the reason.

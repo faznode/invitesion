@@ -12,9 +12,6 @@ const instrumentSerif = Instrument_Serif({
   style: ['normal', 'italic'],
 });
 
-// Every route keeps partial prerendering (next.config `ppr: 'incremental'`); `app/i/[slug]/**` pages opt out (B-011).
-export const experimental_ppr = true;
-
 /** Absolute base for relative metadata URLs (link-preview images, B-010); an invalid value must not break every page. */
 function metadataBaseFromEnv(): URL | undefined {
   const configured = process.env.NEXT_PUBLIC_APP_URL?.trim();

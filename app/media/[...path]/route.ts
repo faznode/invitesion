@@ -12,7 +12,7 @@ type Ctx = { params: Promise<{ path: string[] }> };
  * Serves runtime-uploaded media from whichever storage driver is configured (local disk in development, S3-compatible
  * object storage in production). Key validation lives in the driver layer; the audience rule (public uploads versus a
  * child's photo under `protected/`, D-040) lives in `serveMedia`. The owner check below needs Clerk's middleware, which
- * `middleware.ts` runs for `/media/protected/*` explicitly (its general matcher skips image extensions).
+ * `proxy.ts` runs for `/media/protected/*` explicitly (its general matcher skips image extensions).
  */
 export async function GET(_req: Request, { params }: Ctx) {
   const segments = (await params).path ?? [];

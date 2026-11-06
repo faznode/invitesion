@@ -10,6 +10,7 @@ import {
   unique,
   uniqueIndex,
   index,
+  primaryKey,
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
@@ -399,6 +400,39 @@ export const messagesRelations = relations(messages, ({ one }) => ({
     references: [conversations.id],
   }),
 }));
+
+// ─────────────────────────────────────────────
+// API OPERATIONAL STATE (R-03, D-042): written only by the Rust API (services/api); no domain data
+// ─────────────────────────────────────────────
+// Fixed-window write counters shared by every API instance (B-013). `bucket` names what is limited:
+// `rsvp:link:<guest id>` or `rsvp:ip:<keyed hash>`; an address never reaches this table. Rows older than a day are pruned.
+export const apiRateLimits = pgTable(
+  'api_rate_limits',
+  {
+    bucket: varchar('bucket', { length: 120 }).primaryKey(),
+    windowStart: timestamp('window_start').notNull(),
+    hits: integer('hits').notNull(),
+  },
+  (t) => ({ windowIdx: index('api_rate_limits_window_idx').on(t.windowStart) }),
+);
+
+// A write protected by an `Idempotency-Key`, committed in the same transaction as that write with its response, so a
+// retry replays the response. `scope` names the resource (`rsvp:guest:<id>`, `rsvp:host:<id>`). Kept 24 hours.
+export const apiIdempotencyKeys = pgTable(
+  'api_idempotency_keys',
+  {
+    scope: varchar('scope', { length: 120 }).notNull(),
+    key: varchar('key', { length: 255 }).notNull(),
+    requestHash: varchar('request_hash', { length: 64 }).notNull(),
+    responseStatus: integer('response_status').notNull(),
+    responseBody: jsonb('response_body').notNull(),
+    createdAt: timestamp('created_at').notNull(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.scope, t.key] }),
+    createdIdx: index('api_idempotency_keys_created_idx').on(t.createdAt),
+  }),
+);
 
 // ─────────────────────────────────────────────
 // TYPES

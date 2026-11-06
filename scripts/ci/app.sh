@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# CI job "app" (B-020): typecheck, unit tests and the production build exactly as deployed (middleware included).
+# CI job "app" (B-020): typecheck, unit tests and the production build exactly as deployed (proxy.ts included).
 #   CI=true bash scripts/ci/app.sh            # in a disposable workspace; locally: bash scripts/ci/local.sh app
 set -euo pipefail
 cd "$(dirname "$0")/../.."
@@ -12,4 +12,4 @@ export POSTGRES_URL=${POSTGRES_URL:-postgres://build:build@127.0.0.1:9/no-databa
 
 step "typecheck" pnpm typecheck
 step "unit tests" pnpm test
-step "production build (with middleware)" pnpm build
+step "production build (with proxy)" pnpm build

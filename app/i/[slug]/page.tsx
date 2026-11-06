@@ -5,9 +5,8 @@ import { PublicInvitationRenderer } from '@/components/invitation/public-rendere
 import { invitationShareMetadata } from '@/lib/invitation/preview-image';
 import { loadPublicInvitation, trackInvitationView } from '@/lib/invitation/public';
 
+// Rendered whole so an unknown or draft invitation answers 404 rather than 200 (B-011; next.config.ts).
 export const dynamic = 'force-dynamic';
-// Rendered whole so an unknown or draft invitation answers 404 rather than 200 (B-011).
-export const experimental_ppr = false;
 
 type Params = { params: Promise<{ slug: string }> };
 

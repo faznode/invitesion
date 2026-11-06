@@ -44,6 +44,14 @@ export function rsvpSummary(rows: readonly { rsvpStatus: string; attendingCount:
 }
 
 /**
+ * The headcount a guest typed, read from the form field exactly as the RSVP action always has (`Number(field || 1)`);
+ * `rsvpAttendance` then clamps it. Named so the shared RSVP vectors (R-03) pin this boundary conversion too.
+ */
+export function requestedHeadcount(field: unknown): number {
+  return Number(field || 1);
+}
+
+/**
  * People attending for an answer: 0 on decline; unknown (null) for "maybe", so a tentative answer never enters a
  * headcount; otherwise the requested number clamped to 1…allowance.
  */

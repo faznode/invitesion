@@ -3,17 +3,17 @@
 import { and, eq, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
+import { ownerSessionToken } from '@/lib/auth/clerk-user';
+import { backendFor } from '@/lib/backend';
 import { getUser } from '@/lib/db/queries';
 import { db } from '@/lib/db/drizzle';
 import { analyticsEvents, guests, invitations } from '@/lib/db/schema';
 import { isFlagOn } from '@/lib/flags';
 import { normalizeStoredConfig } from '@/lib/invitation/content-read';
-import { guestAudience, inviteOnlyEvents, invitedIdsFromForm, visibleEvents } from '@/lib/invitation/event-eligibility';
+import { inviteOnlyEvents, invitedIdsFromForm } from '@/lib/invitation/event-eligibility';
 import { newGuestLinkToken } from '@/lib/invitation/guest-link';
-import { hostRsvpUpdate, perEventRsvpEvents, readEventAnswers, type HostRsvpStatus } from '@/lib/invitation/rsvp-events';
-
-const HOST_STATUSES: readonly HostRsvpStatus[] = ['PENDING', 'CONFIRMED', 'DECLINED', 'MAYBE'];
-const isHostStatus = (value: string): value is HostRsvpStatus => (HOST_STATUSES as readonly string[]).includes(value);
+import { decideHostRsvp, isHostRsvpStatus } from '@/lib/invitation/rsvp-decision';
+import { writeHostRsvpThroughApi } from '@/lib/invitation/rsvp-writer';
 
 function slugify(value: string) { return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'tamu'; }
 
@@ -38,8 +38,8 @@ export async function addScopedGuest(formData: FormData) {
 
 /**
  * Dashboard operations on one guest. RSVP operations (`CONFIRMED`, …, or `event:<eventId>:<STATUS>` for one event) go
- * through `hostRsvpUpdate` (D-037): the status, the people attending and the per-event answers are written by one UPDATE,
- * so the dashboard never leaves them contradicting each other.
+ * through `decideHostRsvp` (`hostRsvpUpdate`, D-037): the status, the people attending and the per-event answers are
+ * written by one UPDATE, so the dashboard never leaves them contradicting each other.
  */
 export async function updateGuestOperation(formData: FormData) {
   const { invitationId, config, path }=await context(formData); const guestId=Number(formData.get('guestId')); const operation=String(formData.get('operation'));
@@ -51,17 +51,21 @@ export async function updateGuestOperation(formData: FormData) {
     const [scope, eventId, eventStatus] = operation.startsWith('event:') ? operation.split(':') : [undefined, undefined, operation];
     const status = String(eventStatus ?? '');
     if (scope !== undefined && !eventId) redirect(`${path}?error=invalid`);
-    if (!isHostStatus(status)) redirect(`${path}?error=invalid`);
-    const perEventOn = isFlagOn('RSVP_PER_EVENT');
-    const listed = perEventRsvpEvents({ perEvent: config.rsvp?.perEvent, events: config.events }, perEventOn);
-    const asked = visibleEvents(listed, guestAudience(owned), isFlagOn('INVITE_ONLY_EVENTS'));
-    const update = hostRsvpUpdate({
-      status, eventId, flagOn: perEventOn, listed, asked, stored: readEventAnswers(owned.rsvpEventAnswers),
-      previous: { rsvpStatus: owned.rsvpStatus, attendingCount: owned.attendingCount },
-    });
-    if (!update) redirect(`${path}?error=invalid`);
-    await db.update(guests).set(update).where(and(eq(guests.id,guestId),eq(guests.invitationId,invitationId)));
-    await db.insert(analyticsEvents).values({invitationId,guestId,eventType:'RSVP',meta:{status:update.rsvpStatus,source:'dashboard'}});
+    if (!isHostRsvpStatus(status)) redirect(`${path}?error=invalid`);
+    // R-03: the same pure rule (`hostRsvpUpdate` behind `decideHostRsvp`) the Rust override endpoint applies; exactly
+    // one writer per call (`BACKEND_RSVP`), never a fallback to the other.
+    const flags = { perEvent: isFlagOn('RSVP_PER_EVENT'), inviteOnlyEvents: isFlagOn('INVITE_ONLY_EVENTS') };
+    if (backendFor('RSVP') === 'rust') {
+      const ownerToken = await ownerSessionToken();
+      if (!ownerToken) redirect('/sign-in');
+      const outcome = await writeHostRsvpThroughApi({ invitationId, guestId, status, eventId, flags, ownerToken });
+      if (outcome.kind !== 'saved') redirect(`${path}?error=${outcome.kind}`);
+    } else {
+      const update = decideHostRsvp({ config, guest: owned, status, eventId, flags });
+      if (!update) redirect(`${path}?error=invalid`);
+      await db.update(guests).set(update).where(and(eq(guests.id,guestId),eq(guests.invitationId,invitationId)));
+      await db.insert(analyticsEvents).values({invitationId,guestId,eventType:'RSVP',meta:{status:update.rsvpStatus,source:'dashboard'}});
+    }
   }
   revalidatePath(path);
 }

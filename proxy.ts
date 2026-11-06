@@ -88,8 +88,12 @@ function isCustomerRoute(pathname: string) {
 /**
  * Session handling is Clerk's; everything else here is still ours.
  *
+ * Next 16 renamed the `middleware` file convention to `proxy` (F-01); the
+ * handler is unchanged. `clerkMiddleware` keeps Clerk's name for the same
+ * function.
+ *
  * `clerkMiddleware` only establishes who is signed in. The three things this
- * middleware did before that Clerk has no opinion about are unchanged:
+ * proxy did before that Clerk has no opinion about are unchanged:
  * locale resolution, the per-request CSP nonce, and the private admin entry.
  *
  * Note what is NOT delegated: the admin gate still runs against our own
@@ -212,5 +216,5 @@ export const config = {
     // session here. The first pattern skips image extensions, so this prefix is matched explicitly.
     '/media/protected/(.*)',
   ],
-  runtime: 'nodejs',
+  // No `runtime` key: a Proxy always runs on Node.js and Next 16 rejects any route segment config here (F-01).
 };

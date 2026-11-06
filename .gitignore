@@ -71,3 +71,7 @@ node_modules
 # Owner keeps agent prompts and raw response transcripts outside the repository.
 /invitation-research/_handoff/briefs/
 /invitation-research/_handoff/logs/
+
+# Rust build output when CARGO_TARGET_DIR is not set (R-01). services/api/.sqlx/ is generated but committed.
+/services/api/target/
+/invitation-research/08-backend-rust-plan/feasibility-s26/target/
