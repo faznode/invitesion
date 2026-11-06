@@ -153,6 +153,7 @@ async function key(cdp: Cdp, name: 'Tab' | 'Enter' | 'Escape') {
 
 const OPEN = '#sampul a[href="#sampul"]:first-of-type';
 const QUIET = '#sampul a[href="#sampul"]:nth-of-type(2)';
+const OPEN_FOCUSED = `document.activeElement?.matches(${JSON.stringify(OPEN)}) === true`;
 const STATE = `(() => {
   const gate = document.getElementById('sampul');
   const audio = document.querySelector('audio');
@@ -207,7 +208,7 @@ export async function runCoverGate(options: { base: string; pages: string[]; man
         check('first-paint: Chrome exposes a link named "Buka Undangan"', roles.includes('link'), roles);
         const shot = await cdp.send('Page.captureScreenshot', { format: 'png' });
         writeFileSync(join(options.out, `${page}-gate-360.png`), Buffer.from(shot.data, 'base64'));
-        const hydratedIn = await waitFor(cdp, HYDRATED, 10_000);
+        const hydratedIn = await waitFor(cdp, `${HYDRATED} && !!document.querySelector('main')?.closest('[inert]')`, 10_000);
         const settled = await state();
         check('hydrated: the page behind the gate is inert and the document does not scroll', hydratedIn !== null && settled.inert && settled.locked && !settled.playing, { hydratedIn, ...settled });
 
@@ -238,21 +239,21 @@ export async function runCoverGate(options: { base: string; pages: string[]; man
         const quiet = await state();
         check('quiet: "Buka tanpa musik" opens without sound and offers the control unpressed', !quiet.gateShown && !quiet.playing && quiet.pressed === 'false', quiet);
 
-        // keyboard: the island focuses the open link on hydration, so Enter is the guest's first key.
+        // React's event handlers can be attached before the effect sets focus. Wait for the
+        // guest-visible state the keyboard check needs, without moving focus from the test.
         await load(cdp, url(page));
-        await waitFor(cdp, HYDRATED, 10_000);
-        const focused = await evaluate<string>(cdp, `document.activeElement?.textContent?.trim() ?? ''`);
+        const focusedIn = await waitFor(cdp, OPEN_FOCUSED, 10_000);
         await key(cdp, 'Enter');
         const keyGone = await waitFor(cdp, `(() => { const g = document.getElementById('sampul'); return !g || g.hidden; })()`, 3000);
         const keyPlaying = await waitFor(cdp, `(() => { const a = document.querySelector('audio'); return !!a && !a.paused; })()`, 3000);
-        check('keyboard: focus starts on "Buka Undangan" and Enter opens with music', focused === 'Buka Undangan' && keyGone !== null && keyPlaying !== null, { focused, keyGone, keyPlaying });
+        check('keyboard: focus starts on "Buka Undangan" and Enter opens with music', focusedIn !== null && keyGone !== null && keyPlaying !== null, { focusedIn, keyGone, keyPlaying });
         await load(cdp, url(page));
-        await waitFor(cdp, HYDRATED, 10_000);
+        const escapeFocusedIn = await waitFor(cdp, OPEN_FOCUSED, 10_000);
         await key(cdp, 'Escape');
         const escGone = await waitFor(cdp, `(() => { const g = document.getElementById('sampul'); return !g || g.hidden; })()`, 3000);
         await sleep(300);
         const esc = await state();
-        check('keyboard: Escape opens without music', escGone !== null && !esc.playing, { escGone, ...esc });
+        check('keyboard: Escape opens without music', escapeFocusedIn !== null && escGone !== null && !esc.playing, { escapeFocusedIn, escGone, ...esc });
 
         // reduced
         await motion('reduce');
@@ -274,12 +275,12 @@ export async function runCoverGate(options: { base: string; pages: string[]; man
         await cdp.send('Emulation.setScriptExecutionDisabled', { value: true });
         await load(cdp, url(page));
         await key(cdp, 'Tab');
-        const firstTab = await evaluate<string>(cdp, `document.activeElement?.textContent?.trim() ?? ''`);
+        const firstTabOnOpen = await evaluate<boolean>(cdp, OPEN_FOCUSED);
         await clickSelector(cdp, OPEN);
         await sleep(200);
         const noJs = await evaluate<{ shown: boolean; scrolls: boolean }>(cdp, `(() => { const g = document.getElementById('sampul'); return { shown: getComputedStyle(g).display !== 'none', scrolls: getComputedStyle(document.documentElement).overflow !== 'hidden' }; })()`);
         await cdp.send('Emulation.setScriptExecutionDisabled', { value: false });
-        check('no-js: Tab reaches "Buka Undangan" first and a click opens the invitation', firstTab === 'Buka Undangan' && !noJs.shown && noJs.scrolls, { firstTab, ...noJs });
+        check('no-js: Tab reaches "Buka Undangan" first and a click opens the invitation', firstTabOnOpen && !noJs.shown && noJs.scrolls, { firstTabOnOpen, ...noJs });
       } catch (error) {
         check('the run completed', false, String(error));
         await cdp.send('Emulation.setScriptExecutionDisabled', { value: false }).catch(() => undefined);
