@@ -990,6 +990,16 @@ export function RsvpBlock({
       ) : (
         <p className={fallbackClassName}>{closedText}</p>
       )}
+      {view.guestPassHref && (
+        <div className="mt-6 flex justify-center">
+          <a
+            href={view.guestPassHref}
+            className={`inline-flex min-h-11 items-center justify-center rounded-lg border px-5 text-sm font-semibold transition ${tone.line} ${tone.field} ${tone.hoverSoft}`}
+          >
+            Lihat QR pass untuk hari-H
+          </a>
+        </div>
+      )}
     </>
   );
 }

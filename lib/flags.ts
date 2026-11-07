@@ -56,6 +56,20 @@ const DEFAULTS = {
    * version either way, so a stale tab is refused instead of overwriting another tab's edits.
    */
   EDITOR_AUTOSAVE: false,
+  /**
+   * B-037 (I-08): the catalog's "Pakai tema" opens the wizard (`/buat/<tema>`): names, date and theme, rendered by the real
+   * invitation renderer before anything is stored, and saved as a draft after sign-in. Off until the owner's signed-in
+   * check with real keys (DA-01: the sign-in and sign-up round trip that must keep the typed draft): off is the old path,
+   * exactly as before (sign in, then an empty draft from the theme), and `/buat/*` answers 404.
+   */
+  CREATION_WIZARD: false,
+  /**
+   * B-024 (I-01 / I-27, D-056): the guest pass (a signed QR on the guest's personal link, `/i/<slug>/<guest>/pass`) and
+   * the host's scanner (`/dashboard/invitations/<id>/checkin`, camera or a handheld scanner, an offline queue, the
+   * greeting screen and a manual fallback). Each invitation still opts in (`config.checkInSettings.enabled`). Off: no
+   * pass, no scanner, and every pass is inert (the check-in route answers 404); stored check-ins are kept.
+   */
+  GUEST_PASS: false,
 } as const;
 
 export type FlagName = keyof typeof DEFAULTS;

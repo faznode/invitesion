@@ -13,6 +13,7 @@ import {
   type TemplateStyleTag,
 } from '@/lib/invitation/templates';
 import { getThemeArt } from '@/lib/invitation/theme-art';
+import { templateUseHref } from '@/lib/invitation/template-use-href';
 import styles from './templates.module.css';
 import ui from './catalog-ui.module.css';
 
@@ -79,7 +80,8 @@ const COPY: Record<
   },
 };
 
-export default function CatalogClient({ locale = 'id' }: { locale?: Locale }) {
+/** `wizard`: B-037's `FLAG_CREATION_WIZARD`, read on the server; "Pakai tema" opens the wizard when on. */
+export default function CatalogClient({ locale = 'id', wizard = false }: { locale?: Locale; wizard?: boolean }) {
   const [cat, setCat] = useState<TemplateCategory | 'all'>('all');
   const [tag, setTag] = useState<TemplateStyleTag | 'all'>('all');
   const [showAll, setShowAll] = useState(false);
@@ -251,7 +253,7 @@ export default function CatalogClient({ locale = 'id' }: { locale?: Locale }) {
                     <Link href={`/templates/${tpl.slug}`} className={styles.previewLink}>
                       <Eye size={14} aria-hidden="true" /> {t.preview}
                     </Link>
-                    <Link href={`/dashboard/templates/use?slug=${tpl.slug}`} className={styles.useLink}>
+                    <Link href={templateUseHref(tpl.slug, wizard)} className={styles.useLink}>
                       {t.use} <ArrowUpRight size={14} aria-hidden="true" />
                     </Link>
                   </div>

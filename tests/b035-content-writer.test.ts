@@ -147,7 +147,8 @@ test('only the facade loads a content writer', () => {
 
 test('the writer inventory: the version table is written by creation and the content writers only, the config by the writers', () => {
   const versionWriters = APP_FILES.filter((path) => /\.(?:insert|update|delete)\(invitationVersions\)/.test(source(path)));
-  assert.deepEqual(versionWriters.sort(), ['lib/invitation/content-next.ts', 'lib/invitation/create.ts']);
+  // B-037 (D-055): creation's TypeScript writer is `create-next.ts` behind the creation facade (`create.ts` only wraps it).
+  assert.deepEqual(versionWriters.sort(), ['lib/invitation/content-next.ts', 'lib/invitation/create-next.ts']);
   const configWriters = APP_FILES.filter((path) => /\.update\(invitations\)\s*\.set\(\{\s*config\b/.test(source(path)));
   assert.deepEqual(configWriters, ['lib/invitation/content-next.ts']);
   // Publishing and payment write the lifecycle columns, never the content.
@@ -157,7 +158,8 @@ test('the writer inventory: the version table is written by creation and the con
     }
   }
   const rust = filesUnder('services/api/src', /\.rs$/).filter((path) => /(?:update invitations set config|insert into invitation_versions|update invitation_versions)/i.test(source(path)));
-  assert.deepEqual(rust, ['services/api/src/content/http.rs']);
+  // B-037 (D-055): the Rust creation writer (`POST /v1/invitations`) writes version 1 beside the editor's saves.
+  assert.deepEqual(rust.sort(), ['services/api/src/content/create.rs', 'services/api/src/content/http.rs']);
 });
 
 /** Each needle after the previous one, from `start`; -1 marks the first one missing in that order. */
@@ -225,9 +227,10 @@ test('the editor loads config and version from one statement and saves with the 
   assert.match(flags, /EDITOR_AUTOSAVE: false,/, 'off until the signed-in check with real keys');
 });
 
-test('only the owner preview may be framed, by this origin, and its embedded form renders the invitation unchanged', () => {
+test('only the owner preview (and since B-037 the wizard preview) may be framed, by this origin, and its embedded form renders the invitation unchanged', () => {
   const proxy = source('proxy.ts');
-  assert.match(proxy, /pathname\.startsWith\('\/preview\/'\) \? "frame-ancestors 'self'" : "frame-ancestors 'none'"/);
+  // Exactly two framed surfaces, both form-free renders: `/preview/<id>` and the one path `/buat/pratinjau` (D-055).
+  assert.match(proxy, /pathname\.startsWith\('\/preview\/'\) \|\| pathname === '\/buat\/pratinjau' \? "frame-ancestors 'self'" : "frame-ancestors 'none'"/);
   assert.match(proxy, /frameAncestorsFor\(pathname\)/);
   assert.doesNotMatch(proxy, /"frame-ancestors 'none'",/, 'no page-wide frame rule remains');
   const preview = source('app/preview/[id]/page.tsx');

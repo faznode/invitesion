@@ -5,7 +5,7 @@
 > OWNER: Research agent
 > DEPS: ../01-codebase-audit/flows.md, ../03-teardowns/_flows/, ../03-teardowns/*/dossier.md §2, 06-backlog.md, ../07-ideation/top-10.md
 > GREP: flow, journey, creator, guest, host, reseller, post-event, steps, observed, claimed, proposed, today s25
-> UPDATED: 2026-11-06
+> UPDATED: 2026-11-07 (s33: §1 steps 2–3, the creation wizard; s32: §1 steps 4–6)
 
 Step = one screen or one deliberate action. Vocabulary as in `../03-teardowns/_flows/README.md`: OBSERVED (seen on a public page or capture), CLAIMED (vendor's own description), PROPOSED (our target), UNKNOWN. Competitor step counts are CLAIMED unless a capture ID is given (ENV 4 steps to a shareable link, PLO 5 steps "under 5 minutes", IDI "5 menit").
 
@@ -13,8 +13,8 @@ Step = one screen or one deliberate action. Vocabulary as in `../03-teardowns/_f
 | # | Today (s25; `flows.md` + changes since s09) | Target (PROPOSED) | Backlog |
 |---|---|---|---|
 | 1 | Browse catalog (filters) | same | — |
-| 2 | Sign up / log in | **Type names + date on a template → instant preview** (no account yet) | B-037 |
-| 3 | Create from template (preset kept since s09; baseline lost it, QA-001) | Save → account creation (Clerk) with the draft kept | B-001 (done), B-037 |
+| 2 | Sign up / log in. **Since s33 (B-037, E-073, D-055), behind `FLAG_CREATION_WIZARD` (off):** "Pakai tema" opens the wizard (`/buat/<tema>`): names, date and theme, rendered by the real guest renderer as the visitor types, with nothing stored (the typed content stays in the visitor's own cookie) | **Type names + date on a template → instant preview** (no account yet) (**done in the sandbox**, s33; the signed-in round trip with real keys is DA-01 item 6) | B-037 |
+| 3 | Create from template (preset kept since s09; baseline lost it, QA-001). **Since s33:** the save asks for sign-in or sign-up and comes back to `/buat/simpan` with the typed draft kept; one tap creates the draft (one per wizard, whatever the taps or retries) and opens the editor. Every creation goes through one facade (`BACKEND_CONTENT`, Rust writer built) | Save → account creation (Clerk) with the draft kept | B-001 (done), B-037 |
 | 4–6 | Form editor with manual save; preview via the owner route `/preview/[id]` (baseline: 404, QA-011). **Since s14:** an optional design family per invitation (`theme.familyId`; classic layout by default). The host can also edit RSVP questions (E-031), invite-only events (E-038), and person and child photos (E-039, E-047). **Since s32 (B-035, E-071, D-053):** every save carries the version the editor loaded and a stale one is refused with a choice (load the latest, or keep this tab's edits), never overwritten; behind `FLAG_EDITOR_AUTOSAVE` (off) the editor saves by itself shortly after the host stops typing and shows the owner preview beside the fields; content writes through `BACKEND_CONTENT` (`next`, Rust writer built). **Since s32 turn 3 (B-036, E-072, D-054):** the theme tab lists the event type's catalog themes; a switch within the entitled tier stores the catalog id and its palette, keeps the content and never invokes checkout (`invitations.template_id`, the purchased theme, is untouched); Premium themes below the entitlement are shown locked and refused by both writers | Editor with live preview + autosave; theme switch free within tier (**done in the sandbox**, s32; the upgrade to a higher tier is U6) | B-005 (done), B-030 (partial), B-035, B-036, B-041 |
 | 7 | Pay (QRIS manual confirmation / Stripe) at the prices in `lib/pricing.ts` | Pay at publish (published prices); automated confirmation once a PJP exists | B-002 (done), B-039 |
 | 8 | Publish; the link preview shows names and date (s09) | Publish → share screen with per-guest WhatsApp links and an OG preview | B-010 (done), B-018 |

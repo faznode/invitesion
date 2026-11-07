@@ -24,7 +24,13 @@ fn app() -> axum::Router {
         .acquire_timeout(std::time::Duration::from_secs(5))
         .connect_lazy("postgres://nobody@127.0.0.1:9/none")
         .expect("lazy pool");
-    router(AppState { pool, service_secrets: Arc::new(vec![SECRET.to_vec()]), owner: None, limits: Limits::default() })
+    router(AppState {
+        pool,
+        service_secrets: Arc::new(vec![SECRET.to_vec()]),
+        guest_pass_secrets: Arc::new(Vec::new()),
+        owner: None,
+        limits: Limits::default(),
+    })
 }
 
 async fn send(request: Request<Body>) -> (StatusCode, Option<String>, Option<String>, Value) {

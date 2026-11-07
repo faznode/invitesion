@@ -309,9 +309,10 @@ test('guards: only the facade loads a roster writer, and no roster row or column
 
 test('guards: each facade write picks one writer with no fallback, and every call site goes through the facade', () => {
   const roster = source('lib/invitation/roster.ts');
-  assert.equal(roster.match(/^export async function \w+/gm)?.length, 9);
-  assert.equal(roster.match(/if \(rust\(env\)\)/g)?.length, 9, 'one choice per write');
-  assert.equal(roster.match(/return next\.\w+\(/g)?.length, 9, 'the TypeScript writer runs only when the Rust branch was not taken');
+  // B-024 (D-056) added the tenth write, the scanner's pass check-ins (`checkInWithPasses`).
+  assert.equal(roster.match(/^export async function \w+/gm)?.length, 10);
+  assert.equal(roster.match(/if \(rust\(env\)\)/g)?.length, 10, 'one choice per write');
+  assert.equal(roster.match(/return next\.\w+\(/g)?.length, 10, 'the TypeScript writer runs only when the Rust branch was not taken');
   assert.doesNotMatch(roster, /\bcatch\b/, 'no fallback from one writer to the other');
 
   const callSites: Record<string, string[]> = {
@@ -320,6 +321,8 @@ test('guards: each facade write picks one writer with no fallback, and every cal
     'app/(customer)/dashboard/invitations/[id]/guests/import/actions.ts': ['importRosterGuests', 'undoRosterImport'],
     'app/(customer)/dashboard/invitations/[id]/guests/registration-actions.ts': ['setRegistrationLink', 'decideRosterRegistration'],
     'app/daftar/[token]/actions.ts': ['registerRosterGuest'],
+    'app/api/invitations/[id]/checkins/route.ts': ['checkInWithPasses'],
+    'app/(customer)/dashboard/invitations/[id]/checkin/actions.ts': ['rosterOperation'],
   };
   for (const [file, calls] of Object.entries(callSites)) {
     for (const call of calls) assert.match(source(file), new RegExp(`\\b${call}\\(`), `${file} → ${call}`);

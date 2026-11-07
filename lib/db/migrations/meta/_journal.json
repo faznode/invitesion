@@ -148,6 +148,20 @@
       "when": 1794063682459,
       "tag": "0020_invitation_version_index",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1794074494120,
+      "tag": "0021_invitation_creation_key",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1794079287084,
+      "tag": "0022_guest_pass_id",
+      "breakpoints": true
     }
   ]
 }

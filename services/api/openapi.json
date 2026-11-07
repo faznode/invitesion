@@ -350,6 +350,92 @@
         ]
       }
     },
+    "/v1/invitations": {
+      "post": {
+        "tags": [
+          "content"
+        ],
+        "operationId": "create_draft",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DraftCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The draft exists with version 1: made now, or by an earlier creation with this owner and key (`replayed`)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DraftCreated"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed body, event type, slug base or creation key",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid signature or owner token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "A token for no live customer (`owner.unknown_user`, `owner.role_not_allowed`)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "No such template (`creation.template_missing`); the event type or theme is not the template's (`creation.refused`); a refused reference (`content.media_refused`) or theme (`content.theme_not_entitled`), with `issues`",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Owner tokens are not configured or the signing keys are unreachable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ownerToken": [],
+            "serviceSignature": []
+          }
+        ]
+      }
+    },
     "/v1/invitations/{invitation}/category-invitations": {
       "post": {
         "tags": [
@@ -826,6 +912,137 @@
           },
           "503": {
             "description": "Owner tokens are not configured or the signing keys are unreachable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ownerToken": [],
+            "serviceSignature": []
+          }
+        ]
+      }
+    },
+    "/v1/invitations/{invitation}/guest-pass-checkins": {
+      "post": {
+        "tags": [
+          "roster"
+        ],
+        "operationId": "pass_checkins",
+        "parameters": [
+          {
+            "name": "invitation",
+            "in": "path",
+            "description": "The owner's invitation",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "The scanner's key for this batch, bound to the signed-in owner and this invitation; a resent batch replays the first answer for 24 hours",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PassCheckinRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Each scan answered in order: the token read (shape, MAC with an accepted `GUEST_PASS_SECRET`, expiry), the pass's guest locked, a first check-in stored with one CHECKIN event, a replay answered `already`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PassCheckins"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed path, body (1–50 scans) or idempotency key",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid signature or owner token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "A token for no live customer, or an administrator",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not this owner's invitation (`roster.not_found`)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The invitation has not opted in (`guest_pass.not_enabled`: `checkInSettings.enabled`)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`idempotency.key_reused`",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "No guest-pass secret (`guest_pass.not_configured`), owner tokens not configured, or the signing keys unreachable",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -2250,6 +2467,72 @@
           "REJECTED"
         ]
       },
+      "DraftCreateRequest": {
+        "type": "object",
+        "description": "One creation: the template, the event type, the slug before any suffix, the whole config and the creation's key.",
+        "required": [
+          "eventType",
+          "slugBase",
+          "config",
+          "creationKey"
+        ],
+        "properties": {
+          "templateId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "The template row (`templates.id`, the price anchor of checkout, publishing and settlement), or null.",
+            "minimum": 1
+          },
+          "eventType": {
+            "type": "string",
+            "description": "One of the six core event types; for a template, the one its catalog category maps to."
+          },
+          "slugBase": {
+            "type": "string",
+            "description": "Lower-case letters and digits in hyphen-separated runs, at most 60 characters; the writer adds `-2`, `-3` … when\nthe slug is taken."
+          },
+          "config": {
+            "type": "object",
+            "description": "The whole config to store, as Next.js prepared it.",
+            "additionalProperties": true
+          },
+          "creationKey": {
+            "type": "string",
+            "description": "1–255 visible ASCII characters, stored on the row: a creation by the same owner with the same key answers with the\ndraft it made (`replayed`), through either writer and without expiry."
+          }
+        },
+        "additionalProperties": false
+      },
+      "DraftCreated": {
+        "type": "object",
+        "required": [
+          "invitationId",
+          "slug",
+          "version",
+          "replayed"
+        ],
+        "properties": {
+          "invitationId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32",
+            "description": "The version this creation wrote: always 1."
+          },
+          "replayed": {
+            "type": "boolean",
+            "description": "True when an earlier creation with this owner and key made the draft."
+          }
+        }
+      },
       "DuplicateOf": {
         "type": "string",
         "enum": [
@@ -2700,6 +2983,94 @@
           "HIDDEN",
           "DELETED"
         ]
+      },
+      "PassCheckinRequest": {
+        "type": "object",
+        "required": [
+          "scans"
+        ],
+        "properties": {
+          "scans": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PassScan"
+            },
+            "description": "1–50 scans, answered in this order."
+          }
+        },
+        "additionalProperties": false
+      },
+      "PassCheckins": {
+        "type": "object",
+        "required": [
+          "results"
+        ],
+        "properties": {
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PassScanResult"
+            }
+          }
+        }
+      },
+      "PassOutcome": {
+        "type": "string",
+        "enum": [
+          "checked-in",
+          "already",
+          "expired",
+          "invalid",
+          "unknown"
+        ]
+      },
+      "PassScan": {
+        "type": "object",
+        "description": "B-024 (D-056): one scanned guest pass.",
+        "required": [
+          "token"
+        ],
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "The text of the pass's QR (`IVP1.` and 48 base64url characters); anything else is answered `invalid`.",
+            "maxLength": 200
+          },
+          "scannedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "When the scanner saw it (`YYYY-MM-DDTHH:MM:SS[.fff]Z`); kept within the last day, else this request's time.",
+            "maxLength": 40
+          }
+        },
+        "additionalProperties": false
+      },
+      "PassScanResult": {
+        "type": "object",
+        "required": [
+          "outcome"
+        ],
+        "properties": {
+          "outcome": {
+            "$ref": "#/components/schemas/PassOutcome"
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The guest's display name, for `checked-in` and `already` only."
+          },
+          "checkedInAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The stored check-in time (milliseconds, UTC), for `checked-in` and `already` only."
+          }
+        }
       },
       "Problem": {
         "type": "object",
@@ -3197,7 +3568,7 @@
     },
     {
       "name": "content",
-      "description": "The editor's content writes with the version check (B-035)"
+      "description": "The editor's content writes with the version check (B-035) and draft creation with version 1 (B-037)"
     }
   ]
 }

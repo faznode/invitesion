@@ -14,6 +14,9 @@ import type {
   LinkOutcome,
   OperationOutcome,
   OwnerRefusal,
+  PassCheckinOutcome,
+  PassScanInput,
+  PassScanResult,
   RegistrationDecision,
   RegistrationLinkAction,
   RegistrationOutcome,
@@ -170,6 +173,43 @@ export async function guestOperationThroughApi(
         { operation: OPERATIONS[input.operation] }, { ownerToken: input.ownerToken, idempotencyKey }),
     () => ({ kind: 'saved' }) as const,
   );
+}
+
+type PassResultBody = components['schemas']['PassScanResult'];
+
+function passResult(body: PassResultBody): PassScanResult {
+  if ((body.outcome === 'checked-in' || body.outcome === 'already') && body.name != null && body.checkedInAt != null) {
+    return { outcome: body.outcome, name: body.name, checkedInAt: body.checkedInAt };
+  }
+  return body.outcome === 'expired' || body.outcome === 'unknown' ? { outcome: body.outcome } : { outcome: 'invalid' };
+}
+
+/**
+ * B-024 (D-056): a batch of scans. The key is the scanner's own for this batch, so a batch the scanner resends after a
+ * lost answer replays the API's first answer instead of turning its first check-ins into `already`.
+ */
+export async function passCheckinsThroughApi(
+  input: Owner & { invitationId: number; scans: readonly PassScanInput[]; key: string },
+  env: Env = process.env,
+): Promise<PassCheckinOutcome> {
+  const config = apiConfigFromEnv(env);
+  try {
+    const answer = await sendUnderKey(
+      (idempotencyKey) =>
+        apiPostTo(config, '/v1/invitations/{invitation}/guest-pass-checkins', { invitation: input.invitationId },
+          { scans: input.scans.map((scan) => ({ token: scan.token, ...(scan.scannedAt ? { scannedAt: scan.scannedAt } : {}) })) },
+          { ownerToken: input.ownerToken, idempotencyKey }),
+      input.key,
+    );
+    return { kind: 'checked', results: answer.results.map(passResult) };
+  } catch (error) {
+    if (!(error instanceof ApiProblem)) throw error;
+    if (error.code === 'guest_pass.not_enabled') return { kind: 'disabled' };
+    if (error.code === 'guest_pass.not_configured') return { kind: 'unconfigured' };
+    const refusal = ownerRefusal(error, 'pass check-in');
+    if (refusal) return refusal;
+    throw error;
+  }
 }
 
 export async function setInvitedEventsThroughApi(

@@ -30,6 +30,7 @@
     "drizzle-kit": "^0.31.1",
     "drizzle-orm": "^0.43.1",
     "jose": "^6.0.11",
+    "jsqr": "1.4.0",
     "lucide-react": "^0.511.0",
     "next": "16.4.5",
     "postcss": "^8.5.3",

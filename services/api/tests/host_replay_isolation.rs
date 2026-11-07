@@ -266,6 +266,7 @@ async fn a_hosts_key_replays_only_to_its_owner_on_the_same_invitation_and_resour
     let app = router(AppState {
         pool: f.pool.clone(),
         service_secrets: Arc::new(vec![SECRET.to_vec()]),
+        guest_pass_secrets: Arc::new(Vec::new()),
         owner: Some(keys.verifier.clone()),
         limits: ROOMY,
     });
@@ -392,6 +393,7 @@ async fn a_lost_delete_replays_to_its_owner_and_to_no_one_else() {
     let app = router(AppState {
         pool: f.pool.clone(),
         service_secrets: Arc::new(vec![SECRET.to_vec()]),
+        guest_pass_secrets: Arc::new(Vec::new()),
         owner: Some(keys.verifier.clone()),
         limits: ROOMY,
     });

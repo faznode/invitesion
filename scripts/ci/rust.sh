@@ -84,6 +84,14 @@ content_end_to_end() {
     OWNER_TOKEN_ISSUER=$OWNER_ISSUER OWNER_TOKEN_AUTHORIZED_PARTIES=$OWNER_PARTY npx tsx scripts/verify-content-api.ts
 }
 
+# B-037 (D-055): the wizard's actions and the catalog's creation path through both content writers against the binary:
+# nothing stored before the save, sign-in at the save, the draft with its defaults and version 1, one draft per key across
+# retries, concurrency and writers, hostile and long names, preview parity, exactly one writer, the flag off.
+creation_end_to_end() {
+  API_BASE_URL="http://127.0.0.1:$API_PORT" INTERNAL_API_SECRET=$API_SECRET OWNER_TOKEN_JWKS_PORT=$JWKS_PORT \
+    OWNER_TOKEN_ISSUER=$OWNER_ISSUER OWNER_TOKEN_AUTHORIZED_PARTIES=$OWNER_PARTY npx tsx scripts/verify-creation-api.ts
+}
+
 # s29: a host's Idempotency-Key replays only to its owner, on the same invitation and guest or wish (signed requests with
 # chosen keys and valid owner tokens, against the binary).
 host_replay_isolation() {
@@ -105,6 +113,7 @@ if [ -f "$SERVICE/Cargo.toml" ]; then
   step "wishes end to end (BACKEND_WISHES, both writers)" wishes_end_to_end
   step "roster end to end (BACKEND_ROSTER, both writers)" roster_end_to_end
   step "content end to end (BACKEND_CONTENT, both writers)" content_end_to_end
+  step "creation end to end (wizard, BACKEND_CONTENT, both writers)" creation_end_to_end
   step "host replay isolation (owner, invitation, resource)" host_replay_isolation
 fi
 step "test ($EXPERIMENT)" cargo test --manifest-path "$EXPERIMENT/Cargo.toml" --locked

@@ -3,6 +3,8 @@ import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { after } from 'next/server';
 import { PublicInvitationRenderer } from '@/components/invitation/public-renderer';
+import { isFlagOn } from '@/lib/flags';
+import { passCheckInEnabled, passSigningSecret } from '@/lib/invitation/guest-pass';
 import { invitationShareMetadata } from '@/lib/invitation/preview-image';
 import { loadPublicInvitation, trackInvitationView } from '@/lib/invitation/public';
 import { formKey, rsvpFormKey } from '@/lib/invitation/rsvp-form-key';
@@ -46,6 +48,11 @@ export default async function PersonalInvitationPage({ params, searchParams }: P
   after(() => trackInvitationView(data.invitation.id, data.guest?.id));
 
   const status = await searchParams;
+  // B-024 (D-056): the pass link only for a recognised guest, with the flag on, the invitation opted in and a secret.
+  const guestPassHref =
+    data.guest && isFlagOn('GUEST_PASS') && passCheckInEnabled(data.invitation.config) && passSigningSecret()
+      ? `/i/${encodeURIComponent(slug)}/${encodeURIComponent(guestSlug)}/pass`
+      : null;
 
   return (
     <PublicInvitationRenderer
@@ -63,6 +70,7 @@ export default async function PersonalInvitationPage({ params, searchParams }: P
       giftWithheld={data.giftWithheld}
       imageVariants={data.imageVariants}
       saveData={saveDataRequested((await headers()).get('save-data'))}
+      guestPassHref={guestPassHref}
     />
   );
 }

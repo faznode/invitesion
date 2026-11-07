@@ -187,6 +187,7 @@ async fn the_view_writer_holds_the_b017a_contract() {
     let app = router(AppState {
         pool: f.pool.clone(),
         service_secrets: Arc::new(vec![SECRET.to_vec()]),
+        guest_pass_secrets: Arc::new(Vec::new()),
         owner: None,
         limits: Limits::default(),
     });
@@ -261,6 +262,7 @@ async fn me_maps_a_verified_token_to_a_live_user_and_its_database_role() {
     let app = router(AppState {
         pool: f.pool.clone(),
         service_secrets: Arc::new(vec![SECRET.to_vec()]),
+        guest_pass_secrets: Arc::new(Vec::new()),
         owner: Some(Arc::new(verifier)),
         limits: Limits::default(),
     });

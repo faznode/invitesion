@@ -2,5 +2,6 @@
 //! `guests`, self-registrations and their links, behind `BACKEND_ROSTER` in Next.js.
 
 pub mod http;
+pub mod pass;
 pub mod phone;
 pub mod rules;

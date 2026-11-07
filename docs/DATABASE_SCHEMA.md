@@ -4,8 +4,8 @@
 > STATUS: LIVE (MVP scope)
 > OWNER: Architect
 > DEPS: PROJECT_OVERVIEW.md
-> GREP: schema, drizzle, tabel, users, invitations, guests, orders, versions, version_no, guest_registrations, guest_registration_links, import_batch_id, template_id, templateId
-> UPDATED: 2026-11-07 (s32 turn 3: dua ruang id template_id vs config.theme.templateId, ganti tema B-036 / D-054; s32: index invitation_versions (invitation_id, version_no) migrasi 0020, cek versi simpan editor `BACKEND_CONTENT`, B-035 / D-053; s31: guests import_batch_id + guest_registration_links + guest_registrations migrasi 0019, penulis roster `BACKEND_ROSTER`, B-033 / D-052; s28: guest_messages reviewed_at / host_reply / replied_at + index ucapan VISIBLE migrasi 0017, R-04 / D-044; api_rate_limits + api_idempotency_keys migrasi 0016, ditulis hanya oleh services/api, R-03 / D-043; s20/s21: guests invited_event_ids migrasi 0015, events[].inviteOnly, D-037; showPhoto foto anak, D-038; s19: guests rsvp_event_answers migrasi 0014; id acara tetap di invitations.config.events migrasi data 0013, D-036; guests rsvp_answers, migrasi 0012; earlier: analytics_events view-dedupe index, guests attending_count, link_token)
+> GREP: schema, drizzle, tabel, users, invitations, guests, orders, versions, version_no, guest_registrations, guest_registration_links, import_batch_id, template_id, templateId, creation_key
+> UPDATED: 2026-11-07 (s33: invitations.creation_key + index unik parsial (user_id, creation_key) migrasi 0021, pembuatan draf lewat fasad `BACKEND_CONTENT`, B-037 / D-055; s32 turn 3: dua ruang id template_id vs config.theme.templateId, ganti tema B-036 / D-054; s32: index invitation_versions (invitation_id, version_no) migrasi 0020, cek versi simpan editor `BACKEND_CONTENT`, B-035 / D-053; s31: guests import_batch_id + guest_registration_links + guest_registrations migrasi 0019, penulis roster `BACKEND_ROSTER`, B-033 / D-052; s28: guest_messages reviewed_at / host_reply / replied_at + index ucapan VISIBLE migrasi 0017, R-04 / D-044; api_rate_limits + api_idempotency_keys migrasi 0016, ditulis hanya oleh services/api, R-03 / D-043; s20/s21: guests invited_event_ids migrasi 0015, events[].inviteOnly, D-037; showPhoto foto anak, D-038; s19: guests rsvp_event_answers migrasi 0014; id acara tetap di invitations.config.events migrasi data 0013, D-036; guests rsvp_answers, migrasi 0012; earlier: analytics_events view-dedupe index, guests attending_count, link_token)
 > ORM DECISION (whyme 2026-07-15): pakai **Drizzle** (bukan Prisma) — ikut fondasi nextjs/saas-starter biar backend cepat jalan. Schema di bawah = kanonik, diimplementasi sbg Drizzle schema (lib/db/schema.ts).
 
 ## Prinsip
@@ -38,9 +38,16 @@ invitations
   revision_count(default 0, max 3),
   published_at, expires_at (published_at + 12 bulan), created_at
   ← B-036 (D-054): dua ruang id. `template_id` = tema yang DIBELI (id baris `templates`, serial, dicocokkan ke katalog
-    lewat nama); hanya `create.ts` yang menulisnya, dan checkout / publish / settlement memakainya. `config.theme.templateId`
+    lewat nama); hanya pembuatan yang menulisnya (sejak B-037 fasad `creation.ts`, sebelumnya `create.ts`), dan
+    checkout / publish / settlement memakainya. `config.theme.templateId`
     = id KATALOG (`templates.ts`, mis. 107; ada di `default_config.theme.templateId`), host-only, tidak dirender. Ganti
     tema dalam tier hanya mengubah config lewat penulis konten; `template_id` tidak pernah ikut berubah.
+  creation_key(varchar 255, nullable)
+  ← B-037 (migrasi 0021, D-055): kunci pembuatan draf. Index unik parsial invitations_user_creation_key_idx
+    (user_id, creation_key) WHERE creation_key IS NOT NULL: pembuatan ulang dengan kunci yang sama oleh pemilik yang sama
+    (retry, ketuk dua kali, kirim ulang) mendapat draf yang sama. Ditulis hanya saat pembuatan, oleh fasad pembuatan
+    (`lib/invitation/creation.ts`, `BACKEND_CONTENT`: `create-next.ts` atau `POST /v1/invitations`). Baris lama: NULL.
+    `template_id` dan versi 1 ditulis di transaksi yang sama; sejak B-037 `create.ts` hanya pembungkus untuk skrip.
 
 invitation_versions               ← rollback revisi AI
   id, invitation_id→invitations, version_no,

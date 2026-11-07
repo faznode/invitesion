@@ -78,6 +78,7 @@ fn app(pool: &PgPool, keys: &Keys) -> Router {
     router(AppState {
         pool: pool.clone(),
         service_secrets: Arc::new(vec![SECRET.to_vec()]),
+        guest_pass_secrets: Arc::new(Vec::new()),
         owner: Some(keys.verifier.clone()),
         limits: LIMITS,
     })

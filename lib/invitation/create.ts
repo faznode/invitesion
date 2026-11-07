@@ -2,10 +2,9 @@ import 'server-only';
 
 import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
-import { invitations, invitationVersions, templates } from '@/lib/db/schema';
-import { newInvitationConfig } from './new-invitation';
-import { resolveUniqueSlug, slugify } from './slug';
-import { presetConfigFromTemplateDefaults } from './template-defaults';
+import { invitations, templates } from '@/lib/db/schema';
+import { createDraftNext } from './create-next';
+import { prepareDraftRequest } from './creation';
 
 export const EVENT_TYPES = ['wedding', 'birthday', 'aqiqah', 'tasyakuran', 'khitanan', 'corporate'] as const;
 export type EventType = (typeof EVENT_TYPES)[number];
@@ -14,23 +13,17 @@ export function isEventType(value: string): value is EventType {
   return (EVENT_TYPES as readonly string[]).includes(value);
 }
 
-async function invitationSlugTaken(candidate: string) {
-  const [row] = await db.select({ id: invitations.id }).from(invitations).where(eq(invitations.slug, candidate)).limit(1);
-  return Boolean(row);
-}
-
 /**
- * Creates a DRAFT invitation for a customer.
+ * Creates a DRAFT invitation for a customer: the wrapper scripts and fixtures use (`scripts/verify-*.ts`). Product
+ * callers go through `createDraftInvitation` in `creation.ts` (B-037, D-055), which selects the content writer with
+ * `BACKEND_CONTENT` and carries the session's owner token; this wrapper has no session, so it always uses the TypeScript
+ * writer, with the same preparation and the same statements.
  *
- * The template's `defaultConfig` seeds the invitation config so the renderer
- * always has a valid starting shape. Template-owned keys (`art`) are set aside
- * before the strict schema check (B-001, ADR-O01); a default that is still
- * invalid degrades to an empty config rather than blocking creation. Version 1
- * is recorded so the revision history has an origin point to roll back to.
- * Only new invitations receive `newInvitationConfig`'s defaults: gift details
- * kept to personal guest links (B-026, D-047) and, under `DEFAULT_FAMILY`, the
- * design family chosen for the event type (F-02, D-041 (3)). Invitations created
- * before either keep what they have.
+ * The template's `defaultConfig` seeds the config (template-owned keys set aside before the strict schema, B-001,
+ * ADR-O01; invalid defaults degrade to an empty preset), then the new-invitation defaults (gift details on personal
+ * links, B-026 / D-047; the event type's design family under `DEFAULT_FAMILY`, F-02 / D-041 (3)), and version 1 is
+ * recorded in the same transaction so the revision history has an origin. An unknown template id creates the draft
+ * without a template, as before.
  */
 export async function createInvitation({
   userId,
@@ -43,36 +36,10 @@ export async function createInvitation({
   templateId?: number | null;
   title?: string;
 }) {
-  let defaultConfig: Record<string, unknown> = {};
-  let resolvedTemplateId: number | null = null;
-
-  if (templateId) {
-    const [template] = await db.select().from(templates).where(eq(templates.id, templateId)).limit(1);
-    if (template) {
-      resolvedTemplateId = template.id;
-      const preset = presetConfigFromTemplateDefaults(template.defaultConfig);
-      if (preset.ok) defaultConfig = preset.config as Record<string, unknown>;
-      else console.warn(`[createInvitation] template ${template.id} defaults rejected: ${preset.issues.join('; ')}`);
-    }
-  }
-
-  defaultConfig = newInvitationConfig(defaultConfig, eventType);
-  const slug = await resolveUniqueSlug(slugify(title || eventType, eventType), invitationSlugTaken);
-
-  return db.transaction(async (tx) => {
-    const [invitation] = await tx
-      .insert(invitations)
-      .values({ userId, templateId: resolvedTemplateId, slug, eventType, config: defaultConfig, status: 'DRAFT' })
-      .returning();
-
-    await tx.insert(invitationVersions).values({
-      invitationId: invitation.id,
-      versionNo: 1,
-      config: defaultConfig,
-      createdBy: 'customer',
-      isLive: true,
-    });
-
-    return invitation;
-  });
+  const [template] = templateId ? await db.select().from(templates).where(eq(templates.id, templateId)).limit(1) : [];
+  const request = prepareDraftRequest({ eventType, template: template ?? null, title: title ?? null });
+  const outcome = await createDraftNext({ ...request, userId });
+  if (outcome.kind !== 'created') throw new Error(`[createInvitation] not created: ${outcome.kind}`);
+  const [invitation] = await db.select().from(invitations).where(eq(invitations.id, outcome.invitationId)).limit(1);
+  return invitation;
 }

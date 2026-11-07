@@ -63,13 +63,18 @@ export type GuestPageProps = {
   imageVariants?: ImageVariants;
   /** I-28: the request carried `Save-Data: on`, so images offer only their lite variants. */
   saveData?: boolean;
+  /**
+   * B-024 (D-056): the guest's pass page (`/i/<slug>/<guest>/pass`), set by the personal page only when guest passes are
+   * on, the invitation opted in and a signing secret exists; layouts show it through `RsvpBlock`, never decide it.
+   */
+  guestPassHref?: string | null;
 };
 
 /**
  * What every layout derives from the stored config, computed once so the legacy layout and each design family (B-030)
  * show the same data: dates in the event's own zone, the countdown rule, the calendar entry and who may respond.
  */
-export function buildGuestView({ invitation, config, guest, media, readOnly, preview = false, giftWithheld = false, imageVariants, saveData = false }: GuestPageProps) {
+export function buildGuestView({ invitation, config, guest, media, readOnly, preview = false, giftWithheld = false, imageVariants, saveData = false, guestPassHref = null }: GuestPageProps) {
   const tone = palette(config.theme?.paletteId);
   // Event-local wall clock with WIB / WITA / WIT from the saved offset, whatever zone the server runs in (B-004).
   const eventZone = config.eventOperations?.timezone;
@@ -350,6 +355,8 @@ export function buildGuestView({ invitation, config, guest, media, readOnly, pre
     tone, formatDate, formatTime, dateParts, names, events, primaryEvent, renderedAt, primaryStartMs, showCountdown, primaryCalendarEvent, gallery,
     canRespond, canRsvp, rsvpMaybe, rsvpQuestions, rsvpEvents, rsvpDeadlineText, rsvpClosedByDeadline, rsvpShown, guestbookShown, wishesListed, wishesModerated, coverImageSrc, coverText, programme,
     organiser, corporateMark, ceremonyProfile, share, portraits, profiles,
+    // A pass belongs to one guest, so only a page that recognised its guest ever links one.
+    guestPassHref: guest && guestPassHref ? guestPassHref : null,
   };
 }
 

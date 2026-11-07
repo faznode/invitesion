@@ -5,6 +5,7 @@
 use utoipa::openapi::security::{ApiKey, ApiKeyValue, HttpAuthScheme, HttpBuilder, SecurityScheme};
 use utoipa::{Modify, OpenApi};
 
+use crate::content::create::{DraftCreateRequest, DraftCreated};
 use crate::content::http::{ContentSaved, ContentWriteRequest};
 use crate::health::Health;
 use crate::identity::Me;
@@ -13,8 +14,9 @@ use crate::roster::http::{
     CategoryInvitationRequest, CategoryInvitationSaved, CategoryMode, Decision, DecisionStatus, GuestAddRequest,
     GuestAdded, GuestFields, GuestImportRequest, GuestImportResult, GuestOperation, GuestOperationRequest,
     GuestUpdated, ImportRowVerdict, ImportUndone, InvitedEventsRequest, InvitedEventsSaved, LinkAction,
-    RegistrationDecided, RegistrationDecisionRequest, RegistrationLinkRequest, RegistrationLinkSaved,
-    RegistrationReceived, RegistrationRequest, RegistrationStatus, RosterFlags, VerdictStatus,
+    PassCheckinRequest, PassCheckins, PassOutcome, PassScan, PassScanResult, RegistrationDecided,
+    RegistrationDecisionRequest, RegistrationLinkRequest, RegistrationLinkSaved, RegistrationReceived,
+    RegistrationRequest, RegistrationStatus, RosterFlags, VerdictStatus,
 };
 use crate::roster::rules::{DuplicateOf, ImportRefusal, RowReason};
 use crate::rsvp::decision::{EventFields, RsvpFlags, RsvpSubmission};
@@ -53,7 +55,9 @@ use crate::wishes::http::{
         crate::roster::http::registration_link,
         crate::roster::http::register,
         crate::roster::http::decide,
-        crate::content::http::write_content
+        crate::roster::http::pass_checkins,
+        crate::content::http::write_content,
+        crate::content::create::create_draft
     ),
     components(schemas(
         Problem,
@@ -110,7 +114,14 @@ use crate::wishes::http::{
         RegistrationDecided,
         DecisionStatus,
         ContentWriteRequest,
-        ContentSaved
+        ContentSaved,
+        DraftCreateRequest,
+        DraftCreated,
+        PassCheckinRequest,
+        PassScan,
+        PassCheckins,
+        PassScanResult,
+        PassOutcome
     )),
     modifiers(&SecuritySchemes),
     tags(
@@ -120,7 +131,7 @@ use crate::wishes::http::{
         (name = "rsvp", description = "Guest RSVP and the host's override (R-03)"),
         (name = "wishes", description = "Guest wishes and the host's moderation and replies (R-04)"),
         (name = "roster", description = "The guest roster: adds, imports, operations, invite-only events and self-registration (B-033)"),
-        (name = "content", description = "The editor's content writes with the version check (B-035)")
+        (name = "content", description = "The editor's content writes with the version check (B-035) and draft creation with version 1 (B-037)")
     )
 )]
 pub struct ApiDoc;

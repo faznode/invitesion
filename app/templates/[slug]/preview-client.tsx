@@ -24,6 +24,7 @@ import {
   Users,
 } from 'lucide-react';
 import type { InvitationTemplate, TemplateCategory } from '@/lib/invitation/templates';
+import { templateUseHref } from '@/lib/invitation/template-use-href';
 import { getThemeArt } from '@/lib/invitation/theme-art';
 import styles from './preview.module.css';
 import artStyles from './art.module.css';
@@ -40,6 +41,8 @@ type Props = {
   template: InvitationTemplate;
   locale: Locale;
   guestName: string | null;
+  /** B-037: `FLAG_CREATION_WIZARD`, read on the server; "Pakai tema ini" opens the wizard when on. */
+  wizard?: boolean;
 };
 
 type SampleEvent = { title: string; time: string; venue: string; address: string };
@@ -150,7 +153,7 @@ const GCAL_URL = ['https:', '//www.google.com/calendar/render?'].join('');
 const GMAPS_URL = ['https:', '//www.google.com/maps?q='].join('');
 const IG_URL = ['https:', '//instagram.com'].join('');
 
-export default function PreviewClient({ template, locale, guestName }: Props) {
+export default function PreviewClient({ template, locale, guestName, wizard = false }: Props) {
   const [opened, setOpened] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [now, setNow] = useState<number | null>(null);
@@ -245,7 +248,7 @@ export default function PreviewClient({ template, locale, guestName }: Props) {
         };
 
   const preset = template.preset;
-  const useHref = `/dashboard/templates/use?slug=${template.slug}`;
+  const useHref = templateUseHref(template.slug, wizard);
   const events = SAMPLE_EVENTS[template.category];
   const artwork = useMemo(() => getThemeArt(template), [template]);
   const partners = useMemo(

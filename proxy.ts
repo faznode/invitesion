@@ -44,10 +44,12 @@ const CSP_REPORT_ONLY = process.env.CSP_ENFORCE !== 'true';
 
 /**
  * B-035: only the owner preview may be framed, and only by this origin: the editor shows it beside the fields. It is
- * owner-only content without forms (no RSVP or guestbook renders without a guest link). Every other page stays unframeable.
+ * owner-only content without forms (no RSVP or guestbook renders without a guest link). B-037: the wizard's
+ * try-with-your-names preview likewise, framed by the wizard beside its fields; it renders the visitor's own typed
+ * content and no form either. Every other page stays unframeable.
  */
 function frameAncestorsFor(pathname: string): string {
-  return pathname.startsWith('/preview/') ? "frame-ancestors 'self'" : "frame-ancestors 'none'";
+  return pathname.startsWith('/preview/') || pathname === '/buat/pratinjau' ? "frame-ancestors 'self'" : "frame-ancestors 'none'";
 }
 
 function contentSecurityPolicy(nonce: string, pathname: string): string {

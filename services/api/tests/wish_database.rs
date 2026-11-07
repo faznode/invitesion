@@ -160,7 +160,13 @@ impl Fixture {
 }
 
 fn app(pool: &PgPool, limits: Limits) -> Router {
-    router(AppState { pool: pool.clone(), service_secrets: Arc::new(vec![SECRET.to_vec()]), owner: None, limits })
+    router(AppState {
+        pool: pool.clone(),
+        service_secrets: Arc::new(vec![SECRET.to_vec()]),
+        guest_pass_secrets: Arc::new(Vec::new()),
+        owner: None,
+        limits,
+    })
 }
 
 struct Answer {

@@ -4,8 +4,8 @@
 > STATUS: LIVE (design, tervalidasi riset)
 > OWNER: Operator
 > DEPS: design-agent.md, DATABASE_SCHEMA.md (templates)
-> GREP: template, katalog, filter, tag, galeri, occasion, style, color, swatch
-> UPDATED: 2026-07-15
+> GREP: template, katalog, filter, tag, galeri, occasion, style, color, swatch, pakai tema, wizard, buat, pratinjau
+> UPDATED: 2026-11-07 (s33: "Pakai tema" → wizard B-037 di balik `FLAG_CREATION_WIZARD`; sebelumnya 2026-07-15)
 
 ## Prinsip
 CUSTOMER yang milih template/vibe/warna. Sistem cuma nyajiin katalog + filter jelas. AI NOL peran di sini.
@@ -40,6 +40,14 @@ Aturan skala kecil: opsi filter langsung terlihat (jangan disembunyiin); multi-s
 - Enum terkontrol per dimensi (~5-8 nilai), JANGAN free-tag. Batasi: 1-2 occasion, 1-3 style, 1-3 color per template.
 - `color_hex` dipisah utk render swatch. `sort_order` utk kurasi manual.
 - Simpan di Postgres jsonb/array. TIDAK butuh Algolia/Elastic/vector DB.
+
+## Dari kartu ke draf: "Pakai tema" (B-037, D-055; s33)
+- Tautan kartu dan halaman tema dibangun `templateUseHref(slug, flag)` (`lib/invitation/template-use-href.ts`).
+- `FLAG_CREATION_WIZARD` **mati** (default): `/dashboard/templates/use?slug=<tema>`, jalur lama persis: masuk dulu, lalu draf kosong dari tema dibuat.
+- **Menyala:** wizard `/buat/<tema>`: nama sesuai jenis acara, tanggal + jam + zona, dan tema-tema katalog jenis acara itu. Pratinjau (`/buat/pratinjau`) memakai renderer tamu yang asli dari config yang persis akan disimpan, tanpa menyimpan apa pun. Isian hanya ada di cookie HttpOnly milik pengunjung (path `/buat`, 6 jam). Simpan butuh login; tanpa sesi, pengunjung diarahkan masuk/daftar lalu kembali ke `/buat/simpan` dengan isiannya utuh.
+- Tautan lama ke `/dashboard/templates/use` dan pemilih tema di dashboard diteruskan ke wizard saat flag menyala.
+- Semua pembuatan draf lewat fasad `lib/invitation/creation.ts` (`BACKEND_CONTENT`), dengan kunci pembuatan per pemilik: retry atau ketuk dua kali tetap satu draf.
+- Detail dan bukti: `invitation-research/09-masterplan/12-decision-log.md` D-055, `invitation-research/_handoff/IMPLEMENTATION-LOG.md` E-073.
 
 ## Sumber (tervalidasi)
 - NN/G filter categories & mobile faceted tray, Prefixbox faceted filtering, Minted/Greenvelope/Canva taksonomi (occasion+style+color), Redis semantic-vs-keyword.

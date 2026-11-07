@@ -51,9 +51,13 @@ test('B-001: unknown non-template keys still fail validation; missing defaults g
 });
 
 test('B-001: createInvitation and the catalog sync use the shared helpers', () => {
-  const create = source('lib/invitation/create.ts');
-  assert.match(create, /presetConfigFromTemplateDefaults\(template\.defaultConfig\)/);
-  assert.doesNotMatch(create, /detailConfigSchema\.safeParse\(template\.defaultConfig/);
+  // B-037 (D-055): creation's preset step lives in `initialDraftConfig`, which every creation reaches through the facade.
+  const trial = source('lib/invitation/trial.ts');
+  assert.match(trial, /const preset = presetConfigFromTemplateDefaults\(defaultConfig\);/);
+  assert.match(source('lib/invitation/creation.ts'), /initialDraftConfig\(input\.template\?\.defaultConfig \?\? null,/);
+  for (const path of ['lib/invitation/trial.ts', 'lib/invitation/creation.ts', 'lib/invitation/create.ts', 'lib/invitation/create-next.ts']) {
+    assert.doesNotMatch(source(path), /detailConfigSchema\.safeParse\((?:template\.)?defaultConfig/, `${path}: raw defaults never meet the strict schema`);
+  }
   assert.match(source('lib/invitation/template-sync.ts'), /defaultConfig: catalogDefaultConfig\(tpl\)/);
 });
 

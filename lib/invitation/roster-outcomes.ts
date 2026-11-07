@@ -67,6 +67,28 @@ export type DecisionOutcome =
   | { kind: 'invalid'; reason: RowReason }
   | OwnerRefusal;
 
+/** B-024 (D-056): one scanned pass, with the time the scanner saw it (an offline queue sends it later). */
+export type PassScanInput = { token: string; scannedAt?: string };
+
+/**
+ * One scan's answer, in the order sent. Only a genuine, unexpired pass of this invitation names its guest, and only by
+ * the display name; `already` is a replay (the first check-in's time, nothing written).
+ */
+export type PassScanResult =
+  | { outcome: 'checked-in'; name: string; checkedInAt: string }
+  | { outcome: 'already'; name: string; checkedInAt: string }
+  | { outcome: 'expired' }
+  | { outcome: 'invalid' }
+  | { outcome: 'unknown' };
+
+export type PassCheckinOutcome =
+  | { kind: 'checked'; results: PassScanResult[] }
+  /** The flag is off or this invitation has not opted in: every pass is inert. */
+  | { kind: 'disabled' }
+  /** No pass secret is configured where the live writer runs. */
+  | { kind: 'unconfigured' }
+  | OwnerRefusal;
+
 /** What the registrant sees. A duplicate is `received` too, so the form never reveals who is on the list. */
 export type RegistrationOutcome =
   | { kind: 'received' }

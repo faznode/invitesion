@@ -4,6 +4,7 @@ import { getPrivateAdminPath } from '@/lib/auth/admin-access';
 import { db } from '@/lib/db/drizzle';
 import { getUser } from '@/lib/db/queries';
 import { invitations } from '@/lib/db/schema';
+import { isFlagOn } from '@/lib/flags';
 import { normalizeStoredConfig } from '@/lib/invitation/content-read';
 import { ManageCenter } from './manage-center';
 
@@ -33,5 +34,5 @@ export default async function InvitationManagePage({
   const { module } = await searchParams;
   // The guest page's lenient read (S18-Q4): one section that fails today's rules no longer empties the whole editor.
   const { config } = normalizeStoredConfig(invitation.config ?? {});
-  return <ManageCenter invitationId={invitation.id} slug={invitation.slug} module={module} config={config} />;
+  return <ManageCenter invitationId={invitation.id} slug={invitation.slug} module={module} config={config} guestPassOn={isFlagOn('GUEST_PASS')} />;
 }

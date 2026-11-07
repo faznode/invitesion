@@ -26,8 +26,10 @@ const DEFAULTS = {
   ROSTER: 'next',
   /**
    * B-035: the editor's content writes (`invitations.config` with its `invitation_versions` row: the live flag and the next
-   * `version_no`, checked against the version the editor loaded). Creation's first row stays in `create.ts`; publishing
-   * and payment write other columns (`status`, `published_at`, `expires_at`).
+   * `version_no`, checked against the version the editor loaded). B-037 (D-055): creation too, so that column group has
+   * one writer: the new draft row (`user_id`, `template_id`, `slug`, `event_type`, `config`, `status` DRAFT,
+   * `creation_key`) with version 1, idempotent per owner and key. Publishing and payment write other columns (`status`,
+   * `published_at`, `expires_at`) and stay where they are until U6.
    */
   CONTENT: 'next',
 } as const satisfies Record<string, Backend>;

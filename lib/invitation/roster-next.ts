@@ -8,6 +8,7 @@ import { addressKey, addressSecret, hit, ipBucket, parseLimit, type Limit } from
 import { normalizeStoredConfig } from './content-read';
 import { invitedIdsFromTicked, inviteOnlyEvents } from './event-eligibility';
 import { GUEST_LINK_TOKEN_PATTERN, newGuestLinkToken } from './guest-link';
+import { checkInTime, passCheckInEnabled, readGuestPass } from './guest-pass';
 import type {
   AddOutcome,
   CategoryMode,
@@ -18,6 +19,9 @@ import type {
   InvitedOutcome,
   LinkOutcome,
   OperationOutcome,
+  PassCheckinOutcome,
+  PassScanInput,
+  PassScanResult,
   RegistrationDecision,
   RegistrationLinkAction,
   RegistrationOutcome,
@@ -209,6 +213,52 @@ export async function guestOperationNext(input: {
       await tx.insert(analyticsEvents).values({ invitationId: input.invitationId, guestId: input.guestId, eventType: 'CHECKIN' });
     } else await tx.update(guests).set({ checkedInAt: null }).where(where);
     return { kind: 'saved' };
+  });
+}
+
+/**
+ * B-024 (D-056): a batch of guest-pass scans, as the Rust writer applies it (`pass_checkins`). The owner's invitation
+ * must have opted in; the roster lock is taken as for every roster write; then each scan in order: the token is read
+ * (shape, MAC, expiry); the pass's guest is locked; a first check-in stores the scan's time and one CHECKIN event
+ * (`source: pass`), and a guest already checked in is answered `already` with nothing written, so a replayed pass, a
+ * retried batch or two ushers scanning one guest never count twice.
+ */
+export async function passCheckinNext(input: {
+  userId: number;
+  invitationId: number;
+  scans: readonly PassScanInput[];
+  secrets: readonly Uint8Array[];
+  now?: Date;
+}): Promise<PassCheckinOutcome> {
+  return db.transaction(async (tx) => {
+    const invitation = await ownedInvitation(tx, input.invitationId, input.userId);
+    if (!invitation) return { kind: 'notfound' };
+    if (!passCheckInEnabled(invitation.config)) return { kind: 'disabled' };
+    await lockRoster(tx, input.invitationId);
+    const now = input.now ?? new Date();
+    const nowSeconds = Math.floor(now.getTime() / 1000);
+    const results: PassScanResult[] = [];
+    for (const scan of input.scans) {
+      const read = readGuestPass(scan.token, input.secrets, nowSeconds);
+      if (read.kind !== 'valid') {
+        results.push({ outcome: read.kind });
+        continue;
+      }
+      const [guest] = await tx
+        .select({ id: guests.id, name: guests.name, checkedInAt: guests.checkedInAt })
+        .from(guests)
+        .where(and(eq(guests.invitationId, input.invitationId), eq(guests.passId, read.passId)))
+        .for('update');
+      if (!guest) results.push({ outcome: 'unknown' });
+      else if (guest.checkedInAt) results.push({ outcome: 'already', name: guest.name, checkedInAt: guest.checkedInAt.toISOString() });
+      else {
+        const at = checkInTime(scan.scannedAt, now);
+        await tx.update(guests).set({ checkedInAt: at }).where(eq(guests.id, guest.id));
+        await tx.insert(analyticsEvents).values({ invitationId: input.invitationId, guestId: guest.id, eventType: 'CHECKIN', meta: { source: 'pass' } });
+        results.push({ outcome: 'checked-in', name: guest.name, checkedInAt: at.toISOString() });
+      }
+    }
+    return { kind: 'checked', results };
   });
 }
 

@@ -84,14 +84,17 @@ test('F-02: a new invitation of each type renders its family, not the legacy lay
 });
 
 test('F-02: only invitation creation applies the defaults; stored invitations and the editor keep their layout', () => {
-  const create = source('lib/invitation/create.ts');
-  assert.match(create, /defaultConfig = newInvitationConfig\(defaultConfig, eventType\);\n\s+const slug/);
+  // B-037 (D-055): creation's one rule is `initialDraftConfig`; every creation reaches it through the facade, and the
+  // wizard's preview renders the same, unstored config.
+  assert.match(source('lib/invitation/trial.ts'), /const base = newInvitationConfig\(start, eventType, env\);/);
+  assert.match(source('lib/invitation/creation.ts'), /initialDraftConfig\(input\.template\?\.defaultConfig \?\? null, input\.eventType, input\.trial \?\? null, env\)/);
+  assert.match(source('lib/invitation/create.ts'), /prepareDraftRequest\(\{ eventType, template: template \?\? null, title: title \?\? null \}\)/, 'the scripts\u2019 wrapper too');
   const files = (dir: string): string[] =>
     readdirSync(join(process.cwd(), dir), { withFileTypes: true }).flatMap((entry) =>
       entry.isDirectory() ? files(`${dir}/${entry.name}`) : /\.tsx?$/.test(entry.name) ? [`${dir}/${entry.name}`] : [],
     );
   const callers = ['app', 'components', 'lib'].flatMap(files).filter((path) => /\bnewInvitationConfig\(|\bwithDefaultFamily\(/.test(source(path)));
-  assert.deepEqual(callers.sort(), ['lib/invitation/create.ts', 'lib/invitation/new-invitation.ts']);
+  assert.deepEqual(callers.sort(), ['lib/invitation/new-invitation.ts', 'lib/invitation/trial.ts']);
   const editor = source('app/(customer)/dashboard/invitations/[id]/edit/editor.tsx');
   assert.match(editor, /placeholder="Klasik \(tata letak saat ini\)" options=\{FAMILY_IDS\.map/, 'legacy stays selectable');
   assert.match(editor, /familyId:x\|\|undefined/, 'choosing it clears the family');

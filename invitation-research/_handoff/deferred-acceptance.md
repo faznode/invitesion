@@ -5,7 +5,7 @@
 > OWNER: Operator role (research agent); runs need the owner (keys, environments)
 > DEPS: LATEST.md §4, IMPLEMENTATION-LOG.md (E-038, E-042, E-047), ../../docs/systems/auth.md, ../../docs/systems/guest-management.md
 > GREP: deferred, acceptance, Clerk, signed-in, child-photo migration, deployment, P-INV-010, DA-01, DA-02, not run
-> UPDATED: 2026-11-06 (s25: created from the owner's clarification)
+> UPDATED: 2026-11-07 (s33: DA-01 item 6, the creation wizard; s32: item 5; s25: created from the owner's clarification)
 
 ## Rules
 - **Deferred is not passed.** An entry stays NOT RUN until a run is recorded here with date, environment, build id and a result per scope item.
@@ -21,6 +21,7 @@
   3. The owner's read of `/media/protected/*` (the owner gets the file; another signed-in user and a signed-out request get the private 404) and the editor thumbnail of a protected upload (E-047).
   4. Template editability end to end: edit, save, then the guest page shows the change. Versioning needs working migrations, not only `schemaVersion`.
   5. B-035 (E-071, s32), before `FLAG_EDITOR_AUTOSAVE` is switched on: signed in, an edit is stored ≤ 2 s after idle and the side-by-side preview shows it; two tabs from one version end in the conflict choice with nothing overwritten; a stale tab's "load the latest" and "keep this tab" both behave; with `BACKEND_CONTENT=rust`, the same through the API with the session's owner token. s32 ran these in headless Chrome with Clerk replaced by a stub (scratch copy, scratch database); that is not this check. Also B-036 (E-072, s32): signed in, the theme tab lists the event type's catalog themes with Premium ones locked on a Standard invitation; a Standard switch is stored with its palette and the content kept, `invitations.template_id` unchanged and no checkout offered; s32's 12 / 12 ran with the same stub.
+  6. B-037 (E-073, s33), before `FLAG_CREATION_WIZARD` is switched on: signed out, the wizard's save leads to Clerk's sign-in **and** sign-up and back to `/buat/simpan` with the typed names, date and theme kept; one tap creates exactly one draft in the new account, which opens in the editor; signed in, the wizard saves directly and a double tap makes one draft; with `BACKEND_CONTENT=rust`, the same through the API with the session's owner token. s33 ran the round trip in headless Chrome with Clerk replaced by a cookie stub (18 / 18, scratch copy, scratch database); that is not this check, and no real sign-up was exercised.
 - **What exists (kept; implementation evidence only):**
   - Clerk middleware with explicit `/media/protected/*` coverage.
   - Roles in the local `users` table (`docs/systems/auth.md`).

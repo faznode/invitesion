@@ -17,6 +17,7 @@ use sqlx::{Postgres, Transaction};
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
+use super::pass;
 use super::rules::{
     self, DuplicateOf, Existing, ImportRefusal, ImportVerdict, Known, MAX_CATEGORY, MAX_GUESTS, MAX_REGISTRATION_SEATS,
     MAX_SEATS, RegistrationVerdict, RowInput, RowReason, check_row, claim_slug, decide_registration, duplicate_key,
@@ -1308,4 +1309,178 @@ pub async fn decide(
         return Ok(response);
     }
     Ok(Json(decided).into_response())
+}
+
+/// B-024 (D-056): one scanned guest pass.
+#[derive(Debug, Deserialize, Serialize, ToSchema)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct PassScan {
+    /// The text of the pass's QR (`IVP1.` and 48 base64url characters); anything else is answered `invalid`.
+    #[schema(max_length = 200)]
+    pub token: String,
+    /// When the scanner saw it (`YYYY-MM-DDTHH:MM:SS[.fff]Z`); kept within the last day, else this request's time.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schema(max_length = 40)]
+    pub scanned_at: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PassCheckinRequest {
+    /// 1–50 scans, answered in this order.
+    pub scans: Vec<PassScan>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum PassOutcome {
+    /// The first check-in of this guest: stored with one CHECKIN event.
+    CheckedIn,
+    /// A replay: the guest was already checked in; nothing written.
+    Already,
+    /// A genuine pass past its expiry; nothing written, no name.
+    Expired,
+    /// Not a pass signed with an accepted secret; nothing written, no name.
+    Invalid,
+    /// A genuine pass of no guest of this invitation; nothing written, no name.
+    Unknown,
+}
+
+#[derive(Debug, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct PassScanResult {
+    pub outcome: PassOutcome,
+    /// The guest's display name, for `checked-in` and `already` only.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    /// The stored check-in time (milliseconds, UTC), for `checked-in` and `already` only.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub checked_in_at: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize, ToSchema)]
+pub struct PassCheckins {
+    pub results: Vec<PassScanResult>,
+}
+
+const fn unnamed(outcome: PassOutcome) -> PassScanResult {
+    PassScanResult { outcome, name: None, checked_in_at: None }
+}
+
+#[utoipa::path(
+    post,
+    path = "/v1/invitations/{invitation}/guest-pass-checkins",
+    tag = "roster",
+    security(("serviceSignature" = [], "ownerToken" = [])),
+    params(
+        ("invitation" = i32, Path, minimum = 1, description = "The owner's invitation"),
+        ("Idempotency-Key" = Option<String>, Header, description = "The scanner's key for this batch, bound to the signed-in owner and this invitation; a resent batch replays the first answer for 24 hours"),
+    ),
+    request_body = PassCheckinRequest,
+    responses(
+        (status = 200, description = "Each scan answered in order: the token read (shape, MAC with an accepted `GUEST_PASS_SECRET`, expiry), the pass's guest locked, a first check-in stored with one CHECKIN event, a replay answered `already`", body = PassCheckins),
+        (status = 400, description = "Malformed path, body (1–50 scans) or idempotency key", body = Problem, content_type = "application/problem+json"),
+        (status = 401, description = "Missing or invalid signature or owner token", body = Problem, content_type = "application/problem+json"),
+        (status = 403, description = "A token for no live customer, or an administrator", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "Not this owner's invitation (`roster.not_found`)", body = Problem, content_type = "application/problem+json"),
+        (status = 409, description = "The invitation has not opted in (`guest_pass.not_enabled`: `checkInSettings.enabled`)", body = Problem, content_type = "application/problem+json"),
+        (status = 422, description = "`idempotency.key_reused`", body = Problem, content_type = "application/problem+json"),
+        (status = 503, description = "No guest-pass secret (`guest_pass.not_configured`), owner tokens not configured, or the signing keys unreachable", body = Problem, content_type = "application/problem+json"),
+    )
+)]
+pub async fn pass_checkins(
+    State(state): State<AppState>,
+    path: Result<Path<i32>, PathRejection>,
+    headers: HeaderMap,
+    body: Result<Json<PassCheckinRequest>, JsonRejection>,
+) -> Result<Response, ApiError> {
+    let invitation_id = invitation_path(path)?;
+    let owner = host(&state, &headers).await?;
+    let Json(request) = body.map_err(bad_body)?;
+    let oversized = request.scans.iter().any(|scan| {
+        scan.token.chars().count() > pass::MAX_TOKEN_CHARS
+            || scan.scanned_at.as_ref().is_some_and(|at| at.chars().count() > pass::MAX_SCANNED_AT_CHARS)
+    });
+    if request.scans.is_empty() || request.scans.len() > pass::MAX_SCANS_PER_BATCH || oversized {
+        return Err(ApiError::BadRequest(
+            "request.invalid_body",
+            "1–50 scans, each a token of at most 200 characters".into(),
+        ));
+    }
+    if state.guest_pass_secrets.is_empty() {
+        return Err(ApiError::Unavailable("guest_pass.not_configured"));
+    }
+    let now = utc_now();
+    let scope = idempotency::host_scope("roster:pass-checkins", owner.user_id, invitation_id, 0);
+    let hash = idempotency::request_hash(&request);
+    if let Some(response) = replay_for(&state, &headers, &scope, &hash).await? {
+        return Ok(response);
+    }
+
+    let mut tx = state.pool.begin().await.map_err(db("pass_begin"))?;
+    let config = owned_invitation(&mut tx, &owner, invitation_id).await?;
+    if !pass::check_in_enabled(&config) {
+        return Err(ApiError::Conflict("guest_pass.not_enabled", None));
+    }
+    lock_roster(&mut tx, invitation_id).await?;
+    let now_seconds = now.assume_utc().unix_timestamp();
+    let mut results = Vec::with_capacity(request.scans.len());
+    for scan in &request.scans {
+        let pass_id = match pass::read(&scan.token, &state.guest_pass_secrets, now_seconds) {
+            pass::PassRead::Valid { pass_id, .. } => pass_id,
+            pass::PassRead::Expired { .. } => {
+                results.push(unnamed(PassOutcome::Expired));
+                continue;
+            }
+            pass::PassRead::Invalid => {
+                results.push(unnamed(PassOutcome::Invalid));
+                continue;
+            }
+        };
+        let guest = sqlx::query!(
+            "select id, name, checked_in_at from guests where invitation_id = $1 and pass_id = $2 for update",
+            invitation_id,
+            pass_id
+        )
+        .fetch_optional(&mut *tx)
+        .await
+        .map_err(db("pass_guest"))?;
+        let result = match guest {
+            None => unnamed(PassOutcome::Unknown),
+            Some(guest) => match guest.checked_in_at {
+                Some(first) => PassScanResult {
+                    outcome: PassOutcome::Already,
+                    name: Some(guest.name),
+                    checked_in_at: Some(pass::iso_millis(first)),
+                },
+                None => {
+                    let at = pass::check_in_time(scan.scanned_at.as_deref(), now);
+                    sqlx::query!("update guests set checked_in_at = $1 where id = $2", at, guest.id)
+                        .execute(&mut *tx)
+                        .await
+                        .map_err(db("pass_checkin"))?;
+                    sqlx::query!(
+                        "insert into analytics_events (invitation_id, guest_id, event_type, meta) values ($1, $2, 'CHECKIN', $3)",
+                        invitation_id,
+                        guest.id,
+                        json!({ "source": "pass" })
+                    )
+                    .execute(&mut *tx)
+                    .await
+                    .map_err(db("pass_event"))?;
+                    PassScanResult {
+                        outcome: PassOutcome::CheckedIn,
+                        name: Some(guest.name),
+                        checked_in_at: Some(pass::iso_millis(at)),
+                    }
+                }
+            },
+        };
+        results.push(result);
+    }
+    let answer = PassCheckins { results };
+    if let Some(response) = commit_with(&state, &headers, tx, &scope, &hash, &answer, now).await? {
+        return Ok(response);
+    }
+    Ok(Json(answer).into_response())
 }

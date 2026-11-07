@@ -216,7 +216,13 @@ fn rsvp_path(slug: &str, guest: &str) -> String {
 }
 
 fn state(pool: &PgPool, limits: Limits, owner: Option<Arc<OwnerVerifier>>) -> AppState {
-    AppState { pool: pool.clone(), service_secrets: Arc::new(vec![SECRET.to_vec()]), owner, limits }
+    AppState {
+        pool: pool.clone(),
+        service_secrets: Arc::new(vec![SECRET.to_vec()]),
+        guest_pass_secrets: Arc::new(Vec::new()),
+        owner,
+        limits,
+    }
 }
 
 const ROOMY: Limits = Limits {

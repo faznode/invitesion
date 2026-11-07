@@ -69,21 +69,31 @@ export const templates = pgTable('templates', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 
-export const invitations = pgTable('invitations', {
-  id: serial('id').primaryKey(),
-  userId: integer('user_id')
-    .notNull()
-    .references(() => users.id),
-  templateId: integer('template_id').references(() => templates.id),
-  slug: varchar('slug', { length: 120 }).notNull().unique(),
-  eventType: varchar('event_type', { length: 20 }).notNull(),
-  config: jsonb('config'), // source of truth isi undangan; renderer deterministik config→HTML
-  status: varchar('status', { length: 20 }).notNull().default('DRAFT'), // DRAFT|PUBLISHED|EXPIRED
-  revisionCount: integer('revision_count').notNull().default(0), // max 3
-  publishedAt: timestamp('published_at'),
-  expiresAt: timestamp('expires_at'), // published_at + 12 bulan
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-});
+export const invitations = pgTable(
+  'invitations',
+  {
+    id: serial('id').primaryKey(),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id),
+    templateId: integer('template_id').references(() => templates.id),
+    slug: varchar('slug', { length: 120 }).notNull().unique(),
+    eventType: varchar('event_type', { length: 20 }).notNull(),
+    config: jsonb('config'), // source of truth isi undangan; renderer deterministik config→HTML
+    status: varchar('status', { length: 20 }).notNull().default('DRAFT'), // DRAFT|PUBLISHED|EXPIRED
+    revisionCount: integer('revision_count').notNull().default(0), // max 3
+    publishedAt: timestamp('published_at'),
+    expiresAt: timestamp('expires_at'), // published_at + 12 bulan
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    // B-037 (D-055): the key a creation carried (the wizard's draft key). A retry of the same creation by the same owner
+    // finds its row instead of making a second draft, through either content writer. Null for rows made without one.
+    creationKey: varchar('creation_key', { length: 255 }),
+  },
+  // Unique per owner, and only where a key exists: rows created before B-037 (all null) never collide.
+  (t) => ({
+    creationKeyIdx: uniqueIndex('invitations_user_creation_key_idx').on(t.userId, t.creationKey).where(sql`${t.creationKey} is not null`),
+  }),
+);
 
 export const invitationVersions = pgTable(
   'invitation_versions',
@@ -168,10 +178,16 @@ export const guests = pgTable(
     linkToken: varchar('link_token', { length: 32 }),
     // B-033: the import that created this guest (a UUID), so one import can be undone; null = added one by one.
     importBatchId: varchar('import_batch_id', { length: 36 }),
+    // B-024 (D-056): the guest pass's lookup id, 122 random bits as 32 hex characters, set by the database for every
+    // row (existing rows got one when the column was added), so no writer generates it. The QR carries it only inside
+    // an HMAC-signed token (`lib/invitation/guest-pass.ts`), never the guest id. `qr_code` above is a baseline column
+    // nothing reads or writes.
+    passId: varchar('pass_id', { length: 32 }).notNull().default(sql`replace(gen_random_uuid()::text, '-', '')`),
   },
   (t) => ({
     slugUnique: uniqueIndex('guests_invitation_slug_unique').on(t.invitationId, t.slug),
     linkTokenUnique: uniqueIndex('guests_link_token_unique').on(t.linkToken),
+    passIdUnique: uniqueIndex('guests_pass_id_unique').on(t.passId),
     importBatchIdx: index('guests_import_batch_idx').on(t.invitationId, t.importBatchId).where(sql`${t.importBatchId} is not null`),
   }),
 );

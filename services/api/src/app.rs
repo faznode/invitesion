@@ -21,6 +21,9 @@ pub const REQUEST_TIMEOUT: Duration = Duration::from_secs(10);
 pub struct AppState {
     pub pool: PgPool,
     pub service_secrets: Arc<Vec<Vec<u8>>>,
+    /// B-024: the guest-pass secrets, current first (`GUEST_PASS_SECRET`, `GUEST_PASS_SECRET_PREVIOUS`); empty = passes
+    /// are not configured and the check-in endpoint answers 503.
+    pub guest_pass_secrets: Arc<Vec<Vec<u8>>>,
     pub owner: Option<Arc<OwnerVerifier>>,
     /// Write limits (B-013).
     pub limits: Limits,
@@ -43,6 +46,7 @@ impl AppState {
         Ok(Self {
             pool: config.pool()?,
             service_secrets: Arc::new(config.service_secrets.clone()),
+            guest_pass_secrets: Arc::new(config.guest_pass_secrets.clone()),
             owner,
             limits: config.limits,
         })
@@ -69,7 +73,9 @@ pub fn router(state: AppState) -> Router {
         .route("/v1/invitations/{invitation}/registration-link", post(roster::http::registration_link))
         .route("/v1/registration-links/{token}/registrations", post(roster::http::register))
         .route("/v1/invitations/{invitation}/registrations/{registration}/decision", post(roster::http::decide))
+        .route("/v1/invitations/{invitation}/guest-pass-checkins", post(roster::http::pass_checkins))
         .route("/v1/invitations/{invitation}/content", post(content::http::write_content))
+        .route("/v1/invitations", post(content::create::create_draft))
         .route_layer(from_fn_with_state(state.clone(), service_auth::require_signature));
     let app =
         Router::new().route("/v1/health", get(health::health)).merge(signed).with_state(state).layer(from_fn(timeout));

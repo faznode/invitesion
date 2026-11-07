@@ -38,6 +38,7 @@ export function fixtureInvitation(overrides: Partial<Invitation> = {}): Invitati
     publishedAt: new Date('2026-11-01T00:00:00Z'),
     expiresAt: null,
     createdAt: new Date('2026-10-01T00:00:00Z'),
+    creationKey: null,
     ...overrides,
   };
 }
@@ -63,6 +64,7 @@ export function fixtureGuest(overrides: Partial<Guest> = {}): Guest {
     checkedInAt: null,
     linkToken: null,
     importBatchId: null,
+    passId: '0123456789abcdef0123456789abcdef',
     ...overrides,
   };
 }
@@ -84,10 +86,11 @@ export function renderGuestPage({
   giftWithheld,
   imageVariants,
   saveData,
+  guestPassHref,
 }: Partial<GuestPageProps> & { config: DetailConfig }): string {
   const { PublicInvitationRenderer } = require('../../components/invitation/public-renderer') as typeof import('../../components/invitation/public-renderer');
   return renderToStaticMarkup(
-    createElement(PublicInvitationRenderer, { config, invitation, guest, media, messages, readOnly, status, preview, giftWithheld, imageVariants, saveData }),
+    createElement(PublicInvitationRenderer, { config, invitation, guest, media, messages, readOnly, status, preview, giftWithheld, imageVariants, saveData, guestPassHref }),
   );
 }
 

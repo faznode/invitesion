@@ -51,8 +51,8 @@ fn db(context: &'static str) -> impl FnOnce(sqlx::Error) -> ApiError {
     move |error| ApiError::internal(context, error)
 }
 
-/// The signed-in customer behind the token; the editor refuses administrators, and so does this.
-async fn host(state: &AppState, headers: &HeaderMap) -> Result<Owner, ApiError> {
+/// The signed-in customer behind the token; the editor refuses administrators, and so does this (and creation, B-037).
+pub(crate) async fn host(state: &AppState, headers: &HeaderMap) -> Result<Owner, ApiError> {
     let owner = resolve_owner(state, headers).await?;
     if owner.role == "ADMIN" {
         return Err(ApiError::Forbidden("owner.role_not_allowed"));

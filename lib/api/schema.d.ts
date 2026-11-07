@@ -70,6 +70,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/invitations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["create_draft"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/invitations/{invitation}/category-invitations": {
         parameters: {
             query?: never;
@@ -128,6 +144,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["undo_import"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/invitations/{invitation}/guest-pass-checkins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["pass_checkins"];
         delete?: never;
         options?: never;
         head?: never;
@@ -353,6 +385,42 @@ export interface components {
         Decision: "APPROVE" | "REJECT";
         /** @enum {string} */
         DecisionStatus: "APPROVED" | "REJECTED";
+        /** @description One creation: the template, the event type, the slug before any suffix, the whole config and the creation's key. */
+        DraftCreateRequest: {
+            /**
+             * Format: int32
+             * @description The template row (`templates.id`, the price anchor of checkout, publishing and settlement), or null.
+             */
+            templateId?: number | null;
+            /** @description One of the six core event types; for a template, the one its catalog category maps to. */
+            eventType: string;
+            /**
+             * @description Lower-case letters and digits in hyphen-separated runs, at most 60 characters; the writer adds `-2`, `-3` … when
+             *     the slug is taken.
+             */
+            slugBase: string;
+            /** @description The whole config to store, as Next.js prepared it. */
+            config: {
+                [key: string]: unknown;
+            };
+            /**
+             * @description 1–255 visible ASCII characters, stored on the row: a creation by the same owner with the same key answers with the
+             *     draft it made (`replayed`), through either writer and without expiry.
+             */
+            creationKey: string;
+        };
+        DraftCreated: {
+            /** Format: int32 */
+            invitationId: number;
+            slug: string;
+            /**
+             * Format: int32
+             * @description The version this creation wrote: always 1.
+             */
+            version: number;
+            /** @description True when an earlier creation with this owner and key made the draft. */
+            replayed: boolean;
+        };
         /** @enum {string} */
         DuplicateOf: "roster" | "file";
         /** @description One event's fields: `ev:<id>` and `evn:<id>`. */
@@ -492,6 +560,29 @@ export interface components {
         };
         /** @enum {string} */
         ModeratedState: "VISIBLE" | "HIDDEN" | "DELETED";
+        PassCheckinRequest: {
+            /** @description 1–50 scans, answered in this order. */
+            scans: components["schemas"]["PassScan"][];
+        };
+        PassCheckins: {
+            results: components["schemas"]["PassScanResult"][];
+        };
+        /** @enum {string} */
+        PassOutcome: "checked-in" | "already" | "expired" | "invalid" | "unknown";
+        /** @description B-024 (D-056): one scanned guest pass. */
+        PassScan: {
+            /** @description The text of the pass's QR (`IVP1.` and 48 base64url characters); anything else is answered `invalid`. */
+            token: string;
+            /** @description When the scanner saw it (`YYYY-MM-DDTHH:MM:SS[.fff]Z`); kept within the last day, else this request's time. */
+            scannedAt?: string | null;
+        };
+        PassScanResult: {
+            outcome: components["schemas"]["PassOutcome"];
+            /** @description The guest's display name, for `checked-in` and `already` only. */
+            name?: string | null;
+            /** @description The stored check-in time (milliseconds, UTC), for `checked-in` and `already` only. */
+            checkedInAt?: string | null;
+        };
         /** @description An error response. `code` is stable and machine-readable; `title` and `detail` are for people and may change. */
         Problem: {
             /** @description `https://invitesion.id/problems/<code>`. */
@@ -894,6 +985,75 @@ export interface operations {
             };
         };
     };
+    create_draft: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DraftCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description The draft exists with version 1: made now, or by an earlier creation with this owner and key (`replayed`) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DraftCreated"];
+                };
+            };
+            /** @description Malformed body, event type, slug base or creation key */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Missing or invalid signature or owner token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description A token for no live customer (`owner.unknown_user`, `owner.role_not_allowed`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description No such template (`creation.template_missing`); the event type or theme is not the template's (`creation.refused`); a refused reference (`content.media_refused`) or theme (`content.theme_not_entitled`), with `issues` */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Owner tokens are not configured or the signing keys are unreachable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     set_category_invitation: {
         parameters: {
             query?: never;
@@ -1227,6 +1387,99 @@ export interface operations {
                 };
             };
             /** @description Owner tokens are not configured or the signing keys are unreachable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    pass_checkins: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The scanner's key for this batch, bound to the signed-in owner and this invitation; a resent batch replays the first answer for 24 hours */
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                /** @description The owner's invitation */
+                invitation: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PassCheckinRequest"];
+            };
+        };
+        responses: {
+            /** @description Each scan answered in order: the token read (shape, MAC with an accepted `GUEST_PASS_SECRET`, expiry), the pass's guest locked, a first check-in stored with one CHECKIN event, a replay answered `already` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PassCheckins"];
+                };
+            };
+            /** @description Malformed path, body (1–50 scans) or idempotency key */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Missing or invalid signature or owner token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description A token for no live customer, or an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not this owner's invitation (`roster.not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The invitation has not opted in (`guest_pass.not_enabled`: `checkInSettings.enabled`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description `idempotency.key_reused` */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description No guest-pass secret (`guest_pass.not_configured`), owner tokens not configured, or the signing keys unreachable */
             503: {
                 headers: {
                     [name: string]: unknown;

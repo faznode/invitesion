@@ -2,6 +2,7 @@ import 'server-only';
 
 import { backendFor } from '@/lib/backend';
 import { isFlagOn } from '@/lib/flags';
+import { passVerifySecrets } from './guest-pass';
 import * as api from './roster-api';
 import * as next from './roster-next';
 import type {
@@ -13,6 +14,8 @@ import type {
   InvitedOutcome,
   LinkOutcome,
   OperationOutcome,
+  PassCheckinOutcome,
+  PassScanInput,
   RegistrationDecision,
   RegistrationLinkAction,
   RegistrationOutcome,
@@ -140,6 +143,26 @@ export async function decideRosterRegistration(
     return ownerToken ? api.decideRegistrationThroughApi({ ...input, flags, ownerToken }, env) : { kind: 'signin' };
   }
   return next.decideRegistrationNext({ ...input, userId: caller.userId, flags });
+}
+
+/**
+ * B-024 (D-056): a batch of guest-pass scans from the host's scanner. Flag off: every pass is inert and no writer is
+ * called. Otherwise exactly one writer, like every roster write; the TypeScript writer verifies with this process's
+ * secrets, the Rust writer with its own (`GUEST_PASS_SECRET` on the API).
+ */
+export async function checkInWithPasses(
+  caller: RosterCaller,
+  input: { invitationId: number; scans: readonly PassScanInput[]; key: string },
+  env: Env = process.env,
+): Promise<PassCheckinOutcome> {
+  if (!isFlagOn('GUEST_PASS', env)) return { kind: 'disabled' };
+  if (rust(env)) {
+    const ownerToken = await tokenOf(caller);
+    return ownerToken ? api.passCheckinsThroughApi({ ...input, ownerToken }, env) : { kind: 'signin' };
+  }
+  const secrets = passVerifySecrets(env);
+  if (!secrets.length) return { kind: 'unconfigured' };
+  return next.passCheckinNext({ userId: caller.userId, invitationId: input.invitationId, scans: input.scans, secrets });
 }
 
 /** A self-registration from the public form; the key is the rendered form's, so a double submit writes once (Rust). */

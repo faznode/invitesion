@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import { isFlagOn } from '@/lib/flags';
 import { getTemplateBySlug } from '@/lib/invitation/templates';
 import { getLocale } from '@/lib/locale-server';
 import PreviewClient from './preview-client';
@@ -36,6 +37,7 @@ export default async function TemplatePreviewPage({ params, searchParams }: Page
       template={template}
       locale={locale === 'en' ? 'en' : 'id'}
       guestName={guestName}
+      wizard={isFlagOn('CREATION_WIZARD')}
     />
   );
 }

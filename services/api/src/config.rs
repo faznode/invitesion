@@ -25,6 +25,9 @@ pub struct Config {
     pub database_url: String,
     /// The current secret first; the previous one is accepted only while a rotation is in progress.
     pub service_secrets: Vec<Vec<u8>>,
+    /// B-024: the guest-pass secrets, current first; optional (the check-in endpoint answers 503 without one), but a
+    /// set secret must be strong, and a previous one needs a current one.
+    pub guest_pass_secrets: Vec<Vec<u8>>,
     pub owner_tokens: Option<OwnerTokenConfig>,
     pub port: u16,
     /// 0 behind a transaction pooler (the ADR-A2 default): no named prepared statements survive a pooled connection.
@@ -56,6 +59,20 @@ impl Config {
                 Some(secret) if secret.len() < MIN_SECRET_BYTES => return Err(ConfigError::WeakSecret(name)),
                 Some(secret) => service_secrets.push(secret.into_bytes()),
                 None if name == "INTERNAL_API_SECRET" => return Err(ConfigError::Missing(name)),
+                None => {}
+            }
+        }
+
+        let mut guest_pass_secrets = Vec::new();
+        for name in ["GUEST_PASS_SECRET", "GUEST_PASS_SECRET_PREVIOUS"] {
+            match non_empty(env, name) {
+                Some(secret) if secret.len() < crate::roster::pass::MIN_SECRET_BYTES => {
+                    return Err(ConfigError::WeakSecret(name));
+                }
+                Some(_) if name == "GUEST_PASS_SECRET_PREVIOUS" && guest_pass_secrets.is_empty() => {
+                    return Err(ConfigError::Missing("GUEST_PASS_SECRET"));
+                }
+                Some(secret) => guest_pass_secrets.push(secret.into_bytes()),
                 None => {}
             }
         }
@@ -96,7 +113,15 @@ impl Config {
             }
         }
 
-        Ok(Self { database_url, service_secrets, owner_tokens, port, statement_cache_capacity, limits })
+        Ok(Self {
+            database_url,
+            service_secrets,
+            guest_pass_secrets,
+            owner_tokens,
+            port,
+            statement_cache_capacity,
+            limits,
+        })
     }
 
     /// A lazy pool: a cold start never waits for the database, and the first query connects.
