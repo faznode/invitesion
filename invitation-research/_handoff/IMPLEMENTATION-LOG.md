@@ -562,7 +562,7 @@ Baseline reproduced: typecheck 0; tests 279 / 278 / 1 (the E-047 assertion); mig
 ### E-055 · B-020 CI: the required checks, the B-012 product gates, research checks and the Rust suite on every push (s26, U1)
 - **Behaviour before:** no CI workflow. The B-012 gates, `verify-payment` and `verify-view-dedupe` ran only by hand (B-020 PARTIAL, B-012 PARTIAL).
 - **Change:**
-  - `.github/workflows/ci.yml`, five jobs, each a script in `scripts/ci/`:
+  - [historical GitHub workflow](https://github.com/faznode/invitesion/blob/cf052522115763ef32ae4ffafd3dbeebb2ae5296/.github/workflows/ci.yml), five jobs, each a script in `scripts/ci/`:
     - `app`: typecheck, unit tests, production build with middleware;
     - `database`: migrations from empty, schema drift through `drizzle-kit generate`, seeds, `verify-payment`, `verify-view-dedupe`, `verify-theme-entitlement`;
     - `product-gates`: review fixture, measurement build, server, byte budgets on wedding and programme content, design acceptance, cover fold and rendered contrast; reports uploaded as an artifact;
@@ -585,7 +585,7 @@ Baseline reproduced: typecheck 0; tests 279 / 278 / 1 (the E-047 assertion); mig
   - The first GitHub Actions run is EXT: agents never push.
   - Photo pages are not in CI because generated review assets never enter the repository, so the D-041 legacy-over-photo pages stay a manual run.
   - The workflow pins Lighthouse 12.8.2 and uses the runner's Google Chrome; the sandbox uses Chrome for Testing 158.
-- **Risk / rollback:** none for the product. Delete `.github/workflows/ci.yml` and `scripts/ci/`.
+- **Risk / rollback:** none for the product. Delete [historical GitHub workflow](https://github.com/faznode/invitesion/blob/cf052522115763ef32ae4ffafd3dbeebb2ae5296/.github/workflows/ci.yml) and `scripts/ci/`.
 - **s27 addendum:** the first GitHub Actions run passed all five jobs on `87e14dc` (run `42262922026`, 17:34:45–17:42:12Z, read through the public API). U1's exit criterion "CI green on every push" therefore holds for the first push; it stays a standing rule.
 
 ## Session 27 (2026-11-06; baseline `87e14dc`, tree `632f4e8`; U1 F-01 closed, U2 R-01 / R-02 built in the sandbox)
@@ -650,7 +650,7 @@ Every figure below was executed in s27 unless marked *reported*. "Copy" = the is
 - The merge of two invocations (12 + 12 runs) hit the old 20-value limit of the enumerating test. Assignments are now counted per doubled mid-rank sum (the same exact distribution, ties included), limited to 50 pooled values. `own-build-bench.test.mjs` 7 / 7, including a cross-check against full enumeration on 60 random tied samples and C(24, 12) = 2,704,156 assignments for 12 vs 12.
 
 ### s27 → `f935d39` · transfer corrections (owner, reported; no product behaviour)
-- The owner-provided workflow (`.github/workflows/ci.yml`) was restored after the v0 exporter rejected workflow files.
+- The owner-provided workflow ([historical GitHub workflow](https://github.com/faznode/invitesion/blob/cf052522115763ef32ae4ffafd3dbeebb2ae5296/.github/workflows/ci.yml)) was restored after the v0 exporter rejected workflow files.
 - One generated-directory reference was clarified; the RSVP Rust files were formatted; an unused fixture binding was marked intentionally unused.
 - Rust database fixtures tag their rows with UUIDs after parallel timestamp-based tags collided.
 - GitHub Actions run `42281685521` passed all five jobs on `f935d39` (owner). Reproduced in s28 below.

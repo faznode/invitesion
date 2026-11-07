@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# scripts/ci/local.sh: run the jobs of .github/workflows/ci.yml in this sandbox with the same scripts (B-020).
+# scripts/ci/local.sh: run the five sandbox release-check jobs before transfer (B-020, ADR-O13).
 # Each job that builds or writes a database runs in a disposable copy of the project with a fresh database, so the
 # project folder (served by the platform's dev server from its own .next) and the working database are never touched.
 #   bash scripts/ci/local.sh research|app|database|product-gates|rust|all

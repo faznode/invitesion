@@ -1,5 +1,7 @@
 # LATEST: single entry point for resuming the Invitesion mission
 
+> **Owner update, 2026-11-07 (ADR-O13):** run all applicable release gates on the exact deliverable tree in the agent sandbox before transfer. The GitHub workflow file and directory are removed; do not recreate them. A GitHub run is not required before publishing a transfer summary or continuation prompt. Keep the sandbox gate scripts and report actual results and environment limitations. Earlier requirements to retain or run a GitHub workflow are superseded.
+
 > Technical progress records are in `sessions/`. The owner keeps agent instructions and raw response transcripts outside this repository. **Current status source: §1 of this file.** Per-requirement status: `acceptance-matrix.md`. Folder layout: `../README.md`. Decisions and phase board: `../_progress.md`. Questions: `../_open-questions.md`. Evidence: `../_evidence-index.md`. Implementation log: `IMPLEMENTATION-LOG.md`. Self-review: `review-20261104-self.md`. Design families: `../../templates/_briefs/`, skill `invitesion-template-harness`, latest review `family-review-20261104-s16.md` (s17 follow-up §9, s18 §10–§11, s21 §12, s23r §13–§14, s24 §15), rendered contrast `contrast-sweep-20261104-s16.md` (runs 1–12).
 
 | | |
