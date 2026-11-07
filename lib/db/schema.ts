@@ -1,5 +1,6 @@
 import {
   pgTable,
+  bigserial,
   serial,
   varchar,
   text,
@@ -12,7 +13,7 @@ import {
   index,
   primaryKey,
 } from 'drizzle-orm/pg-core';
-import { relations } from 'drizzle-orm';
+import { relations, sql } from 'drizzle-orm';
 
 // ─────────────────────────────────────────────
 // AUTH
@@ -445,6 +446,59 @@ export const apiIdempotencyKeys = pgTable(
   (t) => ({
     pk: primaryKey({ columns: [t.scope, t.key] }),
     createdIdx: index('api_idempotency_keys_created_idx').on(t.createdAt),
+  }),
+);
+
+// ─────────────────────────────────────────────
+// JOBS AND MEDIA VARIANTS (B-019, 09 §8.6–8.7)
+// ─────────────────────────────────────────────
+// The job queue. Next.js inserts a row (kind, payload, dedupe key, `run_at` in UTC wall time); the Rust runner
+// (`services/api/src/jobs.rs`) owns the processing columns: attempts, the lease (`locked_until`), the retry time, the
+// last error and completion. Due rows are claimed with `for update skip locked`; a job at `max_attempts` without
+// `done_at` has failed and keeps its last error.
+export const jobs = pgTable(
+  'jobs',
+  {
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    kind: varchar('kind', { length: 40 }).notNull(),
+    payload: jsonb('payload').notNull(),
+    dedupeKey: varchar('dedupe_key', { length: 200 }).notNull(),
+    runAt: timestamp('run_at').notNull().defaultNow(),
+    attempts: integer('attempts').notNull().default(0),
+    maxAttempts: integer('max_attempts').notNull().default(5),
+    lockedUntil: timestamp('locked_until'),
+    lastError: varchar('last_error', { length: 500 }),
+    doneAt: timestamp('done_at'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (t) => ({
+    dedupe: uniqueIndex('jobs_kind_dedupe_unique').on(t.kind, t.dedupeKey),
+    due: index('jobs_due_idx').on(t.runAt).where(sql`${t.doneAt} is null`),
+  }),
+);
+
+// The WebP variants of a host's public upload (B-019), written only by the Rust image-variant job
+// (`services/api/src/media.rs`) and read by the guest page for `srcset` (`lib/media/variants.ts`). Objects live under
+// `variants/<invitation>/<name>/`, never beside the original; deleting rows makes the pages serve the originals again.
+export const mediaVariants = pgTable(
+  'media_variants',
+  {
+    id: serial('id').primaryKey(),
+    invitationId: integer('invitation_id')
+      .notNull()
+      .references(() => invitations.id, { onDelete: 'cascade' }),
+    sourceKey: varchar('source_key', { length: 512 }).notNull(),
+    variantKey: varchar('variant_key', { length: 512 }).notNull(),
+    format: varchar('format', { length: 10 }).notNull(), // webp
+    tier: varchar('tier', { length: 10 }).notNull(), // standard | lite (Save-Data, I-28)
+    width: integer('width').notNull(),
+    height: integer('height').notNull(),
+    bytes: integer('bytes').notNull(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (t) => ({
+    variant: uniqueIndex('media_variants_source_unique').on(t.sourceKey, t.tier, t.format, t.width),
+    invitationIdx: index('media_variants_invitation_idx').on(t.invitationId),
   }),
 );
 

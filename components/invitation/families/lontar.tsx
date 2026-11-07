@@ -23,8 +23,11 @@ import {
   SHARE_HEADING,
   ShareBody,
   SwitchedOffNotices,
+  VariantImage,
 } from '@/components/invitation/guest-blocks';
 import type { GuestPageProps, GuestView } from '@/components/invitation/guest-view';
+import { GalleryBody } from '@/components/invitation/gallery';
+import { IMAGE_SIZES } from '@/lib/media/variants';
 
 type Tone = GuestView['tone'];
 
@@ -116,8 +119,9 @@ export function LontarLayout({ props, view }: { props: GuestPageProps; view: Gue
             {photo && (
               // A lone photo is bounded by its width: the unlayered `img { max-width: 100% }` in app/globals.css overrides every
               // max-w-* utility on an image (S18-E1).
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
+              <VariantImage
+                srcSet={view.imageSrcSet(photo)}
+                sizes={IMAGE_SIZES.lontarCover}
                 src={photo}
                 alt=""
                 aria-hidden
@@ -206,14 +210,21 @@ export function LontarLayout({ props, view }: { props: GuestPageProps; view: Gue
         </LeafSection>
       ) : null}
 
-      {gallery.length > 0 && (
+      {(gallery.length > 0 || view.galleryVideos.length > 0) && (
         <LeafSection tone={tone} title="Galeri">
-          <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {gallery.map((asset) => (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img key={asset.id} src={asset.url} alt="" loading="lazy" className={`aspect-square w-full rounded-2xl border ${tone.line} object-cover`} />
-            ))}
-          </div>
+          <GalleryBody
+            view={view}
+            frame={{
+              spacing: 'mt-8',
+              grid: {
+                className: 'grid grid-cols-2 gap-3 sm:grid-cols-3',
+                photo: () => ({ image: `aspect-square w-full rounded-2xl border ${tone.line} object-cover`, sizes: IMAGE_SIZES.wideGallery }),
+              },
+              shape: `rounded-2xl border ${tone.line}`,
+              masonry: { columns: 'columns-2 sm:columns-3', sizes: IMAGE_SIZES.wideGallery },
+              carousel: { sizes: IMAGE_SIZES.wideCarousel },
+            }}
+          />
         </LeafSection>
       )}
 

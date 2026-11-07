@@ -45,13 +45,23 @@
  * as (first catalog template through `newInvitationConfig`), filled with review content; `--new-invitation-palettes` adds
  * /i/review-new-<family>-p-<paletteId>/budi-hartono for every family and palette a new invitation can start on.
  * `--profiles` (s29, B-023) adds per layout: profiles (the full wedding with stressed couple profiles and no photos).
+ * `--photos <cover.jpg>,<bride.jpg>,<groom.jpg>[,<gallery.jpg>…]` (s30, B-019 / B-025) adds per layout: photos (the full
+ * wedding whose cover, couple photos and gallery are host uploads stored through `saveImage` keyed to the invitation, as
+ * the upload route stores them; set UPLOAD_ROOT), with the gallery listed in `media_assets` and one image-variant job
+ * queued per upload exactly as the route queues it (`enqueueImageVariants`). Run `invitesion-jobs` afterwards to make the
+ * variants. Use fictional, generated photos only; review assets never enter the repository.
+ * `--gallery <url>,<url>[,…]` (s30, B-025) adds per family gallery-grid, gallery-masonry and gallery-carousel (the full
+ * wedding with those photo URLs and the three fictional videos of `GALLERY_FIXTURE_VIDEOS` in `media_assets`; grid leaves
+ * `gallery.layout` unset) and legacy gallery-carousel (D-041: still its grid, no video, no lightbox). The product-gates job
+ * serves generated photos (`gallery-gate.ts --write-photos`) and runs `gallery-gate.ts` on these pages.
  */
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import Module from 'node:module';
 import { eq } from 'drizzle-orm';
 import { client, db } from '@/lib/db/drizzle';
-import { guestMessages, guests, invitations, users } from '@/lib/db/schema';
+import { guestMessages, guests, invitations, jobs, mediaAssets, users } from '@/lib/db/schema';
+import { IMAGE_VARIANTS_JOB, variantSourceKey } from '@/lib/media/variants';
 import { detailConfigSchema, type DetailConfig } from '@/lib/invitation/detail-config';
 import { FAMILY_IDS, type FamilyId } from '@/lib/invitation/families';
 import { newInvitationConfig } from '@/lib/invitation/new-invitation';
@@ -73,8 +83,15 @@ export type ReviewInvitation = {
   logo?: LogoKind;
   /** Which person photos `--portraits` stores for this invitation (D-038). */
   portrait?: PortraitKind;
+  /** `--photos`: host uploads for the cover, the couple and the gallery (B-019 / B-025). */
+  photos?: true;
+  /** `--gallery`: the given photo URLs and the fixture's videos as the invitation's media (B-025). */
+  gallery?: true;
 };
 type LogoKind = 'square' | 'wide' | 'tall' | 'broken';
+
+/** `--gallery` (B-025): fictional videos only, one per kind the page offers; `gallery-gate.ts` answers the players itself. */
+export const GALLERY_FIXTURE_VIDEOS = ['https://youtu.be/Contoh_0001', 'https://vimeo.com/123456789', 'https://video.contoh.example/acara/1'] as const;
 type PortraitKind = 'couple' | 'kid' | 'kid-off' | 'birthday' | 'tasyakuran';
 
 const STRESS_GUESTS: GuestSeed[] = [
@@ -444,6 +461,10 @@ export type ReviewOptions = {
    * text-only profiles are rendered and the legacy layout shows that it still needs a photo (D-041).
    */
   profiles?: boolean;
+  /** `--photos <files>` (s30, B-019 / B-025): per layout `photos`, the full wedding with uploaded cover, couple and gallery photos. */
+  photos?: boolean;
+  /** `--gallery <urls>` (s30, B-025): per family the three gallery layouts, plus legacy with a carousel stored. */
+  gallery?: boolean;
 };
 
 /** `--profiles` (B-023): the couple under stress, without photos; every name is fictional. */
@@ -485,7 +506,7 @@ export function familyReviewInvitations(options: ReviewOptions = {}): ReviewInvi
   const make = (
     slug: string,
     config: DetailConfig,
-    options: Partial<Pick<ReviewInvitation, 'eventType' | 'expired' | 'withMessages' | 'logo' | 'portrait'>> = {},
+    options: Partial<Pick<ReviewInvitation, 'eventType' | 'expired' | 'withMessages' | 'logo' | 'portrait' | 'photos' | 'gallery'>> = {},
   ): ReviewInvitation => ({
     slug,
     eventType: options.eventType ?? 'wedding',
@@ -495,6 +516,8 @@ export function familyReviewInvitations(options: ReviewOptions = {}): ReviewInvi
     withMessages: options.withMessages ?? true,
     ...(options.logo ? { logo: options.logo } : {}),
     ...(options.portrait ? { portrait: options.portrait } : {}),
+    ...(options.photos ? { photos: options.photos } : {}),
+    ...(options.gallery ? { gallery: options.gallery } : {}),
   });
   const corporateOptions = { eventType: 'corporate' as const, withMessages: false };
   const markVariants = (layout: string, familyId?: FamilyId): ReviewInvitation[] =>
@@ -553,6 +576,21 @@ export function familyReviewInvitations(options: ReviewOptions = {}): ReviewInvi
   };
   const profileVariants = (layout: string, familyId?: FamilyId): ReviewInvitation[] =>
     options.profiles ? [make(`review-${layout}-profiles`, weddingProfiles(familyId ? fullPalette[familyId] : 'ivory', familyId), { withMessages: false })] : [];
+  // `--photos`: the upload paths are added by `attachPhotos` once the invitation id (the media key) exists.
+  const photoVariants = (layout: string, familyId?: FamilyId): ReviewInvitation[] =>
+    options.photos ? [make(`review-${layout}-photos`, weddingFull(familyId ? fullPalette[familyId] : 'ivory', familyId), { photos: true })] : [];
+  // `--gallery` (B-025): the media rows are added by `attachGallery`; "grid" is the family's own (no layout stored).
+  const withGallery = (config: DetailConfig, layout?: 'masonry' | 'carousel'): DetailConfig => ({ ...config, gallery: { enabled: true, ...(layout && { layout }) } });
+  const galleryVariants = (layout: string, familyId?: FamilyId): ReviewInvitation[] => {
+    if (!options.gallery) return [];
+    if (!familyId) return [make(`review-${layout}-gallery-carousel`, withGallery(weddingFull('ivory'), 'carousel'), { gallery: true, withMessages: false })];
+    const full = weddingFull(fullPalette[familyId], familyId);
+    return [
+      make(`review-${layout}-gallery-grid`, withGallery(full), { gallery: true, withMessages: false }),
+      make(`review-${layout}-gallery-masonry`, withGallery(full, 'masonry'), { gallery: true, withMessages: false }),
+      make(`review-${layout}-gallery-carousel`, withGallery(full, 'carousel'), { gallery: true, withMessages: false }),
+    ];
+  };
   // `--new-invitations` / `--new-invitation-palettes` (F-02): the review content of the type under a new invitation's theme
   // (the template's palette and the default family) and its B-026 gift default.
   const content: Record<ReviewEventType, (familyId: FamilyId) => DetailConfig> = {
@@ -604,6 +642,8 @@ export function familyReviewInvitations(options: ReviewOptions = {}): ReviewInvi
   rows.push(...questionVariants('legacy'));
   rows.push(...portraitVariants('legacy'));
   rows.push(...profileVariants('legacy'));
+  rows.push(...photoVariants('legacy'));
+  rows.push(...galleryVariants('legacy'));
   if (coverImageUrl) rows.push(make('review-legacy-photo', weddingFull('ivory', undefined, coverImageUrl)));
   if (coverLowUrl) rows.push(make('review-legacy-photo-low', weddingFull('ivory', undefined, coverLowUrl)));
   rows.push(make('review-legacy-corporate', corporate(undefined, logoUrl), { ...corporateOptions, logo: 'square' }));
@@ -626,6 +666,8 @@ export function familyReviewInvitations(options: ReviewOptions = {}): ReviewInvi
     rows.push(...questionVariants(familyId, familyId));
     rows.push(...portraitVariants(familyId, familyId));
     rows.push(...profileVariants(familyId, familyId));
+    rows.push(...photoVariants(familyId, familyId));
+    rows.push(...galleryVariants(familyId, familyId));
   }
   rows.push(...newInvitationVariants());
   if (withPaletteSweep) rows.push(...paletteSweep());
@@ -729,6 +771,53 @@ async function attachPortraits(invitationId: number, row: ReviewInvitation, file
   return row.portrait === 'couple' ? urls : [row.portrait === 'tasyakuran' ? b : a];
 }
 
+/**
+ * `--photos`: every file through the upload route's storage call, then: the cover and the couple photos in the config, the
+ * rest as the gallery's `media_assets` rows in file order, and one image-variant job per upload queued as the route queues
+ * it (kind, `{ key }`, the key as dedupe key, due now). A rerun replaces the invitation's gallery rows and stores the files
+ * again (new keys); earlier objects stay in the scratch upload root.
+ */
+async function attachPhotos(invitationId: number, row: ReviewInvitation, files: string[]): Promise<string[]> {
+  const { invitationMediaKey, saveImage } = await loadStorage();
+  const urls: string[] = [];
+  for (const path of files) {
+    const file = new File([new Uint8Array(readFileSync(path))], 'photo.jpg', { type: 'image/jpeg' });
+    const stored = await saveImage((ext) => invitationMediaKey(invitationId, ext), file, 5 * 1024 * 1024);
+    if (!stored) throw new Error(`${row.slug}: saveImage refused ${path} (over 5 MB or not an image)`);
+    urls.push(stored);
+  }
+  const [cover, bride, groom, ...gallery] = urls;
+  const base = row.config;
+  const config = detailConfigSchema.parse({
+    ...base,
+    theme: { ...base.theme, cover: { ...base.theme?.cover, imageUrl: cover } },
+    couple: { ...base.couple, bride: { ...base.couple?.bride, photoUrl: bride }, groom: { ...base.couple?.groom, photoUrl: groom } },
+    gallery: { ...base.gallery, enabled: true },
+  });
+  await db.update(invitations).set({ config }).where(eq(invitations.id, invitationId));
+  await db.delete(mediaAssets).where(eq(mediaAssets.invitationId, invitationId));
+  if (gallery.length) {
+    await db.insert(mediaAssets).values(gallery.map((url, index) => ({ invitationId, type: 'photo', url, sortOrder: index, uploadSequence: index + 1, source: 'web' })));
+  }
+  for (const url of urls) {
+    const key = variantSourceKey(url);
+    if (!key) throw new Error(`${row.slug}: ${url} is not a variant source`);
+    await db.insert(jobs).values({ kind: IMAGE_VARIANTS_JOB, payload: { key }, dedupeKey: key, runAt: new Date() }).onConflictDoNothing({ target: [jobs.kind, jobs.dedupeKey] });
+  }
+  return urls;
+}
+
+/**
+ * `--gallery`: the invitation's media become the given photo URLs (in order) followed by the fixture's videos, exactly the
+ * rows the editor's gallery tab adds (`type` photo / video, upload order). A rerun replaces them. No upload, no job.
+ */
+async function attachGallery(invitationId: number, urls: string[]): Promise<number> {
+  await db.delete(mediaAssets).where(eq(mediaAssets.invitationId, invitationId));
+  const rows = [...urls.map((url) => ({ type: 'photo', url })), ...GALLERY_FIXTURE_VIDEOS.map((url) => ({ type: 'video', url }))];
+  await db.insert(mediaAssets).values(rows.map((row, index) => ({ invitationId, ...row, sortOrder: index, uploadSequence: index + 1, source: 'web' })));
+  return rows.length;
+}
+
 async function main() {
   const argValue = (flag: string) => (process.argv.indexOf(flag) > 0 ? process.argv[process.argv.indexOf(flag) + 1] : undefined);
   const all = familyReviewInvitations({
@@ -745,6 +834,8 @@ async function main() {
     newInvitations: process.argv.includes('--new-invitations'),
     newInvitationPalettes: process.argv.includes('--new-invitation-palettes'),
     profiles: process.argv.includes('--profiles'),
+    photos: process.argv.includes('--photos'),
+    gallery: process.argv.includes('--gallery'),
   });
   const match = argValue('--match');
   const rows = match ? all.filter((row) => new RegExp(match).test(row.slug)) : all;
@@ -753,18 +844,26 @@ async function main() {
   if (logoFiles && logoFiles.length !== 3) throw new Error('--logo-files takes <square.png>,<wide.png>,<tall.png>');
   const portraitFiles = argValue('--portraits')?.split(',');
   if (portraitFiles && portraitFiles.length !== 2) throw new Error('--portraits takes <a.png>,<b.png>');
+  const photoFiles = argValue('--photos')?.split(',');
+  if (process.argv.includes('--photos') && (!photoFiles || photoFiles.length < 3)) throw new Error('--photos takes <cover>,<bride>,<groom>[,<gallery>…]');
+  const galleryUrls = argValue('--gallery')?.split(',');
+  if (process.argv.includes('--gallery') && (!galleryUrls || galleryUrls.length < 2)) throw new Error('--gallery takes <photo url>,<photo url>[,…]');
   const owner = await upsertOwner();
   const seeded: string[] = [];
   const logos: Record<string, string> = {};
   const portraits: Record<string, string[]> = {};
+  const photos: Record<string, string[]> = {};
+  const gallery: Record<string, number> = {};
   for (const row of rows) {
     const invitation = await seed(row, owner.id);
     seeded.push(invitation.slug);
     if (row.logo && logoFiles) logos[row.slug] = await attachLogo(invitation.id, row, logoFiles);
     if (row.portrait && portraitFiles) portraits[row.slug] = await attachPortraits(invitation.id, row, portraitFiles);
+    if (row.photos && photoFiles) photos[row.slug] = await attachPhotos(invitation.id, row, photoFiles);
+    if (row.gallery && galleryUrls) gallery[row.slug] = await attachGallery(invitation.id, galleryUrls);
   }
   console.log(
-    JSON.stringify({ invitations: seeded, guests: STRESS_GUESTS.map((guest) => guest.slug), tokens: Object.fromEntries(rows.map((row) => [row.slug, reviewToken(row.slug)])), logos, portraits }),
+    JSON.stringify({ invitations: seeded, guests: STRESS_GUESTS.map((guest) => guest.slug), tokens: Object.fromEntries(rows.map((row) => [row.slug, reviewToken(row.slug)])), logos, portraits, photos, gallery }),
   );
 }
 

@@ -70,6 +70,8 @@ test('editor notices come from the map: whole sections, field lists and caveats'
   assert.equal(storedOnlyNotice('guestbook', 'id'), null);
   assert.equal(storedOnlyNotice('events', 'id'), null);
   assert.equal(storedOnlyNotice('quote', 'en'), null);
+  // B-025: the families honour the gallery layout, so the gallery tab no longer lists it as not shown.
+  assert.equal(storedOnlyNotice('gallery', 'id'), null);
 });
 
 test('the profile tab edits a different section per event type', () => {

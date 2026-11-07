@@ -1,10 +1,12 @@
 import type { Metadata } from 'next';
+import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { after } from 'next/server';
 import { PublicInvitationRenderer } from '@/components/invitation/public-renderer';
 import { invitationShareMetadata } from '@/lib/invitation/preview-image';
 import { loadPublicInvitation, trackInvitationView } from '@/lib/invitation/public';
 import { formKey, rsvpFormKey } from '@/lib/invitation/rsvp-form-key';
+import { saveDataRequested } from '@/lib/media/variants';
 
 // Rendered whole, never as a prerendered shell + stream (no Cache Components, no loading boundary above it), so an
 // unknown guest link answers 404 rather than 200 (B-011; next.config.ts).
@@ -59,6 +61,8 @@ export default async function PersonalInvitationPage({ params, searchParams }: P
       rsvpKey={rsvpFormKey(status.rsvp === 'retry' ? status.rsvpk : undefined)}
       wishKey={formKey(status.wish === 'retry' ? status.wishk : undefined)}
       giftWithheld={data.giftWithheld}
+      imageVariants={data.imageVariants}
+      saveData={saveDataRequested((await headers()).get('save-data'))}
     />
   );
 }

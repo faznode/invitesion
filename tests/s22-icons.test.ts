@@ -9,7 +9,8 @@ import { fixtureGuest, LAYOUTS, renderGuestPage, withFamily } from './support/re
 
 const read = (path: string) => readFileSync(join(process.cwd(), path), 'utf8');
 // B-009 adds the music control's two icons; the control lives outside `<main>`, so only the stylesheet test sees them.
-const NAMES = ['calendar-days', 'calendar-plus', 'clock', 'gift', 'map-pin', 'quote', 'radio', 'volume-2', 'volume-x'] as const;
+// B-025 adds the gallery lightbox's close and step controls and the video poster's play mark.
+const NAMES = ['calendar-days', 'calendar-plus', 'clock', 'gift', 'map-pin', 'quote', 'radio', 'volume-2', 'volume-x', 'x', 'chevron-left', 'chevron-right', 'play'] as const;
 
 const config: DetailConfig = {
   couple: { bride: { nickName: 'Laras' }, groom: { nickName: 'Dimas' } },

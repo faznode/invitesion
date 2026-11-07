@@ -56,8 +56,9 @@ function contentSecurityPolicy(nonce: string): string {
     "img-src 'self' data: blob: https://img.clerk.com",
     "font-src 'self' data:",
     "connect-src 'self' https://*.clerk.accounts.dev https://*.clerk.com",
-    // Clerk renders its bot-protection challenge in a frame.
-    "frame-src 'self' https://*.clerk.accounts.dev https://*.clerk.com https://challenges.cloudflare.com",
+    // Clerk renders its bot-protection challenge in a frame. B-025: a gallery video plays, after the guest's tap, in the
+    // provider's privacy-enhanced player, exactly these two hosts (`lib/invitation/gallery.ts` builds only their URLs).
+    "frame-src 'self' https://*.clerk.accounts.dev https://*.clerk.com https://challenges.cloudflare.com https://www.youtube-nocookie.com https://player.vimeo.com",
     "worker-src 'self' blob:",
     "frame-ancestors 'none'",
     "object-src 'none'",

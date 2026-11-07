@@ -23,8 +23,21 @@ import {
   SHARE_HEADING,
   ShareBody,
   SwitchedOffNotices,
+  VariantImage,
 } from '@/components/invitation/guest-blocks';
 import type { GuestPageProps, GuestView } from '@/components/invitation/guest-view';
+import { GalleryBody, type GalleryFrame } from '@/components/invitation/gallery';
+import { MASONRY_PORTRAIT_ASPECTS } from '@/lib/invitation/gallery';
+import { IMAGE_SIZES } from '@/lib/media/variants';
+
+/** B-025: Gapura's arch-topped photos, two to a row, the same shape in every gallery layout (portrait boxes only). */
+const GAPURA_GALLERY: GalleryFrame = {
+  spacing: 'mt-10',
+  grid: { className: 'grid grid-cols-2 gap-3', photo: () => ({ image: 'aspect-[3/4] w-full rounded-t-full object-cover', sizes: IMAGE_SIZES.gapuraGallery }) },
+  shape: 'rounded-t-full',
+  masonry: { columns: 'columns-2', sizes: IMAGE_SIZES.gapuraGallery, aspects: MASONRY_PORTRAIT_ASPECTS },
+  carousel: { sizes: IMAGE_SIZES.gapuraCarousel },
+};
 
 type Tone = GuestView['tone'];
 
@@ -57,8 +70,9 @@ export function GapuraLayout({ props, view }: { props: GuestPageProps; view: Gue
               // as tall as the viewport leaves after the cover's text with a two-line guest name (≈ 36.5rem; a long couple's
               // name wraps to two lines on a desktop card), between 11rem and its full square (22.75rem), so on a
               // 1024 × 768, 1280 × 800 or 1366 × 768 screen the guest greeting is in the first viewport too.
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
+              <VariantImage
+                srcSet={view.imageSrcSet(photo)}
+                sizes={IMAGE_SIZES.gapuraCover}
                 src={photo}
                 alt=""
                 aria-hidden
@@ -205,14 +219,9 @@ export function GapuraLayout({ props, view }: { props: GuestPageProps; view: Gue
         </ArchSection>
       ) : null}
 
-      {gallery.length > 0 && (
+      {(gallery.length > 0 || view.galleryVideos.length > 0) && (
         <ArchSection tone={tone} title="Galeri">
-          <div className="mt-10 grid grid-cols-2 gap-3">
-            {gallery.map((asset) => (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img key={asset.id} src={asset.url} alt="" className="aspect-[3/4] w-full rounded-t-full object-cover" loading="lazy" />
-            ))}
-          </div>
+          <GalleryBody view={view} frame={GAPURA_GALLERY} />
         </ArchSection>
       )}
 

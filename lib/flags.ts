@@ -32,6 +32,12 @@ const DEFAULTS = {
    * on the legacy layout exactly as before; invitations already created keep whatever layout they have.
    */
   DEFAULT_FAMILY: true,
+  /**
+   * B-019 (I-28): a public upload queues WebP variants (made by the Rust jobs), and the design families offer them in a
+   * `srcset` (the lite ladder under `Save-Data: on`). Off queues nothing and renders every image as its original exactly
+   * as before; stored variants are neither read nor removed.
+   */
+  IMAGE_VARIANTS: true,
 } as const;
 
 export type FlagName = keyof typeof DEFAULTS;

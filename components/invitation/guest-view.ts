@@ -18,6 +18,8 @@ import { answerField, askableQuestions, conditionText, isMultiChoice, readStored
 import { eventCountField, eventStatusField, perEventRsvpEvents, readEventAnswers } from '@/lib/invitation/rsvp-events';
 import { rsvpDeadlinePassed } from '@/lib/invitation/rsvp-rules';
 import { shareOf } from '@/lib/invitation/share';
+import { variantSrcSet, type ImageVariants } from '@/lib/media/variants';
+import { galleryLayout, galleryVideo } from '@/lib/invitation/gallery';
 import type { Guest, Invitation, MediaAsset } from '@/lib/db/schema';
 
 /** A listed wish; `hostReply` is the host's answer (R-04), rendered under it. */
@@ -57,13 +59,17 @@ export type GuestPageProps = {
    * block says they are on the guest's personal link instead.
    */
   giftWithheld?: boolean;
+  /** B-019: WebP variants of the invitation's uploads (the renderer passes none to the legacy layout, D-041). */
+  imageVariants?: ImageVariants;
+  /** I-28: the request carried `Save-Data: on`, so images offer only their lite variants. */
+  saveData?: boolean;
 };
 
 /**
  * What every layout derives from the stored config, computed once so the legacy layout and each design family (B-030)
  * show the same data: dates in the event's own zone, the countdown rule, the calendar entry and who may respond.
  */
-export function buildGuestView({ invitation, config, guest, media, readOnly, preview = false, giftWithheld = false }: GuestPageProps) {
+export function buildGuestView({ invitation, config, guest, media, readOnly, preview = false, giftWithheld = false, imageVariants, saveData = false }: GuestPageProps) {
   const tone = palette(config.theme?.paletteId);
   // Event-local wall clock with WIB / WITA / WIT from the saved offset, whatever zone the server runs in (B-004).
   const eventZone = config.eventOperations?.timezone;
@@ -86,7 +92,16 @@ export function buildGuestView({ invitation, config, guest, media, readOnly, pre
     showCountdown && primaryEvent && invitation.status === 'PUBLISHED'
       ? calendarEventsFromConfig({ slug: invitation.slug, displayName: invitationDisplayName(invitation.eventType, config), events: [primaryEvent] })[0]
       : undefined;
-  const gallery = config.gallery?.enabled !== false ? media.filter((asset) => asset.type === 'photo') : [];
+  const galleryOn = config.gallery?.enabled !== false;
+  const gallery = galleryOn ? media.filter((asset) => asset.type === 'photo') : [];
+  // B-025: the host's gallery layout (the families' own grid when unset) and video facades (no provider request before a tap).
+  const galleryLayoutChoice = galleryLayout(config.gallery?.layout);
+  const galleryVideos = galleryOn
+    ? media.filter((asset) => asset.type === 'video').flatMap((asset) => {
+        const video = galleryVideo(asset);
+        return video ? [video] : [];
+      })
+    : [];
   const canRespond = Boolean(guest) && !readOnly;
   // B-027: the host's RSVP deadline closes the RSVP form only (the guestbook stays open); the action applies the same
   // rule to every POST, so a page rendered before the deadline cannot write after it.
@@ -322,11 +337,16 @@ export function buildGuestView({ invitation, config, guest, media, readOnly, pre
   const giftAccounts = giftOn ? (config.gift?.accounts ?? []) : [];
   const giftHeld = giftOn && giftWithheld;
   const gift = giftAccounts.length || qrisSrc || giftHeld ? { accounts: giftAccounts, qrisSrc, qrisPlate, withheld: giftHeld } : null;
+  // B-019 / I-28: the WebP `srcset` of an uploaded image, or undefined (no variants: the original exactly as before).
+  const imageSrcSet = (src: string | undefined) => variantSrcSet(imageVariants, src, saveData);
 
   return {
     headlineKind,
     music,
     gift,
+    imageSrcSet,
+    galleryLayout: galleryLayoutChoice,
+    galleryVideos,
     tone, formatDate, formatTime, dateParts, names, events, primaryEvent, renderedAt, primaryStartMs, showCountdown, primaryCalendarEvent, gallery,
     canRespond, canRsvp, rsvpMaybe, rsvpQuestions, rsvpEvents, rsvpDeadlineText, rsvpClosedByDeadline, rsvpShown, guestbookShown, wishesListed, wishesModerated, coverImageSrc, coverText, programme,
     organiser, corporateMark, ceremonyProfile, share, portraits, profiles,

@@ -72,7 +72,9 @@ export const RENDER_CAPABILITIES = {
   // B-027: the deadline is shown in the event's wall clock and closes the form and the action from that instant on.
   // B-027 slice 2c (D-036): `perEvent` turns the single answer into one answer per event (two or more events).
   rsvp: { rendered: ['enabled', 'deadline', 'perEvent'], storedOnly: ['maxGuestsPerRsvp'] },
-  gallery: { rendered: ['enabled'], storedOnly: ['layout'], hostOnly: ['assetIds'] },
+  // B-025 (G-028): the design families arrange the photos as `layout` says (`lib/invitation/gallery.ts`; unset = each
+  // family's own grid); the legacy layout keeps its grid whatever is stored (D-041).
+  gallery: { rendered: ['enabled', 'layout'], storedOnly: [], hostOnly: ['assetIds'] },
   streaming: { rendered: ['enabled', 'url'], storedOnly: ['platform', 'scheduledAt'] },
   story: { rendered: ['enabled', 'items', 'date', 'title', 'body'], storedOnly: [] },
   // B-029 (s17): weddings show the hashtag and an http(s) filter link once switched on (`lib/invitation/share.ts`).

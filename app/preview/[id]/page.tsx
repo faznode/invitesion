@@ -60,6 +60,7 @@ export default async function OwnerPreviewPage({ params }: { params: Promise<{ i
         hiddenMessageCount={data.hiddenMessageCount}
         readOnly={data.readOnly}
         status={{}}
+        imageVariants={data.imageVariants}
       />
     </>
   );

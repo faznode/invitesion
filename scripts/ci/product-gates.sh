@@ -13,6 +13,10 @@
 #                      the music, I-15's 1.5 s, reduced motion, the toggle, keyboard), with a tone generated in this copy
 #   gift-privacy       B-026 / G-021: gift details kept to personal links reach no other audience (HTML, RSC payload,
 #                      metadata, calendar file, preview image) and both QRIS routes serve only who may see them
+#   gallery-gate       B-025: each family's grid, masonry and carousel at 360 × 800 (no shift, no overflow), the lightbox by
+#                      keyboard and pointer (focus kept inside, Escape, focus returned, no motion), video facades that ask
+#                      no provider before a tap, axe on the gallery and the open lightbox; legacy unchanged (D-041); with
+#                      photos generated here
 # The fixture has no cover photos: photo pages need generated review assets, which never enter the repository, so the
 # legacy-over-photo INCOMPLETE pages (D-041) stay a manual run.
 set -euo pipefail
@@ -126,10 +130,24 @@ gate() {
     --manual review-legacy-music-manual,review-gapura-music-manual --plain review-legacy-full,review-gapura-full
 }
 
+# B-025: the gallery fixture's photos are gradients generated here (no photograph, no licence), placed under public/ of
+# this disposable copy before the build so the measurement build serves them.
+GALLERY_URLS="$(for n in 1 2 3 4 5; do printf '%s/review/gallery-%s.png,' "$BASE" "$n"; done)"
+GALLERY_URLS="${GALLERY_URLS%,}"
+fixture_photos() { npx tsx tools/template-harness/gallery-gate.ts --write-photos public/review; }
+
+gallery() {
+  local pages=()
+  for family in "${FAMILIES[@]}"; do for layout in grid masonry carousel; do pages+=("review-$family-gallery-$layout"); done; done
+  npx tsx tools/template-harness/gallery-gate.ts --out "$CI_OUT/gallery" --base "$BASE" --pages "$(IFS=,; echo "${pages[*]}")" \
+    --legacy review-legacy-gallery-carousel
+}
+
 step "migrate (drizzle-kit)" pnpm db:migrate
 step "seed the theme catalog" pnpm db:seed:templates
 step "fixture tone (B-009, generated)" fixture_tone
-step "seed the review fixture (+ programme, music, new invitations, profiles)" npx tsx invitation-research/_tools/setup/seed-family-review.ts --programme --music-url "$TONE_URL" --new-invitations --profiles
+step "fixture photos (B-025, generated)" fixture_photos
+step "seed the review fixture (+ programme, music, new invitations, profiles, gallery)" npx tsx invitation-research/_tools/setup/seed-family-review.ts --programme --music-url "$TONE_URL" --new-invitations --profiles --gallery "$GALLERY_URLS"
 step "build (measurement variant)" build_without_middleware
 step "serve on :$APP_PORT" start_server
 step "wrong links answer a real 404 (B-011)" real_404
@@ -142,3 +160,4 @@ step "cover fold (phones and laptop)" fold
 step "rendered contrast (Lighthouse)" contrast
 step "rendered contrast: new invitations (F-02)" contrast_new
 step "cover gate and music (B-009)" gate
+step "gallery: layouts, lightbox and video facades (B-025)" gallery

@@ -24,8 +24,26 @@ import {
   SHARE_HEADING,
   ShareBody,
   SwitchedOffNotices,
+  VariantImage,
 } from '@/components/invitation/guest-blocks';
 import type { GuestPageProps, GuestView } from '@/components/invitation/guest-view';
+import { GalleryBody, type GalleryFrame } from '@/components/invitation/gallery';
+import { IMAGE_SIZES } from '@/lib/media/variants';
+
+/** B-025: Kartu's grid opens with one wide photo across both columns; its rounded cards keep that shape in every layout. */
+const KARTU_GALLERY: GalleryFrame = {
+  spacing: 'mt-8',
+  grid: {
+    className: 'grid grid-cols-2 gap-3',
+    photo: (index) =>
+      index === 0
+        ? { span: 'col-span-2', image: 'aspect-[4/3] w-full rounded-xl object-cover', sizes: IMAGE_SIZES.kartuGalleryWide }
+        : { image: 'aspect-square w-full rounded-xl object-cover', sizes: IMAGE_SIZES.kartuGallery },
+  },
+  shape: 'rounded-xl',
+  masonry: { columns: 'columns-2', sizes: IMAGE_SIZES.kartuGallery },
+  carousel: { sizes: IMAGE_SIZES.kartuCarousel },
+};
 
 type Tone = GuestView['tone'];
 
@@ -65,8 +83,9 @@ export function KartuLayout({ props, view }: { props: GuestPageProps; view: Gues
               // 640 px the photo keeps 4:3 but is capped at what the viewport leaves after the cover's text with a two-line
               // guest name (≈ 34.5rem, plus a margin: 37rem), never below 11rem (as Gapura's window, E-040). Phones keep
               // the full 4:3 photo (S17-G1 holds at 360 × 800).
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
+              <VariantImage
+                srcSet={view.imageSrcSet(view.coverImageSrc)}
+                sizes={IMAGE_SIZES.kartuCover}
                 src={view.coverImageSrc}
                 alt=""
                 aria-hidden
@@ -231,20 +250,9 @@ export function KartuLayout({ props, view }: { props: GuestPageProps; view: Gues
         </CardSection>
       ) : null}
 
-      {gallery.length > 0 && (
+      {(gallery.length > 0 || view.galleryVideos.length > 0) && (
         <CardSection tone={tone} label="Momen" title="Galeri">
-          <div className="mt-8 grid grid-cols-2 gap-3">
-            {gallery.map((asset, index) => (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                key={asset.id}
-                src={asset.url}
-                alt=""
-                loading="lazy"
-                className={`w-full rounded-xl object-cover ${index === 0 ? 'col-span-2 aspect-[4/3]' : 'aspect-square'}`}
-              />
-            ))}
-          </div>
+          <GalleryBody view={view} frame={KARTU_GALLERY} />
         </CardSection>
       )}
 

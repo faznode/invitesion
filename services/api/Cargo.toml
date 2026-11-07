@@ -25,9 +25,18 @@ path = "api/index.rs"
 name = "openapi"
 path = "src/bin/openapi.rs"
 
+# B-019: runs due jobs (image variants) once per cron invocation, or every minute with --watch (09 §8.6).
+[[bin]]
+name = "invitesion-jobs"
+path = "src/bin/jobs.rs"
+
 [dependencies]
 axum = "0.8.9"
-tokio = { version = "1.54", features = ["rt-multi-thread", "macros", "net", "time", "signal", "sync"] }
+tokio = { version = "1.54", features = ["rt-multi-thread", "macros", "net", "time", "signal", "sync", "fs"] }
+# B-019: decode the upload route's formats (the GIF decoder only to recognise GIFs, which keep their original) and
+# resize; WebP variants are encoded lossy by libwebp (`webp`, built from vendored C by `cc`).
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp", "gif"] }
+webp = { version = "0.3", default-features = false }
 tower = { version = "0.5", features = ["util"] }
 tower-http = { version = "0.7", features = ["request-id", "trace"] }
 sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "tls-rustls-ring-webpki", "postgres", "time", "macros", "json"] }
@@ -60,6 +69,26 @@ rand = "0.8"
 opt-level = 3
 
 [profile.dev.package.rsa]
+opt-level = 3
+
+# B-019: decoding, resizing and encoding the 12-megapixel fixture photo is slow unoptimised (tests and local job runs;
+# `cc` builds libwebp's C at the package's level).
+[profile.dev.package.image]
+opt-level = 3
+
+[profile.dev.package.zune-jpeg]
+opt-level = 3
+
+[profile.dev.package.png]
+opt-level = 3
+
+[profile.dev.package.fdeflate]
+opt-level = 3
+
+[profile.dev.package.image-webp]
+opt-level = 3
+
+[profile.dev.package.libwebp-sys]
 opt-level = 3
 
 [profile.release]

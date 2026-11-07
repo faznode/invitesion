@@ -23,8 +23,20 @@ import {
   SHARE_HEADING,
   ShareBody,
   SwitchedOffNotices,
+  VariantImage,
 } from '@/components/invitation/guest-blocks';
 import type { GuestPageProps, GuestView } from '@/components/invitation/guest-view';
+import { GalleryBody, type GalleryFrame } from '@/components/invitation/gallery';
+import { IMAGE_SIZES } from '@/lib/media/variants';
+
+/** B-025: Riang's soft square tiles, two to a row on phones and three from `sm`, the same corners in every layout. */
+const RIANG_GALLERY: GalleryFrame = {
+  spacing: 'mt-8',
+  grid: { className: 'grid grid-cols-2 gap-3 sm:grid-cols-3', photo: () => ({ image: 'aspect-square w-full rounded-3xl object-cover', sizes: IMAGE_SIZES.wideGallery }) },
+  shape: 'rounded-3xl',
+  masonry: { columns: 'columns-2 sm:columns-3', sizes: IMAGE_SIZES.wideGallery },
+  carousel: { sizes: IMAGE_SIZES.wideCarousel },
+};
 
 type Tone = GuestView['tone'];
 type Band = { key: string; node: React.ReactNode };
@@ -163,18 +175,13 @@ export function RiangLayout({ props, view }: { props: GuestPageProps; view: Gues
     });
   }
 
-  if (gallery.length > 0) {
+  if (gallery.length > 0 || view.galleryVideos.length > 0) {
     bands.push({
       key: 'gallery',
       node: (
         <>
           <BandHeading tone={tone}>Galeri</BandHeading>
-          <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {gallery.map((asset) => (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img key={asset.id} src={asset.url} alt="" className="aspect-square w-full rounded-3xl object-cover" loading="lazy" />
-            ))}
-          </div>
+          <GalleryBody view={view} frame={RIANG_GALLERY} />
         </>
       ),
     });
@@ -285,8 +292,14 @@ export function RiangLayout({ props, view }: { props: GuestPageProps; view: Gues
       <header className={`overflow-hidden ${tone.soft} px-5 pb-14 pt-6 text-center`}>
         <Bunting tone={tone} />
         {view.coverImageSrc && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={view.coverImageSrc} alt="" aria-hidden className={`mx-auto mt-10 aspect-square w-36 rounded-full border-4 ${tone.line} object-cover`} />
+          <VariantImage
+            srcSet={view.imageSrcSet(view.coverImageSrc)}
+            sizes={IMAGE_SIZES.riangCover}
+            src={view.coverImageSrc}
+            alt=""
+            aria-hidden
+            className={`mx-auto mt-10 aspect-square w-36 rounded-full border-4 ${tone.line} object-cover`}
+          />
         )}
         {mark ? (
           // S22-K2 (s23r): the logo alone, then the category and the cover headline on one eyebrow line.

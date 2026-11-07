@@ -81,9 +81,13 @@ export function renderGuestPage({
   status = {},
   preview = false,
   giftWithheld,
+  imageVariants,
+  saveData,
 }: Partial<GuestPageProps> & { config: DetailConfig }): string {
   const { PublicInvitationRenderer } = require('../../components/invitation/public-renderer') as typeof import('../../components/invitation/public-renderer');
-  return renderToStaticMarkup(createElement(PublicInvitationRenderer, { config, invitation, guest, media, messages, readOnly, status, preview, giftWithheld }));
+  return renderToStaticMarkup(
+    createElement(PublicInvitationRenderer, { config, invitation, guest, media, messages, readOnly, status, preview, giftWithheld, imageVariants, saveData }),
+  );
 }
 
 const unescapeAttribute = (value: string) => value.replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#x27;/g, "'");

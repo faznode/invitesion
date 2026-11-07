@@ -4,6 +4,7 @@ import type { Portrait, Profile, Profiles } from '@/lib/invitation/portraits';
 import { invitationCalendarPath } from '@/lib/invitation/public-path';
 import { ANSWER_LIMITS } from '@/lib/invitation/rsvp-questions';
 import { RSVP_ANSWER_TEXT, rsvpDefaultCount, type RsvpStatus } from '@/lib/invitation/rsvp-rules';
+import { IMAGE_SIZES } from '@/lib/media/variants';
 import { submitGuestMessage, submitRsvp } from '@/app/i/[slug]/actions';
 import { InvitationIcon } from '@/components/invitation/icons';
 import type { GuestPageProps, GuestView, InvitationEvent } from '@/components/invitation/guest-view';
@@ -307,7 +308,8 @@ export function CeremonyProfileBody({
     <>
       {profile.portrait && (
         <div className={`mt-8 flex ${align === 'center' ? 'justify-center' : 'justify-start'}`}>
-          <PortraitFigure portrait={profile.portrait} frame={frame} tone={tone} align={align} />
+          {/* A child's photo (D-040) comes through the personal-link photo route, never a variant source: no srcSet. */}
+          <PortraitFigure portrait={profile.portrait} frame={frame} tone={tone} align={align} srcSet={view.imageSrcSet(profile.portrait.src)} />
         </div>
       )}
       {profile.rows.length > 0 && (
@@ -334,6 +336,29 @@ export function CeremonyProfileBody({
   );
 }
 
+/**
+ * B-019: a host's uploaded image, offered as its WebP variants when it has any (`srcSet` from `view.imageSrcSet`): a
+ * `<picture>` set to `display: contents`, so the `<img>` keeps its place in every layout, with the original still its
+ * `src` for a browser without WebP. Without variants this renders exactly the `<img>` it always was, attributes in the
+ * caller's order, so pages whose images have no variants are unchanged byte for byte.
+ */
+export function VariantImage({
+  srcSet,
+  sizes,
+  src,
+  ...img
+}: Omit<React.ImgHTMLAttributes<HTMLImageElement>, 'srcSet' | 'sizes' | 'src'> & { src: string; srcSet: string | undefined; sizes: string }) {
+  // eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text
+  const image = <img src={src} {...img} />;
+  if (!srcSet) return image;
+  return (
+    <picture className="contents">
+      <source type="image/webp" srcSet={srcSet} sizes={sizes} />
+      {image}
+    </picture>
+  );
+}
+
 /** D-038: the frame each layout gives a person's photo; every frame has a fixed aspect, so nothing moves while it loads. */
 export type PortraitFrame = 'round' | 'arch' | 'card' | 'leaf';
 const PORTRAIT_FRAMES: Record<PortraitFrame, { outer: string; inner: string; width: number; height: number }> = {
@@ -347,13 +372,26 @@ const PORTRAIT_FRAMES: Record<PortraitFrame, { outer: string; inner: string; wid
  * D-038: one person's photo, framed at full strength with nothing set on it (T1), on a thin mat in the card colour, with
  * the name and the parents line under it. Faces sit in the upper part of most portraits, hence the 30 % focal point.
  */
-function PortraitFigure({ portrait, frame, tone, align }: { portrait: Portrait; frame: PortraitFrame; tone: GuestView['tone']; align: 'center' | 'start' }) {
+function PortraitFigure({
+  portrait,
+  frame,
+  tone,
+  align,
+  srcSet,
+}: {
+  portrait: Portrait;
+  frame: PortraitFrame;
+  tone: GuestView['tone'];
+  align: 'center' | 'start';
+  srcSet: string | undefined;
+}) {
   const shape = PORTRAIT_FRAMES[frame];
   return (
     <figure className={`flex w-40 flex-col sm:w-44 ${align === 'center' ? 'items-center text-center' : 'items-start text-left'}`}>
       <div className={`w-full overflow-hidden border ${tone.line} ${tone.card} p-1 ${shape.outer}`}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
+        <VariantImage
+          srcSet={srcSet}
+          sizes={IMAGE_SIZES.portrait}
           src={portrait.src}
           alt={portrait.alt}
           width={shape.width}
@@ -425,7 +463,7 @@ export function PortraitsBody({
     <div className={`mt-8 flex flex-col gap-10 sm:flex-row sm:gap-12 ${align === 'center' ? 'items-center sm:items-start sm:justify-center' : 'items-start'}`}>
       {shown.people.map(({ src, alt = '', ...profile }) =>
         src ? (
-          <PortraitFigure key={profile.key} portrait={{ ...profile, src, alt }} frame={frame} tone={tone} align={align} />
+          <PortraitFigure key={profile.key} portrait={{ ...profile, src, alt }} frame={frame} tone={tone} align={align} srcSet={view.imageSrcSet(src)} />
         ) : (
           <ProfileText key={profile.key} profile={profile} tone={tone} align={align} />
         ),
@@ -551,8 +589,9 @@ export function CorporateLogo({ view, align, className = '' }: { view: GuestView
   const items = align === 'center' ? 'items-center' : 'items-start';
   return (
     <span className={`flex h-16 w-60 max-w-full ${items} ${align === 'center' ? 'justify-center' : 'justify-start'}${className ? ` ${className}` : ''}`}>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
+      <VariantImage
+        srcSet={view.imageSrcSet(logo.src)}
+        sizes={IMAGE_SIZES.logo}
         src={logo.src}
         alt={logo.alt}
         width={240}

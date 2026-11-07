@@ -47,8 +47,9 @@ const FAMILY_LAYOUTS: Record<FamilyId, (input: LayoutProps) => React.ReactNode> 
 };
 
 export function PublicInvitationRenderer(props: GuestPageProps) {
-  const view = buildGuestView(props);
   const family = familyOf(props.config.theme?.familyId);
+  // B-019: image variants serve the design families; the legacy layout is frozen (D-041) and keeps its originals.
+  const view = buildGuestView(family ? props : { ...props, imageVariants: undefined });
   const Layout = family ? FAMILY_LAYOUTS[family.id] : LegacyLayout;
   const page = <Layout props={props} view={view} />;
   // B-009 (D-045): only an invitation with playable music gets the island; every other page renders exactly as before.

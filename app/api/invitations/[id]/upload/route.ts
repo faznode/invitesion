@@ -1,6 +1,7 @@
 import { getUser } from '@/lib/db/queries';
 import { apiError } from '@/lib/api/respond';
 import { requireOwnedInvitation, OwnershipError } from '@/lib/invitation/service';
+import { enqueueImageVariants } from '@/lib/media/variant-jobs';
 import { invitationMediaKey, protectedInvitationMediaKey, saveImage } from '@/lib/storage';
 
 export const dynamic = 'force-dynamic';
@@ -60,6 +61,10 @@ export async function POST(req: Request, { params }: Ctx) {
   if (!url) {
     return apiError(415, 'UNSUPPORTED_TYPE', 'Only PNG, JPG, WEBP, or GIF images up to 5MB are allowed');
   }
+
+  // B-019: a public upload queues its WebP variants (best-effort: guests get the original until they exist). Protected
+  // uploads never get variants; they keep D-040's owner-only delivery.
+  if (purpose === null) await enqueueImageVariants(url);
 
   return Response.json({ data: { url } }, { status: 201 });
 }

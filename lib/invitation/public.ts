@@ -4,6 +4,7 @@ import { cache } from 'react';
 import { and, asc, count, desc, eq, isNull, or } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
 import { guestMessages, guests, invitations, mediaAssets } from '@/lib/db/schema';
+import { loadImageVariants } from '@/lib/media/variant-jobs';
 import { normalizeStoredConfig } from './content-read';
 import type { DetailConfig } from './detail-config';
 import { configForAudience } from './gift-privacy';
@@ -77,10 +78,12 @@ export const loadPublicInvitation = cache(async (slug: string, guestSlug?: strin
   const rules = guestbookRules(config);
   const listed = rules.enabled && rules.visibility === 'public';
 
-  const [media, messages, messageCount] = await Promise.all([
+  // B-019: the WebP variants of the invitation's uploads (none while `IMAGE_VARIANTS` is off).
+  const [media, messages, messageCount, imageVariants] = await Promise.all([
     db.select().from(mediaAssets).where(eq(mediaAssets.invitationId, invitation.id)).orderBy(asc(mediaAssets.sortOrder), asc(mediaAssets.id)),
     listed ? visibleWishes(invitation.id) : Promise.resolve([]),
     listed ? visibleWishCount(invitation.id) : Promise.resolve([{ value: 0 }]),
+    loadImageVariants(invitation.id),
   ]);
 
   const totalMessages = Number(messageCount[0]?.value ?? 0);
@@ -98,6 +101,7 @@ export const loadPublicInvitation = cache(async (slug: string, guestSlug?: strin
     expired,
     readOnly: expired,
     giftWithheld,
+    imageVariants,
   };
 });
 

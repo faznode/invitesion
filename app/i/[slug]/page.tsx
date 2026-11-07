@@ -1,9 +1,11 @@
 import type { Metadata } from 'next';
+import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { after } from 'next/server';
 import { PublicInvitationRenderer } from '@/components/invitation/public-renderer';
 import { invitationShareMetadata } from '@/lib/invitation/preview-image';
 import { loadPublicInvitation, trackInvitationView } from '@/lib/invitation/public';
+import { saveDataRequested } from '@/lib/media/variants';
 
 // Rendered whole so an unknown or draft invitation answers 404 rather than 200 (B-011; next.config.ts).
 export const dynamic = 'force-dynamic';
@@ -46,6 +48,8 @@ export default async function PublicInvitationPage({ params }: Params) {
       readOnly={data.readOnly}
       status={{}}
       giftWithheld={data.giftWithheld}
+      imageVariants={data.imageVariants}
+      saveData={saveDataRequested((await headers()).get('save-data'))}
     />
   );
 }
