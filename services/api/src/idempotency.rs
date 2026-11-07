@@ -31,6 +31,15 @@ pub fn key_from(headers: &HeaderMap) -> Result<Option<String>, ApiError> {
     }
 }
 
+/// The scope a host's write is recorded under: the operation, the owner resolved from the verified token, the invitation
+/// and the guest or wish. A key replays only inside its scope, so another customer, another invitation or another
+/// resource never reads a cached answer or learns that the key exists: their request is judged afresh and refused by the
+/// ownership check. Owners and roles are resolved before this is built; a legitimate retry (the same owner, path and
+/// body) still replays, including a delete whose row is gone.
+pub fn host_scope(operation: &str, owner_user_id: i32, invitation_id: i32, resource_id: i32) -> String {
+    format!("{operation}:{owner_user_id}:{invitation_id}:{resource_id}")
+}
+
 /// SHA-256 of the request's canonical JSON (struct fields in declaration order, maps sorted), so a retry of the same
 /// request matches and any change does not.
 pub fn request_hash(request: &impl Serialize) -> String {
@@ -133,6 +142,21 @@ mod tests {
             headers.insert(KEY_HEADER, HeaderValue::from_str(bad).unwrap());
             assert!(key_from(&headers).is_err(), "{bad:?}");
         }
+    }
+
+    #[test]
+    fn host_scopes_bind_the_owner_the_invitation_and_the_resource() {
+        let scope = host_scope("wish:host", 7, 11, 13);
+        assert_eq!(scope, "wish:host:7:11:13");
+        for other in [
+            host_scope("wish:host", 8, 11, 13),
+            host_scope("wish:host", 7, 12, 13),
+            host_scope("wish:host", 7, 11, 14),
+            host_scope("wish:reply", 7, 11, 13),
+        ] {
+            assert_ne!(scope, other);
+        }
+        assert!(host_scope("wish:reply", i32::MAX, i32::MAX, i32::MAX).len() <= 120, "fits api_idempotency_keys.scope");
     }
 
     #[test]

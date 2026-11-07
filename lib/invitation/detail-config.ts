@@ -39,6 +39,21 @@ const imageUrlField = (options: { protectedUpload?: boolean } = {}) =>
  */
 const childImageUrlField = () => imageUrlField({ protectedUpload: true });
 
+/**
+ * B-026 (D-047): the host's static QRIS image is a protected upload only (`purpose=gift-qris`), never a typed URL, so guests
+ * reach it through the route for their audience and nothing else can point at it. `''` is the editor's "removed". The
+ * service checks that the path names this invitation (`media-ownership.ts`).
+ */
+const qrisImageField = () =>
+  z
+    .string()
+    .max(500)
+    .superRefine((value, ctx) => {
+      if (value === '' || isProtectedMediaPath(value)) return;
+      ctx.addIssue({ code: z.ZodIssueCode.invalid_string, validation: 'url', message: 'Upload the QRIS image' });
+    })
+    .optional();
+
 const conditionalSchema = z.object({
   questionId: idText,
   equals: trimmed(200).optional(),
@@ -355,6 +370,11 @@ export const detailConfigSchema = z
       .object({
         enabled: z.boolean().default(false),
         accounts: z.array(giftAccountSchema).max(10).optional(),
+        // B-026 / G-021 (D-047): gift details only on personal guest links. Absent = off, so invitations created before
+        // B-026 keep today's visibility until their host changes it; `createInvitation` starts new ones with it on.
+        personalOnly: z.boolean().optional(),
+        // B-026: the host's static QRIS image (no payment passes through Invitesion).
+        qrisImageUrl: qrisImageField(),
       })
       .optional(),
 

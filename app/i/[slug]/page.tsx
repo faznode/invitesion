@@ -45,6 +45,7 @@ export default async function PublicInvitationPage({ params }: Params) {
       hiddenMessageCount={data.hiddenMessageCount}
       readOnly={data.readOnly}
       status={{}}
+      giftWithheld={data.giftWithheld}
     />
   );
 }

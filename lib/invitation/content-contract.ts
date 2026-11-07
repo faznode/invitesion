@@ -29,6 +29,8 @@ export const RENDER_CAPABILITIES = {
   schemaVersion: { rendered: [], storedOnly: [], hostOnly: ['schemaVersion'] },
   settings: { rendered: ['title', 'openingCopy'], storedOnly: ['fontFamily', 'language'], hostOnly: ['linkSlug'] },
   // s20 (D-038, `lib/invitation/portraits.ts`): a couple's photos open a "Mempelai" section with each name and parents line.
+  // B-023 (D-049): on the design families the full names, parents lines and child order render without a photo too
+  // (`coupleProfiles`); the legacy layout shows them with a photo only (D-041).
   couple: {
     rendered: [
       'bride.fullName', 'bride.nickName', 'groom.fullName', 'groom.nickName', 'displayOrder',
@@ -64,7 +66,9 @@ export const RENDER_CAPABILITIES = {
   // music control (`autoplay` off); the title names the control for screen readers.
   music: { rendered: ['enabled', 'assetUrl', 'title', 'autoplay'], storedOnly: [] },
   greetings: { rendered: ['enabled', 'prayer'], storedOnly: [] },
-  gift: { rendered: ['enabled', 'accounts', 'label', 'number', 'holder', 'note'], storedOnly: ['kind'] },
+  // B-026 (D-047): the QRIS image renders through the route for the page's audience; `personalOnly` decides who sees the
+  // details (`lib/invitation/gift-privacy.ts`) and is never shown itself.
+  gift: { rendered: ['enabled', 'accounts', 'label', 'number', 'holder', 'note', 'qrisImageUrl'], storedOnly: ['kind'], hostOnly: ['personalOnly'] },
   // B-027: the deadline is shown in the event's wall clock and closes the form and the action from that instant on.
   // B-027 slice 2c (D-036): `perEvent` turns the single answer into one answer per event (two or more events).
   rsvp: { rendered: ['enabled', 'deadline', 'perEvent'], storedOnly: ['maxGuestsPerRsvp'] },

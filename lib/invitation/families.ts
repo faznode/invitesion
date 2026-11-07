@@ -74,3 +74,21 @@ export const FAMILIES: Record<FamilyId, FamilyMeta> = {
 export function familyOf(id?: string | null): FamilyMeta | null {
   return id && (FAMILY_IDS as readonly string[]).includes(id) ? FAMILIES[id as FamilyId] : null;
 }
+
+/**
+ * F-02 (D-041 (3)): the family a new invitation starts on, by event type: the composition designed around it. Every
+ * family renders every event type, the host can pick another or the legacy layout in the editor, and stored invitations
+ * are never touched.
+ */
+const DEFAULT_FAMILY_BY_EVENT_TYPE: Readonly<Record<string, FamilyId>> = {
+  wedding: 'gapura',
+  birthday: 'riang',
+  aqiqah: 'riang',
+  tasyakuran: 'riang',
+  khitanan: 'riang',
+  corporate: 'lontar',
+};
+
+export function defaultFamilyFor(eventType: string): FamilyId | undefined {
+  return Object.hasOwn(DEFAULT_FAMILY_BY_EVENT_TYPE, eventType) ? DEFAULT_FAMILY_BY_EVENT_TYPE[eventType] : undefined;
+}

@@ -1,6 +1,7 @@
 import { Fragment } from 'react';
 import { InvitationIcon } from '@/components/invitation/icons';
 import { Countdown } from '@/components/invitation/countdown';
+import { GiftCopyButton } from '@/components/invitation/gift-copy';
 import {
   CalendarLinks,
   CeremonyProfileBody,
@@ -9,6 +10,9 @@ import {
   CorporateLogo,
   CorporateMark,
   CoverEyebrow,
+  GiftQris,
+  GiftWithheldNotice,
+  giftNumberId,
   GuestbookBlock,
   MapLink,
   PROGRAMME_HEADINGS,
@@ -136,9 +140,9 @@ export function GapuraLayout({ props, view }: { props: GuestPageProps; view: Gue
         </ArchSection>
       )}
 
-      {view.portraits && (
-        <ArchSection tone={tone} title={view.portraits.heading}>
-          <PortraitsBody view={view} frame="arch" />
+      {view.profiles && (
+        <ArchSection tone={tone} title={view.profiles.heading}>
+          <PortraitsBody view={view} section={view.profiles} frame="arch" />
         </ArchSection>
       )}
 
@@ -232,19 +236,30 @@ export function GapuraLayout({ props, view }: { props: GuestPageProps; view: Gue
         </ArchSection>
       )}
 
-      {config.gift?.enabled && config.gift.accounts?.length ? (
+      {view.gift ? (
         <ArchSection tone={tone} title="Tanda Kasih">
           <InvitationIcon name="gift" className={`mx-auto mt-6 h-6 w-6 ${tone.accent}`} />
-          <div className="mt-8 flex flex-col gap-4">
-            {config.gift.accounts.map((account, index) => (
-              <article key={index} className={`${arch} px-6 pb-6 pt-9`}>
-                <p className={`text-xs uppercase tracking-widest ${tone.muted}`}>{account.label}</p>
-                {account.number && <p className="mt-2 font-mono text-lg tracking-wide [overflow-wrap:anywhere]">{account.number}</p>}
-                {account.holder && <p className={`mt-1 text-sm ${tone.muted}`}>a.n. {account.holder}</p>}
-                {account.note && <p className={`mt-2 text-sm ${tone.muted}`}>{account.note}</p>}
-              </article>
-            ))}
-          </div>
+          {view.gift.accounts.length > 0 && (
+            <div className="mt-8 flex flex-col gap-4">
+              {view.gift.accounts.map((account, index) => (
+                <article key={index} className={`${arch} px-6 pb-6 pt-9`}>
+                  <p className={`text-xs uppercase tracking-widest ${tone.muted}`}>{account.label}</p>
+                  {account.number && (
+                    <p id={giftNumberId(index)} className="mt-2 font-mono text-lg tracking-wide [overflow-wrap:anywhere]">
+                      {account.number}
+                    </p>
+                  )}
+                  {account.holder && <p className={`mt-1 text-sm ${tone.muted}`}>a.n. {account.holder}</p>}
+                  {account.number && (
+                    <GiftCopyButton number={account.number} label={account.label} targetId={giftNumberId(index)} accentClass={tone.accent} mutedClass={tone.muted} align="center" />
+                  )}
+                  {account.note && <p className={`mt-2 text-sm ${tone.muted}`}>{account.note}</p>}
+                </article>
+              ))}
+            </div>
+          )}
+          <GiftQris view={view} />
+          <GiftWithheldNotice view={view} />
         </ArchSection>
       ) : null}
 

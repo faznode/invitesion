@@ -3,6 +3,7 @@ import 'server-only';
 import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
 import { invitations, invitationVersions, templates } from '@/lib/db/schema';
+import { newInvitationConfig } from './new-invitation';
 import { resolveUniqueSlug, slugify } from './slug';
 import { presetConfigFromTemplateDefaults } from './template-defaults';
 
@@ -26,6 +27,10 @@ async function invitationSlugTaken(candidate: string) {
  * before the strict schema check (B-001, ADR-O01); a default that is still
  * invalid degrades to an empty config rather than blocking creation. Version 1
  * is recorded so the revision history has an origin point to roll back to.
+ * Only new invitations receive `newInvitationConfig`'s defaults: gift details
+ * kept to personal guest links (B-026, D-047) and, under `DEFAULT_FAMILY`, the
+ * design family chosen for the event type (F-02, D-041 (3)). Invitations created
+ * before either keep what they have.
  */
 export async function createInvitation({
   userId,
@@ -51,6 +56,7 @@ export async function createInvitation({
     }
   }
 
+  defaultConfig = newInvitationConfig(defaultConfig, eventType);
   const slug = await resolveUniqueSlug(slugify(title || eventType, eventType), invitationSlugTaken);
 
   return db.transaction(async (tx) => {

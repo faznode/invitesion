@@ -1,6 +1,6 @@
 import { googleCalendarUrl } from '@/lib/invitation/calendar';
 import { guestLinkSegment } from '@/lib/invitation/guest-link';
-import type { Portrait } from '@/lib/invitation/portraits';
+import type { Portrait, Profile, Profiles } from '@/lib/invitation/portraits';
 import { invitationCalendarPath } from '@/lib/invitation/public-path';
 import { ANSWER_LIMITS } from '@/lib/invitation/rsvp-questions';
 import { RSVP_ANSWER_TEXT, rsvpDefaultCount, type RsvpStatus } from '@/lib/invitation/rsvp-rules';
@@ -382,17 +382,54 @@ function PortraitFigure({ portrait, frame, tone, align }: { portrait: Portrait; 
 }
 
 /**
- * D-038: the couple (weddings) or the celebrant (birthdays) with their photos, `view.portraits`; null without a photo the
- * page may show. Layouts own the section frame and its heading (`view.portraits.heading`) and place it before the events.
+ * B-023 (D-049): a side of the couple without a photo on the design families: the name and the parents line, set like a
+ * photo's caption, so a profile reads the same with or without its photo.
  */
-export function PortraitsBody({ view, frame, align = 'center' }: { view: GuestView; frame: PortraitFrame; align?: 'center' | 'start' }) {
-  const { portraits, tone } = view;
-  if (!portraits) return null;
+function ProfileText({ profile, tone, align }: { profile: Profile; tone: GuestView['tone']; align: 'center' | 'start' }) {
+  return (
+    <div className={`flex w-full max-w-xs flex-col gap-1 sm:w-60 ${align === 'center' ? 'items-center text-center' : 'items-start text-left'}`}>
+      {profile.name && (
+        <p dir="auto" className={`font-serif text-xl leading-snug text-balance ${HOST_TEXT}`}>
+          {profile.name}
+        </p>
+      )}
+      {profile.caption && (
+        <p dir="auto" className={`text-sm leading-6 ${tone.muted} ${HOST_TEXT}`}>
+          {profile.caption}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * D-038: the couple (weddings) or the celebrant (birthdays) with their photos, `view.portraits`; null without a photo the
+ * page may show. Layouts own the section frame and its heading and place it before the events. The design families pass
+ * `section={view.profiles}` (B-023: the couple's profiles, a photo optional); the legacy layout keeps `view.portraits`.
+ */
+export function PortraitsBody({
+  view,
+  section,
+  frame,
+  align = 'center',
+}: {
+  view: GuestView;
+  section?: Profiles;
+  frame: PortraitFrame;
+  align?: 'center' | 'start';
+}) {
+  const { tone } = view;
+  const shown: Profiles = section === undefined ? view.portraits : section;
+  if (!shown) return null;
   return (
     <div className={`mt-8 flex flex-col gap-10 sm:flex-row sm:gap-12 ${align === 'center' ? 'items-center sm:items-start sm:justify-center' : 'items-start'}`}>
-      {portraits.people.map((portrait) => (
-        <PortraitFigure key={portrait.key} portrait={portrait} frame={frame} tone={tone} align={align} />
-      ))}
+      {shown.people.map(({ src, alt = '', ...profile }) =>
+        src ? (
+          <PortraitFigure key={profile.key} portrait={{ ...profile, src, alt }} frame={frame} tone={tone} align={align} />
+        ) : (
+          <ProfileText key={profile.key} profile={profile} tone={tone} align={align} />
+        ),
+      )}
     </div>
   );
 }
@@ -431,6 +468,43 @@ export function ShareBody({ view, align }: { view: GuestView; align: 'center' | 
         </a>
       )}
     </>
+  );
+}
+
+/** B-026: the element id of one account's number, which the copy button selects when the Clipboard API cannot write. */
+export function giftNumberId(index: number) {
+  return `hadiah-nomor-${index}`;
+}
+
+export const GIFT_WITHHELD_TEXT = 'Detail rekening dan QRIS hanya tampil di tautan undangan pribadi yang dikirimkan kepada Anda.';
+
+/**
+ * B-026 (D-047): what the invitation link shows in place of gift details the host keeps to personal links. The details
+ * themselves never reached this page (`configForAudience`); this only says where they are.
+ */
+export function GiftWithheldNotice({ view, align = 'center' }: { view: GuestView; align?: 'center' | 'start' }) {
+  if (!view.gift?.withheld) return null;
+  return <p className={`mt-6 text-sm leading-6 ${align === 'center' ? 'text-center' : ''} ${view.tone.muted}`}>{GIFT_WITHHELD_TEXT}</p>;
+}
+
+/**
+ * B-026 (D-047): the host's static QRIS image (`view.gift.qrisSrc`). Nothing is paid through Invitesion. The image is
+ * framed alone with no text on it (T1) and keeps its square while it loads. Its plate is the palette's lightest surface
+ * (`view.gift.qrisPlate`) because a scanner reads dark modules on a light field.
+ */
+export function GiftQris({ view, align = 'center' }: { view: GuestView; align?: 'center' | 'start' }) {
+  const src = view.gift?.qrisSrc;
+  if (!src) return null;
+  return (
+    <figure className={`mt-8 w-full max-w-60 ${align === 'center' ? 'mx-auto' : ''}`}>
+      <div className={`rounded-2xl ${view.gift?.qrisPlate} p-3 shadow-sm`}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={src} alt="Kode QRIS untuk tanda kasih" loading="lazy" decoding="async" className="aspect-square w-full object-contain" />
+      </div>
+      <figcaption className={`mt-3 text-sm leading-6 ${align === 'center' ? 'text-center' : ''} ${view.tone.muted}`}>
+        QRIS statis dari tuan rumah. Pindai dengan aplikasi bank atau dompet digital.
+      </figcaption>
+    </figure>
   );
 }
 

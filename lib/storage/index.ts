@@ -167,16 +167,18 @@ export async function saveImage(
   key: (ext: string) => string,
   file: File,
   maxBytes: number,
+  allowedExt: readonly string[] = Object.values(ALLOWED_IMAGE_EXT),
 ): Promise<string | null> {
   if (file.size === 0 || file.size > maxBytes) return null;
-  if (!ALLOWED_IMAGE_EXT[file.type]) return null;
+  const declared = ALLOWED_IMAGE_EXT[file.type];
+  if (!declared || !allowedExt.includes(declared)) return null;
 
   const bytes = Buffer.from(await file.arrayBuffer());
   // Re-check after reading: `file.size` is a claim until the bytes are in hand.
   if (bytes.length === 0 || bytes.length > maxBytes) return null;
 
   const ext = sniffImageExt(bytes);
-  if (!ext) return null;
+  if (!ext || !allowedExt.includes(ext)) return null;
 
   const objectKey = key(ext);
   await getStorage().put(objectKey, bytes, EXT_MIME[ext] ?? 'application/octet-stream');

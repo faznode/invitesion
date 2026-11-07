@@ -161,11 +161,13 @@ api_rate_limits                       -- ditulis hanya oleh services/api (B-013)
   window_start timestamp, hits int    -- window tetap; baris > 1 hari dipangkas saat window baru dibuka
   index api_rate_limits_window_idx (window_start)
 api_idempotency_keys                  -- ditulis hanya oleh services/api
-  PK (scope varchar(120), key varchar(255))   -- scope: rsvp:guest:<id> | rsvp:host:<id> | wish:guest:<id> | wish:host:<wish id> | wish:reply:<wish id>
+  PK (scope varchar(120), key varchar(255))   -- scope: rsvp:guest:<guest id> | wish:guest:<guest id>
+                                              --   | rsvp:host:<owner>:<invitation>:<guest> | wish:host:<owner>:<invitation>:<wish> | wish:reply:<owner>:<invitation>:<wish>
   request_hash varchar(64), response_status int, response_body jsonb, created_at timestamp
   index api_idempotency_keys_created_idx (created_at)   -- disimpan 24 jam
 ```
 > Bukan data domain: penghitung batas tulis dan kunci idempotensi, dicatat di transaksi yang sama dengan tulisan yang dilindunginya (replay jawaban yang sudah commit, 422 untuk kunci yang dipakai ulang dengan isi lain). Migrasi aditif; Next.js tidak membaca atau menulisnya.
+> **Scope = siapa yang boleh menerima replay (s29, D-046).** Kunci tamu terikat ke tamu hasil resolusi link. Kunci host terikat ke pemilik (`users.id` dari token yang sudah diverifikasi), undangan dan tamu/ucapan di path: pelanggan lain, undangan lain atau resource lain tidak pernah membaca jawaban tersimpan, permintaannya dinilai ulang dan ditolak oleh cek kepemilikan (404, tanpa perubahan data). Retry sah pemilik yang sama tetap replay, termasuk hapus yang jawabannya hilang.
 
 ## Nunggu OPEN ITEMS
 - #1 opsi B → tambah tabel `wa_devices(id, user_id, fonnte_token, status)`.

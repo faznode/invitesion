@@ -27,6 +27,11 @@ const DEFAULTS = {
    * renders every page exactly as before; the stored music settings are neither read nor removed.
    */
   GUEST_MUSIC: true,
+  /**
+   * F-02 (D-041 (3)): a new invitation starts on the design family chosen for its event type. Off starts new invitations
+   * on the legacy layout exactly as before; invitations already created keep whatever layout they have.
+   */
+  DEFAULT_FAMILY: true,
 } as const;
 
 export type FlagName = keyof typeof DEFAULTS;

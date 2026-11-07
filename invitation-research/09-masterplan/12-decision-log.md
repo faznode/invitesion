@@ -1,11 +1,11 @@
 <!-- SUMMARY (first 7 lines — greppable) -->
 # 12-decision-log.md — architecture and research decisions (ADRs) for the Invitesion masterplan
 > WHAT: ADRs with context, options, decision, consequences, confidence and revisit triggers. Short decisions D-001… live in `../_progress.md`; this file holds the decisions the masterplan depends on.
-> STATUS: **2026-11-07: ADR-O13 removes GitHub workflows; sandbox checks required before transfer.** **s28 (2026-11-06): D-043 (R-03 RSVP through the Rust API), D-044 (R-04 wishes: moderation, replies, visibility) and D-045 (B-009 music and the cover gate) added.** **s26 (2026-11-06): five decisions added:** ADR-O11 (owner sequencing: research, then the final masterplan, then the upgrade; ADR-O08 superseded for sequencing only), ADR-O12 (owner: RQ-COMP-04 / -05 qualified by availability, strict counts 13 / 21 and 4 / 15 kept; the research gate passes as qualified), ADR-A2 (Rust as the authoritative backend, one data domain at a time), ADR-F1 (Next.js stays the frontend) and D-041 (legacy contrast INCOMPLETE stays INCOMPLETE; legacy frozen for compatibility). ADR texts W1, O01…O10 and A1 are unchanged. **s25 (2026-11-06): extended to current decisions:** ADR-A1 outcome (D-039; the ADR stands, no revisit trigger fired), a table of the product decisions since s14 (D-034…D-040) and Q-D17 (Q-O11 resolved, s25), and the owner's s25 deferrals (DA-01 / DA-02, not ADRs). ADR texts W1, O01…O10 and A1 are unchanged. Earlier: verified s10 (2026-11-04; v1 s09). ADR-W1 **decided** (s08), fallback met → planning gate met through ADR-W1 (reduced confidence, not literal Wave 1). ADR-W1 is the historical authorization to plan with reduced confidence; it is **not** the missing evidence and does not close any research requirement (strict Wave 1 stays NOT MET, RQ-DEMO-01). Owner-question ADRs **ADR-O01…O07 accepted autonomously** in s08 as safe, reversible defaults with revisit triggers (the owner can override any of them). **ADR-A1** (s09): keep the Next.js stack, measured. s10 additions: Viding coverage 3 → 6 themes, D-026 / D-027, open owner question Q-O08 (§ "Session 10 decisions"). s12 decisions D-030 / D-031 entered and verified in s13 (§ "Session 12 decisions"); s13 decision D-032 (measurement profiles, § "Session 13 decisions"); open owner questions Q-O08 (residual), Q-O09, Q-O10.
+> STATUS: **s29 (2026-11-07): D-046 (host idempotency keys bound to their owner, invitation and resource) D-047 (B-026: gift details on personal links, the host's protected QRIS image, exact copy), D-048 (F-02: new invitations start on the family for their event type), D-049 (B-023: the couple's full profiles on the families without a photo; legacy unchanged) and D-050 (B-018: one builder for guest WhatsApp links with the host's message) added.** **2026-11-07: ADR-O13 removes GitHub workflows; sandbox checks required before transfer.** **s28 (2026-11-06): D-043 (R-03 RSVP through the Rust API), D-044 (R-04 wishes: moderation, replies, visibility) and D-045 (B-009 music and the cover gate) added.** **s26 (2026-11-06): five decisions added:** ADR-O11 (owner sequencing: research, then the final masterplan, then the upgrade; ADR-O08 superseded for sequencing only), ADR-O12 (owner: RQ-COMP-04 / -05 qualified by availability, strict counts 13 / 21 and 4 / 15 kept; the research gate passes as qualified), ADR-A2 (Rust as the authoritative backend, one data domain at a time), ADR-F1 (Next.js stays the frontend) and D-041 (legacy contrast INCOMPLETE stays INCOMPLETE; legacy frozen for compatibility). ADR texts W1, O01…O10 and A1 are unchanged. **s25 (2026-11-06): extended to current decisions:** ADR-A1 outcome (D-039; the ADR stands, no revisit trigger fired), a table of the product decisions since s14 (D-034…D-040) and Q-D17 (Q-O11 resolved, s25), and the owner's s25 deferrals (DA-01 / DA-02, not ADRs). ADR texts W1, O01…O10 and A1 are unchanged. Earlier: verified s10 (2026-11-04; v1 s09). ADR-W1 **decided** (s08), fallback met → planning gate met through ADR-W1 (reduced confidence, not literal Wave 1). ADR-W1 is the historical authorization to plan with reduced confidence; it is **not** the missing evidence and does not close any research requirement (strict Wave 1 stays NOT MET, RQ-DEMO-01). Owner-question ADRs **ADR-O01…O07 accepted autonomously** in s08 as safe, reversible defaults with revisit triggers (the owner can override any of them). **ADR-A1** (s09): keep the Next.js stack, measured. s10 additions: Viding coverage 3 → 6 themes, D-026 / D-027, open owner question Q-O08 (§ "Session 10 decisions"). s12 decisions D-030 / D-031 entered and verified in s13 (§ "Session 12 decisions"); s13 decision D-032 (measurement profiles, § "Session 13 decisions"); open owner questions Q-O08 (residual), Q-O09, Q-O10.
 > OWNER: Architect (research agent acting autonomously, brief 03 §5.1)
 > DEPS: ../_handoff/review-20261101.md §2, ../_open-questions.md §B, ../_evidence-index.md, ../04-template-benchmarks/benchmark-exclusions.csv, ../03-teardowns/*/dossier.md; owner instructions supplied outside the repository; code at `2c94140`: lib/invitation/{detail-config,create,template-sync,templates}.ts, lib/pricing.ts, app/marketing-copy.ts, app/globals.css, app/layout.tsx
 > GREP: adr, decision, wave 1, ADR-W1, planning gate, reduced confidence, fallback, revisit, D-039, D-040, Q-D17, deferred, D-043, D-044, moderation
-> UPDATED: 2026-11-07 (ADR-O13; s28 history retained)
+> UPDATED: 2026-11-07 (s29: D-046…D-050; ADR-O13; s28 history retained)
 
 ## ADR-W1 — Wave-1 reduced-confidence fallback for competitors without safe public demos
 **Status:** DECIDED 2026-11-03 (session 08); fallback requirements met 16:54Z → planning gate met through ADR-W1 · **Type:** reduced-confidence exception, **not** literal satisfaction of strict Wave 1 · **Authority:** brief 05 §14 ("If the bounded search confirms unavailable or insufficient safe public demos, this prompt authorizes ADR-W1").
@@ -341,6 +341,92 @@ Answers to the three gate questions in `../_handoff/sessions/session-14-20261104
   - An enforced CSP (B-038) will need `media-src` for hosts' audio origins.
 - **Evidence:** E-061.
 - **Revisit:** audio uploads, evidence from devices, or a host asking for a gate without music.
+
+### D-046 — A host's idempotency key replays only to its owner, on the same invitation and resource (s29, before any Rust rollout)
+- **Context [OBSERVED]:**
+  - At `2c5fcde` the three host writes (RSVP override, wish moderation, wish reply) looked up their key under a scope naming only the resource (`rsvp:host:<guest>`, `wish:host:<wish>`, `wish:reply:<wish>`), and before the ownership check.
+  - Reproduced in s29 against the `2c5fcde` binary with the real service signature and valid owner tokens (E-062): another customer reusing the owner's key got the cached answer (200, `Idempotent-Replayed: true`; for a reply, the host's text), and so did a reuse under another invitation and after a lost delete. With a changed body the answer was 422 `idempotency.key_reused`, which reveals that the key exists. No refusal wrote anything.
+  - Through the product the dashboard mints a random key per host action and only the server holds the service secret, so using this needs a leaked key or a future caller that chooses keys. Isolation must not depend on keys staying secret, and ADR-A2's rollout must not start with it open.
+- **Decision:**
+  - (1) A host write is recorded under `<operation>:<owner users.id>:<invitation>:<guest or wish>` (`idempotency::host_scope`). The scope is built after the owner is resolved from the verified token and administrators are refused, and before the lookup.
+  - (2) The lookup stays before the row lock, so the same owner's retry on the same path with the same body replays, including a delete whose row is gone (D-044's contract).
+  - (3) Anyone else's request finds no record under its own scope. It is judged afresh and refused by the ownership check: 404, nothing written, no key recorded, no cached answer, and no 422 that could reveal the key.
+  - (4) Guest scopes are unchanged (`rsvp:guest:<guest>`, `wish:guest:<guest>`): the link is resolved before the lookup, so the scope already names the guest it resolves to.
+  - (5) No migration: a host scope is at most 43 characters (`varchar(120)`), and no query changes.
+- **Rejected:**
+  - moving the lookup after the ownership check: a retried delete would answer 404 instead of replaying;
+  - a principal column beside the scope: a migration for what the primary key `(scope, key)` already expresses;
+  - hashing the principal into the request hash: another customer's request would still find the record and answer 422.
+- **Limits:**
+  - Keys recorded under the old scopes stop replaying when this deploys. No Rust writer is live (every `BACKEND_*` defaults to `next`), so no retry is affected.
+  - An owner who loses an invitation can still replay their own earlier answers for up to 24 hours. Nothing new is disclosed.
+- **Evidence:** E-062.
+- **Revisit:** host writes that act on more than one resource, or a caller outside Next.js.
+
+### D-047 — Gift details stay on personal links; the host's QRIS is a protected static image; copy writes the exact number (B-026 / G-021; s29)
+- **Context [OBSERVED]:**
+  - At `2c5fcde` the gift block rendered every account (number, holder, note) on all five layouts for every audience, the forwardable invitation link included. There was no copy control and no QRIS image. Bank and e-wallet details are personal data under UU PDP (G-021).
+  - 06's chain for B-026: copy writes the exact number; a QRIS image only when uploaded, type and size validated; with the setting on, a slug-only request carries no account digits in its HTML or RSC payload; **new** invitations default on and existing ones keep today's visibility until the host changes it.
+- **Decision:**
+  - (1) **Audience before serialization.** `configForAudience(config, audience)` (`lib/invitation/gift-privacy.ts`) runs in the loaders (`loadPublicInvitation`, `loadPublishedInvitationSummary`, `loadInvitationForGiftAudience`) before anything renders. For the invitation link of an invitation with `gift.personalOnly: true` it removes the accounts and the QRIS reference from the config itself, so the HTML, the RSC payload, client props, metadata, the calendar file, the link-preview image and the QRIS routes all derive from a config that never held them. The page says where the details are instead.
+  - (2) **Who is which audience.** Route segments only: `personal` is a guest segment that resolves under B-011 (an opaque token, or the slug of a guest without one); `owner` is the preview after its ownership check; everything else is `link`. Query parameters never change the audience.
+  - (3) **New-only default.** An absent `gift.personalOnly` is off, so invitations stored before B-026 keep today's visibility; `createInvitation` writes `personalOnly: true` into every new invitation; the host switches it in the editor's gift tab.
+  - (4) **The QRIS is the host's static image and nothing more.** A protected upload only (`purpose=gift-qris`: PNG, JPG or WEBP by declared type and magic bytes, at most 1 MB, under `protected/<invitation>/`), never a typed URL, saved only when it names this invitation (save-time media ownership). Guests reach it only through `/i/<slug>/<guest>/gift/qris` or, while the setting is off, `/i/<slug>/gift-qris.img`. Both check on every request (non-draft, the guest under B-011, the section on, this invitation's own upload) and answer `private, no-store`, `nosniff`, a sandboxed CSP and `noindex`; the referrer policy is the site-wide `strict-origin-when-cross-origin` (`next.config.ts` replaces any route value on the served response). The storage path never reaches a guest; only the host's preview uses `/media/protected/*` (owner only, D-040). No custody, checkout or payment processing (ADR-O03).
+  - (5) **Copy.** On the four families, a client island appears once hydrated (no dead button without JavaScript; the row keeps its height) and writes the number exactly as stored through the Clipboard API. Where the API is missing or refused it selects the number, tries the legacy copy command and says so in a polite live region. Legacy keeps its account markup byte-identical (D-041) and gains only what a host chose: the QRIS image and the withheld notice.
+  - (6) **The plate.** The QRIS sits on the palette's lightest surface (`field`, white, on light palettes; `ink` on dark ones), chosen from `palette()`, so no fixed colour enters the shared blocks (B-016) and the single palette source (B-010) holds.
+- **Rejected:**
+  - hiding details in a layout or with CSS: they would still be in the HTML and the RSC payload;
+  - serving the QRIS from the public `/media/<id>/…` namespace: forwardable, cacheable and bound to no audience;
+  - turning the setting on for stored invitations: guests holding existing links would lose details without the host's choice;
+  - a query parameter (`?to=`) as guest identity: anyone can type it.
+- **Limits:**
+  - A forwarded personal link keeps working for whoever holds it (the link is the capability, B-011); bytes already delivered cannot be recalled.
+  - A signed-in host's preview and the upload route itself need real Clerk keys (DA-01, NOT RUN). They are covered by render and unit tests, and the served checks prove the fail-closed side.
+  - e047's upload inventory moved from three protected of seven to the three child photos plus this QRIS field of eight; it stays exact.
+- **Evidence:** E-063.
+- **Revisit:** a payment integration (ADR-O03), a gift ledger (G-045), or link revocation beyond rotation.
+
+### D-048 — New invitations start on the family designed for their event type (F-02; s29)
+- **Context [OBSERVED]:** D-041 (3) decided that new invitations default to a family that passes the gate, with legacy selectable; until s29 every new invitation started on legacy, the only layout whose cover text over a photo cannot be measured (2 INCOMPLETE). Every family renders every event type; `FamilyMeta.intendedFor` names what each is designed around.
+- **Decision:**
+  - (1) By event type: wedding → **Gapura** (designed for weddings); birthday, aqiqah, tasyakuran and khitanan → **Riang** (celebrations and thanksgivings); corporate → **Lontar** (formal and company events). Kartu stays selectable for weddings.
+  - (2) Only `createInvitation` applies it, through `newInvitationConfig` with B-026's default, after the template's preset: the template's palette and cover are kept, and a preset that names an existing family keeps it. Stored invitations never pass through it.
+  - (3) Flag `DEFAULT_FAMILY`, **on** by default like the other additive guest-page changes; off starts new invitations on legacy exactly as before. Invitations created under either setting keep their layout when it changes.
+  - (4) Legacy stays selectable in the editor ("Klasik") and stays byte-identical (D-041).
+- **Rejected:** a single family for every type (Gapura's arches suit a wedding, not a company seminar); choosing by template category (the event type is what the host picks and what the page renders); switching stored invitations (D-041 (1)).
+- **Limits:** the rendered contrast of every family × palette a new invitation can start on was measured once in s29 (E-064); the release gate measures one new invitation per event type.
+- **Evidence:** E-064.
+- **Revisit:** a new family, or a new event type.
+
+### D-049 — The couple's full profiles render on the design families without a photo; legacy keeps its photo-only section (B-023 / G-026; s29)
+- **Context [OBSERVED]:**
+  - s26's disposition for G-026 reads "parents lines and person photos render (E-026, E-039); only the acceptance record is missing". The code says otherwise: `couplePortraits` (D-038) returns nothing without a photo, so a wedding's full names, parents lines and child order reached no layout unless a photo was uploaded, and a side without a photo was dropped beside one with a photo. The content contract lists these fields as rendered, so the editor never told hosts.
+  - 06's chain for B-023: filled fields render in their own section, empty fields render nothing (no empty headings); renderer tests (filled, empty, long, hostile, RTL, emoji), a browser check at 360 / 412 px, a contract test.
+  - D-041 (1) freezes legacy (existing invitations render byte-identically); D-048 starts new invitations on the families.
+- **Decision:**
+  - (1) On the four families the "Mempelai" section shows each side's full name (the nickname without one), its parents line with the child order (`parentsLine`) and its photo, each when filled; a photo is no longer required (`coupleProfiles`, `view.profiles`).
+  - (2) The section opens only when a side says something the headline does not: a photo, a parents line, or a full name beside a different nickname. Nicknames alone, or full names alone (which the headline already shows), open nothing, so those pages are unchanged. Once open, both sides with a name or a photo appear in the host's display order; a side with neither renders nothing (its parents line would describe no one).
+  - (3) With both photos the section is D-038's, byte-identical on the families.
+  - (4) Legacy keeps `couplePortraits` (a photo required) and stays byte-identical (D-041); birthdays keep the celebrant's portrait under the children's rule (D-038 / D-040) on every layout.
+  - (5) No schema, migration or editor change; `instagram` stays stored-only.
+- **Rejected:**
+  - profiles on legacy too: existing invitations would change without their host's choice (D-041 (1));
+  - a section repeating the headline's names alone: no information, one more band on phones (T3);
+  - dropping a side without a photo beside one with a photo: the couple reads as one person.
+- **Limits:** legacy invitations still show parents lines only with a photo (switching to a family shows them). The browser check is the lab's (design acceptance at 360 × 800, page review at 360 / 390 / 412 / 1280); no real phone.
+- **Evidence:** E-065.
+- **Revisit:** an owner decision to change legacy, or hosts asking for the section without parents.
+
+### D-050 — One builder for guest WhatsApp links: strict numbers, a visible hint, the host's message (B-018 / G-015; s29)
+- **Context [OBSERVED]:** at `2c5fcde` the general guest list built `wa.me` links with `toWhatsAppNumber` (any digits; a foreign `+1…` became `621…`, `0062…` became `62062…`, three digits made a link) and a fixed message; the per-invitation list built `wa.me/<raw digits>` (QA-013: `08…` was never normalised) with no message and no personal link. The host's `whatsappTemplate` (editor, WhatsApp tab) was read nowhere.
+- **Decision:**
+  - (1) `lib/invitation/whatsapp.ts` is the only builder (`guestWhatsApp`); both lists use it through one row action.
+  - (2) Indonesian numbers in any common form normalise to `62…` and must be mobile (`8` and 9–12 digits after the country code); a number written with another country code is kept when it has 8–15 digits; anything else gives no link and the row says "Nomor WhatsApp tidak valid".
+  - (3) The message is the host's template with `{nama}` and `{link}` (case-insensitive; `{name}`, `{tautan}` too); without `{link}` the personal link is appended, because the link is the invitation; an empty template sends the previous default text.
+- **Rejected:** keeping a lenient normaliser (links to numbers that cannot exist); validating Indonesian landlines (guests are reached on mobiles; a landline gets the hint); sending without the personal link.
+- **Limits:** the dashboard lists need a signed-in host, so the rows are not exercised over HTTP (DA-01, NOT RUN); the builder and the row action are unit- and render-tested. A number that is valid in form but not on WhatsApp still opens WhatsApp, which says so.
+- **Evidence:** E-066.
+- **Revisit:** a WhatsApp provider for blasts (OPEN ITEM #1 in `docs/systems/wa-delivery.md`, G-038).
 
 ## Decisions since session 14 referenced by the masterplan (recorded s25; full text where linked)
 Product decisions taken during implementation under ADR-O08. Each has its full text, reasons and reversal in `../_progress.md`, its implementation in `../_handoff/IMPLEMENTATION-LOG.md`, and its domain rule in `docs/systems/`.

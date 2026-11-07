@@ -250,7 +250,7 @@ async fn lock_owned_wish(
     params(
         ("invitation" = i32, Path, minimum = 1, description = "The owner's invitation"),
         ("wish" = i32, Path, minimum = 1, description = "A wish of that invitation"),
-        ("Idempotency-Key" = Option<String>, Header, description = "As for the guest's wish; a retried delete replays instead of answering 404"),
+        ("Idempotency-Key" = Option<String>, Header, description = "As for the guest's wish, bound to the signed-in owner, this invitation and this wish: a retried delete replays to its owner instead of answering 404, and anyone else's request is judged afresh"),
     ),
     request_body = WishModerationRequest,
     responses(
@@ -275,7 +275,7 @@ pub async fn moderate_wish(
         body.map_err(|rejection| ApiError::BadRequest("request.invalid_body", rejection.body_text()))?;
     let key = idempotency::key_from(&headers)?;
     let now = utc_now();
-    let scope = format!("wish:host:{wish_id}");
+    let scope = idempotency::host_scope("wish:host", owner.user_id, invitation_id, wish_id);
     let hash = idempotency::request_hash(&request);
     if let Some(key) = &key
         && let Some(response) = replay(&state.pool, &scope, key, &hash).await?
@@ -331,7 +331,7 @@ pub async fn moderate_wish(
     params(
         ("invitation" = i32, Path, minimum = 1, description = "The owner's invitation"),
         ("wish" = i32, Path, minimum = 1, description = "A wish of that invitation"),
-        ("Idempotency-Key" = Option<String>, Header, description = "As for the guest's wish"),
+        ("Idempotency-Key" = Option<String>, Header, description = "As for the guest's wish, bound to the signed-in owner, this invitation and this wish: it replays only to the same owner on the same path, and anyone else's request is judged afresh"),
     ),
     request_body = WishReplyRequest,
     responses(
@@ -360,7 +360,7 @@ pub async fn reply_to_wish(
         HostReplyDecision::Invalid => return Err(ApiError::Unprocessable("wish.reply_invalid", Subject::None)),
         HostReplyDecision::Write(reply) => reply,
     };
-    let scope = format!("wish:reply:{wish_id}");
+    let scope = idempotency::host_scope("wish:reply", owner.user_id, invitation_id, wish_id);
     let hash = idempotency::request_hash(&request);
     if let Some(key) = &key
         && let Some(response) = replay(&state.pool, &scope, key, &hash).await?

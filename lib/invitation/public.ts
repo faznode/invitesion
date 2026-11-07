@@ -6,6 +6,7 @@ import { db } from '@/lib/db/drizzle';
 import { guestMessages, guests, invitations, mediaAssets } from '@/lib/db/schema';
 import { normalizeStoredConfig } from './content-read';
 import type { DetailConfig } from './detail-config';
+import { configForAudience } from './gift-privacy';
 import { pickGuestForSegment } from './guest-link';
 import { writeInvitationView } from './view-writer';
 import { guestbookRules } from './wish-decision';
@@ -44,7 +45,11 @@ export const visibleWishCount = (invitationId: number) => db.select({ value: cou
  * - The guest name is never part of the config; it is injected here from the
  *   guests table so one config can serve every guest.
  * - `includeDraft` is only for the owner preview (`app/preview/[id]`), which
- *   checks ownership before calling; public routes never pass it.
+ *   checks ownership before calling; public routes never pass it. It shows
+ *   drafts and, as the host's own view, every gift detail (B-026).
+ * - B-026 (D-047): gift details the host keeps to personal links are removed
+ *   here for the invitation link's audience, before anything renders, so they
+ *   reach neither the HTML nor the RSC payload nor the metadata.
  *
  * Wrapped in React `cache()` (B-014 step 1): `generateMetadata` and the page
  * of one request share a single load instead of querying everything twice.
@@ -62,7 +67,10 @@ export const loadPublicInvitation = cache(async (slug: string, guestSlug?: strin
   // An unknown guest slug is a wrong link, not a different view of the page.
   if (guestSlug && !guest) return null;
 
-  const config = readStoredConfig(invitation.id, invitation.config);
+  const { config, giftWithheld } = configForAudience(
+    readStoredConfig(invitation.id, invitation.config),
+    includeDraft ? 'owner' : guest ? 'personal' : 'link',
+  );
   // R-04 (D-044): a closed guestbook and a hosts-only one list nothing, so neither guestbook query runs for them. The
   // listed wishes are the visible ones; pending and hidden wishes never reach the page. B-017: both queries use
   // `guest_messages_invitation_visible_idx`.
@@ -89,6 +97,7 @@ export const loadPublicInvitation = cache(async (slug: string, guestSlug?: strin
     hiddenMessageCount: Math.max(0, totalMessages - messages.length),
     expired,
     readOnly: expired,
+    giftWithheld,
   };
 });
 
@@ -112,13 +121,28 @@ export async function findGuestByLinkSegment(invitationId: number, segment: stri
 }
 
 /**
- * Invitation row + parsed config for guest-facing side routes (calendar file, link-preview image) under the same
- * visibility rule as the page: drafts are never public. No guest lookup, media or guestbook queries.
+ * Invitation row + parsed config for guest-facing side routes (calendar file, link-preview image, the child-photo route)
+ * under the same visibility rule as the page: drafts are never public. No guest lookup, media or guestbook queries. The
+ * config is the invitation link's (B-026, D-047): gift details kept to personal links are already gone.
  */
 export async function loadPublishedInvitationSummary(slug: string) {
   const [invitation] = await db.select().from(invitations).where(eq(invitations.slug, slug)).limit(1);
   if (!invitation || invitation.status === 'DRAFT') return null;
-  return { invitation, config: readStoredConfig(invitation.id, invitation.config) };
+  return { invitation, config: configForAudience(readStoredConfig(invitation.id, invitation.config), 'link').config };
+}
+
+/**
+ * B-026 (D-047): invitation row + the config one audience may carry, for the QRIS routes, under the page's visibility
+ * rule (drafts are never public). A named guest segment must resolve under the B-011 rule (otherwise null, as the page
+ * answers 404); without one the audience is the invitation link. The routes deliver only what this config still holds,
+ * so the image follows exactly the page's privacy rule.
+ */
+export async function loadInvitationForGiftAudience(slug: string, guestSegment?: string) {
+  const [invitation] = await db.select().from(invitations).where(eq(invitations.slug, slug)).limit(1);
+  if (!invitation || invitation.status === 'DRAFT') return null;
+  const guest = guestSegment === undefined ? null : await findGuestByLinkSegment(invitation.id, guestSegment);
+  if (guestSegment !== undefined && !guest) return null;
+  return { invitation, config: configForAudience(readStoredConfig(invitation.id, invitation.config), guest ? 'personal' : 'link').config };
 }
 
 /**

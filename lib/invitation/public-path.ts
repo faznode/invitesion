@@ -24,6 +24,16 @@ export function invitationPreviewImagePath(invitationSlug: string) {
   return `${invitationPath(invitationSlug)}/og.png`;
 }
 
+/** B-026 (D-047): the host's QRIS image for the invitation link's audience (served only while gift details are public). */
+export function invitationGiftQrisPath(invitationSlug: string) {
+  return `${invitationPath(invitationSlug)}/gift-qris.img`;
+}
+
+/** B-026 (D-047): the host's QRIS image for one personal link; two segments below the guest page, like the photo route. */
+export function guestGiftQrisPath(invitationSlug: string, guestSlug: string) {
+  return `${guestPath(invitationSlug, guestSlug)}/gift/qris`;
+}
+
 /**
  * E-047 (s22): a child's photo for one personal link (`lib/invitation/portraits.ts`, `childPhotoUpload`). Two segments
  * below the guest page, so it never competes with a guest slug.

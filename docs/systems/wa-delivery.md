@@ -4,8 +4,8 @@
 > STATUS: LIVE (design). BLOCKED sebagian oleh OPEN ITEM #1.
 > OWNER: Operator
 > DEPS: DATABASE_SCHEMA.md (wa_log, guests, conversations)
-> GREP: whatsapp, wa, fonnte, blast, provider, webhook, revisi, banned
-> UPDATED: 2026-07-14
+> GREP: whatsapp, wa, fonnte, blast, provider, webhook, revisi, banned, wa.me, template, nomor
+> UPDATED: 2026-11-07 (s29: B-018 kirim manual wa.me, D-050)
 
 ## Pilihan channel (grounded)
 - **Fonnte** (unofficial lokal): Rp0 (1rb pesan/bln) → Rp25rb (10rb pesan/bln). Blast bebas, no approval template. Risiko: nomor bisa banned kalau spam agresif.
@@ -21,6 +21,18 @@ interface WhatsAppProvider {
 class FonnteProvider implements WhatsAppProvider {}
 ```
 Semua kode kirim WA lewat interface ini. Jangan hardcode Fonnte.
+
+## Kirim manual per tamu (wa.me) — TERPASANG (B-018, D-050)
+Satu-satunya pembuat link: `lib/invitation/whatsapp.ts` (`guestWhatsApp`), dipakai kedua daftar tamu
+(`/dashboard/guests` dan `/dashboard/invitations/<id>/guests`) lewat `components/dashboard/guest-whatsapp-action.tsx`.
+- **Nomor:** `08…`, `+62…`, `62…`, `0062…`, `8…` (juga `+62 (0)8…`) jadi digit yang sama (`628…`). Nomor Indonesia harus
+  nomor HP: `8` + 8–11 digit setelah 62. Nomor berkode negara lain (`+<kode>…` / `00<kode>…`) dipakai apa adanya bila
+  8–15 digit. Spasi, titik, strip, kurung diabaikan; huruf atau `+` ganda = tidak valid.
+- **Nomor tidak valid:** tidak ada link; baris tamu menampilkan "Nomor WhatsApp tidak valid". Nomor kosong: tidak ada aksi
+  (baris sudah menulis "Belum ada nomor WhatsApp").
+- **Pesan:** template host (`whatsappTemplate`, tab WhatsApp di editor). `{nama}` → nama tamu, `{link}` → link personal
+  (token bila ada, B-011). Tanpa `{link}`, link ditambahkan di akhir pesan. Template kosong → pesan bawaan (ID / EN).
+- Bukan blast: host menekan sendiri per tamu. Blast lewat provider (di bawah) tetap menunggu OPEN ITEM #1.
 
 ## Blast undangan
 - Kirim ke guest.phone, body berisi nama tamu + link `/i/:slug/:guestSlug`.

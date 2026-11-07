@@ -80,9 +80,10 @@ export function renderGuestPage({
   readOnly = false,
   status = {},
   preview = false,
+  giftWithheld,
 }: Partial<GuestPageProps> & { config: DetailConfig }): string {
   const { PublicInvitationRenderer } = require('../../components/invitation/public-renderer') as typeof import('../../components/invitation/public-renderer');
-  return renderToStaticMarkup(createElement(PublicInvitationRenderer, { config, invitation, guest, media, messages, readOnly, status, preview }));
+  return renderToStaticMarkup(createElement(PublicInvitationRenderer, { config, invitation, guest, media, messages, readOnly, status, preview, giftWithheld }));
 }
 
 const unescapeAttribute = (value: string) => value.replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#x27;/g, "'");

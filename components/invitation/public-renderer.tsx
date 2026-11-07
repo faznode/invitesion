@@ -11,6 +11,8 @@ import {
   PortraitsBody,
   EventFacts,
   CorporateMark,
+  GiftQris,
+  GiftWithheldNotice,
   GuestbookBlock,
   MapLink,
   PROGRAMME_HEADINGS,
@@ -243,20 +245,26 @@ function LegacyLayout({ props, view }: LayoutProps) {
         </Section>
       )}
 
-      {config.gift?.enabled && config.gift.accounts?.length ? (
+      {/* B-026 (D-041, D-047): legacy keeps its account markup byte-identical and gains only what a host chose: the
+          QRIS image they uploaded, and the notice when their details stay on personal links. No copy control here. */}
+      {view.gift ? (
         <Section>
           <InvitationIcon name="gift" className={`mx-auto h-6 w-6 ${tone.accent}`} />
           <Heading accent={tone.accent}>Hadiah</Heading>
-          <div className="mt-8 space-y-3">
-            {config.gift.accounts.map((account, index) => (
-              <article key={index} className={`rounded-2xl ${tone.card} p-5 shadow-sm`}>
-                <p className={`text-xs uppercase tracking-widest ${tone.muted}`}>{account.label}</p>
-                {account.number && <p className="mt-2 font-mono text-base">{account.number}</p>}
-                {account.holder && <p className={`mt-1 text-sm ${tone.muted}`}>a.n. {account.holder}</p>}
-                {account.note && <p className={`mt-2 text-sm ${tone.muted}`}>{account.note}</p>}
-              </article>
-            ))}
-          </div>
+          {view.gift.accounts.length > 0 && (
+            <div className="mt-8 space-y-3">
+              {view.gift.accounts.map((account, index) => (
+                <article key={index} className={`rounded-2xl ${tone.card} p-5 shadow-sm`}>
+                  <p className={`text-xs uppercase tracking-widest ${tone.muted}`}>{account.label}</p>
+                  {account.number && <p className="mt-2 font-mono text-base">{account.number}</p>}
+                  {account.holder && <p className={`mt-1 text-sm ${tone.muted}`}>a.n. {account.holder}</p>}
+                  {account.note && <p className={`mt-2 text-sm ${tone.muted}`}>{account.note}</p>}
+                </article>
+              ))}
+            </div>
+          )}
+          <GiftQris view={view} />
+          <GiftWithheldNotice view={view} />
         </Section>
       ) : null}
 

@@ -6,12 +6,13 @@ import { corporateMarkOf } from '@/lib/invitation/corporate-mark';
 import type { DetailConfig } from '@/lib/invitation/detail-config';
 import { guestAudience, visibleEvents, type EventAudience } from '@/lib/invitation/event-eligibility';
 import { eventDateParts, formatEventDate, formatEventTime } from '@/lib/invitation/event-time';
+import { ownQrisUpload } from '@/lib/invitation/gift-privacy';
 import { invitationDisplayName, invitationHeadline } from '@/lib/invitation/headline';
 import { guestLinkSegment } from '@/lib/invitation/guest-link';
 import { safeImageSrc } from '@/lib/invitation/image-url';
 import { palette } from '@/lib/invitation/palettes';
-import { birthdayPortrait, ceremonyPortrait, childPhotoSlotOf, childPhotoSrcFor, couplePortraits } from '@/lib/invitation/portraits';
-import { guestChildPhotoPath } from '@/lib/invitation/public-path';
+import { birthdayPortrait, ceremonyPortrait, childPhotoSlotOf, childPhotoSrcFor, coupleProfiles, couplePortraits, type Profiles } from '@/lib/invitation/portraits';
+import { guestChildPhotoPath, guestGiftQrisPath, invitationGiftQrisPath } from '@/lib/invitation/public-path';
 import { programmeOf } from '@/lib/invitation/programme';
 import { answerField, askableQuestions, conditionText, isMultiChoice, readStoredAnswers, rsvpQuestionsOf } from '@/lib/invitation/rsvp-questions';
 import { eventCountField, eventStatusField, perEventRsvpEvents, readEventAnswers } from '@/lib/invitation/rsvp-events';
@@ -51,13 +52,18 @@ export type GuestPageProps = {
   rsvpKey?: string;
   /** R-04: the same for the wish form, so a double submit stores one wish. */
   wishKey?: string;
+  /**
+   * B-026 (D-047): the loader removed gift details this page's audience may not see (`configForAudience`), so the gift
+   * block says they are on the guest's personal link instead.
+   */
+  giftWithheld?: boolean;
 };
 
 /**
  * What every layout derives from the stored config, computed once so the legacy layout and each design family (B-030)
  * show the same data: dates in the event's own zone, the countdown rule, the calendar entry and who may respond.
  */
-export function buildGuestView({ invitation, config, guest, media, readOnly, preview = false }: GuestPageProps) {
+export function buildGuestView({ invitation, config, guest, media, readOnly, preview = false, giftWithheld = false }: GuestPageProps) {
   const tone = palette(config.theme?.paletteId);
   // Event-local wall clock with WIB / WITA / WIT from the saved offset, whatever zone the server runs in (B-004).
   const eventZone = config.eventOperations?.timezone;
@@ -219,6 +225,29 @@ export function buildGuestView({ invitation, config, guest, media, readOnly, pre
       : [];
   const portraits =
     childSlot === 'celebrant' && storedPortraits ? (celebrants.length ? { ...storedPortraits, people: celebrants } : null) : storedPortraits;
+  // B-023 (D-049): the people section of the design families. For a wedding, the couple's full profiles: full name, parents
+  // line and photo, each when filled, a photo no longer required. Otherwise the same as `portraits` (the celebrant). The
+  // legacy layout keeps `portraits` (D-041: frozen, so its photo-only section stays byte-identical).
+  const profiles: Profiles =
+    invitation.eventType === 'wedding'
+      ? coupleProfiles({
+          bride: {
+            fullName: config.couple?.bride?.fullName,
+            nickName: config.couple?.bride?.nickName,
+            parents: config.couple?.bride?.parents,
+            order: config.couple?.bride?.order,
+            photoUrl: config.couple?.bride?.photoUrl,
+          },
+          groom: {
+            fullName: config.couple?.groom?.fullName,
+            nickName: config.couple?.groom?.nickName,
+            parents: config.couple?.groom?.parents,
+            order: config.couple?.groom?.order,
+            photoUrl: config.couple?.groom?.photoUrl,
+          },
+          displayOrder: config.couple?.displayOrder,
+        })
+      : portraits;
   const storedHonoureePortrait = ceremonyPortrait(
     invitation.eventType,
     {
@@ -275,12 +304,32 @@ export function buildGuestView({ invitation, config, guest, media, readOnly, pre
   const musicSrc = isFlagOn('GUEST_MUSIC') && config.music?.enabled === true ? safeAudioSrc(config.music?.assetUrl) : undefined;
   const music = musicSrc ? { src: musicSrc, title: config.music?.title?.trim() || undefined, playOnOpen: config.music?.autoplay !== false } : null;
 
+  // B-026 (D-047): the gift block. The loader has already removed what this audience may not see, so layouts render what
+  // is here: the accounts, the host's QRIS image through the route for this audience (the host's preview keeps the
+  // owner-only storage path), or, when details were withheld from the invitation link, a notice saying where they are.
+  const giftOn = config.gift?.enabled === true;
+  const qrisUpload = giftOn ? ownQrisUpload(config.gift?.qrisImageUrl, invitation.id) : undefined;
+  const qrisSrc = !qrisUpload
+    ? undefined
+    : preview
+      ? qrisUpload
+      : guest
+        ? guestGiftQrisPath(invitation.slug, guestLinkSegment(guest))
+        : invitationGiftQrisPath(invitation.slug);
+  // A scanner reads dark modules on a light field, so the code sits on the palette's lightest surface: the white form
+  // field on light palettes, the near-white ink on dark ones (B-016: colours come from the palette).
+  const qrisPlate = tone.style.colorScheme === 'dark' ? tone.inkFill : tone.field;
+  const giftAccounts = giftOn ? (config.gift?.accounts ?? []) : [];
+  const giftHeld = giftOn && giftWithheld;
+  const gift = giftAccounts.length || qrisSrc || giftHeld ? { accounts: giftAccounts, qrisSrc, qrisPlate, withheld: giftHeld } : null;
+
   return {
     headlineKind,
     music,
+    gift,
     tone, formatDate, formatTime, dateParts, names, events, primaryEvent, renderedAt, primaryStartMs, showCountdown, primaryCalendarEvent, gallery,
     canRespond, canRsvp, rsvpMaybe, rsvpQuestions, rsvpEvents, rsvpDeadlineText, rsvpClosedByDeadline, rsvpShown, guestbookShown, wishesListed, wishesModerated, coverImageSrc, coverText, programme,
-    organiser, corporateMark, ceremonyProfile, share, portraits,
+    organiser, corporateMark, ceremonyProfile, share, portraits, profiles,
   };
 }
 

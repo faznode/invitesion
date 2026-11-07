@@ -58,6 +58,7 @@ export default async function PersonalInvitationPage({ params, searchParams }: P
       status={status}
       rsvpKey={rsvpFormKey(status.rsvp === 'retry' ? status.rsvpk : undefined)}
       wishKey={formKey(status.wish === 'retry' ? status.wishk : undefined)}
+      giftWithheld={data.giftWithheld}
     />
   );
 }

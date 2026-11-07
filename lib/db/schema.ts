@@ -429,7 +429,9 @@ export const apiRateLimits = pgTable(
 );
 
 // A write protected by an `Idempotency-Key`, committed in the same transaction as that write with its response, so a
-// retry replays the response. `scope` names the resource (`rsvp:guest:<id>`, `rsvp:host:<id>`). Kept 24 hours.
+// retry replays the response. `scope` names who may receive the replay: the guest a link resolves to
+// (`rsvp:guest:<id>`), or for a host write the verified owner, the invitation and the guest or wish
+// (`rsvp:host:<owner>:<invitation>:<guest>`; D-046). Kept 24 hours.
 export const apiIdempotencyKeys = pgTable(
   'api_idempotency_keys',
   {

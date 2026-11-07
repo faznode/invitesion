@@ -41,6 +41,10 @@
  * `--programme` (s23r, byte census) adds per layout: programme (a two-day corporate programme: 22 agenda rows, seven
  * speakers, two events, contact; no logo and no cover photo), the same content on every layout so `product-bytes.ts`
  * compares layouts rather than uploads, e.g. `--programme --match '-programme$'`.
+ * `--new-invitations` (s29, F-02) adds /i/review-new-<eventType>/budi-hartono: what a new invitation of each type starts
+ * as (first catalog template through `newInvitationConfig`), filled with review content; `--new-invitation-palettes` adds
+ * /i/review-new-<family>-p-<paletteId>/budi-hartono for every family and palette a new invitation can start on.
+ * `--profiles` (s29, B-023) adds per layout: profiles (the full wedding with stressed couple profiles and no photos).
  */
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -50,8 +54,12 @@ import { client, db } from '@/lib/db/drizzle';
 import { guestMessages, guests, invitations, users } from '@/lib/db/schema';
 import { detailConfigSchema, type DetailConfig } from '@/lib/invitation/detail-config';
 import { FAMILY_IDS, type FamilyId } from '@/lib/invitation/families';
+import { newInvitationConfig } from '@/lib/invitation/new-invitation';
 import { paletteIds } from '@/lib/invitation/palettes';
 import { findUnverifiedReligiousText, loadCorpus, looksReligious } from '@/lib/invitation/religious-text';
+import { catalogDefaultConfig, presetConfigFromTemplateDefaults } from '@/lib/invitation/template-defaults';
+import { resolveEventType } from '@/lib/invitation/template-sync';
+import { invitationTemplates, type InvitationTemplate } from '@/lib/invitation/templates';
 
 type GuestSeed = { name: string; slug: string; guestCount: number; linkToken?: string | null };
 export type ReviewInvitation = {
@@ -422,7 +430,48 @@ export type ReviewOptions = {
    * (`tools/template-harness/cover-gate.ts --write-tone`), never a third-party recording.
    */
   musicUrl?: string;
+  /**
+   * `--new-invitations` (s29, F-02): per event type `new-<eventType>`, the config `createInvitation` starts that type with
+   * (its first catalog template's preset through `newInvitationConfig`, `DEFAULT_FAMILY` on), filled with the type's
+   * review content, so the rendered contrast of what a new invitation looks like is measured.
+   */
+  newInvitations?: boolean;
+  /** `--new-invitation-palettes` (s29, F-02): `new-<family>-p-<paletteId>` for every family and palette a new invitation can start on. */
+  newInvitationPalettes?: boolean;
+  /**
+   * `--profiles` (s29, B-023): per layout `profiles`, the full wedding whose couple profiles are under stress (a long full
+   * name, an Arabic full name, emoji and markup in the parents, both child orders) and carry no photo, so the families'
+   * text-only profiles are rendered and the legacy layout shows that it still needs a photo (D-041).
+   */
+  profiles?: boolean;
 };
+
+/** `--profiles` (B-023): the couple under stress, without photos; every name is fictional. */
+function weddingProfiles(paletteId: string, familyId?: FamilyId): DetailConfig {
+  return {
+    ...weddingFull(paletteId, familyId),
+    couple: {
+      bride: {
+        nickName: 'Anindya',
+        fullName: 'Putri Anindya Maharani Kusumawardhani Wicaksono Hadiningrat',
+        parents: 'Bapak Fiktif Hadiwijaya <b>Sampel</b> & Ibu Contoh Sekar Kinasih',
+        order: 1,
+      },
+      groom: { nickName: 'Sami', fullName: 'سامي الأحمد', parents: 'Keluarga 💐 Rekaan 👨‍👩‍👧', order: 3 },
+      displayOrder: 'groom-first',
+    },
+  };
+}
+
+type ReviewEventType = ReviewInvitation['eventType'];
+const NEW_INVITATION_TYPES: readonly ReviewEventType[] = ['wedding', 'birthday', 'aqiqah', 'tasyakuran', 'khitanan', 'corporate'];
+
+/** What `createInvitation` starts an invitation of this type with from this catalog template (none: an empty preset). */
+function newInvitationStart(eventType: ReviewEventType, template?: InvitationTemplate): DetailConfig {
+  const preset = template ? presetConfigFromTemplateDefaults(catalogDefaultConfig(template)) : ({ ok: true, config: {} } as const);
+  if (!preset.ok) throw new Error(`${template?.slug}: template defaults rejected: ${preset.issues.join('; ')}`);
+  return detailConfigSchema.parse(newInvitationConfig(preset.config as Record<string, unknown>, eventType, { FLAG_DEFAULT_FAMILY: 'on' }));
+}
 
 export function familyReviewInvitations(options: ReviewOptions = {}): ReviewInvitation[] {
   const { coverImageUrl, coverLowUrl, logoUrl } = options;
@@ -502,10 +551,59 @@ export function familyReviewInvitations(options: ReviewOptions = {}): ReviewInvi
       make(`review-${layout}-portraits-tasyakuran`, tasyakuranFull(familyId), { eventType: 'tasyakuran', withMessages: false, portrait: 'tasyakuran' }),
     ];
   };
+  const profileVariants = (layout: string, familyId?: FamilyId): ReviewInvitation[] =>
+    options.profiles ? [make(`review-${layout}-profiles`, weddingProfiles(familyId ? fullPalette[familyId] : 'ivory', familyId), { withMessages: false })] : [];
+  // `--new-invitations` / `--new-invitation-palettes` (F-02): the review content of the type under a new invitation's theme
+  // (the template's palette and the default family) and its B-026 gift default.
+  const content: Record<ReviewEventType, (familyId: FamilyId) => DetailConfig> = {
+    wedding: (familyId) => weddingFull('ivory', familyId),
+    birthday: (familyId) => birthday(familyId),
+    aqiqah: (familyId) => aqiqahFull(familyId),
+    tasyakuran: (familyId) => tasyakuranFull(familyId),
+    khitanan: (familyId) => khitananStress(familyId),
+    corporate: (familyId) => corporate(familyId, logoUrl),
+  };
+  const filled = (eventType: ReviewEventType, start: DetailConfig): DetailConfig => {
+    const familyId = start.theme?.familyId as FamilyId;
+    const filledContent = content[eventType](familyId);
+    // The new invitation's theme decides the palette: without one in the preset the page falls back to ivory, as it will.
+    return {
+      ...filledContent,
+      theme: { ...filledContent.theme, paletteId: start.theme?.paletteId ?? 'ivory', ...start.theme },
+      gift: { enabled: false, ...filledContent.gift, ...start.gift },
+    };
+  };
+  const firstTemplate = (eventType: ReviewEventType) => invitationTemplates.find((template) => resolveEventType(template.category) === eventType);
+  const newInvitationVariants = (): ReviewInvitation[] => {
+    const rows: ReviewInvitation[] = [];
+    if (options.newInvitations) {
+      for (const eventType of NEW_INVITATION_TYPES) {
+        rows.push(make(`review-new-${eventType}`, filled(eventType, newInvitationStart(eventType, firstTemplate(eventType))), { eventType, withMessages: false }));
+      }
+    }
+    if (options.newInvitationPalettes) {
+      const seen = new Set<string>();
+      const starts = [
+        ...invitationTemplates.flatMap((template) => {
+          const eventType = resolveEventType(template.category) as ReviewEventType | null;
+          return eventType ? [{ eventType, start: newInvitationStart(eventType, template) }] : [];
+        }),
+        ...NEW_INVITATION_TYPES.filter((eventType) => !firstTemplate(eventType)).map((eventType) => ({ eventType, start: newInvitationStart(eventType) })),
+      ];
+      for (const { eventType, start } of starts) {
+        const key = `${start.theme?.familyId}-p-${start.theme?.paletteId ?? 'ivory'}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        rows.push(make(`review-new-${key}`, filled(eventType, start), { eventType, withMessages: false }));
+      }
+    }
+    return rows;
+  };
   const rows: ReviewInvitation[] = [make('review-legacy-full', weddingFull('ivory'))];
   rows.push(...ceremonyVariants('legacy'));
   rows.push(...questionVariants('legacy'));
   rows.push(...portraitVariants('legacy'));
+  rows.push(...profileVariants('legacy'));
   if (coverImageUrl) rows.push(make('review-legacy-photo', weddingFull('ivory', undefined, coverImageUrl)));
   if (coverLowUrl) rows.push(make('review-legacy-photo-low', weddingFull('ivory', undefined, coverLowUrl)));
   rows.push(make('review-legacy-corporate', corporate(undefined, logoUrl), { ...corporateOptions, logo: 'square' }));
@@ -527,7 +625,9 @@ export function familyReviewInvitations(options: ReviewOptions = {}): ReviewInvi
     rows.push(...ceremonyVariants(familyId, familyId));
     rows.push(...questionVariants(familyId, familyId));
     rows.push(...portraitVariants(familyId, familyId));
+    rows.push(...profileVariants(familyId, familyId));
   }
+  rows.push(...newInvitationVariants());
   if (withPaletteSweep) rows.push(...paletteSweep());
   const corpus = loadCorpus();
   return rows.map((row) => {
@@ -642,6 +742,9 @@ async function main() {
     portraits: process.argv.includes('--portraits'),
     programme: process.argv.includes('--programme'),
     musicUrl: argValue('--music-url'),
+    newInvitations: process.argv.includes('--new-invitations'),
+    newInvitationPalettes: process.argv.includes('--new-invitation-palettes'),
+    profiles: process.argv.includes('--profiles'),
   });
   const match = argValue('--match');
   const rows = match ? all.filter((row) => new RegExp(match).test(row.slug)) : all;

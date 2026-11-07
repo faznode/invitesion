@@ -144,8 +144,17 @@ impl Fixture {
             .map(|id| format!("rsvp:link:{id}"))
             .chain(self.addresses.iter().map(|address| ip_bucket(SECRET, "rsvp", address)))
             .collect();
-        let scopes: Vec<String> =
-            self.guests.iter().flat_map(|id| [format!("rsvp:guest:{id}"), format!("rsvp:host:{id}")]).collect();
+        // Host scopes are `rsvp:host:<owner>:<invitation>:<guest>` (`idempotency::host_scope`).
+        let scopes: Vec<String> = self
+            .guests
+            .iter()
+            .map(|id| format!("rsvp:guest:{id}"))
+            .chain(self.users.iter().flat_map(|owner| {
+                self.invitations.iter().flat_map(move |invitation| {
+                    self.guests.iter().map(move |guest| format!("rsvp:host:{owner}:{invitation}:{guest}"))
+                })
+            }))
+            .collect();
         sqlx::query("delete from api_rate_limits where bucket = any($1)")
             .bind(&buckets)
             .execute(&self.pool)

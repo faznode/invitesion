@@ -1,6 +1,7 @@
 import { Fragment } from 'react';
 import { InvitationIcon } from '@/components/invitation/icons';
 import { Countdown } from '@/components/invitation/countdown';
+import { GiftCopyButton } from '@/components/invitation/gift-copy';
 import {
   CalendarLinks,
   CeremonyProfileBody,
@@ -9,6 +10,9 @@ import {
   CorporateLogo,
   CorporateMark,
   CoverEyebrow,
+  GiftQris,
+  GiftWithheldNotice,
+  giftNumberId,
   GuestbookBlock,
   MapLink,
   PROGRAMME_HEADINGS,
@@ -39,13 +43,13 @@ export function RiangLayout({ props, view }: { props: GuestPageProps; view: Gues
   const chip = `rounded-full border ${tone.line} ${tone.card} px-4 py-2`;
   const bands: Band[] = [];
 
-  if (view.portraits) {
+  if (view.profiles) {
     bands.push({
       key: 'portraits',
       node: (
         <>
-          <BandHeading tone={tone}>{view.portraits.heading}</BandHeading>
-          <PortraitsBody view={view} frame="round" />
+          <BandHeading tone={tone}>{view.profiles.heading}</BandHeading>
+          <PortraitsBody view={view} section={view.profiles} frame="round" />
         </>
       ),
     });
@@ -208,25 +212,37 @@ export function RiangLayout({ props, view }: { props: GuestPageProps; view: Gues
     });
   }
 
-  if (config.gift?.enabled && config.gift.accounts?.length) {
+  if (view.gift) {
+    const gift = view.gift;
     bands.push({
       key: 'gift',
       node: (
         <>
           <BandHeading tone={tone}>Kado</BandHeading>
-          <div className="mt-8 grid gap-4 sm:grid-cols-2">
-            {config.gift.accounts.map((account, index) => (
-              <article key={index} className={`${block} p-6`}>
-                <div className="flex items-center gap-2">
-                  <InvitationIcon name="gift" className={`h-5 w-5 shrink-0 ${tone.accent}`} />
-                  <p className={`text-xs font-semibold uppercase tracking-widest ${tone.muted}`}>{account.label}</p>
-                </div>
-                {account.number && <p className="mt-3 font-mono text-xl tracking-wide [overflow-wrap:anywhere]">{account.number}</p>}
-                {account.holder && <p className={`mt-1 text-sm ${tone.muted}`}>a.n. {account.holder}</p>}
-                {account.note && <p className={`mt-2 text-sm ${tone.muted}`}>{account.note}</p>}
-              </article>
-            ))}
-          </div>
+          {gift.accounts.length > 0 && (
+            <div className="mt-8 grid gap-4 sm:grid-cols-2">
+              {gift.accounts.map((account, index) => (
+                <article key={index} className={`${block} p-6`}>
+                  <div className="flex items-center gap-2">
+                    <InvitationIcon name="gift" className={`h-5 w-5 shrink-0 ${tone.accent}`} />
+                    <p className={`text-xs font-semibold uppercase tracking-widest ${tone.muted}`}>{account.label}</p>
+                  </div>
+                  {account.number && (
+                    <p id={giftNumberId(index)} className="mt-3 font-mono text-xl tracking-wide [overflow-wrap:anywhere]">
+                      {account.number}
+                    </p>
+                  )}
+                  {account.holder && <p className={`mt-1 text-sm ${tone.muted}`}>a.n. {account.holder}</p>}
+                  {account.number && (
+                    <GiftCopyButton number={account.number} label={account.label} targetId={giftNumberId(index)} accentClass={tone.accent} mutedClass={tone.muted} />
+                  )}
+                  {account.note && <p className={`mt-2 text-sm ${tone.muted}`}>{account.note}</p>}
+                </article>
+              ))}
+            </div>
+          )}
+          <GiftQris view={view} align="start" />
+          <GiftWithheldNotice view={view} align="start" />
         </>
       ),
     });

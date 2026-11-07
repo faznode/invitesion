@@ -553,7 +553,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description As for the guest RSVP */
+                /** @description As for the guest RSVP, bound to the signed-in owner, this invitation and this guest: it replays only to the same owner on the same path, and anyone else's request is judged afresh */
                 "Idempotency-Key"?: string | null;
             };
             path: {
@@ -639,7 +639,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description As for the guest's wish; a retried delete replays instead of answering 404 */
+                /** @description As for the guest's wish, bound to the signed-in owner, this invitation and this wish: a retried delete replays to its owner instead of answering 404, and anyone else's request is judged afresh */
                 "Idempotency-Key"?: string | null;
             };
             path: {
@@ -725,7 +725,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description As for the guest's wish */
+                /** @description As for the guest's wish, bound to the signed-in owner, this invitation and this wish: it replays only to the same owner on the same path, and anyone else's request is judged afresh */
                 "Idempotency-Key"?: string | null;
             };
             path: {

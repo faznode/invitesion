@@ -2,7 +2,8 @@
 # CI job "rust" (B-020, ADR-A2): every Rust crate in the repository against a database migrated by drizzle-kit, the only
 # migration owner. The service crate (R-01) must be formatted and lint-clean, build from its committed query metadata
 # alone, keep its contract artifacts current, and serve its slices end to end through the Next.js call sites: views
-# (R-02), RSVP (R-03) and wishes (R-04). The s26 feasibility experiment is frozen research and only has to keep passing.
+# (R-02), RSVP (R-03) and wishes (R-04), with host idempotency keys bound to their owner (s29, D-046). The s26 feasibility
+# experiment is frozen research and only has to keep passing.
 #   POSTGRES_URL=postgres://…/scratch bash scripts/ci/rust.sh        # locally: bash scripts/ci/local.sh rust
 set -euo pipefail
 cd "$(dirname "$0")/../.."
@@ -69,6 +70,13 @@ wishes_end_to_end() {
     WISH_LIMIT_LINK=$WISH_LIMIT_LINK WISH_LIMIT_IP=$WISH_LIMIT_IP npx tsx scripts/verify-wishes-api.ts
 }
 
+# s29: a host's Idempotency-Key replays only to its owner, on the same invitation and guest or wish (signed requests with
+# chosen keys and valid owner tokens, against the binary).
+host_replay_isolation() {
+  API_BASE_URL="http://127.0.0.1:$API_PORT" INTERNAL_API_SECRET=$API_SECRET OWNER_TOKEN_JWKS_PORT=$JWKS_PORT \
+    OWNER_TOKEN_ISSUER=$OWNER_ISSUER OWNER_TOKEN_AUTHORIZED_PARTIES=$OWNER_PARTY npx tsx scripts/verify-host-replay-isolation.ts
+}
+
 step "migrate (drizzle-kit)" pnpm db:migrate
 step "toolchain" cargo --version
 if [ -f "$SERVICE/Cargo.toml" ]; then
@@ -81,5 +89,6 @@ if [ -f "$SERVICE/Cargo.toml" ]; then
   step "views end to end (BACKEND_VIEWS=rust)" views_end_to_end
   step "rsvp end to end (BACKEND_RSVP, both writers)" rsvp_end_to_end
   step "wishes end to end (BACKEND_WISHES, both writers)" wishes_end_to_end
+  step "host replay isolation (owner, invitation, resource)" host_replay_isolation
 fi
 step "test ($EXPERIMENT)" cargo test --manifest-path "$EXPERIMENT/Cargo.toml" --locked

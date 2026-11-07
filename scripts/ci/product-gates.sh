@@ -5,11 +5,14 @@
 #
 # Gates (exit 1 on FAIL, 3 on INCOMPLETE; any non-zero fails the job):
 #   product-bytes      wedding and long-programme content on all five layouts, PRODUCT_PAGE_BUDGETS on design bytes (Q-D17)
-#   design-acceptance  overflow, stress names, T3 rhythm, reduced motion, forced-colour icons at 360 × 800
+#   design-acceptance  overflow, stress names, T3 rhythm, reduced motion, forced-colour icons at 360 × 800 (with the
+#                      families' photo-less couple profiles under stress, B-023)
 #   cover-fold         the greeting fits the first viewport on phones and a laptop
 #   rendered-contrast  Lighthouse color-contrast on every layout and the dark palette
 #   cover-gate         B-009: the "Buka Undangan" cover and the music on every layout (no-JS opening, the tap that starts
 #                      the music, I-15's 1.5 s, reduced motion, the toggle, keyboard), with a tone generated in this copy
+#   gift-privacy       B-026 / G-021: gift details kept to personal links reach no other audience (HTML, RSC payload,
+#                      metadata, calendar file, preview image) and both QRIS routes serve only who may see them
 # The fixture has no cover photos: photo pages need generated review assets, which never enter the repository, so the
 # legacy-over-photo INCOMPLETE pages (D-041) stay a manual run.
 set -euo pipefail
@@ -21,6 +24,8 @@ ci_placeholder_env
 
 APP_PORT=${APP_PORT:-3100}
 BASE="http://127.0.0.1:$APP_PORT"
+# One upload root for the server and the checks that place fixture objects (B-026's QRIS images).
+export UPLOAD_ROOT=${UPLOAD_ROOT:-$PWD/storage/uploads}
 LAYOUTS=(legacy gapura kartu riang lontar)
 FAMILIES=(gapura kartu riang lontar)
 STRESS_GUESTS=(nama-panjang hostile-name rtl-name emoji-name)
@@ -83,6 +88,8 @@ design() {
     args+=(--url "$layout-programme=$(page "$layout" programme budi-hartono)")
   done
   for family in "${FAMILIES[@]}"; do args+=(--url "$family-sparse=$(page "$family" sparse budi-hartono)"); done
+  # B-023: the families' couple profiles without photos, with long, Arabic and emoji names and markup in the parents.
+  for family in "${FAMILIES[@]}"; do args+=(--url "$family-profiles=$(page "$family" profiles budi-hartono)"); done
   npx tsx tools/template-harness/design-acceptance.ts --out "$CI_OUT/design" "${args[@]}"
 }
 
@@ -100,6 +107,13 @@ contrast() {
   npx tsx tools/template-harness/rendered-contrast.ts --out "$CI_OUT/contrast" "${args[@]}"
 }
 
+# F-02 (D-041 (3)): what a new invitation of each event type starts as must pass with 0 FAIL and 0 INCOMPLETE.
+contrast_new() {
+  local args=()
+  for type in wedding birthday aqiqah tasyakuran khitanan corporate; do args+=(--url "new-$type=$BASE/i/review-new-$type/budi-hartono"); done
+  npx tsx tools/template-harness/rendered-contrast.ts --out "$CI_OUT/contrast-new" "${args[@]}"
+}
+
 # B-009: the music fixture's audio is a tone generated here (no recording, no licence), placed under public/ of this
 # disposable copy before the build so the measurement build serves it.
 TONE_URL="$BASE/review/tone.wav"
@@ -115,14 +129,16 @@ gate() {
 step "migrate (drizzle-kit)" pnpm db:migrate
 step "seed the theme catalog" pnpm db:seed:templates
 step "fixture tone (B-009, generated)" fixture_tone
-step "seed the review fixture (+ programme, music)" npx tsx invitation-research/_tools/setup/seed-family-review.ts --programme --music-url "$TONE_URL"
+step "seed the review fixture (+ programme, music, new invitations, profiles)" npx tsx invitation-research/_tools/setup/seed-family-review.ts --programme --music-url "$TONE_URL" --new-invitations --profiles
 step "build (measurement variant)" build_without_middleware
 step "serve on :$APP_PORT" start_server
 step "wrong links answer a real 404 (B-011)" real_404
+step "gift privacy on the served build (B-026)" env BASE_URL="$BASE" npx tsx scripts/verify-gift-privacy.ts
 step "product bytes: wedding" bytes full
 step "product bytes: long programme" bytes programme
 step "product bytes: wedding with music (B-009)" bytes music
 step "design acceptance (360 × 800)" design
 step "cover fold (phones and laptop)" fold
 step "rendered contrast (Lighthouse)" contrast
+step "rendered contrast: new invitations (F-02)" contrast_new
 step "cover gate and music (B-009)" gate

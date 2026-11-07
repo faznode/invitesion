@@ -125,7 +125,7 @@ test('/media protected: the owner gets it privately; anyone else, and every fail
   assert.equal(missing.headers.get('cache-control'), 'private, no-store');
 });
 
-// ── Personal-link photo route ─────────────────────────────────
+// ── Personal-link photo route ────────────────────��────────────
 
 type Summary = Awaited<ReturnType<GuestChildPhotoDeps['loadPublished']>>;
 function guestDeps(config: DetailConfig, opts: { eventType?: string; draft?: boolean; guest?: boolean; objects?: Record<string, string> } = {}) {
@@ -297,8 +297,16 @@ test('wiring: the Clerk proxy covers /media/protected (its general matcher skips
     ['Foto bayi:ceremonyProfile', 'Foto anak:ceremonyProfile', 'Foto:birthdayPerson'],
     'aqiqah, khitanan and birthday fields',
   );
-  assert.equal([...editor.matchAll(/<ImageUpload label="[^"]+" purpose=/g)].length, 3, 'no other upload field is protected');
-  assert.equal([...editor.matchAll(/<ImageUpload /g)].length, 7, 'seven upload fields in all');
+  // B-026 (D-047): the host's static QRIS image is the one other protected upload, on the gift tab, stored under the
+  // protected namespace by its own branch of the upload route.
+  assert.deepEqual(
+    [...editor.matchAll(/<ImageUpload label="([^"]+)" purpose="gift-qris".*?patch\('(\w+)'/g)].map((m) => `${m[1]}:${m[2]}`),
+    ['Gambar QRIS statis (opsional):gift'],
+    'the gift tab\u2019s QRIS field',
+  );
+  assert.match(upload, /if \(purpose === 'gift-qris'\) \{[\s\S]*?saveImage\(\(ext\) => protectedInvitationMediaKey\(id, ext\), file, QRIS_MAX_BYTES, QRIS_IMAGE_EXT\)/);
+  assert.equal([...editor.matchAll(/<ImageUpload label="[^"]+" purpose=/g)].length, 4, 'no other upload field is protected');
+  assert.equal([...editor.matchAll(/<ImageUpload /g)].length, 8, 'eight upload fields in all');
   assert.ok(!/label="Foto \(opsional\)" purpose=/.test(editor), 'the tasyakuran (adult) photo stays public');
   assert.match(read('app/media/[...path]/route.ts'), /user\.role === 'ADMIN'\) return false/);
   assert.throws(() => assertSafeKey('protected/../1/x.png'), InvalidKeyError);

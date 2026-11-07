@@ -57,7 +57,10 @@ export function childPhotoAllowed(showPhoto: boolean | undefined, audience: Port
   return showPhoto === true && (audience.personalLink || audience.preview);
 }
 
-/** The couple, bride and groom in the host's display order; null without a photo, so pages without photos do not change. */
+/**
+ * The couple, bride and groom in the host's display order; null without a photo, so pages without photos do not change.
+ * The legacy layout's section (frozen by D-041); the design families show `coupleProfiles` instead (B-023).
+ */
 export function couplePortraits(
   input: { bride?: Side; groom?: Side; displayOrder?: 'bride-first' | 'groom-first' },
 ): Portraits {
@@ -65,6 +68,39 @@ export function couplePortraits(
   const groom = sidePortrait('groom', input.groom, 'putra', 'Foto mempelai pria');
   const people = (input.displayOrder === 'groom-first' ? [groom, bride] : [bride, groom]).filter((p): p is Portrait => p !== null);
   return people.length ? { heading: 'Mempelai', people } : null;
+}
+
+/** B-023: one side of the couple on the design families; the photo is optional (no `src`: a text-only profile). */
+export type Profile = { key: string; src?: string; alt?: string; name?: string; caption?: string };
+export type Profiles = { heading: string; people: Profile[] } | null;
+
+function sideProfile(key: string, side: Side | undefined, child: 'putra' | 'putri', fallbackAlt: string) {
+  const src = safeImageSrc(side?.photoUrl);
+  const fullName = clean(side?.fullName);
+  const nickName = clean(side?.nickName);
+  const name = fullName ?? nickName;
+  // A parents line with neither a name nor a photo has no one to describe, so such a side renders nothing.
+  if (!src && !name) return null;
+  const caption = parentsLine(child, side?.parents, side?.order);
+  // The headline already shows the nickname (or the full name without one); a profile adds a photo, a parents line or
+  // a full name beside the nickname.
+  const adds = Boolean(src || caption || (fullName && nickName && fullName !== nickName));
+  const profile: Profile = { key, name, caption, ...(src && { src, alt: name ? `Foto ${name}` : fallbackAlt }) };
+  return { profile, adds };
+}
+
+/**
+ * B-023 (G-026, D-049): the couple's full profiles on the design families: full name, parents line with the child order,
+ * and photo, each when filled, a photo no longer required. The section opens only when a side has something the headline
+ * does not already say (a photo, a parents line, or a full name beside the nickname), so a page with nicknames alone
+ * stays as it was; then both sides that have a name or a photo appear, in the host's display order. With both photos it
+ * equals `couplePortraits`.
+ */
+export function coupleProfiles(input: { bride?: Side; groom?: Side; displayOrder?: 'bride-first' | 'groom-first' }): Profiles {
+  const bride = sideProfile('bride', input.bride, 'putri', 'Foto mempelai wanita');
+  const groom = sideProfile('groom', input.groom, 'putra', 'Foto mempelai pria');
+  const sides = (input.displayOrder === 'groom-first' ? [groom, bride] : [bride, groom]).filter((side) => side !== null);
+  return sides.some((side) => side.adds) ? { heading: 'Mempelai', people: sides.map((side) => side.profile) } : null;
 }
 
 /**

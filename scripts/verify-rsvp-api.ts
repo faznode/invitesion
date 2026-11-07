@@ -546,17 +546,22 @@ async function main() {
     // postgres.js 3.4 binds a JS array as a bare list, so ids go as an int[] literal and keys as a jsonb list.
     const ids = (values: number[]) => `{${values.join(',')}}`;
     const keys = (values: string[]) => JSON.stringify(values);
-    const scopes = created.guests.flatMap((id) => [`rsvp:guest:${id}`, `rsvp:host:${id}`]);
+    const scopes = created.guests.map((id) => `rsvp:guest:${id}`);
     const buckets = [...created.guests.map((id) => `rsvp:link:${id}`), ...[...addressKeys].map(ipBucket)];
     await sql`delete from analytics_events where invitation_id = any(${ids(created.invitations)}::int[])`;
     await sql`delete from guests where invitation_id = any(${ids(created.invitations)}::int[])`;
     await sql`delete from invitations where id = any(${ids(created.invitations)}::int[])`;
     await sql`delete from users where id = any(${ids(created.users)}::int[])`;
     await sql`delete from api_idempotency_keys where scope in (select jsonb_array_elements_text(${keys(scopes)}::text::jsonb))`;
+    // A host override's scope names its owner, invitation and guest (`rsvp:host:<owner>:<invitation>:<guest>`), and
+    // every override here is a fixture user's.
+    await sql`delete from api_idempotency_keys where scope like 'rsvp:host:%' and split_part(scope, ':', 3) = any(${ids(created.users)}::text[])`;
     await sql`delete from api_rate_limits where bucket in (select jsonb_array_elements_text(${keys(buckets)}::text::jsonb))`;
     const [left] = await sql`select (select count(*) from invitations where slug like ${`rsvp-api-%-${tag}`})::int as invitations,
-      (select count(*) from api_rate_limits where bucket in (select jsonb_array_elements_text(${keys(buckets)}::text::jsonb)))::int as buckets`;
-    check('the fixture leaves no row behind', left.invitations === 0 && left.buckets === 0, JSON.stringify(left));
+      (select count(*) from api_rate_limits where bucket in (select jsonb_array_elements_text(${keys(buckets)}::text::jsonb)))::int as buckets,
+      (select count(*) from api_idempotency_keys where scope in (select jsonb_array_elements_text(${keys(scopes)}::text::jsonb))
+        or (scope like 'rsvp:host:%' and split_part(scope, ':', 3) = any(${ids(created.users)}::text[])))::int as keys`;
+    check('the fixture leaves no row behind', left.invitations === 0 && left.buckets === 0 && left.keys === 0, JSON.stringify(left));
     for (const server of servers) server.close();
     await sql.end();
   }

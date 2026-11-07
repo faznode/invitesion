@@ -565,21 +565,25 @@ async function main() {
     session.token = null;
     const ids = (values: number[]) => `{${values.join(',')}}`;
     const keys = (values: string[]) => JSON.stringify(values);
-    const scopes = [...created.guests.map((id) => `wish:guest:${id}`), ...created.wishes.flatMap((id) => [`wish:host:${id}`, `wish:reply:${id}`])];
+    const scopes = created.guests.map((id) => `wish:guest:${id}`);
     const buckets = [...created.guests.map((id) => `wish:link:${id}`), ...[...addressKeys].map(ipBucket)];
     await sql`delete from analytics_events where invitation_id = any(${ids(created.invitations)}::int[])`;
     await sql`delete from guest_messages where invitation_id = any(${ids(created.invitations)}::int[])`;
     await sql`delete from guests where invitation_id = any(${ids(created.invitations)}::int[])`;
     await sql`delete from invitations where id = any(${ids(created.invitations)}::int[])`;
     await sql`delete from users where id = any(${ids(created.users)}::int[])`;
-    // Every host operation targets a wish made by `storedWish`, so its scopes are in `scopes`.
     await sql`delete from api_idempotency_keys where scope in (select jsonb_array_elements_text(${keys(scopes)}::text::jsonb))`;
+    // A host operation's scope names its owner, invitation and wish (`wish:host:<owner>:<invitation>:<wish>`, likewise
+    // `wish:reply:`), and every host operation here is a fixture user's.
+    const hostScopes = () => sql`(scope like 'wish:host:%' or scope like 'wish:reply:%') and split_part(scope, ':', 3) = any(${ids(created.users)}::text[])`;
+    await sql`delete from api_idempotency_keys where ${hostScopes()}`;
     await sql`delete from api_rate_limits where bucket in (select jsonb_array_elements_text(${keys(buckets)}::text::jsonb))`;
     await sql`analyze guest_messages`;
     const [left] = await sql`select (select count(*) from invitations where slug like ${`wish-api-%-${tag}%`})::int as invitations,
       (select count(*) from guest_messages where invitation_id = any(${ids(created.invitations)}::int[]))::int as wishes,
-      (select count(*) from api_rate_limits where bucket in (select jsonb_array_elements_text(${keys(buckets)}::text::jsonb)))::int as buckets`;
-    check('the fixture leaves no row behind', left.invitations === 0 && left.wishes === 0 && left.buckets === 0, JSON.stringify(left));
+      (select count(*) from api_rate_limits where bucket in (select jsonb_array_elements_text(${keys(buckets)}::text::jsonb)))::int as buckets,
+      (select count(*) from api_idempotency_keys where scope in (select jsonb_array_elements_text(${keys(scopes)}::text::jsonb)) or ${hostScopes()})::int as keys`;
+    check('the fixture leaves no row behind', left.invitations === 0 && left.wishes === 0 && left.buckets === 0 && left.keys === 0, JSON.stringify(left));
     for (const server of servers) server.close();
     await sql.end();
   }

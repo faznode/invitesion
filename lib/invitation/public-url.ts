@@ -20,13 +20,3 @@ export async function getPublicOrigin() {
   const protocol = requestHeaders.get('x-forwarded-proto') ?? 'http';
   return `${protocol}://${host}`;
 }
-
-/** Normalises an Indonesian mobile number into wa.me's digits-only form. */
-export function toWhatsAppNumber(phone: string | null | undefined) {
-  if (!phone) return null;
-  const digits = phone.replace(/\D/g, '');
-  if (!digits) return null;
-  if (digits.startsWith('62')) return digits;
-  if (digits.startsWith('0')) return `62${digits.slice(1)}`;
-  return `62${digits}`;
-}

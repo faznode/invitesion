@@ -40,6 +40,7 @@ Precedence: `AGENTS.md` > this skill > third-party skills. Third-party design sk
 ## Family contract (enforced by tests unless marked)
 - Register the id in `FAMILY_IDS` / `FAMILIES` (`lib/invitation/families.ts`) and the layout in `FAMILY_LAYOUTS`
   (`components/invitation/public-renderer.tsx`). A missing or retired id renders the legacy layout byte-identically.
+  Changing which family a new invitation starts on is `defaultFamilyFor` (same file; F-02, D-048), never the renderer.
 - Take every derived value from `buildGuestView()` (`guest-view.ts`): dates and times in the event zone, countdown and
   calendar rules, `canRespond`, `coverText()`. Never call `isFlagOn`, `calendarEventsFromConfig` or read
   `invitation.status` in a layout.
@@ -91,6 +92,9 @@ around every layout; a layout never builds its own cover gate or `<audio>`.
 Fixture pages: `/i/review-<legacy|gapura|kartu|riang|lontar>-<full|photo|corporate|sparse|birthday|expired|dark>/<guest>`
 (legacy: full, photo, corporate); guests `budi-hartono`, `nama-panjang`, `hostile-name`, `rtl-name`, `emoji-name`, plus one
 opaque-link guest per invitation (token in the seed output); palette sweep `/i/review-<layout>-p-<paletteId>/budi-hartono`.
+New invitations (F-02, D-048) start on Gapura (wedding), Riang (birthday, aqiqah, tasyakuran, khitanan) or Lontar
+(corporate) under `DEFAULT_FAMILY`: `--new-invitations` seeds `/i/review-new-<eventType>/budi-hartono` (gated by
+product-gates' "rendered contrast: new invitations"), `--new-invitation-palettes` every family × palette they can start on.
 Never run screenshots, builds or tests while a capture batch runs (shared CPU skews its measurements).
 
 **Rendered-contrast verdicts** (`rendered-contrast.ts`, logic in `contrast-gate.ts`, tests `tests/rendered-contrast.test.ts`):
