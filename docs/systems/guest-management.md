@@ -3,9 +3,9 @@
 > WHAT: Manage tamu, slug anti-collision, URL unik per-tamu, RSVP, import CSV.
 > STATUS: LIVE (design)
 > OWNER: Operator
-> DEPS: DATABASE_SCHEMA.md (guests, guest_messages, analytics_events)
-> GREP: guest, tamu, slug, url, rsvp, csv, import, tracking, collision, token, link_token, attending_count, calendar, og
-> UPDATED: 2026-11-07 (s29: detail hadiah hanya di link pribadi, QRIS statis host, tombol salin, B-026 / D-047 / E-063; s28: musik latar + sampul "Buka Undangan", B-009 / D-045 / E-061; moderasi / balasan / visibilitas buku tamu dan penulis ucapan `BACKEND_WISHES`, R-04 / D-044 / E-060; penulis RSVP `BACKEND_RSVP` Next.js / API Rust, kunci idempotensi, batas per link / alamat, kontrak proxy tepercaya, R-03 / D-043 / E-059; s23r: akses file foto anak D-040 / E-047; s20, dicatat s21: acara khusus undangan + override RSVP host D-037, foto mempelai / anak D-038; s19: id acara tetap, konfirmasi per acara, ringkasan jawaban host, D-036; s18: pertanyaan custom host + editor, D-034/D-035, ringkasan RSVP dashboard E-033; s17: B-027 MAYBE status, headcount hint; s09: B-007 attending_count, B-011 opt-in token + 404, B-008/B-010 side routes)
+> DEPS: DATABASE_SCHEMA.md (guests, guest_messages, analytics_events, guest_registrations, guest_registration_links)
+> GREP: guest, tamu, slug, url, rsvp, csv, import, impor, pendaftaran, daftar, self-registration, BACKEND_ROSTER, roster, tracking, collision, token, link_token, attending_count, calendar, og, analitik, tindak lanjut, follow-up, insights, digest
+> UPDATED: 2026-11-07 (s31: impor tamu + pendaftaran mandiri + penulis roster `BACKEND_ROSTER` Next.js / API Rust, B-033 / D-052 / E-070; analitik & tindak lanjut host, daftar belum membuka / belum menjawab, ringkasan harian, B-034 / E-069; hanya VIEW yang ditulis ke analytics_events; s29: detail hadiah hanya di link pribadi, QRIS statis host, tombol salin, B-026 / D-047 / E-063; s28: musik latar + sampul "Buka Undangan", B-009 / D-045 / E-061; moderasi / balasan / visibilitas buku tamu dan penulis ucapan `BACKEND_WISHES`, R-04 / D-044 / E-060; penulis RSVP `BACKEND_RSVP` Next.js / API Rust, kunci idempotensi, batas per link / alamat, kontrak proxy tepercaya, R-03 / D-043 / E-059; s23r: akses file foto anak D-040 / E-047; s20, dicatat s21: acara khusus undangan + override RSVP host D-037, foto mempelai / anak D-038; s19: id acara tetap, konfirmasi per acara, ringkasan jawaban host, D-036; s18: pertanyaan custom host + editor, D-034/D-035, ringkasan RSVP dashboard E-033; s17: B-027 MAYBE status, headcount hint; s09: B-007 attending_count, B-011 opt-in token + 404, B-008/B-010 side routes)
 
 ## URL unik per-tamu (differentiator utama)
 Format: `/i/:invitationSlug/:guestSlug` → `invitation.com/i/wedding-andi/budi-santoso`
@@ -20,7 +20,28 @@ Format: `/i/:invitationSlug/:guestSlug` → `invitation.com/i/wedding-andi/budi-
 ## Personalisasi & tracking
 - Tamu buka link → nama auto-fill di undangan, RSVP form pre-filled (nama disabled).
 - Log `opened_at` + increment `opened_count` (tracking per-tamu — kompetitor gak punya).
-- Semua event (VIEW/RSVP/GUESTBOOK/CHECKIN) → `analytics_events`.
+- Hanya **VIEW** yang ditulis ke `analytics_events` (B-017a: paling banyak satu baris dan satu kenaikan `opened_count` per
+  link per 30 menit, sama untuk penulis TypeScript dan Rust). RSVP / GUESTBOOK / CHECKIN hanya disebut di komentar skema;
+  tidak ada kode yang menulisnya (dicek s31), jadi "menjawab hari ini" belum bisa dihitung.
+
+## Analitik & tindak lanjut host (B-034, I-06, I-29; s31)
+Halaman pemilik `/dashboard/invitations/<id>/insights` (tautan dari daftar tamu dan kartu "Analytics & Export" di control
+center). Hanya baca; kode `lib/invitation/host-analytics.ts` (aturan murni) dan `host-analytics-query.ts` (loader).
+- **Lingkup pemilik:** loader mencari undangan dengan `id` **dan** `user_id` sesi; undangan orang lain = null → 404
+  privat. Semua query berikutnya memakai id undangan itu saja.
+- **Angka:** tamu, sudah membuka (`opened_count > 0`), sudah menjawab (hadir / mungkin / tidak hadir), hadir dalam orang
+  (`rsvpSummary`, jawaban hadir tanpa jumlah disebut terpisah), per kelompok (kategori di-trim, kosong = satu kelompok),
+  per acara (`eventRsvpSummary`, D-036 / D-037), kunjungan 14 hari terakhir per hari lokal (`hostTimeZone`: zona
+  `eventOperations.timezone`, lalu offset acara pertama, lalu WIB; timestamp disimpan sebagai jam dinding UTC).
+- **Daftar tindak lanjut:** hanya tamu `PENDING`. **Belum membuka** = `opened_count = 0` (urut: paling lama ditandai
+  dikirim dulu, belum ditandai paling akhir); **belum menjawab** = sudah membuka (urut: dibuka paling lama dulu). Tombol
+  "Ingatkan" memakai `guestWhatsApp` (B-018) dengan template host dan link personal (token bila ada, B-011).
+- **Ekspor:** `/dashboard/invitations/<id>/analytics?list=unopened|unanswered` (CSV, sel dinetralkan B-006, kolom
+  `personal_link`); tanpa `list` tetap ekspor tamu lengkap seperti sebelumnya.
+- **Ringkasan harian (I-29):** teks angka saja (tanpa nama / nomor / link tamu) yang dibagikan lewat `whatsAppShareLink`
+  (tanpa penerima; WhatsApp menanyakan tujuan).
+- **Bukti:** `tests/b034-host-analytics.test.ts`, `scripts/verify-host-analytics.ts` (job database). Halaman di browser
+  dengan sesi asli = DA-01 (NOT RUN).
 
 ## RSVP
 - Status: PENDING|CONFIRMED|DECLINED|MAYBE. MAYBE (B-027, s17) di belakang flag `RSVP_MAYBE` (default on; `FLAG_RSVP_MAYBE=off` menyembunyikan pilihan "Mungkin hadir" dan action menolaknya, jawaban MAYBE yang tersimpan tetap terbaca); dihitung terpisah di dashboard tamu dan diekspor dengan status sendiri. `guest_count` = jatah kursi dari host (RSVP **tidak pernah** mengubahnya); `attending_count` = jumlah yang hadir menurut tamu (0 kalau menolak, null = belum menjawab / jawaban sebelum B-007 / MAYBE, jadi "mungkin" tidak pernah masuk hitungan kursi). Jawaban di-clamp ke 1…`guest_count`.
@@ -40,9 +61,13 @@ Format: `/i/:invitationSlug/:guestSlug` → `invitation.com/i/wedding-andi/budi-
 - **Detail hadiah hanya di link pribadi, QRIS statis host, tombol salin** (s29, B-026 / G-021, D-047, E-063): `gift.personalOnly: true` = nomor rekening / e-wallet, nama pemilik, catatan, dan QRIS hanya untuk link pribadi (aturan B-011) dan pratinjau host. Loader (`configForAudience`, `lib/invitation/gift-privacy.ts`) membuangnya dari config untuk link undangan **sebelum** render, jadi tidak ada di HTML, payload RSC, props klien, metadata, file kalender, gambar pratinjau, maupun route QRIS; halaman menulis bahwa detailnya ada di link pribadi. Audiens hanya ditentukan segmen route; parameter query tidak pernah mengubahnya. Undangan **baru** menyala sejak dibuat (`createInvitation`); undangan lama (tanpa kunci itu) tetap seperti sebelumnya sampai host mengubahnya di tab Kado. QRIS = gambar statis milik host, hanya unggahan terlindung (`purpose=gift-qris`: PNG / JPG / WEBP menurut tipe dan byte, maks 1 MB, `protected/<undangan>/`, harus milik undangan ini); tamu menerimanya lewat `/i/<slug>/<tamu>/gift/qris` atau, selama setelan mati, `/i/<slug>/gift-qris.img`, yang di setiap request mengecek undangan bukan draft, link tamu, saklar kado, dan kepemilikan file (`private, no-store`, `nosniff`, CSP sandbox, `noindex`). Tidak ada kustodi, checkout, atau pemrosesan pembayaran. Tombol "Salin" (hanya di keluarga desain; muncul setelah hidrasi) menyalin nomor persis seperti disimpan, dan bila Clipboard API tidak ada, memilih nomornya lalu memberi tahu tamu. Legacy tetap byte-identik (D-041) kecuali yang dipilih host (QRIS, catatan). Bukti layanan: `scripts/verify-gift-privacy.ts` (langkah "gift privacy" di job `product-gates`).
 - Halaman tamu: hitung mundur + "Simpan ke Google Calendar" / file `.ics` untuk acara pertama yang belum lewat (B-008, `FLAG_GUEST_CALENDAR`, default on).
 
-## Import guest
-- CSV/Excel: kolom nama, phone, category. Generate slug + qr_code otomatis saat import.
-- Handle collision saat bulk import (angka append).
+## Daftar tamu: impor, pendaftaran mandiri, penulis roster (B-033, D-052, E-070; s31)
+- **Satu pintu untuk semua tulisan roster** (`lib/invitation/roster.ts`): tambah tamu di kedua daftar, tandai terkirim, check-in / batal check-in (dengan baris CHECKIN), acara khusus per tamu dan per kategori, impor dan pembatalannya, link pendaftaran, pendaftaran dari form publik, dan keputusan host. `BACKEND_ROSTER=next|rust` (default `next`) memilih tepat satu penulis per panggilan, tanpa fallback. Aturannya satu modul per bahasa (`lib/invitation/roster-rules.ts`, `services/api/src/roster/rules.rs`) yang dijalankan terhadap `contracts/vectors/roster-rules.json`; kedua penulis mengambil advisory lock yang sama per undangan, jadi slug tidak pernah bentrok dan dua penulis tidak pernah berselang-seling pada satu daftar. Kolom RSVP tetap milik penulis RSVP (R-03).
+- **Aturan baris:** nama wajib (trim, ≤ 150 karakter), nomor WhatsApp opsional mengikuti B-018 (`08…`, `62…`, `+62…`; nomor luar negeri disimpan seperti ditulis bila 8–15 digit), kategori ≤ 50 karakter, jumlah tamu 1–50 (kosong = 1). Duplikat = nomor yang sama (setelah dinormalkan) atau, tanpa nomor, nama yang sama. Slug = slugify nama, lalu `-2`, `-3`, … pertama yang kosong. Batas teknis sampai ada batas paket (U6 / B-040): 3.000 tamu per undangan, 1.000 baris per impor, 300 pendaftaran menunggu.
+- **Impor** (`/dashboard/invitations/<id>/guests/import`, flag `GUEST_IMPORT`, default on): tempel dari spreadsheet (tab), CSV `;` (Excel Indonesia) atau `,`, dengan atau tanpa header (alias Indonesia / Inggris); BOM, tanda kutip RFC 4180 dan baris baru di dalam sel ditangani (`lib/invitation/guest-import-parse.ts`). **Pratinjau** = keputusan penulis yang aktif tanpa menulis apa pun: per baris ok / tidak valid (alasan) / duplikat (dengan daftar atau baris di atasnya). **Impor** memutuskan ulang di bawah lock lalu menulis semua baris yang diterima dalam satu INSERT dengan satu `import_batch_id`, atau tidak sama sekali (`too_many_rows`, `roster_full`, `nothing_to_import`). **Batalkan impor** menghapus tamu batch itu yang belum disentuh; tamu yang sudah dibuka, dikirimi, menjawab, check-in, menulis ucapan atau punya log WhatsApp tetap ada dan dihitung.
+- **Pendaftaran mandiri** (flag `SELF_REGISTRATION`, **default off** sampai teks pemberitahuan privasi B-021 disetujui pemilik): host membuka link `/daftar/<token>` (token 22 karakter; buka, ganti = link lama langsung mati, tutup) di panel "Pendaftaran tamu" (`#pendaftaran`). Form publik (nama, WhatsApp opsional, 1–5 orang; `noindex`) masuk antrean `guest_registrations`, tidak langsung menjadi tamu. Duplikat dijawab sama seperti pendaftaran baru dan tidak disimpan (daftar tamu tidak bisa diintip). Batas: 20 per link dan 5 per alamat per 10 menit (`RATE_LIMIT_REGISTRATION_*`, IPv6 per /64, alamat hanya sebagai HMAC, kontrak proxy tepercaya), dihitung di tabel yang sama oleh kedua penulis. Host menyetujui (menjadi tamu tanpa kategori, keluar dari antrean, satu transaksi) atau menolak (dihapus); persetujuan atas orang yang sudah menjadi tamu ditolak sebagai duplikat dan permintaannya tetap untuk ditolak host. Link berlaku selama undangan terbit dan belum kedaluwarsa.
+- **Dengan `rust`:** setiap tulisan host membawa `Idempotency-Key`, form publik membawa kunci per render; hasil yang tidak pasti dikirim sekali lagi dengan kunci yang sama lalu "belum bisa dipastikan" (`?error=unconfirmed`, form publik `?daftar=retry`). Rollback: `BACKEND_ROSTER=next`, flag off; impor dibatalkan per batch; tabel baru aditif (migrasi 0019).
+- **Bukti:** `tests/b033-roster-rules.test.ts` dan `services/api/tests/roster_vectors.rs` (vektor bersama), `tests/b033-roster-writer.test.ts` (pemetaan API, satu penulis, penjaga sumber), `services/api/tests/roster_database.rs`, dan `scripts/verify-roster-api.ts` (semua call site, kedua penulis, binary yang berjalan; job CI `rust`).
 
 ## Guest book
 - `guest_messages`. **Moderasi, balasan, visibilitas** (R-04, B-028, D-044; s28):

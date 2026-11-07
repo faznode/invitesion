@@ -210,8 +210,14 @@ test('B-011: wiring — one lookup rule for page and actions, flag-gated minting
   assert.match(loader, /or\(eq\(guests\.linkToken, segment\), and\(isNull\(guests\.linkToken\), eq\(guests\.slug, segment\)\)\)/);
   assert.match(source('app/i/[slug]/actions.ts'), /findGuestByLinkSegment\(invitation\.id, guestSlug\)/);
   assert.doesNotMatch(source('app/i/[slug]/actions.ts'), /eq\(guests\.slug/);
+  // B-033 moved minting into the roster writers: the flag is read once per write (`rosterFlags`), and every insert of a
+  // guest in both writers (an add, an import, an approved self-registration) gates the token on it.
+  assert.match(source('lib/invitation/roster.ts'), /opaqueLinks: isFlagOn\('OPAQUE_GUEST_LINKS', env\)/);
+  assert.equal(source('lib/invitation/roster-next.ts').match(/linkToken: input\.flags\.opaqueLinks \? newGuestLinkToken\(\) : null/g)?.length, 3);
+  assert.equal(source('services/api/src/roster/http.rs').match(/request\.flags\.opaque_links\.then\(new_link_token\)/g)?.length, 3);
   for (const file of ['app/(customer)/dashboard/guests/actions.ts', 'app/(customer)/dashboard/invitations/[id]/guests/actions.ts']) {
-    assert.match(source(file), /isFlagOn\('OPAQUE_GUEST_LINKS'\) \? newGuestLinkToken\(\) : null/, file);
+    assert.match(source(file), /addRosterGuest\(/, file);
+    assert.doesNotMatch(source(file), /insert\(guests\)|newGuestLinkToken/, file);
   }
   assert.match(source('app/(customer)/dashboard/guests/page.tsx'), /guestPath\(invitationSlug, guestLinkSegment\(guest\)\)/);
   assert.equal(source('components/invitation/guest-blocks.tsx').match(/name="guestSlug" value=\{guestLinkSegment\(guest\)\}/g)?.length, 2, 'both shared forms post the link identity');

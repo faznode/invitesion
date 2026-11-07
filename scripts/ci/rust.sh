@@ -70,6 +70,13 @@ wishes_end_to_end() {
     WISH_LIMIT_LINK=$WISH_LIMIT_LINK WISH_LIMIT_IP=$WISH_LIMIT_IP npx tsx scripts/verify-wishes-api.ts
 }
 
+# B-033: every roster call site (both lists, invite-only events, the import and its undo, self-registration and the
+# host's decisions) through both writers against the binary, with the default registration limits.
+roster_end_to_end() {
+  API_BASE_URL="http://127.0.0.1:$API_PORT" INTERNAL_API_SECRET=$API_SECRET OWNER_TOKEN_JWKS_PORT=$JWKS_PORT \
+    OWNER_TOKEN_ISSUER=$OWNER_ISSUER OWNER_TOKEN_AUTHORIZED_PARTIES=$OWNER_PARTY npx tsx scripts/verify-roster-api.ts
+}
+
 # s29: a host's Idempotency-Key replays only to its owner, on the same invitation and guest or wish (signed requests with
 # chosen keys and valid owner tokens, against the binary).
 host_replay_isolation() {
@@ -89,6 +96,7 @@ if [ -f "$SERVICE/Cargo.toml" ]; then
   step "views end to end (BACKEND_VIEWS=rust)" views_end_to_end
   step "rsvp end to end (BACKEND_RSVP, both writers)" rsvp_end_to_end
   step "wishes end to end (BACKEND_WISHES, both writers)" wishes_end_to_end
+  step "roster end to end (BACKEND_ROSTER, both writers)" roster_end_to_end
   step "host replay isolation (owner, invitation, resource)" host_replay_isolation
 fi
 step "test ($EXPERIMENT)" cargo test --manifest-path "$EXPERIMENT/Cargo.toml" --locked

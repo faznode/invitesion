@@ -22,7 +22,7 @@ const modules: Module[] = [
   { slug: 'seating', title: 'Seating', description: 'Reserve a place for table planning and assignments in the event workflow.', status: 'Foundation', icon: CalendarDays },
   { slug: 'secondary-events', title: 'Secondary Events', description: 'Coordinate ceremonies, dinners, and other moments around the main event.', status: 'Configurable', icon: Sparkles },
   { slug: 'tickets-donations', title: 'Tickets & Donations', description: 'Plan ticketing or donation flows; payment integrations are not active here.', status: 'Integration required', icon: Ticket },
-  { slug: 'analytics-export', title: 'Analytics & Export', description: 'Review guest activity and download a CSV snapshot for operations.', status: 'Active', icon: BarChart3 },
+  { slug: 'analytics-export', title: 'Analytics & Export', description: 'Opens over time, totals by group and event, follow-up lists with WhatsApp reminders, and CSV exports.', status: 'Active', icon: BarChart3, href: 'insights' },
   { slug: 'planner', title: 'Planner', description: 'Build your event timeline, tasks, vendors, and budget.', status: 'Active', icon: ClipboardList, href: 'planner' },
   { slug: 'settings', title: 'Settings', description: 'Invitation-level preferences and operational controls.', status: 'Configurable', icon: Settings },
 ];

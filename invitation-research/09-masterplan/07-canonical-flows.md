@@ -43,10 +43,11 @@ The page's weight is held to the harness budgets by hand, with no CI (B-012, B-0
 Import guests (B-033) → groups → send personal links (wa.me with an editable message, B-018) → follow up the unopened / unanswered lists (idea I-06, B-034) → watch totals by group and event (B-034).
 **Target:** every guest reachable in one tap; no unofficial WhatsApp gateway.
 **Today (s25):**
-- **Not built:** guest import (B-033).
+- **Guest import and self-registration (s31, B-033 / D-052, sandbox):** paste or CSV → preview by the live writer → one atomic, undoable batch; a self-registration link fills a queue the host approves (`FLAG_SELF_REGISTRATION` off until B-021's notice). Every roster write goes through `BACKEND_ROSTER` (Next.js or the Rust API). The dashboard steps need a signed-in host (DA-01).
 - **Personal links:** wa.me links use `toWhatsAppNumber` normalisation (baseline); the editable message is not available everywhere (B-018).
 - **RSVP:** the host sees RSVP counts on the dashboards (E-033) and each guest's answers on the guest page (E-036), and sets invite-only events per guest with an RSVP override (E-038).
-- **Not built:** unopened or unanswered follow-up lists (B-034 partial).
+- ~~**Not built:** unopened or unanswered follow-up lists (B-034 partial).~~ **Built s31 (E-069, D-051):** `/dashboard/invitations/<id>/insights` lists who has not opened and who opened without answering, each with a one-tap B-018 reminder and a CSV export; totals by group and event, opens over the last 14 days, and a counts-only digest to forward on WhatsApp (I-29). Signed-in acceptance is DA-01 (NOT RUN).
+- **Personal links (s29):** one builder with the host's editable message on both guest lists (B-018, E-066).
 
 ## 4. Host on the day (comparison: `../03-teardowns/_flows/host-day-of.md`, CLAIMED only)
 Ushers open the scanner on a phone (B-024; co-host / usher roles G-044) → scan the guest's QR pass or search the name (manual fallback, already present) → greeting screen shows the name (B-024) → attendance count updates.

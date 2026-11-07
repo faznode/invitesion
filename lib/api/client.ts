@@ -19,7 +19,7 @@ export type ApiConfig = {
 export class ApiConfigError extends Error {}
 
 /** What a problem is about (RFC 9457 extension members) and when to retry a 429. */
-export type ApiProblemExtras = { eventId?: string; questionId?: string; retryAfter?: number };
+export type ApiProblemExtras = { eventId?: string; questionId?: string; reason?: string; retryAfter?: number };
 
 /** An RFC 9457 problem answered by the API, or a transport failure with code `transport.*`. */
 export class ApiProblem extends Error {
@@ -100,11 +100,12 @@ async function send<T>(config: ApiConfig, method: 'GET' | 'POST', path: string, 
     let detail: string | undefined;
     const extras: ApiProblemExtras = {};
     try {
-      const problem = JSON.parse(text) as { code?: unknown; detail?: unknown; eventId?: unknown; questionId?: unknown };
+      const problem = JSON.parse(text) as { code?: unknown; detail?: unknown; eventId?: unknown; questionId?: unknown; reason?: unknown };
       if (typeof problem.code === 'string') code = problem.code;
       if (typeof problem.detail === 'string') detail = problem.detail;
       if (typeof problem.eventId === 'string') extras.eventId = problem.eventId;
       if (typeof problem.questionId === 'string') extras.questionId = problem.questionId;
+      if (typeof problem.reason === 'string') extras.reason = problem.reason;
     } catch {
       // A non-problem body (a proxy's HTML page) keeps the generic code.
     }
@@ -133,6 +134,16 @@ export function apiPostTo<P extends PathsWith<'post'>>(
   options: RequestOptions = {},
 ): Promise<JsonOk<Operation<P, 'post'>>> {
   return send(config, 'POST', expandPath(template, params as Record<string, string | number>), JSON.stringify(body), options);
+}
+
+/** POST without a body to a templated path: an action its path names fully (undoing one import). Signed over ''. */
+export function apiPostEmpty<P extends PathsWith<'post'>>(
+  config: ApiConfig,
+  template: P,
+  params: PathParams<Operation<P, 'post'>>,
+  options: RequestOptions = {},
+): Promise<JsonOk<Operation<P, 'post'>>> {
+  return send(config, 'POST', expandPath(template, params as Record<string, string | number>), '', options);
 }
 
 export function apiGet<P extends PathsWith<'get'>>(

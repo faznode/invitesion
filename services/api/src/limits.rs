@@ -29,7 +29,8 @@ impl Limit {
 
 /// The limits per write path. Defaults allow a guest to change an answer several times, or to add a wish or two after
 /// a first one, and tolerate many guests behind one carrier-grade NAT or venue network; `RATE_LIMIT_RSVP_LINK`,
-/// `RATE_LIMIT_RSVP_IP`, `RATE_LIMIT_WISH_LINK` and `RATE_LIMIT_WISH_IP` override them.
+/// `RATE_LIMIT_RSVP_IP`, `RATE_LIMIT_WISH_LINK`, `RATE_LIMIT_WISH_IP`, `RATE_LIMIT_REGISTRATION_LINK` and
+/// `RATE_LIMIT_REGISTRATION_IP` override them. The TypeScript roster writer reads the same registration variables.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Limits {
     pub rsvp_per_link: Limit,
@@ -37,6 +38,9 @@ pub struct Limits {
     /// R-04: a wish is a public text of up to 1,000 characters, so a link gets fewer of them than RSVP changes.
     pub wish_per_link: Limit,
     pub wish_per_ip: Limit,
+    /// B-033: self-registrations per invitation link (every registrant of one invitation shares it) and per address.
+    pub registration_per_link: Limit,
+    pub registration_per_ip: Limit,
 }
 
 impl Default for Limits {
@@ -46,6 +50,8 @@ impl Default for Limits {
             rsvp_per_ip: Limit { max: 60, window_seconds: 600 },
             wish_per_link: Limit { max: 5, window_seconds: 600 },
             wish_per_ip: Limit { max: 60, window_seconds: 600 },
+            registration_per_link: Limit { max: 20, window_seconds: 600 },
+            registration_per_ip: Limit { max: 5, window_seconds: 600 },
         }
     }
 }

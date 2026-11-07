@@ -38,6 +38,17 @@ const DEFAULTS = {
    * as before; stored variants are neither read nor removed.
    */
   IMAGE_VARIANTS: true,
+  /**
+   * B-033: the host's guest import (a paste from a spreadsheet or a CSV file, previewed, then written as one batch that
+   * can be undone). Off hides the import and refuses it; imported guests stay.
+   */
+  GUEST_IMPORT: true,
+  /**
+   * B-033: self-registration links (`/daftar/<token>`) and the host's queue of requests. Off until the owner opts in:
+   * the public form collects names and numbers, and its privacy notice waits on B-021's owner-approved text. Off closes
+   * every link (404) and hides the queue; stored requests stay.
+   */
+  SELF_REGISTRATION: false,
 } as const;
 
 export type FlagName = keyof typeof DEFAULTS;

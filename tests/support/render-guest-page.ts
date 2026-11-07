@@ -62,6 +62,7 @@ export function fixtureGuest(overrides: Partial<Guest> = {}): Guest {
     rsvpAnswers: null,
     checkedInAt: null,
     linkToken: null,
+    importBatchId: null,
     ...overrides,
   };
 }

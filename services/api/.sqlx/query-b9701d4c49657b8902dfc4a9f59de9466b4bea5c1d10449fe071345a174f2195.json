@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "update guests set checked_in_at = $1 where id = $2 and invitation_id = $3",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Timestamp",
+        "Int4",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "b9701d4c49657b8902dfc4a9f59de9466b4bea5c1d10449fe071345a174f2195"
+}

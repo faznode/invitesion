@@ -350,6 +350,763 @@
         ]
       }
     },
+    "/v1/invitations/{invitation}/category-invitations": {
+      "post": {
+        "tags": [
+          "roster"
+        ],
+        "operationId": "set_category_invitation",
+        "parameters": [
+          {
+            "name": "invitation",
+            "in": "path",
+            "description": "The owner's invitation",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "Bound to the signed-in owner and this invitation",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CategoryInvitationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Guests of the category invited to (or removed from) the event",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategoryInvitationSaved"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed path, body or idempotency key",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid signature or owner token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "A token for no live customer",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not this owner's invitation (`roster.not_found`)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Not a current invite-only event, a category over 50 characters, or the flag off (`roster.invite_invalid`), or `idempotency.key_reused`",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Owner tokens are not configured or the signing keys are unreachable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ownerToken": [],
+            "serviceSignature": []
+          }
+        ]
+      }
+    },
+    "/v1/invitations/{invitation}/guest-imports": {
+      "post": {
+        "tags": [
+          "roster"
+        ],
+        "operationId": "import_guests",
+        "parameters": [
+          {
+            "name": "invitation",
+            "in": "path",
+            "description": "The owner's invitation",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "For an import (not a preview): bound to the signed-in owner and this invitation; a retry replays the stored result instead of importing twice",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GuestImportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "A preview, an import, or a refusal of the whole import (`refusal`; nothing written)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuestImportResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed path, body or idempotency key",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid signature or owner token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "A token for no live customer",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not this owner's invitation (`roster.not_found`)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`idempotency.key_reused`",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Owner tokens are not configured or the signing keys are unreachable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ownerToken": [],
+            "serviceSignature": []
+          }
+        ]
+      }
+    },
+    "/v1/invitations/{invitation}/guest-imports/{batch}/undo": {
+      "post": {
+        "tags": [
+          "roster"
+        ],
+        "operationId": "undo_import",
+        "parameters": [
+          {
+            "name": "invitation",
+            "in": "path",
+            "description": "The owner's invitation",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "batch",
+            "in": "path",
+            "description": "The import's batch id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "Bound to the signed-in owner, this invitation and this batch: a retry replays the result instead of answering 404",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Untouched guests deleted, touched ones kept",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportUndone"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed path or idempotency key",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid signature or owner token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "A token for no live customer",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not this owner's invitation, or no guest of this batch (`roster.not_found`)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`idempotency.key_reused`",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Owner tokens are not configured or the signing keys are unreachable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ownerToken": [],
+            "serviceSignature": []
+          }
+        ]
+      }
+    },
+    "/v1/invitations/{invitation}/guests": {
+      "post": {
+        "tags": [
+          "roster"
+        ],
+        "operationId": "add_guest",
+        "parameters": [
+          {
+            "name": "invitation",
+            "in": "path",
+            "description": "The owner's invitation",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "1–255 visible ASCII characters, bound to the signed-in owner and this invitation; a retry replays the stored guest for 24 hours",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GuestAddRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Added, or replayed (`Idempotent-Replayed: true`)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuestAdded"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed path, body or idempotency key",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid signature or owner token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "A token for no live customer (`owner.unknown_user`, `owner.role_not_allowed`)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not this owner's invitation (`roster.not_found`)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The roster holds 3,000 guests (`roster.full`)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A value the rules refuse (`roster.row_invalid`, member `reason`: name, phone, seats or category), or `idempotency.key_reused`",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Owner tokens are not configured or the signing keys are unreachable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ownerToken": [],
+            "serviceSignature": []
+          }
+        ]
+      }
+    },
+    "/v1/invitations/{invitation}/guests/{guest}/invited-events": {
+      "post": {
+        "tags": [
+          "roster"
+        ],
+        "operationId": "set_invited_events",
+        "parameters": [
+          {
+            "name": "invitation",
+            "in": "path",
+            "description": "The owner's invitation",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "guest",
+            "in": "path",
+            "description": "A guest of that invitation",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "Bound to the signed-in owner, this invitation and this guest",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InvitedEventsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The guest's invite-only events as stored",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitedEventsSaved"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed path, body or idempotency key",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid signature or owner token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "A token for no live customer",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not this owner's invitation, or not its guest (`roster.not_found`)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invite-only events are switched off (`roster.invite_invalid`), or `idempotency.key_reused`",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Owner tokens are not configured or the signing keys are unreachable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ownerToken": [],
+            "serviceSignature": []
+          }
+        ]
+      }
+    },
+    "/v1/invitations/{invitation}/guests/{guest}/operation": {
+      "post": {
+        "tags": [
+          "roster"
+        ],
+        "operationId": "guest_operation",
+        "parameters": [
+          {
+            "name": "invitation",
+            "in": "path",
+            "description": "The owner's invitation",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "guest",
+            "in": "path",
+            "description": "A guest of that invitation",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "Bound to the signed-in owner, this invitation and this guest",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GuestOperationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Marked sent, checked in (with its CHECKIN row), or check-in undone",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuestUpdated"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed path, body or idempotency key",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid signature or owner token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "A token for no live customer",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not this owner's invitation, or not its guest (`roster.not_found`)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`idempotency.key_reused`",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Owner tokens are not configured or the signing keys are unreachable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ownerToken": [],
+            "serviceSignature": []
+          }
+        ]
+      }
+    },
     "/v1/invitations/{invitation}/guests/{guest}/rsvp-override": {
       "post": {
         "tags": [
@@ -455,6 +1212,269 @@
           },
           "422": {
             "description": "An event the guest is not asked about, or an event answer without per-event RSVP (`rsvp.override_invalid`); `idempotency.key_reused`",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Owner tokens are not configured or the signing keys are unreachable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ownerToken": [],
+            "serviceSignature": []
+          }
+        ]
+      }
+    },
+    "/v1/invitations/{invitation}/registration-link": {
+      "post": {
+        "tags": [
+          "roster"
+        ],
+        "operationId": "registration_link",
+        "parameters": [
+          {
+            "name": "invitation",
+            "in": "path",
+            "description": "The owner's invitation",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "Bound to the signed-in owner and this invitation; a retried rotation replays its token",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegistrationLinkRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The link's token after the action (null once closed)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegistrationLinkSaved"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed path, body or idempotency key",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid signature or owner token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "A token for no live customer",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not this owner's invitation (`roster.not_found`)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`idempotency.key_reused`",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Owner tokens are not configured or the signing keys are unreachable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ownerToken": [],
+            "serviceSignature": []
+          }
+        ]
+      }
+    },
+    "/v1/invitations/{invitation}/registrations/{registration}/decision": {
+      "post": {
+        "tags": [
+          "roster"
+        ],
+        "operationId": "decide",
+        "parameters": [
+          {
+            "name": "invitation",
+            "in": "path",
+            "description": "The owner's invitation",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "registration",
+            "in": "path",
+            "description": "A waiting registration of that invitation",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "Bound to the signed-in owner, this invitation and this registration: a retried approval replays instead of answering 404",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegistrationDecisionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Approved (a guest now) or rejected (deleted)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegistrationDecided"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed path, body or idempotency key",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid signature or owner token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "A token for no live customer",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not this owner's invitation, or not its waiting registration (`roster.not_found`)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The roster is full (`roster.full`), or the person is already a guest (`roster.duplicate`)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The stored request breaks a rule (`roster.row_invalid`, member `reason`), or `idempotency.key_reused`",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -802,6 +1822,134 @@
         ]
       }
     },
+    "/v1/registration-links/{token}/registrations": {
+      "post": {
+        "tags": [
+          "roster"
+        ],
+        "operationId": "register",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "description": "The invitation's self-registration token (`/daftar/<token>`)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "1–255 visible ASCII characters; a retry with the same key and values replays the answer for 24 hours",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegistrationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Received (waiting for the host), or already known; the same answer either way",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegistrationReceived"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed body or idempotency key",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid service signature",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No open link, or its invitation is a draft (`registration.link_not_found`)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The invitation has expired (`registration.closed`), or 300 registrations wait for the host (`registration.full`)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A value the rules refuse (`roster.row_invalid`, member `reason`), or `idempotency.key_reused`",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many registrations for this link or address (`rate_limit.exceeded`); nothing was written",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "format": "int64",
+                  "minimum": 0
+                },
+                "description": "Seconds until the limit's window ends"
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "serviceSignature": []
+          }
+        ]
+      }
+    },
     "/v1/views": {
       "post": {
         "tags": [
@@ -870,6 +2018,71 @@
   },
   "components": {
     "schemas": {
+      "CategoryInvitationRequest": {
+        "type": "object",
+        "required": [
+          "eventId",
+          "category",
+          "mode",
+          "flags"
+        ],
+        "properties": {
+          "eventId": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string",
+            "description": "Matched exactly after trimming; empty = guests without a category."
+          },
+          "mode": {
+            "$ref": "#/components/schemas/CategoryMode"
+          },
+          "flags": {
+            "$ref": "#/components/schemas/RosterFlags"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CategoryInvitationSaved": {
+        "type": "object",
+        "required": [
+          "changed"
+        ],
+        "properties": {
+          "changed": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "CategoryMode": {
+        "type": "string",
+        "enum": [
+          "ADD",
+          "REMOVE"
+        ]
+      },
+      "Decision": {
+        "type": "string",
+        "enum": [
+          "APPROVE",
+          "REJECT"
+        ]
+      },
+      "DecisionStatus": {
+        "type": "string",
+        "enum": [
+          "APPROVED",
+          "REJECTED"
+        ]
+      },
+      "DuplicateOf": {
+        "type": "string",
+        "enum": [
+          "roster",
+          "file"
+        ]
+      },
       "EventFields": {
         "type": "object",
         "description": "One event's fields: `ev:<id>` and `evn:<id>`.",
@@ -882,6 +2095,173 @@
               "string",
               "null"
             ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "GuestAddRequest": {
+        "type": "object",
+        "required": [
+          "guest",
+          "flags"
+        ],
+        "properties": {
+          "guest": {
+            "$ref": "#/components/schemas/GuestFields"
+          },
+          "invitedEventIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Invite-only events ticked in the form; only this invitation's current invite-only events are kept."
+          },
+          "flags": {
+            "$ref": "#/components/schemas/RosterFlags"
+          }
+        },
+        "additionalProperties": false
+      },
+      "GuestAdded": {
+        "type": "object",
+        "required": [
+          "id",
+          "slug"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "slug": {
+            "type": "string"
+          }
+        }
+      },
+      "GuestFields": {
+        "type": "object",
+        "description": "One guest's values as typed in the add form or held by a file's cells; the rules judge them (`roster-rules.json`).",
+        "properties": {
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "phone": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "category": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "guestCount": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Seats as typed; empty = 1."
+          }
+        },
+        "additionalProperties": false
+      },
+      "GuestImportRequest": {
+        "type": "object",
+        "required": [
+          "rows",
+          "flags"
+        ],
+        "properties": {
+          "rows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GuestFields"
+            },
+            "description": "At most 1,000 rows (more answers `refusal: too_many_rows`)."
+          },
+          "dryRun": {
+            "type": "boolean",
+            "description": "A preview: every verdict, nothing written."
+          },
+          "flags": {
+            "$ref": "#/components/schemas/RosterFlags"
+          }
+        },
+        "additionalProperties": false
+      },
+      "GuestImportResult": {
+        "type": "object",
+        "required": [
+          "verdicts",
+          "ok",
+          "invalid",
+          "duplicate",
+          "imported"
+        ],
+        "properties": {
+          "verdicts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImportRowVerdict"
+            }
+          },
+          "ok": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "invalid": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "duplicate": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "refusal": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ImportRefusal",
+                "description": "Set when the import cannot be written as a whole; nothing was written."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "batchId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The new guests' batch, for undoing this import; null for a preview or a refusal."
+          },
+          "imported": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "GuestOperation": {
+        "type": "string",
+        "enum": [
+          "SENT",
+          "CHECKIN",
+          "UNDO_CHECKIN"
+        ]
+      },
+      "GuestOperationRequest": {
+        "type": "object",
+        "required": [
+          "operation"
+        ],
+        "properties": {
+          "operation": {
+            "$ref": "#/components/schemas/GuestOperation"
           }
         },
         "additionalProperties": false
@@ -909,6 +2289,18 @@
           }
         },
         "additionalProperties": false
+      },
+      "GuestUpdated": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
       },
       "GuestWishRequest": {
         "type": "object",
@@ -998,6 +2390,117 @@
           "MAYBE"
         ]
       },
+      "ImportRefusal": {
+        "type": "string",
+        "enum": [
+          "too_many_rows",
+          "roster_full",
+          "nothing_to_import"
+        ]
+      },
+      "ImportRowVerdict": {
+        "type": "object",
+        "description": "One row's verdict, in file order: `ok` with its slug, `invalid` with the first rule it broke, or `duplicate` of a\nguest on the list or of a row above it.",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/VerdictStatus"
+          },
+          "slug": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reason": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/RowReason"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "of": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/DuplicateOf"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "ImportUndone": {
+        "type": "object",
+        "required": [
+          "deleted",
+          "kept"
+        ],
+        "properties": {
+          "deleted": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "kept": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Guests of the batch with an open, a send, an answer, a check-in, a wish or a WhatsApp log row."
+          }
+        }
+      },
+      "InvitedEventsRequest": {
+        "type": "object",
+        "required": [
+          "ticked",
+          "flags"
+        ],
+        "properties": {
+          "ticked": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The invite-only events ticked in the guest's row; stored ids the form could not show are kept."
+          },
+          "flags": {
+            "$ref": "#/components/schemas/RosterFlags"
+          }
+        },
+        "additionalProperties": false
+      },
+      "InvitedEventsSaved": {
+        "type": "object",
+        "required": [
+          "id",
+          "invitedEventIds"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "invitedEventIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "LinkAction": {
+        "type": "string",
+        "enum": [
+          "OPEN",
+          "ROTATE",
+          "CLOSE"
+        ]
+      },
       "Me": {
         "type": "object",
         "description": "The caller as this application knows it.",
@@ -1069,6 +2572,13 @@
               "null"
             ],
             "description": "The question a `rsvp.answer_invalid` problem is about."
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The rule a `roster.row_invalid` problem broke: `name`, `phone`, `seats` or `category` (B-033)."
           }
         }
       },
@@ -1095,6 +2605,141 @@
           }
         },
         "additionalProperties": false
+      },
+      "RegistrationDecided": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/DecisionStatus"
+          },
+          "guestId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "The new guest when approved."
+          }
+        }
+      },
+      "RegistrationDecisionRequest": {
+        "type": "object",
+        "required": [
+          "decision",
+          "flags"
+        ],
+        "properties": {
+          "decision": {
+            "$ref": "#/components/schemas/Decision"
+          },
+          "flags": {
+            "$ref": "#/components/schemas/RosterFlags"
+          }
+        },
+        "additionalProperties": false
+      },
+      "RegistrationLinkRequest": {
+        "type": "object",
+        "required": [
+          "action"
+        ],
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/LinkAction"
+          }
+        },
+        "additionalProperties": false
+      },
+      "RegistrationLinkSaved": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The open link's token (`/daftar/<token>`), or null once closed."
+          }
+        }
+      },
+      "RegistrationReceived": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/RegistrationStatus"
+          }
+        }
+      },
+      "RegistrationRequest": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "phone": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "guestCount": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "clientIp": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The registrant's public address as Next.js's trusted proxies reported it, for the per-address limit only:\nreduced to a keyed hash, never stored or logged."
+          }
+        },
+        "additionalProperties": false
+      },
+      "RegistrationStatus": {
+        "type": "string",
+        "enum": [
+          "RECEIVED"
+        ]
+      },
+      "RosterFlags": {
+        "type": "object",
+        "description": "Read in Next.js and sent with each write, as the RSVP writer sends its flags.",
+        "required": [
+          "opaqueLinks",
+          "inviteOnlyEvents"
+        ],
+        "properties": {
+          "opaqueLinks": {
+            "type": "boolean",
+            "description": "`FLAG_OPAQUE_GUEST_LINKS`: a new guest gets a 22-character link token (B-011)."
+          },
+          "inviteOnlyEvents": {
+            "type": "boolean",
+            "description": "`FLAG_INVITE_ONLY_EVENTS` (D-037)."
+          }
+        },
+        "additionalProperties": false
+      },
+      "RowReason": {
+        "type": "string",
+        "enum": [
+          "name",
+          "phone",
+          "seats",
+          "category"
+        ]
       },
       "RsvpFlags": {
         "type": "object",
@@ -1186,6 +2831,14 @@
           }
         },
         "additionalProperties": false
+      },
+      "VerdictStatus": {
+        "type": "string",
+        "enum": [
+          "ok",
+          "invalid",
+          "duplicate"
+        ]
       },
       "ViewRecorded": {
         "type": "object",
@@ -1329,6 +2982,10 @@
     {
       "name": "wishes",
       "description": "Guest wishes and the host's moderation and replies (R-04)"
+    },
+    {
+      "name": "roster",
+      "description": "The guest roster: adds, imports, operations, invite-only events and self-registration (B-033)"
     }
   ]
 }

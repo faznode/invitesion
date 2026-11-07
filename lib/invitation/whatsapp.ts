@@ -56,6 +56,14 @@ export function whatsAppMessage(template: string | null | undefined, values: { n
   return hasLink ? filled : `${filled}\n\n${values.link}`;
 }
 
+/**
+ * I-29 (B-034): a message the host forwards to whoever they choose. No recipient, so WhatsApp asks whom to send it to;
+ * callers pass counts only (the daily RSVP digest), never a guest's name, number or link.
+ */
+export function whatsAppShareLink(text: string): string {
+  return `https://wa.me/?text=${encodeURIComponent(text)}`;
+}
+
 export type GuestWhatsApp = { href: string } | { hint: 'missing' | 'invalid' };
 
 /** A guest's WhatsApp action: the `wa.me` link with the message, or why there is none. */

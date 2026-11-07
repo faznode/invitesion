@@ -23,8 +23,14 @@ const ZONE_BY_OFFSET: Record<string, IndonesianZone> = {
 
 type Resolved = { date: Date; timeZone: string; label: string };
 
-function isIndonesianZone(value: string | null | undefined): value is IndonesianZone {
+export function isIndonesianZone(value: string | null | undefined): value is IndonesianZone {
   return Boolean(value) && Object.prototype.hasOwnProperty.call(INDONESIAN_ZONES, value as string);
+}
+
+/** The Indonesian zone an ISO value's offset names (+07:00 WIB, +08:00 WITA, +09:00 WIT), or null for any other value. */
+export function indonesianZoneOf(value: string | null | undefined): IndonesianZone | null {
+  const offset = value?.match(/([+-]\d{2}):?(\d{2})$/);
+  return offset ? (ZONE_BY_OFFSET[`${offset[1]}:${offset[2]}`] ?? null) : null;
 }
 
 function resolve(value: string | undefined | null, fallbackZone?: string | null): Resolved | null {

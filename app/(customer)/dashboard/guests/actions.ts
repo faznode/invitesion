@@ -1,17 +1,11 @@
 'use server';
 
-import { and, eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
+import { ownerSessionToken } from '@/lib/auth/clerk-user';
 import { getUser } from '@/lib/db/queries';
-import { db } from '@/lib/db/drizzle';
-import { guests, invitations } from '@/lib/db/schema';
-import { isFlagOn } from '@/lib/flags';
-import { newGuestLinkToken } from '@/lib/invitation/guest-link';
-
-function slugify(value: string) {
-  return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'tamu';
-}
+import { addRosterGuest, rosterOperation, type RosterCaller } from '@/lib/invitation/roster';
+import { rosterNotice } from '@/lib/invitation/roster-notices';
 
 /**
  * Guests page URL that carries the explicit invitation context through
@@ -23,39 +17,32 @@ function guestsPath(invitationId: number | null, params: string) {
   return valid ? `/dashboard/guests?invitation=${invitationId}&${params}` : `/dashboard/guests?${params}`;
 }
 
-export async function addGuest(formData: FormData) {
+async function caller(): Promise<RosterCaller> {
   const user = await getUser();
   if (!user || user.role === 'ADMIN') redirect('/sign-in');
+  return { userId: user.id, ownerToken: ownerSessionToken };
+}
+
+/** B-033: the global list's add goes through the roster writer (`BACKEND_ROSTER`), as the per-invitation list does. */
+export async function addGuest(formData: FormData) {
+  const host = await caller();
   const invitationId = Number(formData.get('invitationId'));
-  const name = String(formData.get('name') || '').trim();
-  const phone = String(formData.get('phone') || '').trim();
-  const category = String(formData.get('category') || '').trim();
-  const guestCount = Number(formData.get('guestCount') || 1);
-  if (!Number.isInteger(invitationId) || !name || name.length > 150 || (phone && !/^[+0-9()\-\s]{7,30}$/.test(phone)) || !Number.isInteger(guestCount) || guestCount < 1 || guestCount > 50) {
-    redirect(guestsPath(Number.isInteger(invitationId) ? invitationId : null, 'error=invalid'));
-  }
-  const [invitation] = await db.select().from(invitations).where(and(eq(invitations.id, invitationId), eq(invitations.userId, user.id))).limit(1);
-  if (!invitation) redirect(guestsPath(invitationId, 'error=notfound'));
-  const base = slugify(name);
-  let slug = base;
-  for (let n = 2; n < 100; n++) {
-    const exists = await db.select({ id: guests.id }).from(guests).where(and(eq(guests.invitationId, invitationId), eq(guests.slug, slug))).limit(1);
-    if (!exists.length) break;
-    slug = `${base}-${n}`;
-  }
-  const linkToken = isFlagOn('OPAQUE_GUEST_LINKS') ? newGuestLinkToken() : null;
-  await db.insert(guests).values({ invitationId, name, phone: phone || null, category: category || null, guestCount, slug, linkToken });
+  if (!Number.isInteger(invitationId) || invitationId <= 0) redirect(guestsPath(null, 'error=invalid'));
+  const row = { name: String(formData.get('name') ?? ''), phone: String(formData.get('phone') ?? ''), category: String(formData.get('category') ?? ''), guestCount: String(formData.get('guestCount') ?? '') };
+  const outcome = await addRosterGuest(host, { invitationId, row, invitedEventIds: [] });
+  if (outcome.kind === 'signin') redirect('/sign-in');
   revalidatePath('/dashboard/guests');
-  redirect(guestsPath(invitationId, 'added=1'));
+  redirect(guestsPath(invitationId, rosterNotice(outcome) ?? 'added=1'));
 }
 
 export async function markGuestSent(formData: FormData) {
-  const user = await getUser();
-  if (!user || user.role === 'ADMIN') redirect('/sign-in');
+  const host = await caller();
   const guestId = Number(formData.get('guestId'));
   const invitationId = Number(formData.get('invitationId'));
-  const [guest] = await db.select({ id: guests.id }).from(guests).innerJoin(invitations, eq(guests.invitationId, invitations.id)).where(and(eq(guests.id, guestId), eq(invitations.userId, user.id))).limit(1);
-  if (!guest) redirect(guestsPath(Number.isInteger(invitationId) ? invitationId : null, 'error=notfound'));
-  await db.update(guests).set({ sentAt: new Date() }).where(eq(guests.id, guestId));
+  const outcome = Number.isInteger(guestId) && Number.isInteger(invitationId)
+    ? await rosterOperation(host, { invitationId, guestId, operation: 'sent' })
+    : ({ kind: 'notfound' } as const);
+  if (outcome.kind === 'signin') redirect('/sign-in');
+  if (outcome.kind !== 'saved') redirect(guestsPath(Number.isInteger(invitationId) ? invitationId : null, rosterNotice(outcome) ?? 'error=notfound'));
   revalidatePath('/dashboard/guests');
 }

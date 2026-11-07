@@ -4,8 +4,8 @@
 > STATUS: LIVE (design). BLOCKED sebagian oleh OPEN ITEM #1.
 > OWNER: Operator
 > DEPS: DATABASE_SCHEMA.md (wa_log, guests, conversations)
-> GREP: whatsapp, wa, fonnte, blast, provider, webhook, revisi, banned, wa.me, template, nomor
-> UPDATED: 2026-11-07 (s29: B-018 kirim manual wa.me, D-050)
+> GREP: whatsapp, wa, fonnte, blast, provider, webhook, revisi, banned, wa.me, template, nomor, pengingat, ringkasan, digest
+> UPDATED: 2026-11-07 (s31: pengingat tindak lanjut dan ringkasan harian lewat builder yang sama, B-034 / I-29; s29: B-018 kirim manual wa.me, D-050)
 
 ## Pilihan channel (grounded)
 - **Fonnte** (unofficial lokal): Rp0 (1rb pesan/bln) → Rp25rb (10rb pesan/bln). Blast bebas, no approval template. Risiko: nomor bisa banned kalau spam agresif.
@@ -33,6 +33,10 @@ Satu-satunya pembuat link: `lib/invitation/whatsapp.ts` (`guestWhatsApp`), dipak
 - **Pesan:** template host (`whatsappTemplate`, tab WhatsApp di editor). `{nama}` → nama tamu, `{link}` → link personal
   (token bila ada, B-011). Tanpa `{link}`, link ditambahkan di akhir pesan. Template kosong → pesan bawaan (ID / EN).
 - Bukan blast: host menekan sendiri per tamu. Blast lewat provider (di bawah) tetap menunggu OPEN ITEM #1.
+- **Pengingat (B-034, s31):** daftar "belum membuka" / "belum menjawab" di `/dashboard/invitations/<id>/insights` memakai
+  builder yang sama (tombol "Ingatkan"), jadi aturan nomor, hint dan pesan di atas berlaku persis.
+- **Ringkasan harian (I-29, s31):** `whatsAppShareLink(text)` = `wa.me/?text=…` tanpa nomor (WhatsApp menanyakan tujuan),
+  berisi angka saja. Tetap di modul ini, sehingga tidak ada pembuat link `wa.me` lain di `app/`, `components/`, `lib/`.
 
 ## Blast undangan
 - Kirim ke guest.phone, body berisi nama tamu + link `/i/:slug/:guestSlug`.

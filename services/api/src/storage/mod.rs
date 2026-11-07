@@ -128,6 +128,8 @@ mod tests {
 
     #[test]
     fn the_driver_follows_getstorage_selection() {
+        // Selecting S3 builds its reqwest client, which needs the rustls provider every entry point installs.
+        crate::config::install_crypto_provider();
         let env = |pairs: &'static [(&'static str, &'static str)]| {
             move |name: &str| pairs.iter().find(|(k, _)| *k == name).map(|(_, v)| v.to_string())
         };

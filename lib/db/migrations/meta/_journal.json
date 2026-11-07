@@ -134,6 +134,13 @@
       "when": 1794050725002,
       "tag": "0018_image_variants",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1794058171195,
+      "tag": "0019_guest_roster_import",
+      "breakpoints": true
     }
   ]
 }

@@ -122,6 +122,8 @@ mod tests {
     use super::*;
 
     fn storage(endpoint: Option<&str>, force_path_style: bool) -> S3Storage {
+        // reqwest is built with `rustls-no-provider`: every entry point installs the provider before a client exists.
+        crate::config::install_crypto_provider();
         S3Storage::new(S3Config {
             bucket: "invitesion-media".into(),
             region: "ap-southeast-1".into(),

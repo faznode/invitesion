@@ -25,6 +25,8 @@ const ROOMY: Limits = Limits {
     rsvp_per_ip: Limit { max: 1000, window_seconds: 600 },
     wish_per_link: Limit { max: 1000, window_seconds: 600 },
     wish_per_ip: Limit { max: 1000, window_seconds: 600 },
+    registration_per_link: Limit { max: 1000, window_seconds: 600 },
+    registration_per_ip: Limit { max: 1000, window_seconds: 600 },
 };
 
 /// Tests in this binary run in parallel and share the limiter table, so each uses its own addresses and removes only

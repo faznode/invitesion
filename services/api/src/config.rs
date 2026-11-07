@@ -29,8 +29,8 @@ pub struct Config {
     pub port: u16,
     /// 0 behind a transaction pooler (the ADR-A2 default): no named prepared statements survive a pooled connection.
     pub statement_cache_capacity: usize,
-    /// Write limits; `RATE_LIMIT_RSVP_LINK`, `RATE_LIMIT_RSVP_IP`, `RATE_LIMIT_WISH_LINK` and `RATE_LIMIT_WISH_IP` as
-    /// `<count>/<seconds>` override the defaults.
+    /// Write limits; `RATE_LIMIT_RSVP_LINK`, `RATE_LIMIT_RSVP_IP`, `RATE_LIMIT_WISH_LINK`, `RATE_LIMIT_WISH_IP`,
+    /// `RATE_LIMIT_REGISTRATION_LINK` and `RATE_LIMIT_REGISTRATION_IP` as `<count>/<seconds>` override the defaults.
     pub limits: Limits,
 }
 
@@ -88,6 +88,8 @@ impl Config {
             ("RATE_LIMIT_RSVP_IP", &mut limits.rsvp_per_ip),
             ("RATE_LIMIT_WISH_LINK", &mut limits.wish_per_link),
             ("RATE_LIMIT_WISH_IP", &mut limits.wish_per_ip),
+            ("RATE_LIMIT_REGISTRATION_LINK", &mut limits.registration_per_link),
+            ("RATE_LIMIT_REGISTRATION_IP", &mut limits.registration_per_ip),
         ] {
             if let Some(raw) = non_empty(env, name) {
                 *limit = Limit::parse(&raw).ok_or(ConfigError::Invalid(name))?;

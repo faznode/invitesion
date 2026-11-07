@@ -68,11 +68,26 @@ export function invitedIdsFromForm(
   events: readonly EventLike[] | undefined,
   stored: unknown,
 ): string[] {
+  const ticked = inviteOnlyEvents(events).map((event) => event.id).filter((id) => form.get(inviteField(id)) !== null);
+  return invitedIdsFromTicked(ticked, events, stored);
+}
+
+/**
+ * The same rule from a list of ticked ids (B-033: what the roster writers receive): stored ids that are not current
+ * invite-only events are kept, then the current invite-only events among `ticked`, in the invitation's order.
+ */
+export function invitedIdsFromTicked(ticked: readonly string[], events: readonly EventLike[] | undefined, stored: unknown): string[] {
   const current = inviteOnlyEvents(events).map((event) => event.id);
   const currentSet = new Set(current);
+  const tickedSet = new Set(ticked);
   const kept = [...readInvitedEventIds(stored)].filter((id) => !currentSet.has(id));
-  const ticked = current.filter((id) => form.get(inviteField(id)) !== null);
-  return [...kept, ...ticked];
+  return [...kept, ...current.filter((id) => tickedSet.has(id))];
+}
+
+/** The invite-only event ids a guest form ticked (`invite:<id>` fields), unfiltered: the writer keeps only current ones. */
+export function tickedInviteIds(form: { keys(): IterableIterator<string> }): string[] {
+  const prefix = inviteField('');
+  return [...new Set([...form.keys()].filter((name) => name.startsWith(prefix)).map((name) => name.slice(prefix.length)))];
 }
 
 /** Guests invited to each invite-only event, for the host's overview. Open events are not listed. */

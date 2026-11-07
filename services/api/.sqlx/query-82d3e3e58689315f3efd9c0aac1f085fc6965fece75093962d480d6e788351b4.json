@@ -1,0 +1,42 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "select g.invited_event_ids, i.config from guests g join invitations i on i.id = g.invitation_id where g.id = $1 and g.invitation_id = $2 and i.user_id = $3 for update of g",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "invited_event_ids",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "guests",
+            "name": "invited_event_ids"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "config",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "invitations",
+            "name": "config"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int4",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      true,
+      true
+    ]
+  },
+  "hash": "82d3e3e58689315f3efd9c0aac1f085fc6965fece75093962d480d6e788351b4"
+}

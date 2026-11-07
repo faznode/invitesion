@@ -1,6 +1,6 @@
 'use server';
 
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { ownerSessionToken } from '@/lib/auth/clerk-user';
@@ -10,12 +10,12 @@ import { db } from '@/lib/db/drizzle';
 import { analyticsEvents, guests, invitations } from '@/lib/db/schema';
 import { isFlagOn } from '@/lib/flags';
 import { normalizeStoredConfig } from '@/lib/invitation/content-read';
-import { inviteOnlyEvents, invitedIdsFromForm } from '@/lib/invitation/event-eligibility';
-import { newGuestLinkToken } from '@/lib/invitation/guest-link';
+import { tickedInviteIds } from '@/lib/invitation/event-eligibility';
 import { decideHostRsvp, isHostRsvpStatus } from '@/lib/invitation/rsvp-decision';
 import { writeHostRsvpThroughApi } from '@/lib/invitation/rsvp-writer';
-
-function slugify(value: string) { return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'tamu'; }
+import { addRosterGuest, rosterOperation, setRosterCategoryInvitation, setRosterInvitedEvents, type RosterCaller } from '@/lib/invitation/roster';
+import { rosterNotice } from '@/lib/invitation/roster-notices';
+import type { RosterOperation } from '@/lib/invitation/roster-outcomes';
 
 /** The signed-in owner's invitation named by the form, with its config read leniently like every other reader. */
 async function context(formData: FormData) {
@@ -23,90 +23,82 @@ async function context(formData: FormData) {
   const invitationId = Number(formData.get('invitationId')); if (!Number.isInteger(invitationId)) redirect('/dashboard/invitations');
   const [inv] = await db.select().from(invitations).where(and(eq(invitations.id, invitationId), eq(invitations.userId, user.id))).limit(1);
   if (!inv) redirect('/dashboard/invitations');
-  return { invitationId, config: normalizeStoredConfig(inv.config ?? {}).config, path: `/dashboard/invitations/${invitationId}/guests` };
+  const caller: RosterCaller = { userId: user.id, ownerToken: ownerSessionToken };
+  return { invitationId, caller, config: normalizeStoredConfig(inv.config ?? {}).config, path: `/dashboard/invitations/${invitationId}/guests` };
 }
 
-export async function addScopedGuest(formData: FormData) {
-  const { invitationId, config, path } = await context(formData); const name=String(formData.get('name')||'').trim(); const phone=String(formData.get('phone')||'').trim(); const category=String(formData.get('category')||'').trim(); const guestCount=Number(formData.get('guestCount')||1);
-  if (!name || name.length>150 || (phone && !/^[+0-9()\-\s]{7,30}$/.test(phone)) || !Number.isInteger(guestCount) || guestCount<1 || guestCount>50) redirect(`${path}?error=invalid`);
-  const base=slugify(name); let slug=base; for(let n=2;n<100;n++){const found=await db.select({id:guests.id}).from(guests).where(and(eq(guests.invitationId,invitationId),eq(guests.slug,slug))).limit(1);if(!found.length)break;slug=`${base}-${n}`;}
-  const linkToken = isFlagOn('OPAQUE_GUEST_LINKS') ? newGuestLinkToken() : null;
-  // D-037: the invite-only events ticked in the form (only this invitation's current invite-only events are read).
-  const invited = isFlagOn('INVITE_ONLY_EVENTS') ? invitedIdsFromForm(formData, config.events, null) : [];
-  await db.insert(guests).values({invitationId,name,phone:phone||null,category:category||null,guestCount,slug,linkToken,invitedEventIds:invited.length?invited:null}); revalidatePath(path); redirect(`${path}?added=1`);
+/** Where a roster write ends: sign-in when the API knows no live customer for the session, otherwise a notice. */
+function finish(outcome: { kind: string; reason?: string }, path: string, saved: string): never {
+  if (outcome.kind === 'signin') redirect('/sign-in');
+  revalidatePath(path);
+  redirect(`${path}?${rosterNotice(outcome) ?? saved}`);
 }
+
+/** B-033: one guest through the roster writer (`BACKEND_ROSTER`); the rules are `roster-rules.ts` in both writers. */
+export async function addScopedGuest(formData: FormData) {
+  const { invitationId, caller, path } = await context(formData);
+  const row = { name: String(formData.get('name') ?? ''), phone: String(formData.get('phone') ?? ''), category: String(formData.get('category') ?? ''), guestCount: String(formData.get('guestCount') ?? '') };
+  // D-037: the invite-only events ticked in the form; the writer keeps only this invitation's current invite-only events.
+  const outcome = await addRosterGuest(caller, { invitationId, row, invitedEventIds: tickedInviteIds(formData) });
+  finish(outcome, path, 'added=1');
+}
+
+const ROSTER_OPERATIONS: readonly string[] = ['sent', 'checkin', 'undo-checkin'] satisfies RosterOperation[];
 
 /**
- * Dashboard operations on one guest. RSVP operations (`CONFIRMED`, …, or `event:<eventId>:<STATUS>` for one event) go
- * through `decideHostRsvp` (`hostRsvpUpdate`, D-037): the status, the people attending and the per-event answers are
- * written by one UPDATE, so the dashboard never leaves them contradicting each other.
+ * Dashboard operations on one guest. `sent`, `checkin` and `undo-checkin` are roster writes (B-033, `BACKEND_ROSTER`).
+ * RSVP operations (`CONFIRMED`, …, or `event:<eventId>:<STATUS>` for one event) go through `decideHostRsvp`
+ * (`hostRsvpUpdate`, D-037): the status, the people attending and the per-event answers are written by one UPDATE, so
+ * the dashboard never leaves them contradicting each other.
  */
 export async function updateGuestOperation(formData: FormData) {
-  const { invitationId, config, path }=await context(formData); const guestId=Number(formData.get('guestId')); const operation=String(formData.get('operation'));
+  const { invitationId, caller, config, path }=await context(formData); const guestId=Number(formData.get('guestId')); const operation=String(formData.get('operation'));
+  if (ROSTER_OPERATIONS.includes(operation)) {
+    const outcome = await rosterOperation(caller, { invitationId, guestId, operation: operation as RosterOperation });
+    if (outcome.kind === 'signin') redirect('/sign-in');
+    if (outcome.kind !== 'saved') redirect(`${path}?${rosterNotice(outcome)}`);
+    revalidatePath(path);
+    return;
+  }
   const [owned]=await db.select().from(guests).where(and(eq(guests.id,guestId),eq(guests.invitationId,invitationId))).limit(1); if(!owned) redirect(`${path}?error=notfound`);
-  if(operation==='sent') await db.update(guests).set({sentAt:new Date()}).where(eq(guests.id,guestId));
-  else if(operation==='checkin'){await db.update(guests).set({checkedInAt:new Date()}).where(eq(guests.id,guestId));await db.insert(analyticsEvents).values({invitationId,guestId,eventType:'CHECKIN'});}
-  else if(operation==='undo-checkin') await db.update(guests).set({checkedInAt:null}).where(eq(guests.id,guestId));
-  else {
-    const [scope, eventId, eventStatus] = operation.startsWith('event:') ? operation.split(':') : [undefined, undefined, operation];
-    const status = String(eventStatus ?? '');
-    if (scope !== undefined && !eventId) redirect(`${path}?error=invalid`);
-    if (!isHostRsvpStatus(status)) redirect(`${path}?error=invalid`);
-    // R-03: the same pure rule (`hostRsvpUpdate` behind `decideHostRsvp`) the Rust override endpoint applies; exactly
-    // one writer per call (`BACKEND_RSVP`), never a fallback to the other.
-    const flags = { perEvent: isFlagOn('RSVP_PER_EVENT'), inviteOnlyEvents: isFlagOn('INVITE_ONLY_EVENTS') };
-    if (backendFor('RSVP') === 'rust') {
-      const ownerToken = await ownerSessionToken();
-      if (!ownerToken) redirect('/sign-in');
-      const outcome = await writeHostRsvpThroughApi({ invitationId, guestId, status, eventId, flags, ownerToken });
-      // The API refused the session's account (deleted, or an administrator): the same answer `context()` gives.
-      if (outcome.kind === 'signin') redirect('/sign-in');
-      if (outcome.kind !== 'saved') redirect(`${path}?error=${outcome.kind}`);
-    } else {
-      const update = decideHostRsvp({ config, guest: owned, status, eventId, flags });
-      if (!update) redirect(`${path}?error=invalid`);
-      await db.update(guests).set(update).where(and(eq(guests.id,guestId),eq(guests.invitationId,invitationId)));
-      await db.insert(analyticsEvents).values({invitationId,guestId,eventType:'RSVP',meta:{status:update.rsvpStatus,source:'dashboard'}});
-    }
+  const [scope, eventId, eventStatus] = operation.startsWith('event:') ? operation.split(':') : [undefined, undefined, operation];
+  const status = String(eventStatus ?? '');
+  if (scope !== undefined && !eventId) redirect(`${path}?error=invalid`);
+  if (!isHostRsvpStatus(status)) redirect(`${path}?error=invalid`);
+  // R-03: the same pure rule (`hostRsvpUpdate` behind `decideHostRsvp`) the Rust override endpoint applies; exactly
+  // one writer per call (`BACKEND_RSVP`), never a fallback to the other.
+  const flags = { perEvent: isFlagOn('RSVP_PER_EVENT'), inviteOnlyEvents: isFlagOn('INVITE_ONLY_EVENTS') };
+  if (backendFor('RSVP') === 'rust') {
+    const ownerToken = await ownerSessionToken();
+    if (!ownerToken) redirect('/sign-in');
+    const outcome = await writeHostRsvpThroughApi({ invitationId, guestId, status, eventId, flags, ownerToken });
+    // The API refused the session's account (deleted, or an administrator): the same answer `context()` gives.
+    if (outcome.kind === 'signin') redirect('/sign-in');
+    if (outcome.kind !== 'saved') redirect(`${path}?error=${outcome.kind}`);
+  } else {
+    const update = decideHostRsvp({ config, guest: owned, status, eventId, flags });
+    if (!update) redirect(`${path}?error=invalid`);
+    await db.update(guests).set(update).where(and(eq(guests.id,guestId),eq(guests.invitationId,invitationId)));
+    await db.insert(analyticsEvents).values({invitationId,guestId,eventType:'RSVP',meta:{status:update.rsvpStatus,source:'dashboard'}});
   }
   revalidatePath(path);
 }
 
-/** D-037: which invite-only events one guest is invited to, from the checkboxes of the guest's row. */
+/** D-037: which invite-only events one guest is invited to, from the checkboxes of the guest's row (B-033 writer). */
 export async function setGuestInvitedEvents(formData: FormData) {
-  const { invitationId, config, path } = await context(formData);
-  if (!isFlagOn('INVITE_ONLY_EVENTS')) redirect(`${path}?error=invalid`);
-  const guestId = Number(formData.get('guestId'));
-  const [owned] = await db.select({ id: guests.id, invitedEventIds: guests.invitedEventIds }).from(guests).where(and(eq(guests.id, guestId), eq(guests.invitationId, invitationId))).limit(1);
-  if (!owned) redirect(`${path}?error=notfound`);
-  const invited = invitedIdsFromForm(formData, config.events, owned.invitedEventIds);
-  await db.update(guests).set({ invitedEventIds: invited.length ? invited : null }).where(and(eq(guests.id, guestId), eq(guests.invitationId, invitationId)));
-  revalidatePath(path);
-  redirect(`${path}?invites=1`);
+  const { invitationId, caller, path } = await context(formData);
+  const outcome = await setRosterInvitedEvents(caller, { invitationId, guestId: Number(formData.get('guestId')), ticked: tickedInviteIds(formData) });
+  finish(outcome, path, 'invites=1');
 }
 
 /**
  * D-037: invite (or uninvite) every guest of one category to one invite-only event, in one UPDATE scoped to the owner's
- * invitation. The event must be a current invite-only event of this invitation; an empty category means guests without one.
+ * invitation (B-033 writer). The event must be a current invite-only event; an empty category means guests without one.
  */
 export async function setCategoryInvitation(formData: FormData) {
-  const { invitationId, config, path } = await context(formData);
-  if (!isFlagOn('INVITE_ONLY_EVENTS')) redirect(`${path}?error=invalid`);
-  const eventId = String(formData.get('eventId') || '');
-  const category = String(formData.get('category') ?? '').trim();
+  const { invitationId, caller, path } = await context(formData);
   const mode = String(formData.get('mode') || '');
-  if (!inviteOnlyEvents(config.events).some((event) => event.id === eventId) || category.length > 50 || (mode !== 'add' && mode !== 'remove')) redirect(`${path}?error=invalid`);
-  const inCategory = category ? eq(guests.category, category) : sql`(${guests.category} IS NULL OR ${guests.category} = '')`;
-  const invited = sql`coalesce(${guests.invitedEventIds}, '[]'::jsonb)`;
-  const changed = mode === 'add'
-    ? await db.update(guests)
-        .set({ invitedEventIds: sql`(CASE WHEN jsonb_typeof(${invited}) = 'array' THEN ${invited} ELSE '[]'::jsonb END) || jsonb_build_array(${eventId}::text)` })
-        .where(and(eq(guests.invitationId, invitationId), inCategory, sql`NOT (${invited} ? ${eventId})`))
-        .returning({ id: guests.id })
-    : await db.update(guests)
-        .set({ invitedEventIds: sql`nullif(${guests.invitedEventIds} - ${eventId}::text, '[]'::jsonb)` })
-        .where(and(eq(guests.invitationId, invitationId), inCategory, sql`${invited} ? ${eventId}`))
-        .returning({ id: guests.id });
-  revalidatePath(path);
-  redirect(`${path}?invites=${changed.length}`);
+  if (mode !== 'add' && mode !== 'remove') redirect(`${path}?error=invalid`);
+  const outcome = await setRosterCategoryInvitation(caller, { invitationId, eventId: String(formData.get('eventId') || ''), category: String(formData.get('category') ?? ''), mode });
+  finish(outcome, path, outcome.kind === 'saved' ? `invites=${outcome.changed}` : 'invites=0');
 }

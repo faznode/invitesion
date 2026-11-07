@@ -17,6 +17,13 @@ const DEFAULTS = {
    * host's show / hide / delete and reply).
    */
   WISHES: 'next',
+  /**
+   * B-033: the guest roster (`guests`' roster columns and rows: name, slug, phone, category, guest_count, link_token,
+   * invited_event_ids, sent_at, checked_in_at with its CHECKIN `analytics_events` row, import_batch_id; plus
+   * `guest_registrations` and `guest_registration_links`): both lists' add and operations, invite-only events, imports
+   * and their undo, self-registration and the host's decisions.
+   */
+  ROSTER: 'next',
 } as const satisfies Record<string, Backend>;
 
 export type Backend = 'next' | 'rust';

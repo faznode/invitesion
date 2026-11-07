@@ -31,3 +31,4 @@ step "seed the demo invitations (Budi & Sari)" npx tsx invitation-research/_tool
 step "verify-payment (QRIS / Stripe vectors)" npx tsx scripts/verify-payment.ts
 step "verify-view-dedupe (B-017a)" npx tsx scripts/verify-view-dedupe.ts
 step "verify-theme-entitlement (B-041)" npx tsx scripts/verify-theme-entitlement.ts
+step "verify-host-analytics (B-034)" npx tsx scripts/verify-host-analytics.ts

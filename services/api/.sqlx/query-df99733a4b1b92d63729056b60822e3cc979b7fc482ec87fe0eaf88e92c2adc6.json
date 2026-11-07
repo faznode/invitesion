@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "select l.invitation_id, i.status, i.expires_at from guest_registration_links l join invitations i on i.id = l.invitation_id where l.token = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "invitation_id",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "guest_registration_links",
+            "name": "invitation_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "status",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "invitations",
+            "name": "status"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "expires_at",
+        "type_info": "Timestamp",
+        "origin": {
+          "Table": {
+            "table": "invitations",
+            "name": "expires_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "df99733a4b1b92d63729056b60822e3cc979b7fc482ec87fe0eaf88e92c2adc6"
+}

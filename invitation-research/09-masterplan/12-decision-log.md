@@ -5,7 +5,7 @@
 > OWNER: Architect (research agent acting autonomously, brief 03 §5.1)
 > DEPS: ../_handoff/review-20261101.md §2, ../_open-questions.md §B, ../_evidence-index.md, ../04-template-benchmarks/benchmark-exclusions.csv, ../03-teardowns/*/dossier.md; owner instructions supplied outside the repository; code at `2c94140`: lib/invitation/{detail-config,create,template-sync,templates}.ts, lib/pricing.ts, app/marketing-copy.ts, app/globals.css, app/layout.tsx
 > GREP: adr, decision, wave 1, ADR-W1, planning gate, reduced confidence, fallback, revisit, D-039, D-040, Q-D17, deferred, D-043, D-044, moderation
-> UPDATED: 2026-11-07 (s29: D-046…D-050; ADR-O13; s28 history retained)
+> UPDATED: 2026-11-07 (s31: D-052 guest roster domain, import and self-registration; D-051 host analytics and follow-up lists; s29: D-046…D-050; ADR-O13; s28 history retained)
 
 ## ADR-W1 — Wave-1 reduced-confidence fallback for competitors without safe public demos
 **Status:** DECIDED 2026-11-03 (session 08); fallback requirements met 16:54Z → planning gate met through ADR-W1 · **Type:** reduced-confidence exception, **not** literal satisfaction of strict Wave 1 · **Authority:** brief 05 §14 ("If the bounded search confirms unavailable or insufficient safe public demos, this prompt authorizes ADR-W1").
@@ -427,6 +427,32 @@ Answers to the three gate questions in `../_handoff/sessions/session-14-20261104
 - **Limits:** the dashboard lists need a signed-in host, so the rows are not exercised over HTTP (DA-01, NOT RUN); the builder and the row action are unit- and render-tested. A number that is valid in form but not on WhatsApp still opens WhatsApp, which says so.
 - **Evidence:** E-066.
 - **Revisit:** a WhatsApp provider for blasts (OPEN ITEM #1 in `docs/systems/wa-delivery.md`, G-038).
+
+### D-051 — Host analytics and follow-up lists: owner-scoped reads of the deduplicated opens, two lists of guests without an answer, a counts-only digest (B-034 / G-038, G-039, I-06, I-29; s31)
+- **Context [OBSERVED]:** at `5d959f3` the host saw one "Undangan dibuka" sum and RSVP counts (E-033, E-036); nobody could see who had not opened or not answered. Only VIEW events are written to `analytics_events` (B-017a: one row and one `opened_count` step per guest per 30 minutes, both writers); RSVP / GUESTBOOK / CHECKIN exist only in a schema comment.
+- **Decision:**
+  - (1) One owner-scoped loader (`lib/invitation/host-analytics-query.ts`): the invitation is selected by id **and** the session's user id; null means the private 404; every other query is keyed by that invitation. Read-only, no flag (06: "Direct (read-only)").
+  - (2) Only a `PENDING` guest is followed up: never opened (`opened_count = 0`) is "belum membuka", opened is "belum menjawab". Answers, including "mungkin", and unknown statuses are in neither list. Order: longest marked sent first (never marked last); opened longest ago first.
+  - (3) Days are local to the host's zone (`eventOperations.timezone`, else the first event's offset, else WIB) over the stored UTC wall time; a 14-day window gap-filled with zeros.
+  - (4) Reminders and exports reuse B-018 (`guestWhatsApp`, the personal link) and B-006 (`csvRow`); the follow-up export is `?list=` on the owner's existing CSV route.
+  - (5) The digest (I-29) holds counts only and is shared through `wa.me/?text=` without a recipient, built in the same module as every other `wa.me` link.
+- **Rejected:** a separate analytics table or materialised counts (the rows answer exactly and stay consistent with the dedupe); counting "answered today" (no RSVP event or timestamp exists; adding one is a write-path change for the RSVP domain, R-03's slice); names in the digest (personal data leaves the host's control once forwarded).
+- **Limits:** the page needs a signed-in host (DA-01, NOT RUN); evidence is the render test and the database acceptance. Opens are lab-recorded through the TypeScript writer; the Rust writer shares the window, lock namespace and statements (verify-view-dedupe vectors, R-02).
+- **Evidence:** E-069.
+- **Revisit:** an RSVP timestamp or event (then "answered today" in the digest), or a WhatsApp provider for reminders (G-038).
+
+### D-052 — The guest roster moves to Rust as one domain: one facade, two writers with the same rules, lock and statements; import and self-registration behind their own flags (B-033 / G-037; s31)
+- **Context [OBSERVED]:** at `5d959f3` six TypeScript call sites wrote the roster columns (both lists' add, sent / check-in / undo check-in, invite-only events per guest and per category). The add loop issued one query per slug collision without a lock, so two adds of one name could collide on the unique index and fail. There was no import, no self-registration and no ceiling on a roster. 09 §8.3 assigns the roster to Rust at B-033.
+- **Decision:**
+  - (1) One facade (`lib/invitation/roster.ts`) for every roster write, `BACKEND_ROSTER=next|rust` (default `next`): exactly one writer per call and no fallback (the facade has no `catch`; a source guard keeps it so). Roster-owned: `guests`' name, phone, category, guest_count, slug, link_token, invited_event_ids, sent_at, checked_in_at (with its CHECKIN row) and import_batch_id; `guest_registrations`; `guest_registration_links` (migration 0019, additive). The RSVP columns stay with R-03 and `opened_*` with R-02.
+  - (2) The same rules in both languages (`lib/invitation/roster-rules.ts`, `services/api/src/roster/rules.rs`), pinned by `contracts/vectors/roster-rules.json`, and the same transaction-scoped advisory lock per invitation (namespace `0x524F5354`, "ROST"): a slug is claimed once and a flip of the flag never interleaves two writers on one roster. Ownership is checked inside the write's own transaction.
+  - (3) Technical ceilings, identical in both writers, until an owner pricing decision names plan limits (U6 / B-040): 3,000 guests per invitation, 1,000 rows per import, 300 waiting registrations, 50 seats per guest, 5 per self-registration.
+  - (4) An import is decided twice: the preview is the live writer's dry run; the commit re-decides under the lock and writes every accepted row in one INSERT under one batch id, or nothing. Undo deletes only the batch's untouched guests; any with an open, a send, an answer, a check-in, a wish or a WhatsApp log row stay.
+  - (5) Self-registration fills a queue, never the roster; the host approves or rejects. A duplicate is thanked and not stored, so the form never reveals who is invited. Limits 20 per link and 5 per address per 600 s, counted in the API's `api_rate_limits` rows by both writers (the address only as the API's HMAC; the parity vectors include the address keys, buckets and limit strings). `FLAG_SELF_REGISTRATION` defaults **off**: the public form collects names and numbers and its privacy notice waits on B-021's owner-approved text. `FLAG_GUEST_IMPORT` defaults on.
+- **Rejected:** a fallback from Rust to TypeScript after a timeout (a second writer for a request the first may have committed); per-row inserts for an import (partial imports on failure); self-registrants added straight to the roster (an open link would let anyone fill a host's list); a separate import table (one nullable batch column answers undo).
+- **Limits:** the dashboard pages need a signed-in host (DA-01, NOT RUN); the call sites are exercised through their server actions with Clerk stubbed, and the public form in a browser. Import reads pasted cells and CSV text, not `.xlsx` files (a paste from Excel or Sheets is tab-separated and covered). No plan limit exists to enforce.
+- **Evidence:** E-070.
+- **Revisit:** plan limits (B-040); `.xlsx` files if hosts ask; B-021's notice text (then self-registration may default on); the Rust rollout (preview under load, 7 days within SLO, then retire `roster-next.ts`).
 
 ## Decisions since session 14 referenced by the masterplan (recorded s25; full text where linked)
 Product decisions taken during implementation under ADR-O08. Each has its full text, reasons and reversal in `../_progress.md`, its implementation in `../_handoff/IMPLEMENTATION-LOG.md`, and its domain rule in `docs/systems/`.

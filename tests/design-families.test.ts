@@ -79,7 +79,8 @@ test('B-030: every family composes every guest-facing section of the legacy page
     ['countdown', /<Countdown\b/],
     ['calendar links', /<CalendarLinks\b/],
     ['story items', /story\.items/],
-    ['gallery', /gallery\.map/],
+    // B-025: each family composes the gallery through the shared block (layouts, lightbox, video facades).
+    ['gallery', /<GalleryBody\b/],
     ['streaming.url', /streaming\.url/],
     ['gift accounts', /account\.number/],
     ['rsvp', /<RsvpBlock\b/],

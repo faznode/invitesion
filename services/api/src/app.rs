@@ -12,7 +12,7 @@ use crate::config::{Config, ConfigError};
 use crate::limits::Limits;
 use crate::owner_auth::{OwnerAuthError, OwnerVerifier};
 use crate::problem::ApiError;
-use crate::{health, identity, rsvp, service_auth, telemetry, views, wishes};
+use crate::{health, identity, roster, rsvp, service_auth, telemetry, views, wishes};
 
 /// Longer than the pool's 5 s acquire timeout, so an unreachable database answers its own 503 first.
 pub const REQUEST_TIMEOUT: Duration = Duration::from_secs(10);
@@ -60,6 +60,15 @@ pub fn router(state: AppState) -> Router {
         .route("/v1/guest-links/{slug}/{guest}/wishes", post(wishes::http::guest_wish))
         .route("/v1/invitations/{invitation}/wishes/{wish}/moderation", post(wishes::http::moderate_wish))
         .route("/v1/invitations/{invitation}/wishes/{wish}/reply", post(wishes::http::reply_to_wish))
+        .route("/v1/invitations/{invitation}/guests", post(roster::http::add_guest))
+        .route("/v1/invitations/{invitation}/guest-imports", post(roster::http::import_guests))
+        .route("/v1/invitations/{invitation}/guest-imports/{batch}/undo", post(roster::http::undo_import))
+        .route("/v1/invitations/{invitation}/guests/{guest}/operation", post(roster::http::guest_operation))
+        .route("/v1/invitations/{invitation}/guests/{guest}/invited-events", post(roster::http::set_invited_events))
+        .route("/v1/invitations/{invitation}/category-invitations", post(roster::http::set_category_invitation))
+        .route("/v1/invitations/{invitation}/registration-link", post(roster::http::registration_link))
+        .route("/v1/registration-links/{token}/registrations", post(roster::http::register))
+        .route("/v1/invitations/{invitation}/registrations/{registration}/decision", post(roster::http::decide))
         .route_layer(from_fn_with_state(state.clone(), service_auth::require_signature));
     let app =
         Router::new().route("/v1/health", get(health::health)).merge(signed).with_state(state).layer(from_fn(timeout));

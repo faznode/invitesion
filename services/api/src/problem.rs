@@ -27,6 +27,9 @@ pub struct Problem {
     /// The question a `rsvp.answer_invalid` problem is about.
     #[serde(rename = "questionId", default, skip_serializing_if = "Option::is_none")]
     pub question_id: Option<String>,
+    /// The rule a `roster.row_invalid` problem broke: `name`, `phone`, `seats` or `category` (B-033).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
 }
 
 /// What a 422 is about, carried as an extension member.
@@ -35,6 +38,8 @@ pub enum Subject {
     None,
     Event(String),
     Question(String),
+    /// The roster rule a row broke.
+    Reason(&'static str),
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -96,10 +101,11 @@ impl ApiError {
 
     pub fn problem(&self) -> Problem {
         let (status, title, code, detail) = self.parts();
-        let (event_id, question_id) = match self {
-            ApiError::Unprocessable(_, Subject::Event(id)) => (Some(id.clone()), None),
-            ApiError::Unprocessable(_, Subject::Question(id)) => (None, Some(id.clone())),
-            _ => (None, None),
+        let (event_id, question_id, reason) = match self {
+            ApiError::Unprocessable(_, Subject::Event(id)) => (Some(id.clone()), None, None),
+            ApiError::Unprocessable(_, Subject::Question(id)) => (None, Some(id.clone()), None),
+            ApiError::Unprocessable(_, Subject::Reason(reason)) => (None, None, Some((*reason).to_string())),
+            _ => (None, None, None),
         };
         Problem {
             kind: format!("{PROBLEM_TYPE_BASE}{code}"),
@@ -109,6 +115,7 @@ impl ApiError {
             detail,
             event_id,
             question_id,
+            reason,
         }
     }
 

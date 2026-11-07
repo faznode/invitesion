@@ -8,6 +8,14 @@ use utoipa::{Modify, OpenApi};
 use crate::health::Health;
 use crate::identity::Me;
 use crate::problem::Problem;
+use crate::roster::http::{
+    CategoryInvitationRequest, CategoryInvitationSaved, CategoryMode, Decision, DecisionStatus, GuestAddRequest,
+    GuestAdded, GuestFields, GuestImportRequest, GuestImportResult, GuestOperation, GuestOperationRequest,
+    GuestUpdated, ImportRowVerdict, ImportUndone, InvitedEventsRequest, InvitedEventsSaved, LinkAction,
+    RegistrationDecided, RegistrationDecisionRequest, RegistrationLinkRequest, RegistrationLinkSaved,
+    RegistrationReceived, RegistrationRequest, RegistrationStatus, RosterFlags, VerdictStatus,
+};
+use crate::roster::rules::{DuplicateOf, ImportRefusal, RowReason};
 use crate::rsvp::decision::{EventFields, RsvpFlags, RsvpSubmission};
 use crate::rsvp::http::{GuestRsvpRequest, HostRsvpFlags, HostRsvpRequest, HostRsvpStatus, RsvpSaved};
 use crate::service_auth::SIGNATURE_HEADER;
@@ -34,7 +42,16 @@ use crate::wishes::http::{
         crate::rsvp::http::host_rsvp_override,
         crate::wishes::http::guest_wish,
         crate::wishes::http::moderate_wish,
-        crate::wishes::http::reply_to_wish
+        crate::wishes::http::reply_to_wish,
+        crate::roster::http::add_guest,
+        crate::roster::http::import_guests,
+        crate::roster::http::undo_import,
+        crate::roster::http::guest_operation,
+        crate::roster::http::set_invited_events,
+        crate::roster::http::set_category_invitation,
+        crate::roster::http::registration_link,
+        crate::roster::http::register,
+        crate::roster::http::decide
     ),
     components(schemas(
         Problem,
@@ -58,7 +75,37 @@ use crate::wishes::http::{
         WishModerated,
         ModeratedState,
         WishReplyRequest,
-        WishReplied
+        WishReplied,
+        RosterFlags,
+        GuestFields,
+        GuestAddRequest,
+        GuestAdded,
+        GuestImportRequest,
+        GuestImportResult,
+        ImportRowVerdict,
+        VerdictStatus,
+        RowReason,
+        DuplicateOf,
+        ImportRefusal,
+        ImportUndone,
+        GuestOperationRequest,
+        GuestOperation,
+        GuestUpdated,
+        InvitedEventsRequest,
+        InvitedEventsSaved,
+        CategoryInvitationRequest,
+        CategoryMode,
+        CategoryInvitationSaved,
+        RegistrationLinkRequest,
+        LinkAction,
+        RegistrationLinkSaved,
+        RegistrationRequest,
+        RegistrationReceived,
+        RegistrationStatus,
+        RegistrationDecisionRequest,
+        Decision,
+        RegistrationDecided,
+        DecisionStatus
     )),
     modifiers(&SecuritySchemes),
     tags(
@@ -66,7 +113,8 @@ use crate::wishes::http::{
         (name = "identity", description = "Owner-token verification"),
         (name = "views", description = "Invitation opens (R-02)"),
         (name = "rsvp", description = "Guest RSVP and the host's override (R-03)"),
-        (name = "wishes", description = "Guest wishes and the host's moderation and replies (R-04)")
+        (name = "wishes", description = "Guest wishes and the host's moderation and replies (R-04)"),
+        (name = "roster", description = "The guest roster: adds, imports, operations, invite-only events and self-registration (B-033)")
     )
 )]
 pub struct ApiDoc;

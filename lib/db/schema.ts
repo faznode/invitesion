@@ -160,11 +160,47 @@ export const guests = pgTable(
     checkedInAt: timestamp('checked_in_at'),
     // Opaque link credential (B-011). Null = legacy guest reachable by slug; set = reachable by this token only.
     linkToken: varchar('link_token', { length: 32 }),
+    // B-033: the import that created this guest (a UUID), so one import can be undone; null = added one by one.
+    importBatchId: varchar('import_batch_id', { length: 36 }),
   },
   (t) => ({
     slugUnique: uniqueIndex('guests_invitation_slug_unique').on(t.invitationId, t.slug),
     linkTokenUnique: uniqueIndex('guests_link_token_unique').on(t.linkToken),
+    importBatchIdx: index('guests_import_batch_idx').on(t.invitationId, t.importBatchId).where(sql`${t.importBatchId} is not null`),
   }),
+);
+
+/**
+ * B-033: self-registrations waiting for the host. Only pending requests live here: approving one moves it into `guests`
+ * (the roster writer, one transaction) and rejecting one deletes it, so a refused registrant's data is not kept.
+ */
+export const guestRegistrations = pgTable(
+  'guest_registrations',
+  {
+    id: serial('id').primaryKey(),
+    invitationId: integer('invitation_id')
+      .notNull()
+      .references(() => invitations.id, { onDelete: 'cascade' }),
+    name: varchar('name', { length: 150 }).notNull(),
+    phone: varchar('phone', { length: 30 }),
+    // Seats the registrant asked for (1–5); the host sees it before approving.
+    guestCount: integer('guest_count').notNull().default(1),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (t) => ({ invitationIdx: index('guest_registrations_invitation_idx').on(t.invitationId, t.createdAt) }),
+);
+
+/** B-033: an invitation's open self-registration link (`/daftar/<token>`); no row = registration closed. */
+export const guestRegistrationLinks = pgTable(
+  'guest_registration_links',
+  {
+    invitationId: integer('invitation_id')
+      .primaryKey()
+      .references(() => invitations.id, { onDelete: 'cascade' }),
+    token: varchar('token', { length: 32 }).notNull(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (t) => ({ tokenUnique: uniqueIndex('guest_registration_links_token_unique').on(t.token) }),
 );
 
 // R-04 (B-028, D-044): a wish is visible (`is_hidden` false), awaiting the host (hidden and never reviewed: the
@@ -346,7 +382,7 @@ export const customerSessionSummary = pgTable('customer_session_summary', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 
-// ─────────���───────────────────────────────────
+// ─────────���──────────────────────────────────���
 // ANALYTICS
 // ─────────────────────────────────────────────
 export const analyticsEvents = pgTable(
@@ -512,6 +548,7 @@ export type Invitation = typeof invitations.$inferSelect;
 export type NewInvitation = typeof invitations.$inferInsert;
 export type InvitationVersion = typeof invitationVersions.$inferSelect;
 export type Guest = typeof guests.$inferSelect;
+export type GuestRegistration = typeof guestRegistrations.$inferSelect;
 export type Order = typeof orders.$inferSelect;
 export type Conversation = typeof conversations.$inferSelect;
 export type Message = typeof messages.$inferSelect;

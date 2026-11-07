@@ -4,8 +4,8 @@
 > STATUS: LIVE (MVP scope)
 > OWNER: Architect
 > DEPS: PROJECT_OVERVIEW.md
-> GREP: schema, drizzle, tabel, users, invitations, guests, orders, versions
-> UPDATED: 2026-11-06 (s28: guest_messages reviewed_at / host_reply / replied_at + index ucapan VISIBLE migrasi 0017, R-04 / D-044; api_rate_limits + api_idempotency_keys migrasi 0016, ditulis hanya oleh services/api, R-03 / D-043; s20/s21: guests invited_event_ids migrasi 0015, events[].inviteOnly, D-037; showPhoto foto anak, D-038; s19: guests rsvp_event_answers migrasi 0014; id acara tetap di invitations.config.events migrasi data 0013, D-036; guests rsvp_answers, migrasi 0012; earlier: analytics_events view-dedupe index, guests attending_count, link_token)
+> GREP: schema, drizzle, tabel, users, invitations, guests, orders, versions, guest_registrations, guest_registration_links, import_batch_id
+> UPDATED: 2026-11-07 (s31: guests import_batch_id + guest_registration_links + guest_registrations migrasi 0019, penulis roster `BACKEND_ROSTER`, B-033 / D-052; s28: guest_messages reviewed_at / host_reply / replied_at + index ucapan VISIBLE migrasi 0017, R-04 / D-044; api_rate_limits + api_idempotency_keys migrasi 0016, ditulis hanya oleh services/api, R-03 / D-043; s20/s21: guests invited_event_ids migrasi 0015, events[].inviteOnly, D-037; showPhoto foto anak, D-038; s19: guests rsvp_event_answers migrasi 0014; id acara tetap di invitations.config.events migrasi data 0013, D-036; guests rsvp_answers, migrasi 0012; earlier: analytics_events view-dedupe index, guests attending_count, link_token)
 > ORM DECISION (whyme 2026-07-15): pakai **Drizzle** (bukan Prisma) — ikut fondasi nextjs/saas-starter biar backend cepat jalan. Schema di bawah = kanonik, diimplementasi sbg Drizzle schema (lib/db/schema.ts).
 
 ## Prinsip
@@ -67,8 +67,23 @@ guests
   invited_event_ids jsonb nullable ← acara khusus undangan yang boleh dilihat tamu ini (D-037, migrasi 0015, s20): array id acara yang tetap;
                                      id acara yang dihapus / dibuka lagi tetap tersimpan dan tidak berpengaruh; acara ditandai `inviteOnly` di
                                      invitations.config.events (bukan id tamu di config); flag INVITE_ONLY_EVENTS off = tidak dibaca/ditulis
+  import_batch_id varchar(36) null ← impor tamu (B-033, migrasi 0019, D-052): satu UUID per impor; pembatalan menghapus tamu batch yang
+                                     belum disentuh; index parsial guests_import_batch_idx (invitation_id, import_batch_id) where not null
   UNIQUE(invitation_id, slug)      ← anti-collision
   UNIQUE(link_token)               ← null boleh banyak
+
+guest_registration_links           ← B-033, migrasi 0019: satu link pendaftaran mandiri per undangan (`/daftar/<token>`)
+  invitation_id→invitations (PK, on delete cascade), token varchar(32) UNIQUE, created_at
+                                     ganti = token baru (link lama langsung mati); tutup = baris dihapus
+
+guest_registrations                ← B-033, migrasi 0019: antrean pendaftaran mandiri, menunggu keputusan host (bukan tamu)
+  id, invitation_id→invitations (on delete cascade), name varchar(150), phone varchar(30) null, guest_count int default 1, created_at
+  index guest_registrations_invitation_idx (invitation_id, created_at)
+                                     disetujui = menjadi baris guests + baris ini dihapus (satu transaksi); ditolak = dihapus
+
+> Roster (B-033, D-052): kolom roster `guests` (name, phone, category, guest_count, slug, link_token, invited_event_ids, sent_at,
+> checked_in_at + baris CHECKIN, import_batch_id) dan dua tabel di atas ditulis oleh satu penulis per panggilan, `BACKEND_ROSTER=next|rust`
+> (`lib/invitation/roster.ts`); kolom RSVP tetap milik penulis RSVP. Migrasi 0019 aditif.
 
 guest_messages
   id, invitation_id→invitations, guest_id→guests(nullable),
