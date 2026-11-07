@@ -125,7 +125,7 @@ test('/media protected: the owner gets it privately; anyone else, and every fail
   assert.equal(missing.headers.get('cache-control'), 'private, no-store');
 });
 
-// ── Personal-link photo route ────────────────────��────────────
+// ── Personal-link photo route ────────────────────���────────────
 
 type Summary = Awaited<ReturnType<GuestChildPhotoDeps['loadPublished']>>;
 function guestDeps(config: DetailConfig, opts: { eventType?: string; draft?: boolean; guest?: boolean; objects?: Record<string, string> } = {}) {
@@ -271,9 +271,13 @@ test('save: ownership and placement the schema cannot see, reported for touched 
     'theme.cover.imageUrl:protected-outside-child-photo', 'gallery.items.0:protected-outside-child-photo',
   ]);
   assert.deepEqual(at({ ceremonyProfile: { photoUrl: OTHER_LEGACY }, quote: { text: 'x' } }, 'aqiqah', ['quote']), [], 'an untouched legacy value never blocks another section');
-  const service = read('lib/invitation/service.ts');
-  assert.match(service, /mediaReferenceIssues\(validated, \{ invitationId, eventType: inv\.eventType, touchedSections: Object\.keys\(patch\) \}\)/);
-  assert.match(read('app/api/invitations/[id]/detail/route.ts'), /MediaReferenceError\) return apiError\(400, 'INVALID_MEDIA'/);
+  // s32 (B-035): the save-time check moved into the content writers' shared decision, judged on the locked row's event
+  // type for the sections the save sent (the facade passes `Object.keys(patch)`); the Rust writer runs the same vectors.
+  const rules = read('lib/invitation/content-rules.ts');
+  assert.match(rules, /mediaReferenceIssues\(input\.config, \{\s*invitationId: input\.invitationId,\s*eventType: input\.eventType,\s*touchedSections: input\.touchedSections,\s*\}\)/);
+  assert.match(read('lib/invitation/content.ts'), /touchedSections: Object\.keys\(input\.patch\)/);
+  assert.match(read('lib/invitation/content-next.ts'), /eventType: row\.eventType,/);
+  assert.match(read('app/api/invitations/[id]/detail/route.ts'), /case 'media':\s*return apiError\(400, 'INVALID_MEDIA'/);
 });
 
 // ── Wiring ────────────────────────────────────────────────────

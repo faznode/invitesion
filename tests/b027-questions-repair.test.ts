@@ -188,7 +188,9 @@ test('S18-Q4 wiring: every owner page and the export read leniently; the save me
   const service = source('lib/invitation/service.ts');
   assert.match(service, /return normalizeStoredConfig\(inv\.config \?\? \{\}\)\.config;/, 'getDetailConfig');
   // s19 (D-036): the save's merge moved into `prepareConfigWrite` with the event-id step; the carried-form rule is unchanged.
-  assert.match(service, /const validated: DetailConfig = prepareConfigWrite\(stored, patch\);/, 'updateDetailConfig stores what the write path prepares');
+  // s32 (B-035): every save goes through the content facade, which prepares the write once from the stored config.
+  assert.match(source('lib/invitation/content.ts'), /const validated: DetailConfig = prepareConfigWrite\(state\.config, input\.patch\);/, 'the save stores what the write path prepares');
+  assert.match(service, /saveInvitationContent\(/, 'updateDetailConfig is the facade');
   const write = source('lib/invitation/content-read.ts');
   assert.match(write, /patch\.registrationForm === undefined \? carriedRegistrationForm\(stored\) : undefined/, 'the save carries only when the form is not saved');
   assert.match(write, /const base = carried\?\.rest \?\? stored;/);

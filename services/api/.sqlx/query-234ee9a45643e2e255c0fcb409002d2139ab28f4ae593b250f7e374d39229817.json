@@ -1,0 +1,53 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "select event_type, template_id, config from invitations where id = $1 and user_id = $2 for update",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "event_type",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "invitations",
+            "name": "event_type"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "template_id",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "invitations",
+            "name": "template_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "config",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "invitations",
+            "name": "config"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "234ee9a45643e2e255c0fcb409002d2139ab28f4ae593b250f7e374d39229817"
+}

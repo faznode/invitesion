@@ -30,6 +30,20 @@ pub struct Problem {
     /// The rule a `roster.row_invalid` problem broke: `name`, `phone`, `seats` or `category` (B-033).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reason: Option<String>,
+    /// The version a `content.version_conflict` problem found stored (B-035).
+    #[serde(rename = "currentVersion", default, skip_serializing_if = "Option::is_none")]
+    pub current_version: Option<i32>,
+    /// The fields a `content.media_refused` or `content.theme_not_entitled` problem refused (B-035): paths and rules,
+    /// never values.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub issues: Option<Vec<ProblemIssue>>,
+}
+
+/// A refused field by path (`couple.bride.photoUrl`) and rule (`protected-outside-child-photo`).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, ToSchema)]
+pub struct ProblemIssue {
+    pub path: String,
+    pub reason: String,
 }
 
 /// What a 422 is about, carried as an extension member.
@@ -40,6 +54,8 @@ pub enum Subject {
     Question(String),
     /// The roster rule a row broke.
     Reason(&'static str),
+    /// The fields a content write refused (B-035).
+    Issues(Vec<ProblemIssue>),
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -55,6 +71,9 @@ pub enum ApiError {
     /// The resource's state refuses the request (`detail` names why, e.g. `deadline`).
     #[error("conflict ({0})")]
     Conflict(&'static str, Option<String>),
+    /// The write was prepared from another version than the stored one, carried as `currentVersion` (B-035).
+    #[error("stale version ({0})")]
+    StaleVersion(&'static str, i32),
     /// A well-formed request the domain rules refuse.
     #[error("unprocessable ({0})")]
     Unprocessable(&'static str, Subject),
@@ -79,6 +98,7 @@ impl ApiError {
             ApiError::BadRequest(code, detail) => (StatusCode::BAD_REQUEST, "Bad request", code, Some(detail.clone())),
             ApiError::NotFound(code) => (StatusCode::NOT_FOUND, "Not found", code, None),
             ApiError::Conflict(code, detail) => (StatusCode::CONFLICT, "Conflict", code, detail.clone()),
+            ApiError::StaleVersion(code, _) => (StatusCode::CONFLICT, "Conflict", code, None),
             ApiError::Unprocessable(code, _) => (StatusCode::UNPROCESSABLE_ENTITY, "Unprocessable", code, None),
             ApiError::PayloadTooLarge => {
                 (StatusCode::PAYLOAD_TOO_LARGE, "Payload too large", "request.too_large", None)
@@ -107,6 +127,14 @@ impl ApiError {
             ApiError::Unprocessable(_, Subject::Reason(reason)) => (None, None, Some((*reason).to_string())),
             _ => (None, None, None),
         };
+        let issues = match self {
+            ApiError::Unprocessable(_, Subject::Issues(issues)) => Some(issues.clone()),
+            _ => None,
+        };
+        let current_version = match self {
+            ApiError::StaleVersion(_, version) => Some(*version),
+            _ => None,
+        };
         Problem {
             kind: format!("{PROBLEM_TYPE_BASE}{code}"),
             title: title.to_string(),
@@ -116,6 +144,8 @@ impl ApiError {
             event_id,
             question_id,
             reason,
+            current_version,
+            issues,
         }
     }
 

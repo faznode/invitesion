@@ -4,8 +4,8 @@
 > STATUS: LIVE (MVP scope)
 > OWNER: Architect
 > DEPS: PROJECT_OVERVIEW.md
-> GREP: schema, drizzle, tabel, users, invitations, guests, orders, versions, guest_registrations, guest_registration_links, import_batch_id
-> UPDATED: 2026-11-07 (s31: guests import_batch_id + guest_registration_links + guest_registrations migrasi 0019, penulis roster `BACKEND_ROSTER`, B-033 / D-052; s28: guest_messages reviewed_at / host_reply / replied_at + index ucapan VISIBLE migrasi 0017, R-04 / D-044; api_rate_limits + api_idempotency_keys migrasi 0016, ditulis hanya oleh services/api, R-03 / D-043; s20/s21: guests invited_event_ids migrasi 0015, events[].inviteOnly, D-037; showPhoto foto anak, D-038; s19: guests rsvp_event_answers migrasi 0014; id acara tetap di invitations.config.events migrasi data 0013, D-036; guests rsvp_answers, migrasi 0012; earlier: analytics_events view-dedupe index, guests attending_count, link_token)
+> GREP: schema, drizzle, tabel, users, invitations, guests, orders, versions, version_no, guest_registrations, guest_registration_links, import_batch_id, template_id, templateId
+> UPDATED: 2026-11-07 (s32 turn 3: dua ruang id template_id vs config.theme.templateId, ganti tema B-036 / D-054; s32: index invitation_versions (invitation_id, version_no) migrasi 0020, cek versi simpan editor `BACKEND_CONTENT`, B-035 / D-053; s31: guests import_batch_id + guest_registration_links + guest_registrations migrasi 0019, penulis roster `BACKEND_ROSTER`, B-033 / D-052; s28: guest_messages reviewed_at / host_reply / replied_at + index ucapan VISIBLE migrasi 0017, R-04 / D-044; api_rate_limits + api_idempotency_keys migrasi 0016, ditulis hanya oleh services/api, R-03 / D-043; s20/s21: guests invited_event_ids migrasi 0015, events[].inviteOnly, D-037; showPhoto foto anak, D-038; s19: guests rsvp_event_answers migrasi 0014; id acara tetap di invitations.config.events migrasi data 0013, D-036; guests rsvp_answers, migrasi 0012; earlier: analytics_events view-dedupe index, guests attending_count, link_token)
 > ORM DECISION (whyme 2026-07-15): pakai **Drizzle** (bukan Prisma) — ikut fondasi nextjs/saas-starter biar backend cepat jalan. Schema di bawah = kanonik, diimplementasi sbg Drizzle schema (lib/db/schema.ts).
 
 ## Prinsip
@@ -37,11 +37,19 @@ invitations
   status[DRAFT|PUBLISHED|EXPIRED],
   revision_count(default 0, max 3),
   published_at, expires_at (published_at + 12 bulan), created_at
+  ← B-036 (D-054): dua ruang id. `template_id` = tema yang DIBELI (id baris `templates`, serial, dicocokkan ke katalog
+    lewat nama); hanya `create.ts` yang menulisnya, dan checkout / publish / settlement memakainya. `config.theme.templateId`
+    = id KATALOG (`templates.ts`, mis. 107; ada di `default_config.theme.templateId`), host-only, tidak dirender. Ganti
+    tema dalam tier hanya mengubah config lewat penulis konten; `template_id` tidak pernah ikut berubah.
 
 invitation_versions               ← rollback revisi AI
   id, invitation_id→invitations, version_no,
   config(json), created_by[customer|ai-agent],
   is_live, created_at
+  ← B-035 (migrasi 0020, D-053): versi undangan = max(version_no), 0 bila belum ada baris. Pembuatan menulis 1; setiap
+    simpan editor menulis versi berikutnya di transaksi yang mengunci baris undangan, setelah mencocokkan versi yang
+    dimuat editor (beda → 409, tidak menulis apa pun). Satu baris is_live. Index invitation_versions_invitation_version_idx
+    (invitation_id, version_no), tidak unik (baris lama boleh berulang nomor).
 
 media_assets
   id, invitation_id→invitations,

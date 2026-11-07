@@ -1,15 +1,20 @@
 /**
- * Server-side theme entitlement for config writes (B-041, D-042). Pure rules; the database lookup of the invitation's
- * tier lives in `service.ts`.
+ * Server-side theme entitlement for config writes (B-041, D-042; B-036, D-054). Pure rules; the database lookup of the
+ * invitation's tier lives in the content writers (`content-next.ts`, `services/api/src/content/http.rs`).
  *
- * Checkout charges by the tier of the invitation's catalog theme (`invitations.template_id` → `templates.is_premium`),
- * while guests see `config.theme.paletteId` (content contract: `templateId` is host-only and never rendered). Without a
- * check, a Standard invitation could take a Premium palette through the config PATCH, before or after paying.
+ * Checkout charges by the tier of the invitation's purchased theme (`invitations.template_id`, a `templates` row id →
+ * `templates.is_premium`), while guests see `config.theme.paletteId` (content contract: `templateId` is host-only and
+ * never rendered). Without a check, a Standard invitation could take a Premium look through the config PATCH, before or
+ * after paying.
  *
  * Rules, applied only to fields a write changes, so saving any other part of a stored config never fails:
  * - `paletteId` must be a registered palette, and a Premium palette needs a Premium entitlement. A palette is Premium
  *   when no free catalog theme uses it. The fallback palette is never Premium: a page without a palette renders it.
- * - `templateId` may only name the invitation's own catalog theme (or be cleared). Switching themes is B-036.
+ * - `templateId` is a catalog id (`templates.ts`, e.g. 101), not a `templates` row id. It may name any catalog theme
+ *   within the invitation's entitled tier (B-036): a Standard theme always, a Premium or Signature theme only with a
+ *   Premium entitlement; an id the catalog does not know is refused. A switch changes the config only: it never writes
+ *   `invitations.template_id`, so checkout, publishing and settlement keep pricing the purchased theme, and the
+ *   entitlement cannot change through a switch (D-054). A higher tier waits for U6's upgrade.
  */
 import type { Tier } from '../pricing';
 import { paletteIds } from './palettes';
@@ -28,6 +33,21 @@ const REGISTERED_PALETTES = new Set<string>(paletteIds);
 export function paletteTier(paletteId: string): Tier | null {
   if (!REGISTERED_PALETTES.has(paletteId)) return null;
   return STANDARD_PALETTES.has(paletteId) ? 'standard' : 'premium';
+}
+
+/**
+ * Every catalog theme and the tier it needs, in catalog order: free themes are Standard, premium and signature themes
+ * Premium, as `template-sync.ts` stores them (`is_premium = tier !== 'free'`). The Rust writer carries the same list,
+ * checked by `contracts/vectors/content-rules.json`.
+ */
+export const CATALOG_THEME_TIERS: readonly (readonly [number, Tier])[] = invitationTemplates.map(
+  (template) => [template.id, template.tier === 'free' ? 'standard' : 'premium'] as const,
+);
+const CATALOG_TIER_BY_ID = new Map<number, Tier>(CATALOG_THEME_TIERS);
+
+/** The tier a catalog theme needs, or null for an id the catalog does not know. */
+export function catalogThemeTier(templateId: number): Tier | null {
+  return CATALOG_TIER_BY_ID.get(templateId) ?? null;
 }
 
 export type ThemeFields = { templateId?: number; paletteId?: string };
@@ -51,32 +71,32 @@ export function changedThemeFields(stored: ThemeFields, next: ThemeFields | unde
   return changed;
 }
 
-export type ThemeEntitlement = {
-  /** 'premium' when the invitation's own theme is Premium or a PAID Premium order exists for it. */
-  tier: Tier;
-  /** The invitation's catalog theme (`invitations.template_id`), or null for a blank invitation. */
-  templateId: number | null;
-};
-
 export type ThemeIssue = {
   path: 'theme.templateId' | 'theme.paletteId';
-  reason: 'theme-switch' | 'unknown-palette' | 'premium-palette';
+  reason: 'unknown-template' | 'premium-template' | 'unknown-palette' | 'premium-palette';
 };
 
-/** Whether the changed fields need the database lookup of the invitation's tier. */
+/** Whether the changed fields need the database lookup of the invitation's tier: only a Premium palette or theme does. */
 export function needsTierLookup(changed: ThemeFields): boolean {
-  return changed.paletteId !== undefined && paletteTier(changed.paletteId) === 'premium';
+  if (changed.paletteId !== undefined && paletteTier(changed.paletteId) === 'premium') return true;
+  return changed.templateId !== undefined && catalogThemeTier(changed.templateId) === 'premium';
 }
 
-export function themeChangeIssues(changed: ThemeFields, entitlement: ThemeEntitlement): ThemeIssue[] {
+/**
+ * The refusals for the changed fields under the invitation's entitled tier ('premium' when its purchased theme is
+ * Premium or a PAID order bought a Premium tier for it). The theme's issue comes first.
+ */
+export function themeChangeIssues(changed: ThemeFields, tier: Tier): ThemeIssue[] {
   const issues: ThemeIssue[] = [];
-  if (changed.templateId !== undefined && changed.templateId !== entitlement.templateId) {
-    issues.push({ path: 'theme.templateId', reason: 'theme-switch' });
+  if (changed.templateId !== undefined) {
+    const needed = catalogThemeTier(changed.templateId);
+    if (needed === null) issues.push({ path: 'theme.templateId', reason: 'unknown-template' });
+    else if (needed === 'premium' && tier !== 'premium') issues.push({ path: 'theme.templateId', reason: 'premium-template' });
   }
   if (changed.paletteId !== undefined) {
-    const tier = paletteTier(changed.paletteId);
-    if (tier === null) issues.push({ path: 'theme.paletteId', reason: 'unknown-palette' });
-    else if (tier === 'premium' && entitlement.tier !== 'premium') issues.push({ path: 'theme.paletteId', reason: 'premium-palette' });
+    const needed = paletteTier(changed.paletteId);
+    if (needed === null) issues.push({ path: 'theme.paletteId', reason: 'unknown-palette' });
+    else if (needed === 'premium' && tier !== 'premium') issues.push({ path: 'theme.paletteId', reason: 'premium-palette' });
   }
   return issues;
 }

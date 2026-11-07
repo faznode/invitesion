@@ -49,6 +49,13 @@ const DEFAULTS = {
    * every link (404) and hides the queue; stored requests stay.
    */
   SELF_REGISTRATION: false,
+  /**
+   * B-035: the editor saves by itself shortly after the host stops typing and shows the invitation beside the fields (the
+   * owner preview, reloaded after each save). Off until the owner's signed-in check with real keys (06 rollout; DA-01):
+   * off is the manual "Simpan" button and the preview in a new tab, exactly as before. Every save carries the loaded
+   * version either way, so a stale tab is refused instead of overwriting another tab's edits.
+   */
+  EDITOR_AUTOSAVE: false,
 } as const;
 
 export type FlagName = keyof typeof DEFAULTS;

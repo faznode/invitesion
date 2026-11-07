@@ -1,5 +1,7 @@
-// B-041 (s26, E-054; D-042): server-side theme entitlement on config writes. Pure rules here; the database-backed proof
-// that a published Standard invitation cannot take a Premium theme without an order is scripts/verify-theme-entitlement.ts.
+// B-041 (s26, E-054; D-042): server-side theme entitlement on config writes, with B-036's switch within the tier (s32,
+// E-072; D-054). Pure rules here; the database-backed proof through the facade (a published Standard invitation switches
+// to another Standard theme and stays paid; a Premium theme or palette needs an order) is
+// scripts/verify-theme-entitlement.ts, and both writers' is scripts/verify-content-api.ts.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -19,8 +21,9 @@ import {
 const source = (path: string) => readFileSync(join(process.cwd(), path), 'utf8');
 const freeTheme = invitationTemplates.find((template) => template.tier === 'free')!;
 const premiumTheme = invitationTemplates.find((template) => template.tier === 'premium')!;
-const standard = { tier: 'standard' as const, templateId: freeTheme.id };
-const premium = { tier: 'premium' as const, templateId: premiumTheme.id };
+const signatureTheme = invitationTemplates.find((template) => template.tier === 'signature')!;
+const standard = 'standard' as const;
+const premium = 'premium' as const;
 
 test('a palette is Standard when a free catalog theme uses it or it is the fallback, otherwise Premium', () => {
   const freePalettes = new Set(invitationTemplates.filter((template) => template.tier === 'free').map((template) => template.paletteId));
@@ -71,14 +74,37 @@ test('clearing the palette or the theme id needs no entitlement', () => {
   assert.deepEqual(changedThemeFields({ templateId: freeTheme.id, paletteId: 'sage' }, undefined), {});
 });
 
-test("templateId may only name the invitation's own catalog theme", () => {
-  assert.deepEqual(themeChangeIssues({ templateId: premiumTheme.id }, standard), [{ path: 'theme.templateId', reason: 'theme-switch' }]);
-  assert.deepEqual(themeChangeIssues({ templateId: freeTheme.id }, standard), []);
-  assert.deepEqual(themeChangeIssues({ templateId: freeTheme.id }, { tier: 'standard', templateId: null }), [
-    { path: 'theme.templateId', reason: 'theme-switch' },
+test('B-036: templateId may name any catalog theme within the entitled tier', () => {
+  for (const template of invitationTemplates) {
+    const paid = template.tier !== 'free';
+    assert.equal(needsTierLookup({ templateId: template.id }), paid, `${template.id}: lookup`);
+    assert.deepEqual(themeChangeIssues({ templateId: template.id }, premium), [], `${template.id}: Premium entitlement`);
+    assert.deepEqual(
+      themeChangeIssues({ templateId: template.id }, standard),
+      paid ? [{ path: 'theme.templateId', reason: 'premium-template' }] : [],
+      `${template.id}: Standard entitlement`,
+    );
+  }
+  // Signature themes are paid like premium ones (template-sync stores `is_premium = tier !== 'free'`).
+  assert.deepEqual(themeChangeIssues({ templateId: signatureTheme.id }, standard), [{ path: 'theme.templateId', reason: 'premium-template' }]);
+});
+
+test('B-036: ids the catalog does not know are refused for every tier, without a tier lookup', () => {
+  for (const id of [0, 5, 999, freeTheme.id + 0.5, -freeTheme.id]) {
+    assert.equal(needsTierLookup({ templateId: id }), false, `${id}`);
+    for (const tier of [standard, premium]) {
+      assert.deepEqual(themeChangeIssues({ templateId: id }, tier), [{ path: 'theme.templateId', reason: 'unknown-template' }], `${id} ${tier}`);
+    }
+  }
+});
+
+test("B-036: a switch to a Premium theme on its own Premium palette names both, the theme's first", () => {
+  const orchid = invitationTemplates.find((template) => template.tier !== 'free' && paletteTier(template.paletteId) === 'premium')!;
+  assert.deepEqual(themeChangeIssues({ templateId: orchid.id, paletteId: orchid.paletteId }, standard), [
+    { path: 'theme.templateId', reason: 'premium-template' },
+    { path: 'theme.paletteId', reason: 'premium-palette' },
   ]);
-  // A Premium entitlement buys palettes, not a different catalog theme (switching is B-036).
-  assert.deepEqual(themeChangeIssues({ templateId: freeTheme.id }, premium), [{ path: 'theme.templateId', reason: 'theme-switch' }]);
+  assert.deepEqual(themeChangeIssues({ templateId: premiumTheme.id, paletteId: premiumTheme.paletteId }, premium), []);
 });
 
 test('unknown palettes are refused for every tier', () => {
@@ -100,10 +126,15 @@ test('the error names paths and reasons, never stored values', () => {
   assert.match(error.message, /theme\.paletteId \(premium-palette\)/);
 });
 
-test('the config writer checks the theme before its transaction, and the PATCH answers 403', () => {
-  const service = source('lib/invitation/service.ts');
-  const writer = service.slice(service.indexOf('export async function updateDetailConfig'), service.indexOf('async function themeTier'));
-  assert.ok(writer.indexOf('themeChangeIssues(') > 0 && writer.indexOf('themeChangeIssues(') < writer.indexOf('db.transaction('));
+test('the config writers check the theme before they write, and the PATCH answers 403', () => {
+  // s32 (B-035): the check moved into the content writers' shared decision, inside the transaction that holds the row
+  // lock, so it judges the row it writes; both writers decide before the config statement (Rust: the same vectors).
+  const rules = source('lib/invitation/content-rules.ts');
+  assert.match(rules, /themeChangeIssues\(themeChangeOf\(input\), tier\)/);
+  const next = source('lib/invitation/content-next.ts');
+  assert.ok(next.indexOf('contentDecision(') > 0 && next.indexOf('contentDecision(') < next.indexOf('.update(invitations)'));
+  const rust = source('services/api/src/content/http.rs');
+  assert.ok(rust.indexOf('content_decision(') > 0 && rust.indexOf('content_decision(') < rust.indexOf('update invitations set config'));
   const route = source('app/api/invitations/[id]/detail/route.ts');
-  assert.match(route, /ThemeEntitlementError\) return apiError\(403, 'THEME_NOT_ENTITLED'/);
+  assert.match(route, /case 'theme':\s*return apiError\(403, 'THEME_NOT_ENTITLED'/);
 });

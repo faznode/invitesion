@@ -20,12 +20,21 @@ export const metadata: Metadata = {
  * before it is paid for and published. Ownership is checked here (the middleware only guards /dashboard); views are
  * not tracked, and the RSVP and guestbook forms do not render because they need a guest link.
  */
-export default async function OwnerPreviewPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function OwnerPreviewPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const user = await getUser();
   if (!user) redirect('/sign-in');
 
   const id = Number((await params).id);
   if (!Number.isInteger(id) || id <= 0) notFound();
+  // B-035: the editor's side-by-side pane frames this page (same origin only, `proxy.ts`). The pane labels itself, so the
+  // owner banner, whose link would navigate the frame, is left out; the invitation below renders exactly the same.
+  const embedded = (await searchParams).embed === '1';
 
   const [owned] = await db
     .select({ slug: invitations.slug, status: invitations.status })
@@ -39,16 +48,18 @@ export default async function OwnerPreviewPage({ params }: { params: Promise<{ i
 
   return (
     <>
-      <div role="status" className="sticky top-0 z-30 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 bg-slate-900 px-4 py-2 text-center text-sm text-white">
-        <span>
-          {owned.status === 'DRAFT'
-            ? 'Pratinjau draf: hanya kamu yang bisa melihat halaman ini. Tamu bisa membukanya setelah undangan diaktifkan.'
-            : 'Pratinjau: tampilan yang sama dengan yang dilihat tamu. Kunjungan dari pratinjau tidak dihitung.'}
-        </span>
-        <Link href={`/dashboard/invitations/${id}/edit`} className="font-semibold underline underline-offset-2">
-          Kembali ke editor
-        </Link>
-      </div>
+      {!embedded && (
+        <div role="status" className="sticky top-0 z-30 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 bg-slate-900 px-4 py-2 text-center text-sm text-white">
+          <span>
+            {owned.status === 'DRAFT'
+              ? 'Pratinjau draf: hanya kamu yang bisa melihat halaman ini. Tamu bisa membukanya setelah undangan diaktifkan.'
+              : 'Pratinjau: tampilan yang sama dengan yang dilihat tamu. Kunjungan dari pratinjau tidak dihitung.'}
+          </span>
+          <Link href={`/dashboard/invitations/${id}/edit`} className="font-semibold underline underline-offset-2">
+            Kembali ke editor
+          </Link>
+        </div>
+      )}
       <PublicInvitationRenderer
         invitation={data.invitation}
         config={data.config}

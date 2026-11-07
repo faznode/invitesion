@@ -86,6 +86,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/invitations/{invitation}/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["write_content"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/invitations/{invitation}/guest-imports": {
         parameters: {
             query?: never;
@@ -311,6 +327,28 @@ export interface components {
         };
         /** @enum {string} */
         CategoryMode: "ADD" | "REMOVE";
+        ContentSaved: {
+            /**
+             * Format: int32
+             * @description The version this save wrote.
+             */
+            version: number;
+        };
+        /** @description One save: the whole config, prepared from `baseVersion`, and the sections the editor sent. */
+        ContentWriteRequest: {
+            /**
+             * Format: int32
+             * @description The version the config was prepared from: `max(invitation_versions.version_no)` when Next.js read it, 0 for an
+             *     invitation without a version row.
+             */
+            baseVersion: number;
+            /** @description The whole config to store, as Next.js's content contract prepared it. */
+            config: {
+                [key: string]: unknown;
+            };
+            /** @description The top-level sections the save sent: D-040 judges only their references, and the theme is judged only when sent. */
+            touchedSections: string[];
+        };
         /** @enum {string} */
         Decision: "APPROVE" | "REJECT";
         /** @enum {string} */
@@ -470,6 +508,21 @@ export interface components {
             questionId?: string | null;
             /** @description The rule a `roster.row_invalid` problem broke: `name`, `phone`, `seats` or `category` (B-033). */
             reason?: string | null;
+            /**
+             * Format: int32
+             * @description The version a `content.version_conflict` problem found stored (B-035).
+             */
+            currentVersion?: number | null;
+            /**
+             * @description The fields a `content.media_refused` or `content.theme_not_entitled` problem refused (B-035): paths and rules,
+             *     never values.
+             */
+            issues?: components["schemas"]["ProblemIssue"][] | null;
+        };
+        /** @description A refused field by path (`couple.bride.photoUrl`) and rule (`protected-outside-child-photo`). */
+        ProblemIssue: {
+            path: string;
+            reason: string;
         };
         /** @description One open of an invitation page. */
         RecordView: {
@@ -906,6 +959,99 @@ export interface operations {
                 };
             };
             /** @description Not a current invite-only event, a category over 50 characters, or the flag off (`roster.invite_invalid`), or `idempotency.key_reused` */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Owner tokens are not configured or the signing keys are unreachable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    write_content: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description 1–255 visible ASCII characters, bound to the signed-in owner, this invitation and the base version: a retry of a committed save replays its answer for 24 hours (also when it waited for that save's lock), and anyone else's request is judged afresh */
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                /** @description The owner's invitation */
+                invitation: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ContentWriteRequest"];
+            };
+        };
+        responses: {
+            /** @description Stored as the next version, or replayed (`Idempotent-Replayed: true`) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContentSaved"];
+                };
+            };
+            /** @description Malformed path, body or idempotency key */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Missing or invalid signature or owner token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description A token for no live customer (`owner.unknown_user`, `owner.role_not_allowed`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not this owner's invitation (`content.not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Another save stored a newer version (`content.version_conflict`, `currentVersion`); nothing was written */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description A refused reference (`content.media_refused`) or theme (`content.theme_not_entitled`), with `issues`; or `idempotency.key_reused` */
             422: {
                 headers: {
                     [name: string]: unknown;

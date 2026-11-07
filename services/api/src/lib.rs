@@ -5,6 +5,7 @@
 
 mod app;
 pub mod config;
+pub mod content;
 pub mod guest_link;
 pub mod health;
 pub mod idempotency;

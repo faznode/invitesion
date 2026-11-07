@@ -18,8 +18,29 @@ export type ApiConfig = {
 
 export class ApiConfigError extends Error {}
 
+/** A refused field, by path and rule (B-035: D-040 references, B-041 theme), never its value. */
+export type ApiProblemIssue = { path: string; reason: string };
+
 /** What a problem is about (RFC 9457 extension members) and when to retry a 429. */
-export type ApiProblemExtras = { eventId?: string; questionId?: string; reason?: string; retryAfter?: number };
+export type ApiProblemExtras = {
+  eventId?: string;
+  questionId?: string;
+  reason?: string;
+  retryAfter?: number;
+  /** B-035: the version a `content.version_conflict` found stored. */
+  currentVersion?: number;
+  /** B-035: the fields a `content.media_refused` or `content.theme_not_entitled` problem refused. */
+  issues?: ApiProblemIssue[];
+};
+
+function issuesOf(value: unknown): ApiProblemIssue[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const issues = value.filter(
+    (item): item is ApiProblemIssue =>
+      typeof item === 'object' && item !== null && typeof item.path === 'string' && typeof item.reason === 'string',
+  );
+  return issues.map(({ path, reason }) => ({ path, reason }));
+}
 
 /** An RFC 9457 problem answered by the API, or a transport failure with code `transport.*`. */
 export class ApiProblem extends Error {
@@ -100,12 +121,25 @@ async function send<T>(config: ApiConfig, method: 'GET' | 'POST', path: string, 
     let detail: string | undefined;
     const extras: ApiProblemExtras = {};
     try {
-      const problem = JSON.parse(text) as { code?: unknown; detail?: unknown; eventId?: unknown; questionId?: unknown; reason?: unknown };
+      const problem = JSON.parse(text) as {
+        code?: unknown;
+        detail?: unknown;
+        eventId?: unknown;
+        questionId?: unknown;
+        reason?: unknown;
+        currentVersion?: unknown;
+        issues?: unknown;
+      };
       if (typeof problem.code === 'string') code = problem.code;
       if (typeof problem.detail === 'string') detail = problem.detail;
       if (typeof problem.eventId === 'string') extras.eventId = problem.eventId;
       if (typeof problem.questionId === 'string') extras.questionId = problem.questionId;
       if (typeof problem.reason === 'string') extras.reason = problem.reason;
+      if (Number.isInteger(problem.currentVersion) && (problem.currentVersion as number) >= 0) {
+        extras.currentVersion = problem.currentVersion as number;
+      }
+      const issues = issuesOf(problem.issues);
+      if (issues) extras.issues = issues;
     } catch {
       // A non-problem body (a proxy's HTML page) keeps the generic code.
     }

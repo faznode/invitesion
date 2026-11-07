@@ -1,14 +1,14 @@
 import 'server-only';
-import { and, asc, eq, max, or } from 'drizzle-orm';
+import { and, asc, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '@/lib/db/drizzle';
-import { invitations, invitationVersions, mediaAssets, orders, templates } from '@/lib/db/schema';
+import { invitations, mediaAssets } from '@/lib/db/schema';
 import type { MediaAsset } from '@/lib/db/schema';
-import type { Tier } from '@/lib/pricing';
-import { normalizeStoredConfig, prepareConfigWrite } from './content-read';
+import { saveInvitationContent } from './content';
+import { normalizeStoredConfig } from './content-read';
 import type { DetailConfig } from './detail-config';
-import { MediaReferenceError, mediaReferenceIssues } from './media-ownership';
-import { changedThemeFields, needsTierLookup, storedThemeFields, ThemeEntitlementError, themeChangeIssues } from './theme-entitlement';
+import { MediaReferenceError } from './media-ownership';
+import { ThemeEntitlementError } from './theme-entitlement';
 
 export { MediaReferenceError } from './media-ownership';
 export { ThemeEntitlementError } from './theme-entitlement';
@@ -42,72 +42,41 @@ export async function getDetailConfig(
   return normalizeStoredConfig(inv.config ?? {}).config;
 }
 
+/** B-035: another save stored a newer version than the one this save was prepared from; nothing was written. */
+export class ContentConflictError extends Error {
+  constructor(readonly currentVersion: number) {
+    super(`Invitation content changed (version ${currentVersion})`);
+    this.name = 'ContentConflictError';
+  }
+}
+
+/**
+ * The detail save as an exception-style call, for callers without a session token (the verification scripts). It is the
+ * editor's write path (`saveInvitationContent`, B-035): the same contract, selected writer, rules and version check, with
+ * refusals turned into the errors this module has always thrown. Under `BACKEND_CONTENT=rust` it needs a session token,
+ * which these callers do not have, so it refuses rather than writing through the other writer.
+ */
 export async function updateDetailConfig(
   invitationId: number,
   userId: number,
   patch: DetailConfig,
+  expectedVersion?: number | null,
 ): Promise<DetailConfig> {
-  const inv = await requireOwnedInvitation(invitationId, userId);
-  const stored = (inv.config as Record<string, unknown> | null) ?? {};
-  // S18-Q4 / D-035 (a stored condition naming a deleted question cannot block saving another section; a save of the form
-  // itself is checked strictly) and D-036 (events keep their ids; new ones get fresh ids): `prepareConfigWrite`.
-  const validated: DetailConfig = prepareConfigWrite(stored, patch);
-  // D-040: a protected path only in this type's child-photo field, and a child photo only from this invitation.
-  const mediaIssues = mediaReferenceIssues(validated, { invitationId, eventType: inv.eventType, touchedSections: Object.keys(patch) });
-  if (mediaIssues.length) throw new MediaReferenceError(mediaIssues);
-  // B-041 / D-042: a theme write may not take a palette or theme the invitation's package does not include.
-  if ('theme' in patch) {
-    const changed = changedThemeFields(storedThemeFields(stored), validated.theme);
-    // The tier is consulted only for a Premium palette, so other theme saves cost no extra query.
-    const tier: Tier = needsTierLookup(changed) ? await themeTier(inv.id, inv.templateId) : 'standard';
-    const themeIssues = themeChangeIssues(changed, { tier, templateId: inv.templateId });
-    if (themeIssues.length) throw new ThemeEntitlementError(themeIssues);
+  const outcome = await saveInvitationContent({ userId, ownerToken: async () => null }, { invitationId, patch, expectedVersion });
+  switch (outcome.kind) {
+    case 'saved':
+      return outcome.config;
+    case 'notfound':
+      throw new OwnershipError();
+    case 'media':
+      throw new MediaReferenceError(outcome.issues);
+    case 'theme':
+      throw new ThemeEntitlementError(outcome.issues);
+    case 'conflict':
+      throw new ContentConflictError(outcome.currentVersion);
+    default:
+      throw new Error(`content save not completed (${outcome.kind})`);
   }
-
-  await db.transaction(async (tx) => {
-    await tx
-      .update(invitations)
-      .set({ config: validated })
-      .where(eq(invitations.id, invitationId));
-
-    const [{ value: lastNo } = { value: 0 }] = await tx
-      .select({ value: max(invitationVersions.versionNo) })
-      .from(invitationVersions)
-      .where(eq(invitationVersions.invitationId, invitationId));
-
-    await tx
-      .update(invitationVersions)
-      .set({ isLive: false })
-      .where(eq(invitationVersions.invitationId, invitationId));
-
-    await tx.insert(invitationVersions).values({
-      invitationId,
-      versionNo: (lastNo ?? 0) + 1,
-      config: validated,
-      createdBy: 'customer',
-      isLive: true,
-    });
-  });
-
-  return validated;
-}
-
-/**
- * The tier an invitation's theme writes are entitled to (B-041). Premium when its own catalog theme is Premium, since
- * checkout charges that tier for it, or when a PAID order bought a Premium tier for this invitation. Otherwise Standard.
- */
-async function themeTier(invitationId: number, templateId: number | null): Promise<Tier> {
-  if (templateId !== null) {
-    const [template] = await db.select({ isPremium: templates.isPremium }).from(templates).where(eq(templates.id, templateId)).limit(1);
-    if (template?.isPremium) return 'premium';
-  }
-  const [premiumOrder] = await db
-    .select({ id: orders.id })
-    .from(orders)
-    .leftJoin(templates, eq(templates.id, orders.templateId))
-    .where(and(eq(orders.invitationId, invitationId), eq(orders.status, 'PAID'), or(eq(orders.tier, 'premium'), eq(templates.isPremium, true))))
-    .limit(1);
-  return premiumOrder ? 'premium' : 'standard';
 }
 
 // ── Media ordering ───────────────────────────────────────────

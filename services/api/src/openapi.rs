@@ -5,9 +5,10 @@
 use utoipa::openapi::security::{ApiKey, ApiKeyValue, HttpAuthScheme, HttpBuilder, SecurityScheme};
 use utoipa::{Modify, OpenApi};
 
+use crate::content::http::{ContentSaved, ContentWriteRequest};
 use crate::health::Health;
 use crate::identity::Me;
-use crate::problem::Problem;
+use crate::problem::{Problem, ProblemIssue};
 use crate::roster::http::{
     CategoryInvitationRequest, CategoryInvitationSaved, CategoryMode, Decision, DecisionStatus, GuestAddRequest,
     GuestAdded, GuestFields, GuestImportRequest, GuestImportResult, GuestOperation, GuestOperationRequest,
@@ -51,10 +52,12 @@ use crate::wishes::http::{
         crate::roster::http::set_category_invitation,
         crate::roster::http::registration_link,
         crate::roster::http::register,
-        crate::roster::http::decide
+        crate::roster::http::decide,
+        crate::content::http::write_content
     ),
     components(schemas(
         Problem,
+        ProblemIssue,
         Health,
         Me,
         RecordView,
@@ -105,7 +108,9 @@ use crate::wishes::http::{
         RegistrationDecisionRequest,
         Decision,
         RegistrationDecided,
-        DecisionStatus
+        DecisionStatus,
+        ContentWriteRequest,
+        ContentSaved
     )),
     modifiers(&SecuritySchemes),
     tags(
@@ -114,7 +119,8 @@ use crate::wishes::http::{
         (name = "views", description = "Invitation opens (R-02)"),
         (name = "rsvp", description = "Guest RSVP and the host's override (R-03)"),
         (name = "wishes", description = "Guest wishes and the host's moderation and replies (R-04)"),
-        (name = "roster", description = "The guest roster: adds, imports, operations, invite-only events and self-registration (B-033)")
+        (name = "roster", description = "The guest roster: adds, imports, operations, invite-only events and self-registration (B-033)"),
+        (name = "content", description = "The editor's content writes with the version check (B-035)")
     )
 )]
 pub struct ApiDoc;

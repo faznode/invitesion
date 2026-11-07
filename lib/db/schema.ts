@@ -85,17 +85,23 @@ export const invitations = pgTable('invitations', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 
-export const invitationVersions = pgTable('invitation_versions', {
-  id: serial('id').primaryKey(),
-  invitationId: integer('invitation_id')
-    .notNull()
-    .references(() => invitations.id),
-  versionNo: integer('version_no').notNull(),
-  config: jsonb('config'),
-  createdBy: varchar('created_by', { length: 20 }).notNull(), // customer | ai-agent
-  isLive: boolean('is_live').notNull().default(false),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-});
+export const invitationVersions = pgTable(
+  'invitation_versions',
+  {
+    id: serial('id').primaryKey(),
+    invitationId: integer('invitation_id')
+      .notNull()
+      .references(() => invitations.id),
+    versionNo: integer('version_no').notNull(),
+    config: jsonb('config'),
+    createdBy: varchar('created_by', { length: 20 }).notNull(), // customer | ai-agent
+    isLive: boolean('is_live').notNull().default(false),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  // B-035: every save reads `max(version_no)` for its invitation under the row lock (an index-only lookup with this).
+  // Not unique: rows written before the lock existed may repeat a number, and an additive migration must not fail on them.
+  (t) => ({ invitationVersionIdx: index('invitation_versions_invitation_version_idx').on(t.invitationId, t.versionNo) }),
+);
 
 export const mediaAssets = pgTable(
   'media_assets',

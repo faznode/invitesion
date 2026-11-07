@@ -20,6 +20,7 @@
   2. The invite-only panel, the editor switches and the host override (E-038).
   3. The owner's read of `/media/protected/*` (the owner gets the file; another signed-in user and a signed-out request get the private 404) and the editor thumbnail of a protected upload (E-047).
   4. Template editability end to end: edit, save, then the guest page shows the change. Versioning needs working migrations, not only `schemaVersion`.
+  5. B-035 (E-071, s32), before `FLAG_EDITOR_AUTOSAVE` is switched on: signed in, an edit is stored ≤ 2 s after idle and the side-by-side preview shows it; two tabs from one version end in the conflict choice with nothing overwritten; a stale tab's "load the latest" and "keep this tab" both behave; with `BACKEND_CONTENT=rust`, the same through the API with the session's owner token. s32 ran these in headless Chrome with Clerk replaced by a stub (scratch copy, scratch database); that is not this check. Also B-036 (E-072, s32): signed in, the theme tab lists the event type's catalog themes with Premium ones locked on a Standard invitation; a Standard switch is stored with its palette and the content kept, `invitations.template_id` unchanged and no checkout offered; s32's 12 / 12 ran with the same stub.
 - **What exists (kept; implementation evidence only):**
   - Clerk middleware with explicit `/media/protected/*` coverage.
   - Roles in the local `users` table (`docs/systems/auth.md`).

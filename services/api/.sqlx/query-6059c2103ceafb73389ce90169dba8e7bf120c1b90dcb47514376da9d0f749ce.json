@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "update invitations set config = $1 where id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Jsonb",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "6059c2103ceafb73389ce90169dba8e7bf120c1b90dcb47514376da9d0f749ce"
+}

@@ -42,7 +42,15 @@ function publicUrlFrom(request: NextRequest) {
  */
 const CSP_REPORT_ONLY = process.env.CSP_ENFORCE !== 'true';
 
-function contentSecurityPolicy(nonce: string): string {
+/**
+ * B-035: only the owner preview may be framed, and only by this origin: the editor shows it beside the fields. It is
+ * owner-only content without forms (no RSVP or guestbook renders without a guest link). Every other page stays unframeable.
+ */
+function frameAncestorsFor(pathname: string): string {
+  return pathname.startsWith('/preview/') ? "frame-ancestors 'self'" : "frame-ancestors 'none'";
+}
+
+function contentSecurityPolicy(nonce: string, pathname: string): string {
   return [
     "default-src 'self'",
     // `strict-dynamic` lets a nonced loader pull in the chunks it needs without
@@ -60,7 +68,7 @@ function contentSecurityPolicy(nonce: string): string {
     // provider's privacy-enhanced player, exactly these two hosts (`lib/invitation/gallery.ts` builds only their URLs).
     "frame-src 'self' https://*.clerk.accounts.dev https://*.clerk.com https://challenges.cloudflare.com https://www.youtube-nocookie.com https://player.vimeo.com",
     "worker-src 'self' blob:",
-    "frame-ancestors 'none'",
+    frameAncestorsFor(pathname),
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",
@@ -170,7 +178,7 @@ export default clerkMiddleware(async (getAuth, request) => {
   // that blocks a legitimate script would break the page for real customers,
   // and a broken checkout is worse than an unexercised header.
   const nonce = crypto.randomUUID().replace(/-/g, '');
-  const policy = contentSecurityPolicy(nonce);
+  const policy = contentSecurityPolicy(nonce, pathname);
   const headerName = CSP_REPORT_ONLY
     ? 'Content-Security-Policy-Report-Only'
     : 'Content-Security-Policy';

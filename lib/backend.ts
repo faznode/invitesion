@@ -24,6 +24,12 @@ const DEFAULTS = {
    * and their undo, self-registration and the host's decisions.
    */
   ROSTER: 'next',
+  /**
+   * B-035: the editor's content writes (`invitations.config` with its `invitation_versions` row: the live flag and the next
+   * `version_no`, checked against the version the editor loaded). Creation's first row stays in `create.ts`; publishing
+   * and payment write other columns (`status`, `published_at`, `expires_at`).
+   */
+  CONTENT: 'next',
 } as const satisfies Record<string, Backend>;
 
 export type Backend = 'next' | 'rust';

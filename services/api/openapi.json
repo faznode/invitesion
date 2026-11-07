@@ -471,6 +471,137 @@
         ]
       }
     },
+    "/v1/invitations/{invitation}/content": {
+      "post": {
+        "tags": [
+          "content"
+        ],
+        "operationId": "write_content",
+        "parameters": [
+          {
+            "name": "invitation",
+            "in": "path",
+            "description": "The owner's invitation",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "1–255 visible ASCII characters, bound to the signed-in owner, this invitation and the base version: a retry of a committed save replays its answer for 24 hours (also when it waited for that save's lock), and anyone else's request is judged afresh",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContentWriteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Stored as the next version, or replayed (`Idempotent-Replayed: true`)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentSaved"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed path, body or idempotency key",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid signature or owner token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "A token for no live customer (`owner.unknown_user`, `owner.role_not_allowed`)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not this owner's invitation (`content.not_found`)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Another save stored a newer version (`content.version_conflict`, `currentVersion`); nothing was written",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A refused reference (`content.media_refused`) or theme (`content.theme_not_entitled`), with `issues`; or `idempotency.key_reused`",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Owner tokens are not configured or the signing keys are unreachable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ownerToken": [],
+            "serviceSignature": []
+          }
+        ]
+      }
+    },
     "/v1/invitations/{invitation}/guest-imports": {
       "post": {
         "tags": [
@@ -2062,6 +2193,49 @@
           "REMOVE"
         ]
       },
+      "ContentSaved": {
+        "type": "object",
+        "required": [
+          "version"
+        ],
+        "properties": {
+          "version": {
+            "type": "integer",
+            "format": "int32",
+            "description": "The version this save wrote."
+          }
+        }
+      },
+      "ContentWriteRequest": {
+        "type": "object",
+        "description": "One save: the whole config, prepared from `baseVersion`, and the sections the editor sent.",
+        "required": [
+          "baseVersion",
+          "config",
+          "touchedSections"
+        ],
+        "properties": {
+          "baseVersion": {
+            "type": "integer",
+            "format": "int32",
+            "description": "The version the config was prepared from: `max(invitation_versions.version_no)` when Next.js read it, 0 for an\ninvitation without a version row.",
+            "minimum": 0
+          },
+          "config": {
+            "type": "object",
+            "description": "The whole config to store, as Next.js's content contract prepared it.",
+            "additionalProperties": true
+          },
+          "touchedSections": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The top-level sections the save sent: D-040 judges only their references, and the theme is judged only when sent."
+          }
+        },
+        "additionalProperties": false
+      },
       "Decision": {
         "type": "string",
         "enum": [
@@ -2579,6 +2753,40 @@
               "null"
             ],
             "description": "The rule a `roster.row_invalid` problem broke: `name`, `phone`, `seats` or `category` (B-033)."
+          },
+          "currentVersion": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "The version a `content.version_conflict` problem found stored (B-035)."
+          },
+          "issues": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/ProblemIssue"
+            },
+            "description": "The fields a `content.media_refused` or `content.theme_not_entitled` problem refused (B-035): paths and rules,\nnever values."
+          }
+        }
+      },
+      "ProblemIssue": {
+        "type": "object",
+        "description": "A refused field by path (`couple.bride.photoUrl`) and rule (`protected-outside-child-photo`).",
+        "required": [
+          "path",
+          "reason"
+        ],
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
           }
         }
       },
@@ -2986,6 +3194,10 @@
     {
       "name": "roster",
       "description": "The guest roster: adds, imports, operations, invite-only events and self-registration (B-033)"
+    },
+    {
+      "name": "content",
+      "description": "The editor's content writes with the version check (B-035)"
     }
   ]
 }
