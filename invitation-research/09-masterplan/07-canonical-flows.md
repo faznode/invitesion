@@ -5,7 +5,7 @@
 > OWNER: Research agent
 > DEPS: ../01-codebase-audit/flows.md, ../03-teardowns/_flows/, ../03-teardowns/*/dossier.md §2, 06-backlog.md, ../07-ideation/top-10.md
 > GREP: flow, journey, creator, guest, host, reseller, post-event, steps, observed, claimed, proposed, today s25
-> UPDATED: 2026-11-07 (s34: the day-of check-in, B-024; s33: §1 steps 2–3, the creation wizard; s32: §1 steps 4–6)
+> UPDATED: 2026-11-09 (s36: §6 the wishes book, I-22; §4 gifts by family, I-04; s34: the day-of check-in, B-024; s33: §1 steps 2–3, the creation wizard; s32: §1 steps 4–6)
 
 Step = one screen or one deliberate action. Vocabulary as in `../03-teardowns/_flows/README.md`: OBSERVED (seen on a public page or capture), CLAIMED (vendor's own description), PROPOSED (our target), UNKNOWN. Competitor step counts are CLAIMED unless a capture ID is given (ENV 4 steps to a shareable link, PLO 5 steps "under 5 minutes", IDI "5 menit").
 
@@ -64,3 +64,5 @@ Buy credits → create invitations for clients or give clients edit access → o
 
 ## 6. After the event (comparison: `../03-teardowns/_flows/post-event.md`, CLAIMED)
 Read-only page stays up for the active period (present) → thank-you message and guest photos (idea I-21) → wishes book export (idea I-22) → deletion on request or at expiry (B-031).
+
+**s36 (sandbox; `FLAG_WISHES_BOOK` off):** I-22 is implemented (E-078, D-060). From the wishes page the owner downloads "Buku ucapan", a PDF of the wishes whose status is VISIBLE, oldest first with the host's replies, also after the guestbook is closed or kept hosts-only; pending and hidden wishes, phones and links never appear. The cover says how many wishes it holds and what the standard fonts could not print. Co-hosts moderate on the same page without the download. On the day (§4), I-04 (E-077, D-059) lets the owner attribute each gift to the bride's or the groom's family on a wedding, with totals per family and a `Pihak` column in the export.

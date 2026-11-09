@@ -29,6 +29,6 @@ The invitation stays readable and turns read-only when its 12-month window ends 
 | Target | Backlog | Acceptance |
 |---|---|---|
 | Thank-you message and guest photo collection | idea I-21 (later) | opt-in per host |
-| Wishes book export (designed PDF) | idea I-22 (later) | no guest phone numbers in the export |
+| Wishes book export (designed PDF) | idea I-22, built in the sandbox s36 (D-060, E-078; `FLAG_WISHES_BOOK` off) | no guest phone numbers in the export (verified in E-078) |
 | Deletion on request and at expiry, with a reviewed retention policy | B-031 (legal review dependency) | data removed within the stated SLA |
 | Guest privacy notice for open tracking | B-021 | notice visible on the guest page |

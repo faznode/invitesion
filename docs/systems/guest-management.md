@@ -4,8 +4,8 @@
 > STATUS: LIVE (design)
 > OWNER: Operator
 > DEPS: DATABASE_SCHEMA.md (guests, guest_messages, analytics_events, guest_registrations, guest_registration_links)
-> GREP: guest, tamu, slug, url, rsvp, csv, import, impor, pendaftaran, daftar, self-registration, BACKEND_ROSTER, roster, tracking, collision, token, link_token, attending_count, calendar, og, analitik, tindak lanjut, follow-up, insights, digest, guest pass, QR pass, check-in, pemindai, scanner, GUEST_PASS, pass_id, tim, team, co-host, usher, penerima tamu, invitation_members, FLAG_TEAM_ACCESS
-> UPDATED: 2026-11-09 (s35: meja, suvenir & kado khusus pemilik + ekspor, G-045 / D-058 / E-076; tim undangan, co-host & penerima tamu, G-044 / D-057 / E-075; s34: QR pass tamu + meja check-in + antrean tanpa sinyal, B-024 / D-056 / ADR-A3 / E-074; koreksi: kedua penulis menulis RSVP / GUESTBOOK / CHECKIN ke analytics_events; s31: impor tamu + pendaftaran mandiri + penulis roster `BACKEND_ROSTER` Next.js / API Rust, B-033 / D-052 / E-070; analitik & tindak lanjut host, daftar belum membuka / belum menjawab, ringkasan harian, B-034 / E-069; hanya VIEW yang ditulis ke analytics_events; s29: detail hadiah hanya di link pribadi, QRIS statis host, tombol salin, B-026 / D-047 / E-063; s28: musik latar + sampul "Buka Undangan", B-009 / D-045 / E-061; moderasi / balasan / visibilitas buku tamu dan penulis ucapan `BACKEND_WISHES`, R-04 / D-044 / E-060; penulis RSVP `BACKEND_RSVP` Next.js / API Rust, kunci idempotensi, batas per link / alamat, kontrak proxy tepercaya, R-03 / D-043 / E-059; s23r: akses file foto anak D-040 / E-047; s20, dicatat s21: acara khusus undangan + override RSVP host D-037, foto mempelai / anak D-038; s19: id acara tetap, konfirmasi per acara, ringkasan jawaban host, D-036; s18: pertanyaan custom host + editor, D-034/D-035, ringkasan RSVP dashboard E-033; s17: B-027 MAYBE status, headcount hint; s09: B-007 attending_count, B-011 opt-in token + 404, B-008/B-010 side routes)
+> GREP: guest, tamu, slug, url, rsvp, csv, import, impor, pendaftaran, daftar, self-registration, BACKEND_ROSTER, roster, tracking, collision, token, link_token, attending_count, calendar, og, analitik, tindak lanjut, follow-up, insights, digest, guest pass, QR pass, check-in, pemindai, scanner, GUEST_PASS, pass_id, tim, team, co-host, usher, penerima tamu, invitation_members, FLAG_TEAM_ACCESS, pihak keluarga, family_side, buku ucapan, wishes book, PDF, FLAG_WISHES_BOOK
+> UPDATED: 2026-11-09 (s36: pihak keluarga kado khusus pernikahan, I-04 / D-059 / E-077; buku ucapan PDF khusus pemilik, I-22 / D-060 / E-078; s35: meja, suvenir & kado khusus pemilik + ekspor, G-045 / D-058 / E-076; tim undangan, co-host & penerima tamu, G-044 / D-057 / E-075; s34: QR pass tamu + meja check-in + antrean tanpa sinyal, B-024 / D-056 / ADR-A3 / E-074; koreksi: kedua penulis menulis RSVP / GUESTBOOK / CHECKIN ke analytics_events; s31: impor tamu + pendaftaran mandiri + penulis roster `BACKEND_ROSTER` Next.js / API Rust, B-033 / D-052 / E-070; analitik & tindak lanjut host, daftar belum membuka / belum menjawab, ringkasan harian, B-034 / E-069; hanya VIEW yang ditulis ke analytics_events; s29: detail hadiah hanya di link pribadi, QRIS statis host, tombol salin, B-026 / D-047 / E-063; s28: musik latar + sampul "Buka Undangan", B-009 / D-045 / E-061; moderasi / balasan / visibilitas buku tamu dan penulis ucapan `BACKEND_WISHES`, R-04 / D-044 / E-060; penulis RSVP `BACKEND_RSVP` Next.js / API Rust, kunci idempotensi, batas per link / alamat, kontrak proxy tepercaya, R-03 / D-043 / E-059; s23r: akses file foto anak D-040 / E-047; s20, dicatat s21: acara khusus undangan + override RSVP host D-037, foto mempelai / anak D-038; s19: id acara tetap, konfirmasi per acara, ringkasan jawaban host, D-036; s18: pertanyaan custom host + editor, D-034/D-035, ringkasan RSVP dashboard E-033; s17: B-027 MAYBE status, headcount hint; s09: B-007 attending_count, B-011 opt-in token + 404, B-008/B-010 side routes)
 
 ## URL unik per-tamu (differentiator utama)
 Format: `/i/:invitationSlug/:guestSlug` → `invitation.com/i/wedding-andi/budi-santoso`
@@ -144,8 +144,16 @@ center). Hanya baca; kode `lib/invitation/host-analytics.ts` (aturan murni) dan 
   pass membacanya di server.
 - **Flag off (`FLAG_HOST_LOGS`, default off):** halaman, aksi dan ekspor 404, control center kembali ke placeholder meja,
   baris tetap dan kembali saat flag on.
-- **Bukti:** `tests/g045-host-logs.test.ts`, `scripts/verify-host-logs.ts` (job `database`), browser 32 / 32 di salinan
-  scratch dengan Clerk tiruan (E-076). Sesi Clerk asli = DA-01 butir 9 (NOT RUN). Atribusi sisi keluarga = I-04.
+- **Pihak keluarga kado (I-04, D-059, E-077; migrasi 0025):** hanya pada undangan pernikahan, tiap catatan kado boleh
+  dikaitkan ke keluarga mempelai wanita atau pria (`gift_logs.family_side` `bride` / `groom`, kosong = belum ditentukan;
+  catatan sebelum I-04 tetap kosong). Label memakai nama panggilan atau nama lengkap mempelai ("Keluarga Sari (mempelai
+  wanita)") atau perannya saja, urutannya mengikuti `couple.displayOrder` (pria dulu bila `groom-first`). Ringkasan per
+  pihak (jumlah catatan dan nominal tercatat) lalu yang belum ditentukan; kolom CSV `Pihak`. Penulis menolak pihak pada
+  undangan selain pernikahan (`error=gift-side`). Ubah: formulir tanpa kolom pihak mempertahankan pihak tersimpan, pilihan
+  "Belum ditentukan" mengosongkannya; kunci sama dengan pihak lain = kunci terpakai, tidak menambah catatan.
+- **Bukti:** `tests/g045-host-logs.test.ts`, `tests/i04-gift-sides.test.ts`, `scripts/verify-host-logs.ts` (job `database`,
+  97 / 97 di s36), browser 32 / 32 (E-076) dan 11 / 11 untuk I-04 (E-077) di salinan scratch dengan Clerk tiruan. Sesi Clerk
+  asli = DA-01 butir 9 (NOT RUN).
 
 ## Guest book
 - `guest_messages`. **Moderasi, balasan, visibilitas** (R-04, B-028, D-044; s28):
@@ -155,6 +163,26 @@ center). Hanya baca; kode `lib/invitation/host-analytics.ts` (aturan murni) dan 
   - Aturan satu keputusan murni (`lib/invitation/wish-decision.ts`): sakelar dulu, lalu pesan (trim, 1–1.000 unit UTF-16, tanpa U+0000), moderasi menentukan PENDING. Dijalankan kedua bahasa lewat `contracts/vectors/wish-decisions.json`.
   - **Penulis: Next.js atau API Rust** (`BACKEND_WISHES=next|rust`, default `next`, tanpa fallback). Dengan `rust`: `Idempotency-Key` di setiap tulisan (kunci form per render untuk tamu; satu kunci per aksi tuan rumah), satu kali kirim ulang dengan kunci yang sama untuk hasil yang tidak pasti lalu "belum bisa dipastikan" (`?wish=retry&wishk=`), batas per link (5 / 600 dtk) dan per alamat (60 / 600 dtk, IPv6 per /64) dengan `?wish=busy&wishr=`, alamat hanya dari kontrak proxy tepercaya (`TRUSTED_PROXY_HOPS`). Penulis TypeScript tidak memberi batas (jalur rollback, dihapus setelah rollout).
   - Index `guest_messages_invitation_visible_idx` (migrasi 0017) dipakai daftar dan hitungan halaman tamu.
+
+## Buku ucapan PDF (I-22, D-060, E-078; s36)
+- **Hanya pemilik**, di balik `FLAG_WISHES_BOOK` (default off). Kartu "Buku ucapan" di `/dashboard/invitations/<id>/wishes`
+  dan rute `/dashboard/invitations/<id>/wishes/book` meminta `accessFor(…, 'manage')`; co-host memoderasi di halaman yang
+  sama tanpa kartu dan mendapat 404 di rute. Keluar: 401; administrator 403 sebelum undangan dibaca; lainnya atau flag off
+  404. Setiap unduhan memeriksa ulang, jadi tautan lama berhenti bekerja begitu akses berakhir. Dibuat per permintaan,
+  tidak disimpan.
+- **Isi:** ucapan berstatus **VISIBLE** saja (PENDING, HIDDEN dan yang dihapus tidak ada), apa pun setelan buku tamu saat
+  ini (ditutup atau hanya tuan rumah tetap dicetak; teksnya "berstatus Tampil", bukan "tampil di undangan"); yang terlama
+  dulu, seri waktu diurutkan id; nama, waktu WIB, pesan dan balasan tuan rumah. Sampul: nama tampilan undangan, tanggal
+  acara pertama, jumlah ucapan, waktu dibuat dan catatan tentang yang tidak dimuat. Tidak membaca tautan tamu, HP atau id.
+- **Batas:** 5.000 ucapan VISIBLE tertua di query (sampul menyebut "5.000 dari N") dan anggaran 2.000 halaman termasuk
+  sampul (ucapan berikutnya tidak dimulai; sampul menyebut jumlah yang dicetak). Font standar PDF (Times, Helvetica,
+  WinAnsi): huruf Latin-1 / CP1252 apa adanya, huruf Latin lain dengan huruf dasarnya, tanda transliterasi (ʿ ʾ) jadi
+  apostrof, aksara lain (Arab, CJK) ditandai `[…]` dan emoji tidak dicetak; sampul menjelaskannya. Teks tersimpan tidak
+  berubah.
+- **Berkas:** `application/pdf`, `attachment; filename="buku-ucapan-<slug>.pdf"` (id bila slug tidak polos), `private,
+  no-store`. A5, metadata hanya judul / pembuat. `pdf-lib` hanya di server (`lib/invitation/wishes-book-pdf.ts`).
+- **Bukti:** `tests/i22-wishes-book.test.ts`, `scripts/verify-wishes-book.ts` (job `database`), browser 11 / 11 (E-078).
+  Sesi Clerk asli = DA-01 butir 10 (NOT RUN).
 
 ## Musik latar & sampul "Buka Undangan" (B-009, D-045; s28)
 - Hanya undangan dengan musik yang **bisa diputar**: `music.enabled` dan `music.assetUrl` berupa URL http(s) (`lib/invitation/audio-url.ts`). Preset yang hanya menyimpan `music: { enabled: true }` tanpa URL tidak menampilkan apa-apa. Unggahan saat ini hanya gambar, jadi musik selalu tautan yang diketik tuan rumah; tuan rumah bertanggung jawab atas hak lagunya (editor mengingatkan).

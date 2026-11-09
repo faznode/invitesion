@@ -10,6 +10,10 @@
  *     seats (over capacity shown), souvenirs (the first hand-out kept, cleared, concurrent taps), gifts (recorded, a double
  *     submit replayed, a reused key refused, concurrent resends recorded once, corrected, deleted), a deleted table
  *     unseating its guests, and both CSV exports;
+ *  1b. I-04 (D-059): a gift's family side on a wedding: recorded, an identical resend replayed and a changed side under
+ *     the same key refused, any other value refused, a side refused on a birthday when recording and correcting, a later
+ *     attribution, a correction without the field keeping it and an empty choice clearing it, the rendered totals per
+ *     family in the couple's order, groom-first with fallback labels, and the export's `Pihak` column with no phone;
  *  2. the boundary at every entry (the page, each action, the export) for a signed-out visitor, an administrator holding
  *     a grant, an outsider, a co-host and an usher with live grants, and forged table, guest and gift ids from another
  *     invitation: refused under the established convention, nothing changed;
@@ -101,6 +105,15 @@ function treeJson(value: unknown): string {
   );
 }
 
+/** The text a rendered tree shows: strings and numbers in document order (nested components are not called). */
+function textOf(node: unknown): string {
+  if (node === null || node === undefined || typeof node === 'boolean') return '';
+  if (typeof node === 'string' || typeof node === 'number') return String(node);
+  if (Array.isArray(node)) return node.map(textOf).join('');
+  const element = node as { props?: { children?: unknown } };
+  return element.props ? textOf(element.props.children) : '';
+}
+
 /** A `timestamp` column as milliseconds: the raw client returns its text (UTC, no zone), Drizzle a Date. */
 function ms(value: unknown): number {
   if (value instanceof Date) return value.getTime();
@@ -122,6 +135,7 @@ async function main() {
   const actions = await import('../app/(customer)/dashboard/invitations/[id]/logs/actions');
   const { default: LogsPage } = await import('../app/(customer)/dashboard/invitations/[id]/logs/page');
   const { GET: exportRoute } = await import('../app/(customer)/dashboard/invitations/[id]/logs/export/route');
+  const { GiftsSection } = await import('../app/(customer)/dashboard/invitations/[id]/logs/gifts-section');
   const { default: ManagePage } = await import('../app/(customer)/dashboard/invitations/[id]/manage/page');
   const { default: CheckinPage } = await import('../app/(customer)/dashboard/invitations/[id]/checkin/page');
 
@@ -341,9 +355,19 @@ async function main() {
     check('I-04: the wedding\u2019s page offers both families by the couple\u2019s names; the birthday\u2019s offers none',
       weddingSides?.applies === true && weddingSides.labels.bride === 'Keluarga Sari (mempelai wanita)' && weddingSides.labels.groom === 'Keluarga Budi (mempelai pria)' && partySides?.applies === false,
       JSON.stringify({ weddingSides, partySides }));
+    const weddingGifts = propsOf(weddingPage.kind === 'returned' ? weddingPage.value : null, 'GiftsSection');
+    const totalsText = weddingGifts ? textOf(GiftsSection(weddingGifts as Parameters<typeof GiftsSection>[0])) : '';
+    check('I-04: the rendered totals: each family in the couple\u2019s order, then the unattributed entries with their noted sum',
+      totalsText.includes('Keluarga Sari (mempelai wanita)0 catatanKeluarga Budi (mempelai pria)1 catatan · Rp 300.000Belum ditentukan3 catatan · Rp 1.750.000'), totalsText.slice(0, 400));
+    const ordered = await invitation(owner, 'order', { settings: { title: 'Tanpa nama' }, couple: { displayOrder: 'groom-first' } });
+    const orderedPage = await outcome(() => page(ordered.id));
+    const orderedSides = propsOf(orderedPage.kind === 'returned' ? orderedPage.value : null, 'GiftsSection')?.sides as { order: string[]; labels: Record<string, string> } | undefined;
+    check('I-04: groom-first puts the groom\u2019s family first; without names the labels fall back to the roles',
+      orderedSides?.order.join(',') === 'groom,bride' && orderedSides.labels.groom === 'Keluarga mempelai pria' && orderedSides.labels.bride === 'Keluarga mempelai wanita', JSON.stringify(orderedSides));
     body = await ((await exportOf(mine.id, 'gifts')) as Response).text();
     check('I-04: the gift export names the family; entries recorded before stay unattributed',
       body.includes('"Keluarga Pak RT","Keluarga Budi (mempelai pria)","Tidak","Amplop","300000"') && body.includes(`"'+Pemberi Rahasia","","Tidak","Kado"`) && body.includes('"Budi Hartono","","Ya","Amplop","500000"'), body);
+    check('I-04: the gift export carries no phone and no other invitation\u2019s entry', !body.includes('0812') && !body.includes('Om Hadi'), body);
     check('I-04: the side never reaches the guest page\u2019s payload', !JSON.stringify((await loadPublicInvitation(mine.slug))?.config ?? {}).includes('Pak RT'));
 
     // ── 3. The boundary at every entry ─────────────────────────────────────────────────────────────────────────────────
@@ -435,7 +459,8 @@ async function main() {
     check('flag on: the manage centre opens the logs', propsOf(centreOn.kind === 'returned' ? centreOn.value : null, 'ManageCenter')?.hostLogsOn === true);
 
     // ── 5. Privacy of the guest-facing surfaces ────────────────────────────────────────────────────────────────────────
-    const secrets = ['Mawar Rahasia', 'Melati Rahasia', 'Kursi-77Q', 'Pemberi Rahasia', 'Catatan-Rahasia-Kado', '250000', '1000000', 'seatingPlan'];
+    // I-04: the attributed giver and the side's stored name join G-045's values.
+    const secrets = ['Mawar Rahasia', 'Melati Rahasia', 'Kursi-77Q', 'Pemberi Rahasia', 'Catatan-Rahasia-Kado', '250000', '1000000', 'seatingPlan', 'Pak RT', 'family_side', 'familySide'];
     const leaks = (text: string) => secrets.filter((secret) => text.includes(secret));
     const linkPayload = await loadPublicInvitation(mine.slug);
     const personalPayload = await loadPublicInvitation(mine.slug, budi.slug);

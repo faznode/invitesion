@@ -5,10 +5,12 @@ import { ChevronLeft, Eye, EyeOff, MessageSquareReply, Settings2, Trash2 } from 
 import { getUser } from '@/lib/db/queries';
 import { db } from '@/lib/db/drizzle';
 import { guestMessages } from '@/lib/db/schema';
+import { isFlagOn } from '@/lib/flags';
 import { normalizeStoredConfig } from '@/lib/invitation/content-read';
 import { accessFor } from '@/lib/invitation/members-db';
 import { REPLY_MAX_LENGTH, guestbookRules, wishState, type WishState } from '@/lib/invitation/wish-decision';
 import { moderateWish, replyToWish } from './actions';
+import { WishesBookCard } from './book-card';
 
 export const dynamic = 'force-dynamic';
 
@@ -112,6 +114,9 @@ export default async function WishesPage({
             </Link>
           )}
         </div>
+
+        {/* I-22 (D-060): the wishes book is the owner's alone, as its route is. */}
+        {owner && isFlagOn('WISHES_BOOK') && <WishesBookCard invitationId={id} visible={tally.VISIBLE} />}
 
         {q.done && DONE[q.done] && (
           <p role="status" className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">

@@ -12,6 +12,7 @@ import type { DetailConfig } from '../lib/invitation/detail-config';
 import { RENDER_CAPABILITIES } from '../lib/invitation/content-contract';
 import { GALLERY_LAYOUTS, galleryLayout, galleryVideo, MASONRY_ASPECTS, MASONRY_PORTRAIT_ASPECTS, photoLabel, vimeoVideoId, youtubeVideoId } from '../lib/invitation/gallery';
 import { groupVariants, IMAGE_SIZES, type VariantRow } from '../lib/media/variants';
+import { contentSecurityPolicy } from '../lib/security/csp';
 
 const read = (path: string) => readFileSync(path, 'utf8');
 const upload = (n: string) => `/media/1/0123456789abcdef012345${n}.jpg`;
@@ -198,7 +199,9 @@ test('B-025: a video is a facade: a link to its own page, no player and nothing 
 test('B-025: the layout is rendered (content contract) and the CSP frames exactly the players the page builds', () => {
   assert.deepEqual([...RENDER_CAPABILITIES.gallery.rendered], ['enabled', 'layout']);
   assert.deepEqual([...RENDER_CAPABILITIES.gallery.storedOnly], []);
-  const frameSrc = /"frame-src ([^"]+)"/.exec(read('proxy.ts'))?.[1].split(' ') ?? [];
+  // B-038 moved the policy to lib/security/csp.ts; this reads the frame-src a guest page is actually sent.
+  const policy = contentSecurityPolicy({ nonce: 'n', pathname: '/i/review/budi', secure: true });
+  const frameSrc = policy.split('; ').find((directive) => directive.startsWith('frame-src '))?.split(' ').slice(1) ?? [];
   const players = [`https://youtu.be/${YT}`, `https://vimeo.com/${VIMEO}`].map((url) => {
     const video = galleryVideo({ id: 1, url });
     return video?.kind === 'embed' ? new URL(video.embedUrl).origin : null;

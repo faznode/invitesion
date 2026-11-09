@@ -5,7 +5,7 @@
 > OWNER: Operator
 > DEPS: lib/auth/clerk-user.ts, lib/auth/admin-access.ts, DATABASE_SCHEMA.md
 > GREP: auth, clerk, session, login, signup, admin, role, jit, provisioning, team, co-host, usher, penerima tamu, invitation_members, FLAG_TEAM_ACCESS, inv_join
-> UPDATED: 2026-11-09 (s35: catatan meja / suvenir / kado khusus pemilik, G-045 / D-058; tim undangan per undangan, co-host & penerima tamu, G-044 / D-057; s21: B-015, ClerkProvider hanya di grup rute yang login)
+> UPDATED: 2026-11-09 (s36: pihak keluarga kado I-04 / D-059 dan buku ucapan PDF I-22 / D-060, keduanya khusus pemilik; s35: catatan meja / suvenir / kado khusus pemilik, G-045 / D-058; tim undangan per undangan, co-host & penerima tamu, G-044 / D-057; s21: B-015, ClerkProvider hanya di grup rute yang login)
 
 > **Keputusan 2026-07-27 (whyme):** auth password buatan sendiri diganti **Clerk**.
 > Dokumen ini menggantikan status "nyusul" di `AGENTS.md`.
@@ -138,7 +138,8 @@ undangan** (`invitation_members`, migrasi 0023) lewat tautan sekali pakai, di ba
 | Moderasi & balas ucapan | ya | ya | tidak |
 | Statistik & ekspor tamu | ya | ya | tidak |
 | Isi, tema, pengaturan, tim, checkout, publikasi | ya | tidak | tidak |
-| Meja, suvenir & kado + ekspornya (G-045, D-058; `manage`) | ya | tidak | tidak |
+| Meja, suvenir & kado + ekspornya (G-045, D-058; `manage`), termasuk pihak keluarga kado (I-04, D-059) | ya | tidak | tidak |
+| Buku ucapan PDF (I-22, D-060; `manage`): co-host memoderasi ucapan tetapi tidak mengekspornya | ya | tidak | tidak |
 
 - **Satu penjaga di setiap pintu.** `accessFor(userId, invitationId, capability)` (`lib/invitation/members-db.ts`) memutuskan
   dari undangan tersimpan dan akun yang login: pemilik, atau hak akses hidup (belum dicabut, dipegang akun pelanggan yang

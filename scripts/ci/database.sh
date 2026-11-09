@@ -32,4 +32,5 @@ step "verify-payment (QRIS / Stripe vectors)" npx tsx scripts/verify-payment.ts
 step "verify-view-dedupe (B-017a)" npx tsx scripts/verify-view-dedupe.ts
 step "verify-theme-entitlement (B-041, B-036)" npx tsx scripts/verify-theme-entitlement.ts
 step "verify-host-analytics (B-034)" npx tsx scripts/verify-host-analytics.ts
-step "verify-host-logs (G-045)" npx tsx scripts/verify-host-logs.ts
+step "verify-host-logs (G-045, I-04)" npx tsx scripts/verify-host-logs.ts
+step "verify-wishes-book (I-22)" npx tsx scripts/verify-wishes-book.ts

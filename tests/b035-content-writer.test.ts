@@ -228,11 +228,13 @@ test('the editor loads config and version from one statement and saves with the 
 });
 
 test('only the owner preview (and since B-037 the wizard preview) may be framed, by this origin, and its embedded form renders the invitation unchanged', () => {
-  const proxy = source('proxy.ts');
+  // B-038 moved the page policy from proxy.ts to lib/security/csp.ts; proxy.ts only builds it per request.
+  const policy = source('lib/security/csp.ts');
   // Exactly two framed surfaces, both form-free renders: `/preview/<id>` and the one path `/buat/pratinjau` (D-055).
-  assert.match(proxy, /pathname\.startsWith\('\/preview\/'\) \|\| pathname === '\/buat\/pratinjau' \? "frame-ancestors 'self'" : "frame-ancestors 'none'"/);
-  assert.match(proxy, /frameAncestorsFor\(pathname\)/);
-  assert.doesNotMatch(proxy, /"frame-ancestors 'none'",/, 'no page-wide frame rule remains');
+  assert.match(policy, /pathname\.startsWith\('\/preview\/'\) \|\| pathname === '\/buat\/pratinjau' \? "frame-ancestors 'self'" : "frame-ancestors 'none'"/);
+  assert.match(policy, /frameAncestorsFor\(pathname\)/);
+  assert.doesNotMatch(policy, /"frame-ancestors 'none'",/, 'no page-wide frame rule remains');
+  assert.match(source('proxy.ts'), /contentSecurityPolicy\(\{\s*nonce,\s*pathname,/);
   const preview = source('app/preview/[id]/page.tsx');
   assert.equal(preview.match(/<PublicInvitationRenderer/g)?.length, 1);
   assert.match(preview, /\{!embedded && \(/, 'embedding drops only the owner banner');

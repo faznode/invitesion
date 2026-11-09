@@ -85,6 +85,12 @@ const DEFAULTS = {
    * manage centre shows seating as before; stored rows are kept and return when it is switched back on.
    */
   HOST_LOGS: false,
+  /**
+   * I-22 (D-060): the wishes book, `/dashboard/invitations/<id>/wishes/book`: a PDF of the invitation's visible wishes, oldest
+   * first with the host's replies, made on request and never stored. Owner only (`manage`; a co-host moderates wishes but
+   * does not export them). Off: the wishes page shows no download and the route answers 404.
+   */
+  WISHES_BOOK: false,
 } as const;
 
 export type FlagName = keyof typeof DEFAULTS;

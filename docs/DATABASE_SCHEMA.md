@@ -4,8 +4,8 @@
 > STATUS: LIVE (MVP scope)
 > OWNER: Architect
 > DEPS: PROJECT_OVERVIEW.md
-> GREP: schema, drizzle, tabel, users, invitations, guests, orders, versions, version_no, guest_registrations, guest_registration_links, import_batch_id, template_id, templateId, creation_key, invitation_members, co-host, usher, team, seating_tables, guest_logs, gift_logs, host logs, meja, suvenir, kado
-> UPDATED: 2026-11-09 (s35: seating_tables + guest_logs + gift_logs migrasi 0024, catatan hari acara pemilik G-045 / D-058; invitation_members migrasi 0023, tim undangan G-044 / D-057; s33: invitations.creation_key + index unik parsial (user_id, creation_key) migrasi 0021, pembuatan draf lewat fasad `BACKEND_CONTENT`, B-037 / D-055; s32 turn 3: dua ruang id template_id vs config.theme.templateId, ganti tema B-036 / D-054; s32: index invitation_versions (invitation_id, version_no) migrasi 0020, cek versi simpan editor `BACKEND_CONTENT`, B-035 / D-053; s31: guests import_batch_id + guest_registration_links + guest_registrations migrasi 0019, penulis roster `BACKEND_ROSTER`, B-033 / D-052; s28: guest_messages reviewed_at / host_reply / replied_at + index ucapan VISIBLE migrasi 0017, R-04 / D-044; api_rate_limits + api_idempotency_keys migrasi 0016, ditulis hanya oleh services/api, R-03 / D-043; s20/s21: guests invited_event_ids migrasi 0015, events[].inviteOnly, D-037; showPhoto foto anak, D-038; s19: guests rsvp_event_answers migrasi 0014; id acara tetap di invitations.config.events migrasi data 0013, D-036; guests rsvp_answers, migrasi 0012; earlier: analytics_events view-dedupe index, guests attending_count, link_token)
+> GREP: schema, drizzle, tabel, users, invitations, guests, orders, versions, version_no, guest_registrations, guest_registration_links, import_batch_id, template_id, templateId, creation_key, invitation_members, co-host, usher, team, seating_tables, guest_logs, gift_logs, host logs, meja, suvenir, kado, family_side, pihak keluarga
+> UPDATED: 2026-11-09 (s36: gift_logs.family_side migrasi 0025, pihak keluarga kado I-04 / D-059; buku ucapan membaca guest_messages VISIBLE, I-22 / D-060; s35: seating_tables + guest_logs + gift_logs migrasi 0024, catatan hari acara pemilik G-045 / D-058; invitation_members migrasi 0023, tim undangan G-044 / D-057; s33: invitations.creation_key + index unik parsial (user_id, creation_key) migrasi 0021, pembuatan draf lewat fasad `BACKEND_CONTENT`, B-037 / D-055; s32 turn 3: dua ruang id template_id vs config.theme.templateId, ganti tema B-036 / D-054; s32: index invitation_versions (invitation_id, version_no) migrasi 0020, cek versi simpan editor `BACKEND_CONTENT`, B-035 / D-053; s31: guests import_batch_id + guest_registration_links + guest_registrations migrasi 0019, penulis roster `BACKEND_ROSTER`, B-033 / D-052; s28: guest_messages reviewed_at / host_reply / replied_at + index ucapan VISIBLE migrasi 0017, R-04 / D-044; api_rate_limits + api_idempotency_keys migrasi 0016, ditulis hanya oleh services/api, R-03 / D-043; s20/s21: guests invited_event_ids migrasi 0015, events[].inviteOnly, D-037; showPhoto foto anak, D-038; s19: guests rsvp_event_answers migrasi 0014; id acara tetap di invitations.config.events migrasi data 0013, D-036; guests rsvp_answers, migrasi 0012; earlier: analytics_events view-dedupe index, guests attending_count, link_token)
 > ORM DECISION (whyme 2026-07-15): pakai **Drizzle** (bukan Prisma) — ikut fondasi nextjs/saas-starter biar backend cepat jalan. Schema di bawah = kanonik, diimplementasi sbg Drizzle schema (lib/db/schema.ts).
 
 ## Prinsip
@@ -125,6 +125,8 @@ gift_logs                          ← G-045 / D-058, migrasi 0024: catatan kado
                                      (nama saat dicatat; tetap bila baris tamu hilang), kind varchar(16) CHECK in
                                      ('envelope','present','transfer','other'), amount bigint null CHECK (null atau 0–10^12; rupiah
                                      utuh, opsional), note varchar(300) null, received_at, request_key varchar(64), created_at, updated_at
+  family_side varchar(8) null      ← I-04 / D-059, migrasi 0025: CHECK (null atau 'bride' / 'groom'); hanya pernikahan (penulis
+                                     menolak pada jenis acara lain); null = belum ditentukan, termasuk semua catatan sebelum 0025
   UNIQUE gift_logs_request_unique (invitation_id, request_key)  ← kunci sekali pakai formulir: kirim ganda = satu baris
   index gift_logs_invitation_idx (invitation_id, received_at)   ← maks. 5.000 catatan per undangan (batas teknis)
                                      Ketiganya ditulis hanya oleh `lib/invitation/host-logs-db.ts` (kunci baris undangan + cek pemilik
@@ -140,7 +142,8 @@ guest_messages
   host_reply text null             ← 0017: balasan tuan rumah, tampil di bawah ucapan yang VISIBLE; kosong = dihapus
   replied_at timestamp null        ← 0017
   index guest_messages_invitation_visible_idx (invitation_id, is_hidden, created_at)   ← 0017, B-017: daftar + hitungan
-                                     ucapan VISIBLE di halaman tamu (EXPLAIN dibuktikan di verify-wishes-api)
+                                     ucapan VISIBLE di halaman tamu (EXPLAIN dibuktikan di verify-wishes-api); juga buku ucapan PDF
+                                     (I-22 / D-060: VISIBLE, terlama dulu + id, maks. 5.000, satu snapshot read-only; tanpa tabel baru)
 ```
 > Ucapan (R-04, D-044): penulis tunggal per panggilan, `BACKEND_WISHES=next|rust`. Halaman tamu hanya membaca ucapan VISIBLE; buku tamu `guestbook.visibility = 'host'` tidak menampilkan daftar sama sekali; `guestbook.moderation = true` menyimpan ucapan baru sebagai PENDING. Tuan rumah menampilkan / menyembunyikan / menghapus / membalas di `/dashboard/invitations/<id>/wishes`. Migrasi 0017 aditif (tiga kolom null + satu index); baris lama tetap VISIBLE atau tersembunyi seperti sebelumnya (tersembunyi lama terbaca PENDING sampai ditinjau).
 

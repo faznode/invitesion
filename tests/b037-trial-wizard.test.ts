@@ -216,7 +216,7 @@ test('the routes keep to the flag, the real renderer, the creation facade and th
   for (const attribute of [/httpOnly: true/, /sameSite: 'lax'/, /export const TRIAL_COOKIE_PATH = '\/buat';/, /maxAge: TRIAL_MAX_AGE_SECONDS/]) {
     assert.match(session, attribute);
   }
-  assert.match(source('proxy.ts'), /pathname\.startsWith\('\/preview\/'\) \|\| pathname === '\/buat\/pratinjau' \? "frame-ancestors 'self'"/);
+  assert.match(source('lib/security/csp.ts'), /pathname\.startsWith\('\/preview\/'\) \|\| pathname === '\/buat\/pratinjau' \? "frame-ancestors 'self'"/);
 });
 
 // s33's browser harness: three taps queued three saves; the first cleared the cookie, the others minted fresh keys and

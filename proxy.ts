@@ -4,6 +4,13 @@ import type { NextRequest } from 'next/server';
 import { getAdminEntryPath } from '@/lib/env';
 import { resolveLocale } from '@/lib/i18n';
 import { mirrorsLocaleCookie } from '@/lib/locale-cookie';
+import {
+  clerkFrontendApiOrigin,
+  contentSecurityPolicy,
+  cspDisposition,
+  cspHeaderName,
+  reportingEndpointsHeader,
+} from '@/lib/security/csp';
 
 const customerRoot = '/dashboard';
 const adminRoot = '/admin';
@@ -36,47 +43,9 @@ function publicUrlFrom(request: NextRequest) {
   return publicUrl;
 }
 
-/**
- * Enforce or observe. See the nonce comment below for why this starts as
- * report-only. Set `CSP_ENFORCE=true` once reports are clean.
- */
-const CSP_REPORT_ONLY = process.env.CSP_ENFORCE !== 'true';
-
-/**
- * B-035: only the owner preview may be framed, and only by this origin: the editor shows it beside the fields. It is
- * owner-only content without forms (no RSVP or guestbook renders without a guest link). B-037: the wizard's
- * try-with-your-names preview likewise, framed by the wizard beside its fields; it renders the visitor's own typed
- * content and no form either. Every other page stays unframeable.
- */
-function frameAncestorsFor(pathname: string): string {
-  return pathname.startsWith('/preview/') || pathname === '/buat/pratinjau' ? "frame-ancestors 'self'" : "frame-ancestors 'none'";
-}
-
-function contentSecurityPolicy(nonce: string, pathname: string): string {
-  return [
-    "default-src 'self'",
-    // `strict-dynamic` lets a nonced loader pull in the chunks it needs without
-    // enumerating every hashed filename. The http/https fallbacks are ignored by
-    // browsers that understand strict-dynamic and keep older ones working.
-    // Clerk loads its own script and talks to its API, so both are named.
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https: http:`,
-    // Tailwind and the invitation themes set inline styles; nonces do not reach
-    // style attributes, so this stays permissive and is a known limitation.
-    "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: blob: https://img.clerk.com",
-    "font-src 'self' data:",
-    "connect-src 'self' https://*.clerk.accounts.dev https://*.clerk.com",
-    // Clerk renders its bot-protection challenge in a frame. B-025: a gallery video plays, after the guest's tap, in the
-    // provider's privacy-enhanced player, exactly these two hosts (`lib/invitation/gallery.ts` builds only their URLs).
-    "frame-src 'self' https://*.clerk.accounts.dev https://*.clerk.com https://challenges.cloudflare.com https://www.youtube-nocookie.com https://player.vimeo.com",
-    "worker-src 'self' blob:",
-    frameAncestorsFor(pathname),
-    "object-src 'none'",
-    "base-uri 'self'",
-    "form-action 'self'",
-    'upgrade-insecure-requests',
-  ].join('; ');
-}
+/** A production Clerk instance's own Frontend API host, for the policy's `connect-src` (B-038). */
+const clerkFrontendApi = clerkFrontendApiOrigin(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
+const development = process.env.NODE_ENV === 'development';
 
 /**
  * Plain prefix test, not Clerk's `createRouteMatcher`.
@@ -178,12 +147,20 @@ export default clerkMiddleware(async (getAuth, request) => {
   //
   // Report-only until the app has been observed under it: an enforcing policy
   // that blocks a legitimate script would break the page for real customers,
-  // and a broken checkout is worse than an unexercised header.
+  // and a broken checkout is worse than an unexercised header. `CSP_ENFORCE`
+  // stages enforcement, guest pages first (`lib/security/csp.ts`, B-038).
   const nonce = crypto.randomUUID().replace(/-/g, '');
-  const policy = contentSecurityPolicy(nonce, pathname);
-  const headerName = CSP_REPORT_ONLY
-    ? 'Content-Security-Policy-Report-Only'
-    : 'Content-Security-Policy';
+  const publicUrl = publicUrlFrom(request);
+  const disposition = cspDisposition(pathname);
+  const policy = contentSecurityPolicy({
+    nonce,
+    pathname,
+    secure: publicUrl.protocol === 'https:',
+    development,
+    clerkFrontendApi,
+    disposition,
+  });
+  const headerName = cspHeaderName(disposition);
 
   /*
    * The policy goes on the REQUEST headers as well as the response, and that is
@@ -205,6 +182,7 @@ export default clerkMiddleware(async (getAuth, request) => {
 
   const res = NextResponse.next({ request: { headers: requestHeaders } });
   res.headers.set(headerName, policy);
+  res.headers.set('Reporting-Endpoints', reportingEndpointsHeader(publicUrl.origin));
   if (mirrorsLocaleCookie(pathname)) {
     res.cookies.set('locale', locale, { sameSite: 'lax', maxAge: 60 * 60 * 24 * 30, path: '/' });
   }
