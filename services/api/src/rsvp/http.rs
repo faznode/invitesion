@@ -23,7 +23,7 @@ use crate::guest_link::{self, LinkCodes, check_open};
 use crate::idempotency::{self, replay};
 use crate::identity::resolve_owner;
 use crate::limits;
-use crate::members::Capability;
+use crate::members::{self, Capability};
 use crate::problem::{ApiError, Problem, Subject};
 use crate::views::utc_now;
 
@@ -274,27 +274,19 @@ pub async fn host_rsvp_override(
     let now = utc_now();
     let scope = idempotency::host_scope("rsvp:host", owner.user_id, invitation_id, guest_id);
     let hash = idempotency::request_hash(&request);
+
+    let mut tx = state.pool.begin().await.map_err(db("override_begin"))?;
+    // G-044 (D-057): the owner, or a member whose role holds the guest list (a co-host), before any stored answer is
+    // read, so a revoked member or another account never replays one.
+    let invitation_config = members::caller_may(&mut tx, owner.user_id, invitation_id, Capability::Guests)
+        .await
+        .map_err(db("override_invitation"))?
+        .ok_or(ApiError::NotFound("invitation_or_guest.not_found"))?;
     if let Some(key) = &key
-        && let Some(response) = replay(&state.pool, &scope, key, &hash).await?
+        && let Some(response) = replay(&mut *tx, &scope, key, &hash).await?
     {
         return Ok(response);
     }
-
-    let mut tx = state.pool.begin().await.map_err(db("override_begin"))?;
-    // G-044 (D-057): the owner, or a member whose role holds the guest list (a co-host).
-    let roles = Capability::Guests.member_role_args();
-    let invitation = sqlx::query!(
-        "select i.config from invitations i where i.id = $1 and (i.user_id = $2 or exists (select 1 \
-         from invitation_members m where m.invitation_id = i.id and m.user_id = $2 and m.revoked_at is null \
-         and m.role = any($3)))",
-        invitation_id,
-        owner.user_id,
-        &roles[..]
-    )
-    .fetch_optional(&mut *tx)
-    .await
-    .map_err(db("override_invitation"))?
-    .ok_or(ApiError::NotFound("invitation_or_guest.not_found"))?;
     let guest = sqlx::query!(
         "select invited_event_ids, rsvp_event_answers, rsvp_status, attending_count from guests \
          where id = $1 and invitation_id = $2 for update",
@@ -306,7 +298,7 @@ pub async fn host_rsvp_override(
     .map_err(db("override_guest"))?
     .ok_or(ApiError::NotFound("invitation_or_guest.not_found"))?;
 
-    let config = read_rsvp_config(invitation.config.as_ref().unwrap_or(&Value::Null));
+    let config = read_rsvp_config(&invitation_config);
     let guest_state = HostGuestState {
         invited_event_ids: guest.invited_event_ids.as_ref(),
         rsvp_event_answers: guest.rsvp_event_answers.as_ref(),
@@ -331,8 +323,9 @@ pub async fn host_rsvp_override(
             .await
             .map_err(db("idempotency_record"))?
     {
-        drop(tx);
-        return replay(&state.pool, &scope, key, &hash).await?.ok_or(ApiError::Internal);
+        // A concurrent twin committed first: its answer, read in this transaction after the access check above; this
+        // transaction ends without writing when it is dropped.
+        return replay(&mut *tx, &scope, key, &hash).await?.ok_or(ApiError::Internal);
     }
 
     let event_answers = update.event_answers.to_json();

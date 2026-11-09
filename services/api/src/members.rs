@@ -4,6 +4,33 @@
 //! their own transactions, so a revoked grant stops at the next request. A caller without the capability gets the
 //! endpoint's `not_found`, exactly as for another owner's invitation.
 
+use serde_json::Value;
+use sqlx::{Postgres, Transaction};
+
+/// The invitation's stored config when `user_id` may use `capability` on it now (its owner, or a live grant whose role
+/// holds the capability: `callerMay` in `roster-next.ts`), else `None`. Every host writer asks this inside its own
+/// transaction before it reads a stored answer for an idempotency key or changes a row, so a revoked member, another
+/// account or another invitation never replays a cached answer or learns that its key exists.
+pub async fn caller_may(
+    tx: &mut Transaction<'_, Postgres>,
+    user_id: i32,
+    invitation_id: i32,
+    capability: Capability,
+) -> Result<Option<Value>, sqlx::Error> {
+    let roles = capability.member_role_args();
+    let row = sqlx::query!(
+        "select i.config from invitations i where i.id = $1 and (i.user_id = $2 or exists (select 1 \
+         from invitation_members m where m.invitation_id = i.id and m.user_id = $2 and m.revoked_at is null \
+         and m.role = any($3)))",
+        invitation_id,
+        user_id,
+        &roles[..]
+    )
+    .fetch_optional(&mut **tx)
+    .await?;
+    Ok(row.map(|row| row.config.unwrap_or(Value::Null)))
+}
+
 /// What the caller is about to do on an invitation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Capability {

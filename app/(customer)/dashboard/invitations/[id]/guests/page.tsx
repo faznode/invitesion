@@ -27,7 +27,7 @@ import { AddGuestInvites, GuestEventAnswers, GuestInvites, InviteOnlyPanel } fro
 export const dynamic='force-dynamic';
 type Query={added?:string;error?:string;invites?:string;imported?:string;skipped?:string;batch?:string;undone?:string;kept?:string;registration?:string;approved?:string;rejected?:string};
 export default async function Page({params,searchParams}:{params:Promise<{id:string}>,searchParams:Promise<Query>}){
- const user=await getUser();if(!user)redirect('/sign-in');const id=Number((await params).id);if(!Number.isInteger(id))notFound();
+ const user=await getUser();if(!user||user.role==='ADMIN')redirect('/sign-in');const id=Number((await params).id);if(!Number.isInteger(id))notFound();
  // G-044 (D-057): the owner or a co-host (`guests`); a co-host's way back is the dashboard, not the owner's control centre.
  const access=await accessFor(user.id,id,'guests');if(!access)notFound();const inv=access.invitation;const owner=access.role==='owner';
  const rows=await db.select().from(guests).where(eq(guests.invitationId,id)).orderBy(desc(guests.id));const q=await searchParams;

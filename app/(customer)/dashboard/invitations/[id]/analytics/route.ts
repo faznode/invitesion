@@ -19,6 +19,8 @@ import { exportedEvents } from '@/lib/invitation/rsvp-events';
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getUser();
   if (!user) return new Response('Unauthorized', { status: 401 });
+  // Decided before the invitation is looked at, so it says nothing about the resource (as the check-in route does).
+  if (user.role === 'ADMIN') return new Response('Forbidden', { status: 403 });
   const id = Number((await params).id);
   const access = await accessFor(user.id, id, 'insights');
   if (!access) return new Response('Not found', { status: 404 });

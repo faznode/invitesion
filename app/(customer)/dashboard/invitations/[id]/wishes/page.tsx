@@ -50,7 +50,7 @@ export default async function WishesPage({
   searchParams: Promise<{ filter?: string; done?: string; error?: string }>;
 }) {
   const user = await getUser();
-  if (!user) redirect('/sign-in');
+  if (!user || user.role === 'ADMIN') redirect('/sign-in');
   const id = Number((await params).id);
   if (!Number.isInteger(id)) notFound();
   // G-044 (D-057): the owner or a co-host (`wishes`). The guestbook's settings live in the editor, which is the owner's.

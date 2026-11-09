@@ -4,8 +4,8 @@
 > STATUS: LIVE (implemented; butuh key Clerk untuk jalan)
 > OWNER: Operator
 > DEPS: lib/auth/clerk-user.ts, lib/auth/admin-access.ts, DATABASE_SCHEMA.md
-> GREP: auth, clerk, session, login, signup, admin, role, jit, provisioning
-> UPDATED: 2026-11-06 (s21: B-015, ClerkProvider hanya di grup rute yang login)
+> GREP: auth, clerk, session, login, signup, admin, role, jit, provisioning, team, co-host, usher, penerima tamu, invitation_members, FLAG_TEAM_ACCESS, inv_join
+> UPDATED: 2026-11-09 (s35: catatan meja / suvenir / kado khusus pemilik, G-045 / D-058; tim undangan per undangan, co-host & penerima tamu, G-044 / D-057; s21: B-015, ClerkProvider hanya di grup rute yang login)
 
 > **Keputusan 2026-07-27 (whyme):** auth password buatan sendiri diganti **Clerk**.
 > Dokumen ini menggantikan status "nyusul" di `AGENTS.md`.
@@ -125,6 +125,30 @@ ter-resolve English.
 **Catatan duplikasi yang disengaja:** `variables` Clerk tidak bisa membaca CSS custom property,
 jadi warna brand ditulis literal di `clerk-appearance.ts`. Kalau skala `brand-*` berubah, ubah di
 situ juga. Itu harga dari renderer pihak ketiga, dan lebih baik dinamai daripada disembunyikan.
+
+## Tim undangan: co-host & penerima tamu (G-044, D-057; s35)
+
+Peran akun tetap dua (`CUSTOMER`, `ADMIN`) di tabel `users`. Di atasnya, pemilik undangan bisa memberi **hak akses per
+undangan** (`invitation_members`, migrasi 0023) lewat tautan sekali pakai, di balik `FLAG_TEAM_ACCESS` (default off):
+
+| Kemampuan | Pemilik | Co-host | Penerima tamu |
+|---|---|---|---|
+| Meja check-in (pindai, cari nama) | ya | ya | ya |
+| Daftar tamu, impor, override RSVP, pendaftaran | ya | ya | tidak |
+| Moderasi & balas ucapan | ya | ya | tidak |
+| Statistik & ekspor tamu | ya | ya | tidak |
+| Isi, tema, pengaturan, tim, checkout, publikasi | ya | tidak | tidak |
+| Meja, suvenir & kado + ekspornya (G-045, D-058; `manage`) | ya | tidak | tidak |
+
+- **Satu penjaga di setiap pintu.** `accessFor(userId, invitationId, capability)` (`lib/invitation/members-db.ts`) memutuskan
+  dari undangan tersimpan dan akun yang login: pemilik, atau hak akses hidup (belum dicabut, dipegang akun pelanggan yang
+  masih ada) yang perannya memegang kemampuan itu, dan hanya selama flag on. Setiap halaman, aksi dan rute yang bisa
+  melayani anggota memanggilnya lebih dulu dan menolak administrator; kedua penulis memeriksa hak akses lagi di transaksinya.
+- **Administrator tidak bisa jadi anggota.** Tautan bergabung menolak administrator, dan hak akses yang dipegang akun yang
+  kemudian dijadikan administrator (atau dihapus) tidak berlaku.
+- **Bergabung tanpa login.** Rahasia tautan disimpan di cookie `inv_join` (HttpOnly, SameSite=Lax, `Path=/gabung`, satu jam,
+  Secure lewat HTTPS); Clerk mengembalikan pengguna ke `/gabung/terima`, yang URL-nya tidak membawa rahasia.
+- **Belum diverifikasi dengan Clerk sungguhan:** DA-01 butir 8 (NOT RUN). Bukti s35 memakai sesi tiruan (E-075).
 
 ## Risiko yang diterima
 

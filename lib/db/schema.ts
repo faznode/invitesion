@@ -1,5 +1,6 @@
 import {
   pgTable,
+  bigint,
   bigserial,
   serial,
   varchar,
@@ -259,6 +260,84 @@ export const invitationMembers = pgTable(
     userIdx: index('invitation_members_user_idx').on(t.userId).where(sql`${t.revokedAt} is null`),
     invitationIdx: index('invitation_members_invitation_idx').on(t.invitationId, t.createdAt),
     roleCheck: check('invitation_members_role_check', sql`${t.role} in ('cohost', 'usher')`),
+  }),
+);
+
+/**
+ * G-045 (D-058): the owner's seating tables for one invitation. Host-only day-of data: written only by
+ * `lib/invitation/host-logs-db.ts`, read only by the owner's logs page and its export, never by a guest page, a public
+ * payload or the check-in desk.
+ */
+export const seatingTables = pgTable(
+  'seating_tables',
+  {
+    id: serial('id').primaryKey(),
+    invitationId: integer('invitation_id')
+      .notNull()
+      .references(() => invitations.id, { onDelete: 'cascade' }),
+    name: varchar('name', { length: 60 }).notNull(),
+    // Seats at the table; null = not counted.
+    capacity: integer('capacity'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (t) => ({
+    nameUnique: uniqueIndex('seating_tables_invitation_name_unique').on(t.invitationId, t.name),
+    capacityCheck: check('seating_tables_capacity_check', sql`${t.capacity} is null or ${t.capacity} between 1 and 100`),
+  }),
+);
+
+/** G-045 (D-058): one guest's host-only day-of record: the table and seat, and when a souvenir was handed out. */
+export const guestLogs = pgTable(
+  'guest_logs',
+  {
+    guestId: integer('guest_id')
+      .primaryKey()
+      .references(() => guests.id, { onDelete: 'cascade' }),
+    invitationId: integer('invitation_id')
+      .notNull()
+      .references(() => invitations.id, { onDelete: 'cascade' }),
+    // Removing a table leaves its guests unseated.
+    tableId: integer('table_id').references(() => seatingTables.id, { onDelete: 'set null' }),
+    seat: varchar('seat', { length: 20 }),
+    // The first hand-out is kept, as a first arrival is (D-056).
+    souvenirAt: timestamp('souvenir_at'),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  (t) => ({
+    invitationIdx: index('guest_logs_invitation_idx').on(t.invitationId),
+    tableIdx: index('guest_logs_table_idx').on(t.tableId),
+  }),
+);
+
+/** G-045 (D-058): gifts the owner records (an envelope, a present, a transfer), from a listed guest or a typed name. */
+export const giftLogs = pgTable(
+  'gift_logs',
+  {
+    id: serial('id').primaryKey(),
+    invitationId: integer('invitation_id')
+      .notNull()
+      .references(() => invitations.id, { onDelete: 'cascade' }),
+    guestId: integer('guest_id').references(() => guests.id, { onDelete: 'set null' }),
+    // The giver as recorded: the guest's name at the time or a typed name, kept if the guest row goes.
+    giverName: varchar('giver_name', { length: 150 }).notNull(),
+    kind: varchar('kind', { length: 16 }).notNull(), // envelope | present | transfer | other
+    // Rupiah when the owner chooses to note it; null = not noted.
+    amount: bigint('amount', { mode: 'number' }),
+    note: varchar('note', { length: 300 }),
+    receivedAt: timestamp('received_at').notNull().defaultNow(),
+    // The form's one-time key: a double tap or a resend records one entry.
+    requestKey: varchar('request_key', { length: 64 }).notNull(),
+    // I-04 (D-059): the family the gift is attributed to on a wedding; null = not attributed (every entry before I-04).
+    familySide: varchar('family_side', { length: 8 }),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  (t) => ({
+    requestUnique: uniqueIndex('gift_logs_request_unique').on(t.invitationId, t.requestKey),
+    invitationIdx: index('gift_logs_invitation_idx').on(t.invitationId, t.receivedAt),
+    kindCheck: check('gift_logs_kind_check', sql`${t.kind} in ('envelope', 'present', 'transfer', 'other')`),
+    amountCheck: check('gift_logs_amount_check', sql`${t.amount} is null or ${t.amount} between 0 and 1000000000000`),
+    familySideCheck: check('gift_logs_family_side_check', sql`${t.familySide} is null or ${t.familySide} in ('bride', 'groom')`),
   }),
 );
 

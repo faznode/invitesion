@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { and, asc, eq, gt, isNotNull, isNull, or, sql } from 'drizzle-orm';
+import { and, asc, eq, gt, isNotNull, isNull, ne, or, sql } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
 import { invitationMembers, invitations, users, type Invitation } from '@/lib/db/schema';
 import { isFlagOn } from '@/lib/flags';
@@ -32,7 +32,9 @@ export type InvitationAccess = { role: AccessRole; invitation: Invitation };
 /**
  * May this signed-in customer work on this invitation, and as what? The owner always. A member only while
  * `FLAG_TEAM_ACCESS` is on and their grant is live, read on every call, so a revoked grant or the flag switched off
- * stops a member at their next request. Every page, action and route that can serve a member asks this first.
+ * stops a member at their next request. A grant counts only for a live customer account: an account later made an
+ * administrator, or deleted, holds none. Every page, action and route that can serve a member asks this first, since
+ * the writers check the grant but not the flag.
  */
 export async function invitationAccess(userId: number, invitationId: number, env: Env = process.env): Promise<InvitationAccess | null> {
   if (!Number.isInteger(invitationId) || invitationId <= 0) return null;
@@ -43,7 +45,16 @@ export async function invitationAccess(userId: number, invitationId: number, env
   const [grant] = await db
     .select({ role: invitationMembers.role })
     .from(invitationMembers)
-    .where(and(eq(invitationMembers.invitationId, invitationId), eq(invitationMembers.userId, userId), isNull(invitationMembers.revokedAt)))
+    .innerJoin(users, eq(users.id, invitationMembers.userId))
+    .where(
+      and(
+        eq(invitationMembers.invitationId, invitationId),
+        eq(invitationMembers.userId, userId),
+        isNull(invitationMembers.revokedAt),
+        ne(users.role, 'ADMIN'),
+        isNull(users.deletedAt),
+      ),
+    )
     .limit(1);
   return grant && isMemberRole(grant.role) ? { role: grant.role, invitation } : null;
 }

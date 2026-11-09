@@ -26,7 +26,10 @@ export async function acceptJoin(formData: FormData) {
   if (!isFlagOn('TEAM_ACCESS')) notFound();
   const user = await getUser();
   if (!user) redirect(SIGN_IN_TO_JOIN);
-  if (user.role === 'ADMIN') redirect('/gabung/terima?status=admin');
+  if (user.role === 'ADMIN') {
+    await clearJoinToken();
+    redirect('/gabung/terima?status=admin');
+  }
   const posted = String(formData.get('token') ?? '');
   const token = JOIN_TOKEN_PATTERN.test(posted) ? posted : await readJoinToken();
   if (!token) redirect('/gabung/terima');

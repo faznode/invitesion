@@ -84,7 +84,9 @@ test('the Rust client resends an unknown outcome once under the batch key and ma
 test('both writers run the same statements in the same order', () => {
   const ts = source('lib/invitation/roster-next.ts');
   const writer = ts.slice(ts.indexOf('export async function passCheckinNext'), ts.indexOf('/** D-037: one guest'));
-  const order = [/passCheckinScope\(input\.userId, input\.invitationId\)/, /passCheckinHash\(scans\)/, /lookupIdempotent\(db, scope, input\.key, hash, now\)/, /ownedInvitation\(tx,/, /passCheckInEnabled\(invitation\.config\)/, /lockRoster\(tx,/, /readGuestPass\(scan\.token, input\.secrets, nowSeconds\)/, /eq\(guests\.passId, read\.passId\)\)\)\n\s*\.for\('update'\)/, /checkInTime\(scan\.scannedAt, now\)/, /\.update\(guests\)\.set\(\{ checkedInAt: at \}\)/, /eventType: 'CHECKIN', meta: \{ source: 'pass' \}/, /recordIdempotent\(tx, input\.scope, input\.key, input\.hash, 200, \{ results \}, now\)\)\) throw new TwinCommitted\(\)/];
+  // G-044 (D-057, s35): the caller's current access comes before any stored answer, and a twin's record is read in the
+  // same checked transaction, so a revoked member never replays a batch.
+  const order = [/passCheckinScope\(input\.userId, input\.invitationId\)/, /passCheckinHash\(scans\)/, /accessibleInvitation\(tx, input\.invitationId, input\.userId, 'checkin'\)/, /lookupIdempotent\(tx, input\.scope, input\.key, input\.hash, input\.now\)/, /passCheckInEnabled\(invitation\.config\)/, /lockRoster\(tx,/, /readGuestPass\(scan\.token, input\.secrets, nowSeconds\)/, /eq\(guests\.passId, read\.passId\)\)\)\n\s*\.for\('update'\)/, /checkInTime\(scan\.scannedAt, now\)/, /\.update\(guests\)\.set\(\{ checkedInAt: at \}\)/, /eventType: 'CHECKIN', meta: \{ source: 'pass' \}/, /recordIdempotent\(tx, input\.scope, input\.key, input\.hash, 200, \{ results \}, now\)/, /lookupIdempotent\(tx, input\.scope, input\.key, input\.hash, now\)/, /throw new TwinCommitted\(recordedPassCheckin\(twin\)\)/];
   let at = 0;
   for (const step of order) {
     const found = writer.slice(at).search(step);
@@ -93,7 +95,7 @@ test('both writers run the same statements in the same order', () => {
   }
   const rs = source('services/api/src/roster/http.rs');
   const handler = rs.slice(rs.indexOf('pub async fn pass_checkins'));
-  const rustOrder = [/idempotency::host_scope\("roster:pass-checkins", owner\.user_id, invitation_id, 0\)/, /idempotency::request_hash\(&request\)/, /replay_for\(&state, &headers, &scope, &hash\)/, /owned_invitation\(&mut tx, &owner, invitation_id\)/, /pass::check_in_enabled\(&config\)/, /lock_roster\(&mut tx, invitation_id\)/, /pass::read\(&scan\.token, &state\.guest_pass_secrets, now_seconds\)/, /select id, name, checked_in_at from guests where invitation_id = \$1 and pass_id = \$2 for update/, /pass::check_in_time\(scan\.scanned_at\.as_deref\(\), now\)/, /update guests set checked_in_at = \$1 where id = \$2/, /'CHECKIN', \$3\)",[\s\S]*?json!\(\{ "source": "pass" \}\)/, /commit_with\(&state, &headers, tx, &scope, &hash, &answer, now\)/];
+  const rustOrder = [/idempotency::host_scope\("roster:pass-checkins", owner\.user_id, invitation_id, 0\)/, /idempotency::request_hash\(&request\)/, /accessible_invitation\(&mut tx, &owner, invitation_id, Capability::Checkin\)/, /replay_for\(&mut tx, &headers, &scope, &hash\)/, /pass::check_in_enabled\(&config\)/, /lock_roster\(&mut tx, invitation_id\)/, /pass::read\(&scan\.token, &state\.guest_pass_secrets, now_seconds\)/, /select id, name, checked_in_at from guests where invitation_id = \$1 and pass_id = \$2 for update/, /pass::check_in_time\(scan\.scanned_at\.as_deref\(\), now\)/, /update guests set checked_in_at = \$1 where id = \$2/, /'CHECKIN', \$3\)",[\s\S]*?json!\(\{ "source": "pass" \}\)/, /commit_with\(&headers, tx, &scope, &hash, &answer, now\)/];
   at = 0;
   for (const step of rustOrder) {
     const found = handler.slice(at).search(step);
@@ -162,7 +164,9 @@ test('the scanner page hands out one-way keys, never pass ids, and the flag and 
   assert.doesNotMatch(page, /passId: row\.passId|passId=\{/, 'the pass id stays on the server');
   assert.match(page, /if \(!Number\.isInteger\(id\) \|\| !isFlagOn\('GUEST_PASS'\)\) notFound\(\);/);
   const actions = source('app/(customer)/dashboard/invitations/[id]/checkin/actions.ts');
-  assert.match(actions, /if \(!passManualAllowed\(guest\.config\)\) return \{ ok: false, reason: 'manual-off' \};/);
+  // G-044 (D-057): the invitation comes from the flag-aware access check (`checkin`), which an usher passes too.
+  assert.match(actions, /const access = await accessFor\(user\.id, invitationId, 'checkin'\);\s*if \(!access\) return \{ ok: false, reason: 'notfound' \};/);
+  assert.match(actions, /if \(!passManualAllowed\(access\.invitation\.config\)\) return \{ ok: false, reason: 'manual-off' \};/);
   assert.match(source('lib/flags.ts'), /GUEST_PASS: false,/);
 });
 
@@ -189,7 +193,8 @@ test("the TypeScript writer's idempotency record is the API's: same table, state
   assert.match(ts, /::text::jsonb/, 'the answer is stored as a JSON object, never a JSON string');
   const next = source('lib/invitation/roster-next.ts');
   assert.match(next, /if \(prior\.kind === 'mismatch'\) return \{ kind: 'key-reused' \};/);
-  assert.match(next, /if \(!\(error instanceof TwinCommitted\)\) throw error;[\s\S]*?const twin = await lookupIdempotent\(db, scope, input\.key, hash, now\);/, 'a twin that committed first is answered from its record');
+  assert.match(next, /const twin = await lookupIdempotent\(tx, input\.scope, input\.key, input\.hash, now\);[\s\S]*?throw new TwinCommitted\(recordedPassCheckin\(twin\)\);/, 'a twin that committed first is answered from its record, read in the checked transaction');
+  assert.match(next, /if \(error instanceof TwinCommitted\) return error\.outcome;/, 'and this transaction rolls back');
 });
 
 test('a guest checks in once: both writers keep the first time and write one CHECKIN row, and the manual fallback says already', () => {

@@ -9,7 +9,7 @@ use axum::response::{IntoResponse, Response};
 use serde::Serialize;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
-use sqlx::{PgPool, Postgres, Transaction};
+use sqlx::{PgExecutor, Postgres, Transaction};
 use time::{Duration, PrimitiveDateTime};
 
 use crate::problem::{ApiError, Subject};
@@ -31,11 +31,12 @@ pub fn key_from(headers: &HeaderMap) -> Result<Option<String>, ApiError> {
     }
 }
 
-/// The scope a host's write is recorded under: the operation, the owner resolved from the verified token, the invitation
-/// and the guest or wish. A key replays only inside its scope, so another customer, another invitation or another
-/// resource never reads a cached answer or learns that the key exists: their request is judged afresh and refused by the
-/// ownership check. Owners and roles are resolved before this is built; a legitimate retry (the same owner, path and
-/// body) still replays, including a delete whose row is gone.
+/// The scope a host's write is recorded under: the operation, the caller resolved from the verified token (the owner or a
+/// member, never the member's owner: G-044, D-057), the invitation and the guest or wish. A key replays only inside its
+/// scope, so another customer, another invitation or another resource never reads a cached answer or learns that the key
+/// exists: their request is judged afresh and refused by the access check. Host writers read the stored answer inside
+/// their transaction after that check, so a member whose grant was revoked is refused too. A legitimate retry (the same
+/// caller, path and body, with access) still replays, including a delete whose row is gone.
 pub fn host_scope(operation: &str, owner_user_id: i32, invitation_id: i32, resource_id: i32) -> String {
     format!("{operation}:{owner_user_id}:{invitation_id}:{resource_id}")
 }
@@ -53,7 +54,13 @@ pub enum Prior {
     Mismatch,
 }
 
-pub async fn lookup(pool: &PgPool, scope: &str, key: &str, hash: &str) -> Result<Prior, sqlx::Error> {
+/// On the pool for a guest's write; on the write's own transaction for a host's, after its access check.
+pub async fn lookup<'e>(
+    executor: impl PgExecutor<'e>,
+    scope: &str,
+    key: &str,
+    hash: &str,
+) -> Result<Prior, sqlx::Error> {
     let row = sqlx::query!(
         "select request_hash, response_status, response_body from api_idempotency_keys \
          where scope = $1 and key = $2 and created_at >= $3",
@@ -61,7 +68,7 @@ pub async fn lookup(pool: &PgPool, scope: &str, key: &str, hash: &str) -> Result
         key,
         crate::views::utc_now() - RETENTION
     )
-    .fetch_optional(pool)
+    .fetch_optional(executor)
     .await?;
     Ok(match row {
         None => Prior::None,
@@ -73,8 +80,13 @@ pub async fn lookup(pool: &PgPool, scope: &str, key: &str, hash: &str) -> Result
 }
 
 /// A committed response for this key replays (with `Idempotent-Replayed: true`); the key with another request is a 422.
-pub async fn replay(pool: &PgPool, scope: &str, key: &str, hash: &str) -> Result<Option<Response>, ApiError> {
-    match lookup(pool, scope, key, hash).await.map_err(|error| ApiError::internal("idempotency_lookup", error))? {
+pub async fn replay<'e>(
+    executor: impl PgExecutor<'e>,
+    scope: &str,
+    key: &str,
+    hash: &str,
+) -> Result<Option<Response>, ApiError> {
+    match lookup(executor, scope, key, hash).await.map_err(|error| ApiError::internal("idempotency_lookup", error))? {
         Prior::None => Ok(None),
         Prior::Mismatch => Err(ApiError::Unprocessable("idempotency.key_reused", Subject::None)),
         Prior::Replay { status, body } => {

@@ -280,13 +280,18 @@ test('B-034: the page, the export and the loader are owner-scoped and reuse the 
   assert.equal((loader.match(/invitation\.id\)/g) ?? []).length, 2, 'guests and VIEW events keyed by the owned invitation only');
   assert.match(loader, /eq\(analyticsEvents\.eventType, 'VIEW'\)/);
   assert.doesNotMatch(loader, /\.(insert|update|delete)\(/, 'read-only');
+  // G-044 (D-057): the owner or a co-host (`insights`), decided with the signed-in account; the loader keeps its owner
+  // scope, with the owner that check resolved. Administrators are refused before the invitation is read.
   const page = source('app/(customer)/dashboard/invitations/[id]/insights/page.tsx');
-  assert.match(page, /if \(!user\) redirect\('\/sign-in'\);/);
-  assert.match(page, /loadHostAnalytics\(db, \{ userId: user\.id, invitationId: id \}\)/);
+  assert.match(page, /if \(!user \|\| user\.role === 'ADMIN'\) redirect\('\/sign-in'\);/);
+  assert.match(page, /const access = await accessFor\(user\.id, id, 'insights'\);\s*if \(!access\) notFound\(\);/);
+  assert.match(page, /loadHostAnalytics\(db, \{ userId: access\.invitation\.userId, invitationId: id \}\)/);
   assert.match(page, /if \(!data\) notFound\(\);/);
   assert.match(page, /followUpItems\(data\.lists\.unopened, context\)/);
   const route = source('app/(customer)/dashboard/invitations/[id]/analytics/route.ts');
-  assert.match(route, /if \(list !== null\) return followUpExport\(user\.id, id, list\);/);
+  assert.match(route, /if \(user\.role === 'ADMIN'\) return new Response\('Forbidden', \{ status: 403 \}\);/);
+  assert.match(route, /const access = await accessFor\(user\.id, id, 'insights'\);\s*if \(!access\) return new Response\('Not found', \{ status: 404 \}\);/);
+  assert.match(route, /if \(list !== null\) return followUpExport\(access\.invitation\.userId, id, list\);/);
   assert.match(route, /if \(!isFollowUpKind\(list\)\) return new Response\('Unknown list', \{ status: 400 \}\);/);
   assert.match(route, /loadHostAnalytics\(db, \{ userId, invitationId: id \}\)/);
   assert.match(route, /guestExportCsv\(/, 'the full guest export is unchanged');

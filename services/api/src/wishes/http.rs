@@ -20,7 +20,7 @@ use crate::guest_link::{self, LinkCodes, check_open};
 use crate::idempotency::{self, replay};
 use crate::identity::{Owner, resolve_owner};
 use crate::limits;
-use crate::members::Capability;
+use crate::members::{self, Capability};
 use crate::problem::{ApiError, Problem, Subject};
 use crate::views::utc_now;
 
@@ -221,6 +221,27 @@ fn ids(path: Result<Path<(i32, i32)>, PathRejection>) -> Result<(i32, i32), ApiE
     Ok((invitation_id, wish_id))
 }
 
+/// The stored answer for the request's key, read only once the caller may moderate the invitation now (G-044, D-057:
+/// the owner or a co-host), so a revoked member or another account never reads it or learns that the key exists. A
+/// retried delete still replays to its caller although the wish is gone. `invitation_or_wish.not_found` otherwise.
+async fn authorized_replay(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    owner: &Owner,
+    invitation_id: i32,
+    key: Option<&str>,
+    scope: &str,
+    hash: &str,
+) -> Result<Option<Response>, ApiError> {
+    members::caller_may(tx, owner.user_id, invitation_id, Capability::Wishes)
+        .await
+        .map_err(db("wish_access"))?
+        .ok_or(ApiError::NotFound(NOT_FOUND))?;
+    match key {
+        Some(key) => replay(&mut **tx, scope, key, hash).await,
+        None => Ok(None),
+    }
+}
+
 /// Locks the wish for this transaction: `invitation_or_wish.not_found` unless the caller may moderate its invitation
 /// (G-044, D-057: the owner, or a member whose role holds the wishes: a co-host) and the wish belongs to it.
 async fn lock_owned_wish(
@@ -282,13 +303,11 @@ pub async fn moderate_wish(
     let now = utc_now();
     let scope = idempotency::host_scope("wish:host", owner.user_id, invitation_id, wish_id);
     let hash = idempotency::request_hash(&request);
-    if let Some(key) = &key
-        && let Some(response) = replay(&state.pool, &scope, key, &hash).await?
-    {
-        return Ok(response);
-    }
 
     let mut tx = state.pool.begin().await.map_err(db("moderation_begin"))?;
+    if let Some(response) = authorized_replay(&mut tx, &owner, invitation_id, key.as_deref(), &scope, &hash).await? {
+        return Ok(response);
+    }
     lock_owned_wish(&mut tx, &owner, invitation_id, wish_id).await?;
     let state_after = match request.action {
         WishAction::Show => ModeratedState::Visible,
@@ -301,8 +320,8 @@ pub async fn moderate_wish(
             .await
             .map_err(db("idempotency_record"))?
     {
-        drop(tx);
-        return replay(&state.pool, &scope, key, &hash).await?.ok_or(ApiError::Internal);
+        // A concurrent twin committed first: its answer, read in this transaction after the access check.
+        return replay(&mut *tx, &scope, key, &hash).await?.ok_or(ApiError::Internal);
     }
     match request.action {
         WishAction::Delete => {
@@ -367,13 +386,11 @@ pub async fn reply_to_wish(
     };
     let scope = idempotency::host_scope("wish:reply", owner.user_id, invitation_id, wish_id);
     let hash = idempotency::request_hash(&request);
-    if let Some(key) = &key
-        && let Some(response) = replay(&state.pool, &scope, key, &hash).await?
-    {
-        return Ok(response);
-    }
 
     let mut tx = state.pool.begin().await.map_err(db("reply_begin"))?;
+    if let Some(response) = authorized_replay(&mut tx, &owner, invitation_id, key.as_deref(), &scope, &hash).await? {
+        return Ok(response);
+    }
     lock_owned_wish(&mut tx, &owner, invitation_id, wish_id).await?;
     let replied = WishReplied { id: wish_id, host_reply: host_reply.clone() };
     if let Some(key) = &key
@@ -381,8 +398,8 @@ pub async fn reply_to_wish(
             .await
             .map_err(db("idempotency_record"))?
     {
-        drop(tx);
-        return replay(&state.pool, &scope, key, &hash).await?.ok_or(ApiError::Internal);
+        // A concurrent twin committed first: its answer, read in this transaction after the access check.
+        return replay(&mut *tx, &scope, key, &hash).await?.ok_or(ApiError::Internal);
     }
     sqlx::query!(
         "update guest_messages set host_reply = $1, \

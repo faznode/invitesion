@@ -27,7 +27,7 @@ use crate::app::AppState;
 use crate::idempotency::{self, replay};
 use crate::identity::{Owner, resolve_owner};
 use crate::limits;
-use crate::members::Capability;
+use crate::members::{self, Capability};
 use crate::problem::{ApiError, Problem, Subject};
 use crate::rsvp::content::{is_event_id, read_rsvp_config};
 use crate::views::utc_now;
@@ -152,6 +152,17 @@ pub enum GuestOperation {
     Sent,
     Checkin,
     UndoCheckin,
+}
+
+impl GuestOperation {
+    /// G-044 (D-057): checking a guest in is the desk's capability; marking sent and undoing a check-in are the list's
+    /// (`operationCapability` in `members.ts`, pinned by `contracts/vectors/member-roles.json`).
+    pub const fn capability(self) -> Capability {
+        match self {
+            GuestOperation::Checkin => Capability::Checkin,
+            GuestOperation::Sent | GuestOperation::UndoCheckin => Capability::Guests,
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
@@ -325,27 +336,17 @@ async fn host(state: &AppState, headers: &HeaderMap) -> Result<Owner, ApiError> 
 }
 
 /// The invitation and its stored config when the caller may use `capability` on it (G-044, D-057: its owner, or a live
-/// grant whose role holds the capability, as `roster-next.ts` decides), else `roster.not_found`.
+/// grant whose role holds the capability, as `roster-next.ts` decides: `members::caller_may`), else `roster.not_found`.
 async fn accessible_invitation(
     tx: &mut Transaction<'_, Postgres>,
     owner: &Owner,
     invitation_id: i32,
     capability: Capability,
 ) -> Result<Value, ApiError> {
-    let roles = capability.member_role_args();
-    let row = sqlx::query!(
-        "select i.config from invitations i where i.id = $1 and (i.user_id = $2 or exists (select 1 \
-         from invitation_members m where m.invitation_id = i.id and m.user_id = $2 and m.revoked_at is null \
-         and m.role = any($3)))",
-        invitation_id,
-        owner.user_id,
-        &roles[..]
-    )
-    .fetch_optional(&mut **tx)
-    .await
-    .map_err(db("roster_invitation"))?
-    .ok_or(ApiError::NotFound(NOT_FOUND))?;
-    Ok(row.config.unwrap_or(Value::Null))
+    members::caller_may(tx, owner.user_id, invitation_id, capability)
+        .await
+        .map_err(db("roster_invitation"))?
+        .ok_or(ApiError::NotFound(NOT_FOUND))
 }
 
 /// Locks the guest for this transaction when the caller may use `capability` on its invitation (as
@@ -445,24 +446,24 @@ fn is_link_token(token: &str) -> bool {
     token.len() == 22 && token.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
 }
 
-/// The stored answer for the request's idempotency key, if any: it replays only within `scope` (the owner, the
-/// invitation and the resource, D-046), and a different request under the same key is `idempotency.key_reused`.
+/// The stored answer for the request's idempotency key, if any. Read in the request's transaction after its access check
+/// (G-044, D-057), so it replays only to a caller who may still make this request, and only within `scope` (the caller,
+/// the invitation and the resource, D-046); a different request under the same key is `idempotency.key_reused`.
 async fn replay_for(
-    state: &AppState,
+    tx: &mut Transaction<'_, Postgres>,
     headers: &HeaderMap,
     scope: &str,
     hash: &str,
 ) -> Result<Option<Response>, ApiError> {
-    let key = idempotency::key_from(headers)?;
-    match &key {
-        Some(key) => replay(&state.pool, scope, key, hash).await,
+    match idempotency::key_from(headers)? {
+        Some(key) => replay(&mut **tx, scope, &key, hash).await,
         None => Ok(None),
     }
 }
 
-/// Records the answer and commits; a concurrent twin that committed first rolls this transaction back and replays.
+/// Records the answer and commits. When a concurrent twin committed the key first, its answer is read in this
+/// transaction (after this request's access check) and this transaction's writes roll back when it is dropped.
 async fn commit_with(
-    state: &AppState,
     headers: &HeaderMap,
     mut tx: Transaction<'_, Postgres>,
     scope: &str,
@@ -475,8 +476,7 @@ async fn commit_with(
             .await
             .map_err(db("idempotency_record"))?
     {
-        drop(tx);
-        return Ok(Some(replay(&state.pool, scope, &key, hash).await?.ok_or(ApiError::Internal)?));
+        return Ok(Some(replay(&mut *tx, scope, &key, hash).await?.ok_or(ApiError::Internal)?));
     }
     tx.commit().await.map_err(db("roster_commit"))?;
     Ok(None)
@@ -515,12 +515,12 @@ pub async fn add_guest(
     let now = utc_now();
     let scope = idempotency::host_scope("roster:add", owner.user_id, invitation_id, 0);
     let hash = idempotency::request_hash(&request);
-    if let Some(response) = replay_for(&state, &headers, &scope, &hash).await? {
-        return Ok(response);
-    }
 
     let mut tx = state.pool.begin().await.map_err(db("roster_begin"))?;
     let config = accessible_invitation(&mut tx, &owner, invitation_id, Capability::Guests).await?;
+    if let Some(response) = replay_for(&mut tx, &headers, &scope, &hash).await? {
+        return Ok(response);
+    }
     let row = check_row(&request.guest.input(), MAX_SEATS).map_err(row_invalid)?;
     lock_roster(&mut tx, invitation_id).await?;
     let slugs = sqlx::query_scalar!("select slug from guests where invitation_id = $1", invitation_id)
@@ -553,7 +553,7 @@ pub async fn add_guest(
     .await
     .map_err(db("roster_insert"))?;
     let added = GuestAdded { id, slug };
-    if let Some(response) = commit_with(&state, &headers, tx, &scope, &hash, &added, now).await? {
+    if let Some(response) = commit_with(&headers, tx, &scope, &hash, &added, now).await? {
         return Ok(response);
     }
     Ok(Json(added).into_response())
@@ -609,14 +609,14 @@ pub async fn import_guests(
     let now = utc_now();
     let scope = idempotency::host_scope("roster:import", owner.user_id, invitation_id, 0);
     let hash = idempotency::request_hash(&request);
-    if !request.dry_run
-        && let Some(response) = replay_for(&state, &headers, &scope, &hash).await?
-    {
-        return Ok(response);
-    }
 
     let mut tx = state.pool.begin().await.map_err(db("import_begin"))?;
     accessible_invitation(&mut tx, &owner, invitation_id, Capability::Guests).await?;
+    if !request.dry_run
+        && let Some(response) = replay_for(&mut tx, &headers, &scope, &hash).await?
+    {
+        return Ok(response);
+    }
     if !request.dry_run {
         lock_roster(&mut tx, invitation_id).await?;
     }
@@ -678,7 +678,7 @@ pub async fn import_guests(
     .map_err(db("import_insert"))?;
     result.batch_id = Some(batch);
     result.imported = count(accepted.len());
-    if let Some(response) = commit_with(&state, &headers, tx, &scope, &hash, &result, now).await? {
+    if let Some(response) = commit_with(&headers, tx, &scope, &hash, &result, now).await? {
         return Ok(response);
     }
     Ok(Json(result).into_response())
@@ -729,12 +729,12 @@ pub async fn undo_import(
     let now = utc_now();
     let scope = idempotency::host_scope(&format!("roster:undo:{batch}"), owner.user_id, invitation_id, 0);
     let hash = idempotency::request_hash(&batch);
-    if let Some(response) = replay_for(&state, &headers, &scope, &hash).await? {
-        return Ok(response);
-    }
 
     let mut tx = state.pool.begin().await.map_err(db("undo_begin"))?;
     accessible_invitation(&mut tx, &owner, invitation_id, Capability::Guests).await?;
+    if let Some(response) = replay_for(&mut tx, &headers, &scope, &hash).await? {
+        return Ok(response);
+    }
     lock_roster(&mut tx, invitation_id).await?;
     let rows = sqlx::query!(
         r#"select g.id, (g.opened_count > 0 or g.opened_at is not null or g.rsvp_status <> 'PENDING'
@@ -761,7 +761,7 @@ pub async fn undo_import(
             .map_err(db("undo_delete"))?;
     }
     let undone = ImportUndone { deleted: count(untouched.len()), kept: count(rows.len() - untouched.len()) };
-    if let Some(response) = commit_with(&state, &headers, tx, &scope, &hash, &undone, now).await? {
+    if let Some(response) = commit_with(&headers, tx, &scope, &hash, &undone, now).await? {
         return Ok(response);
     }
     Ok(Json(undone).into_response())
@@ -800,16 +800,15 @@ pub async fn guest_operation(
     let now = utc_now();
     let scope = idempotency::host_scope("roster:operation", owner.user_id, invitation_id, guest_id);
     let hash = idempotency::request_hash(&request);
-    if let Some(response) = replay_for(&state, &headers, &scope, &hash).await? {
-        return Ok(response);
-    }
 
     let mut tx = state.pool.begin().await.map_err(db("operation_begin"))?;
-    // G-044 (D-057): checking a guest in is the desk's capability; marking sent and undoing a check-in are the list's.
-    let capability = match request.operation {
-        GuestOperation::Checkin => Capability::Checkin,
-        GuestOperation::Sent | GuestOperation::UndoCheckin => Capability::Guests,
-    };
+    let capability = request.operation.capability();
+    // Access to the invitation first, then the stored answer (a retry replays even when the guest has since gone), then
+    // the guest itself, locked.
+    accessible_invitation(&mut tx, &owner, invitation_id, capability).await?;
+    if let Some(response) = replay_for(&mut tx, &headers, &scope, &hash).await? {
+        return Ok(response);
+    }
     accessible_guest(&mut tx, &owner, invitation_id, guest_id, capability).await?;
     match request.operation {
         GuestOperation::Sent => {
@@ -860,7 +859,7 @@ pub async fn guest_operation(
         }
     }
     let updated = GuestUpdated { id: guest_id };
-    if let Some(response) = commit_with(&state, &headers, tx, &scope, &hash, &updated, now).await? {
+    if let Some(response) = commit_with(&headers, tx, &scope, &hash, &updated, now).await? {
         return Ok(response);
     }
     Ok(Json(updated).into_response())
@@ -899,11 +898,12 @@ pub async fn set_invited_events(
     let now = utc_now();
     let scope = idempotency::host_scope("roster:invited", owner.user_id, invitation_id, guest_id);
     let hash = idempotency::request_hash(&request);
-    if let Some(response) = replay_for(&state, &headers, &scope, &hash).await? {
-        return Ok(response);
-    }
 
     let mut tx = state.pool.begin().await.map_err(db("invited_begin"))?;
+    accessible_invitation(&mut tx, &owner, invitation_id, Capability::Guests).await?;
+    if let Some(response) = replay_for(&mut tx, &headers, &scope, &hash).await? {
+        return Ok(response);
+    }
     let (stored, config) = accessible_guest(&mut tx, &owner, invitation_id, guest_id, Capability::Guests).await?;
     if !request.flags.invite_only_events {
         return Err(ApiError::Unprocessable("roster.invite_invalid", Subject::None));
@@ -919,7 +919,7 @@ pub async fn set_invited_events(
     .await
     .map_err(db("invited_update"))?;
     let saved = InvitedEventsSaved { id: guest_id, invited_event_ids: invited };
-    if let Some(response) = commit_with(&state, &headers, tx, &scope, &hash, &saved, now).await? {
+    if let Some(response) = commit_with(&headers, tx, &scope, &hash, &saved, now).await? {
         return Ok(response);
     }
     Ok(Json(saved).into_response())
@@ -957,12 +957,12 @@ pub async fn set_category_invitation(
     let now = utc_now();
     let scope = idempotency::host_scope("roster:category", owner.user_id, invitation_id, 0);
     let hash = idempotency::request_hash(&request);
-    if let Some(response) = replay_for(&state, &headers, &scope, &hash).await? {
-        return Ok(response);
-    }
 
     let mut tx = state.pool.begin().await.map_err(db("category_begin"))?;
     let config = accessible_invitation(&mut tx, &owner, invitation_id, Capability::Guests).await?;
+    if let Some(response) = replay_for(&mut tx, &headers, &scope, &hash).await? {
+        return Ok(response);
+    }
     let category = js_trim(&request.category).to_string();
     let current = current_invite_only(&config).contains(&request.event_id);
     if !request.flags.invite_only_events || !current || category.chars().count() > MAX_CATEGORY {
@@ -1000,7 +1000,7 @@ pub async fn set_category_invitation(
         .map_err(db("category_remove"))?,
     };
     let saved = CategoryInvitationSaved { changed: count(changed.len()) };
-    if let Some(response) = commit_with(&state, &headers, tx, &scope, &hash, &saved, now).await? {
+    if let Some(response) = commit_with(&headers, tx, &scope, &hash, &saved, now).await? {
         return Ok(response);
     }
     Ok(Json(saved).into_response())
@@ -1038,12 +1038,12 @@ pub async fn registration_link(
     let now = utc_now();
     let scope = idempotency::host_scope("roster:link", owner.user_id, invitation_id, 0);
     let hash = idempotency::request_hash(&request);
-    if let Some(response) = replay_for(&state, &headers, &scope, &hash).await? {
-        return Ok(response);
-    }
 
     let mut tx = state.pool.begin().await.map_err(db("link_begin"))?;
     accessible_invitation(&mut tx, &owner, invitation_id, Capability::Guests).await?;
+    if let Some(response) = replay_for(&mut tx, &headers, &scope, &hash).await? {
+        return Ok(response);
+    }
     lock_roster(&mut tx, invitation_id).await?;
     let token = match request.action {
         LinkAction::Close => {
@@ -1084,7 +1084,7 @@ pub async fn registration_link(
         }
     };
     let saved = RegistrationLinkSaved { token };
-    if let Some(response) = commit_with(&state, &headers, tx, &scope, &hash, &saved, now).await? {
+    if let Some(response) = commit_with(&headers, tx, &scope, &hash, &saved, now).await? {
         return Ok(response);
     }
     Ok(Json(saved).into_response())
@@ -1265,12 +1265,12 @@ pub async fn decide(
     let now = utc_now();
     let scope = idempotency::host_scope("roster:decision", owner.user_id, invitation_id, registration_id);
     let hash = idempotency::request_hash(&request);
-    if let Some(response) = replay_for(&state, &headers, &scope, &hash).await? {
-        return Ok(response);
-    }
 
     let mut tx = state.pool.begin().await.map_err(db("decision_begin"))?;
     accessible_invitation(&mut tx, &owner, invitation_id, Capability::Guests).await?;
+    if let Some(response) = replay_for(&mut tx, &headers, &scope, &hash).await? {
+        return Ok(response);
+    }
     lock_roster(&mut tx, invitation_id).await?;
     let registration = sqlx::query!(
         "select name, phone, guest_count from guest_registrations where id = $1 and invitation_id = $2",
@@ -1332,7 +1332,7 @@ pub async fn decide(
             RegistrationDecided { status: DecisionStatus::Approved, guest_id: Some(guest_id) }
         }
     };
-    if let Some(response) = commit_with(&state, &headers, tx, &scope, &hash, &decided, now).await? {
+    if let Some(response) = commit_with(&headers, tx, &scope, &hash, &decided, now).await? {
         return Ok(response);
     }
     Ok(Json(decided).into_response())
@@ -1441,12 +1441,12 @@ pub async fn pass_checkins(
     let now = utc_now();
     let scope = idempotency::host_scope("roster:pass-checkins", owner.user_id, invitation_id, 0);
     let hash = idempotency::request_hash(&request);
-    if let Some(response) = replay_for(&state, &headers, &scope, &hash).await? {
-        return Ok(response);
-    }
 
     let mut tx = state.pool.begin().await.map_err(db("pass_begin"))?;
     let config = accessible_invitation(&mut tx, &owner, invitation_id, Capability::Checkin).await?;
+    if let Some(response) = replay_for(&mut tx, &headers, &scope, &hash).await? {
+        return Ok(response);
+    }
     if !pass::check_in_enabled(&config) {
         return Err(ApiError::Conflict("guest_pass.not_enabled", None));
     }
@@ -1507,7 +1507,7 @@ pub async fn pass_checkins(
         results.push(result);
     }
     let answer = PassCheckins { results };
-    if let Some(response) = commit_with(&state, &headers, tx, &scope, &hash, &answer, now).await? {
+    if let Some(response) = commit_with(&headers, tx, &scope, &hash, &answer, now).await? {
         return Ok(response);
     }
     Ok(Json(answer).into_response())

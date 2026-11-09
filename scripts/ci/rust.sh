@@ -93,6 +93,17 @@ guest_pass_end_to_end() {
     npx tsx scripts/verify-guest-pass-api.ts
 }
 
+# G-044 (D-057, ADR-A3): an invitation's team through both writers against the binary: the join lifecycle and its races,
+# the capability matrix at every page, action, route and export for owner, co-host, usher, outsider and administrator,
+# the usher's names-only desk, FLAG_TEAM_ACCESS off with the grants kept, a revoked member's replays refused in both
+# writers and the route, and one answer and one arrival under concurrency.
+team_access_end_to_end() {
+  API_BASE_URL="http://127.0.0.1:$API_PORT" INTERNAL_API_SECRET=$API_SECRET OWNER_TOKEN_JWKS_PORT=$JWKS_PORT \
+    OWNER_TOKEN_ISSUER=$OWNER_ISSUER OWNER_TOKEN_AUTHORIZED_PARTIES=$OWNER_PARTY \
+    GUEST_PASS_SECRET=$PASS_SECRET GUEST_PASS_SECRET_PREVIOUS=$PASS_PREVIOUS API_BIN=$API_BIN \
+    npx tsx scripts/verify-team-access-api.ts
+}
+
 # B-035: the editor's save (the detail route's GET and PATCH) through both content writers against the binary: version
 # check, two saves from one version, stale edits, lost answers, wrong owner, entitlement, protected media, readback, flips.
 content_end_to_end() {
@@ -129,6 +140,7 @@ if [ -f "$SERVICE/Cargo.toml" ]; then
   step "wishes end to end (BACKEND_WISHES, both writers)" wishes_end_to_end
   step "roster end to end (BACKEND_ROSTER, both writers)" roster_end_to_end
   step "guest passes end to end (B-024, BACKEND_ROSTER, both writers)" guest_pass_end_to_end
+  step "team access end to end (G-044, FLAG_TEAM_ACCESS, both writers)" team_access_end_to_end
   step "content end to end (BACKEND_CONTENT, both writers)" content_end_to_end
   step "creation end to end (wizard, BACKEND_CONTENT, both writers)" creation_end_to_end
   step "host replay isolation (owner, invitation, resource)" host_replay_isolation

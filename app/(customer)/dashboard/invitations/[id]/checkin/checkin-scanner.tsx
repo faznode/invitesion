@@ -147,7 +147,14 @@ export function CheckinScanner({ invitationId, roster: initialRoster, manual, pa
         }
         if (response.status === 429 || response.status >= 500) break;
         // 400, 403, 404 or 409: the route will never accept these scans as sent; they leave the queue and say so.
-        setNotice(response.status === 409 || response.status === 404 ? 'QR pass sedang dinonaktifkan untuk undangan ini.' : 'Sebagian pindaian ditolak.');
+        // G-044 (D-057): a 404 is also a member whose access ended while the desk was open; it must not say which.
+        setNotice(
+          response.status === 409
+            ? 'QR pass sedang dinonaktifkan untuk undangan ini.'
+            : response.status === 404
+              ? 'Check-in tidak terkirim: akses Anda ke undangan ini sudah berakhir, atau QR pass sedang dinonaktifkan.'
+              : 'Sebagian pindaian ditolak.',
+        );
         batch.scans.forEach((scan) => updateLine(scan.id, { outcome: 'refused' }));
         setQueue(settle(queueRef.current, batch.key));
       }

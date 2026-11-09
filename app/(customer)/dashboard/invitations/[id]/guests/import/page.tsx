@@ -14,7 +14,7 @@ export const dynamic = 'force-dynamic';
 export default async function GuestImportPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ error?: string }> }) {
   if (!isFlagOn('GUEST_IMPORT')) notFound();
   const user = await getUser();
-  if (!user) redirect('/sign-in');
+  if (!user || user.role === 'ADMIN') redirect('/sign-in');
   const id = Number((await params).id);
   if (!Number.isInteger(id)) notFound();
   // G-044 (D-057): the owner or a co-host (`guests`).

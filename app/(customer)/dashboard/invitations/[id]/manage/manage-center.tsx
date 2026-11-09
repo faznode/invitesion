@@ -30,6 +30,16 @@ const modules: Module[] = [
 
 const statusStyle: Record<Module['status'], string> = { Active: 'bg-emerald-50 text-emerald-700', Configurable: 'bg-blue-50 text-blue-700', Foundation: 'bg-amber-50 text-amber-700', 'Integration required': 'bg-slate-100 text-slate-600' };
 
+/** G-045 (D-058): the owner's day-of logs, in place of the seating placeholder while `FLAG_HOST_LOGS` is on. */
+const hostLogsModule: Module = {
+  slug: 'seating',
+  title: 'Seating, souvenirs & gifts',
+  description: 'Assign tables and seats, mark souvenirs handed out, and keep a private gift log, with CSV exports. Only you see it.',
+  status: 'Active',
+  icon: Gift,
+  href: 'logs',
+};
+
 /** G-044 (D-057): the owner's team page, listed after check-in while `FLAG_TEAM_ACCESS` is on. */
 const teamModule: Module = {
   slug: 'team',
@@ -40,17 +50,19 @@ const teamModule: Module = {
   href: 'team',
 };
 
-export function ManageCenter({ invitationId, slug, module, config, guestPassOn = false, teamOn = false }: { invitationId: number; slug: string; module?: string; config: DetailConfig; guestPassOn?: boolean; teamOn?: boolean }) {
+export function ManageCenter({ invitationId, slug, module, config, guestPassOn = false, teamOn = false, hostLogsOn = false }: { invitationId: number; slug: string; module?: string; config: DetailConfig; guestPassOn?: boolean; teamOn?: boolean; hostLogsOn?: boolean }) {
   // B-024: with guest passes on, the check-in module opens the scanner and says what it does. It opens by a full load, so
   // the scanner's own Permissions-Policy (camera) applies; a client-side navigation would keep this page's, which denies it.
-  const shown = (guestPassOn
-    ? modules.map((item) =>
-        item.slug === 'check-in'
-          ? { ...item, description: 'Scan each guest’s QR pass at the door, keep scanning without signal, and search by name when a pass will not scan.', href: 'checkin', fullLoad: true }
+  // G-045 (D-058): with host logs on, the seating module opens the owner's day-of logs instead of its placeholder.
+  const shown = modules
+    .map((item) =>
+      guestPassOn && item.slug === 'check-in'
+        ? { ...item, description: 'Scan each guest’s QR pass at the door, keep scanning without signal, and search by name when a pass will not scan.', href: 'checkin', fullLoad: true }
+        : hostLogsOn && item.slug === 'seating'
+          ? hostLogsModule
           : item,
-      )
-    : modules
-  ).flatMap((item) => (teamOn && item.slug === 'check-in' ? [item, teamModule] : [item]));
+    )
+    .flatMap((item) => (teamOn && item.slug === 'check-in' ? [item, teamModule] : [item]));
   const selected = shown.find((item) => item.slug === module) ?? shown[0];
   const Icon = selected.icon;
   return <main className="min-h-full bg-slate-50/70 p-4 lg:p-8"><div className="mx-auto max-w-6xl">

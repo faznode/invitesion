@@ -4,8 +4,8 @@
 > STATUS: LIVE (design)
 > OWNER: Operator
 > DEPS: DATABASE_SCHEMA.md (guests, guest_messages, analytics_events, guest_registrations, guest_registration_links)
-> GREP: guest, tamu, slug, url, rsvp, csv, import, impor, pendaftaran, daftar, self-registration, BACKEND_ROSTER, roster, tracking, collision, token, link_token, attending_count, calendar, og, analitik, tindak lanjut, follow-up, insights, digest, guest pass, QR pass, check-in, pemindai, scanner, GUEST_PASS, pass_id
-> UPDATED: 2026-11-07 (s34: QR pass tamu + meja check-in + antrean tanpa sinyal, B-024 / D-056 / ADR-A3 / E-074; koreksi: kedua penulis menulis RSVP / GUESTBOOK / CHECKIN ke analytics_events; s31: impor tamu + pendaftaran mandiri + penulis roster `BACKEND_ROSTER` Next.js / API Rust, B-033 / D-052 / E-070; analitik & tindak lanjut host, daftar belum membuka / belum menjawab, ringkasan harian, B-034 / E-069; hanya VIEW yang ditulis ke analytics_events; s29: detail hadiah hanya di link pribadi, QRIS statis host, tombol salin, B-026 / D-047 / E-063; s28: musik latar + sampul "Buka Undangan", B-009 / D-045 / E-061; moderasi / balasan / visibilitas buku tamu dan penulis ucapan `BACKEND_WISHES`, R-04 / D-044 / E-060; penulis RSVP `BACKEND_RSVP` Next.js / API Rust, kunci idempotensi, batas per link / alamat, kontrak proxy tepercaya, R-03 / D-043 / E-059; s23r: akses file foto anak D-040 / E-047; s20, dicatat s21: acara khusus undangan + override RSVP host D-037, foto mempelai / anak D-038; s19: id acara tetap, konfirmasi per acara, ringkasan jawaban host, D-036; s18: pertanyaan custom host + editor, D-034/D-035, ringkasan RSVP dashboard E-033; s17: B-027 MAYBE status, headcount hint; s09: B-007 attending_count, B-011 opt-in token + 404, B-008/B-010 side routes)
+> GREP: guest, tamu, slug, url, rsvp, csv, import, impor, pendaftaran, daftar, self-registration, BACKEND_ROSTER, roster, tracking, collision, token, link_token, attending_count, calendar, og, analitik, tindak lanjut, follow-up, insights, digest, guest pass, QR pass, check-in, pemindai, scanner, GUEST_PASS, pass_id, tim, team, co-host, usher, penerima tamu, invitation_members, FLAG_TEAM_ACCESS
+> UPDATED: 2026-11-09 (s35: meja, suvenir & kado khusus pemilik + ekspor, G-045 / D-058 / E-076; tim undangan, co-host & penerima tamu, G-044 / D-057 / E-075; s34: QR pass tamu + meja check-in + antrean tanpa sinyal, B-024 / D-056 / ADR-A3 / E-074; koreksi: kedua penulis menulis RSVP / GUESTBOOK / CHECKIN ke analytics_events; s31: impor tamu + pendaftaran mandiri + penulis roster `BACKEND_ROSTER` Next.js / API Rust, B-033 / D-052 / E-070; analitik & tindak lanjut host, daftar belum membuka / belum menjawab, ringkasan harian, B-034 / E-069; hanya VIEW yang ditulis ke analytics_events; s29: detail hadiah hanya di link pribadi, QRIS statis host, tombol salin, B-026 / D-047 / E-063; s28: musik latar + sampul "Buka Undangan", B-009 / D-045 / E-061; moderasi / balasan / visibilitas buku tamu dan penulis ucapan `BACKEND_WISHES`, R-04 / D-044 / E-060; penulis RSVP `BACKEND_RSVP` Next.js / API Rust, kunci idempotensi, batas per link / alamat, kontrak proxy tepercaya, R-03 / D-043 / E-059; s23r: akses file foto anak D-040 / E-047; s20, dicatat s21: acara khusus undangan + override RSVP host D-037, foto mempelai / anak D-038; s19: id acara tetap, konfirmasi per acara, ringkasan jawaban host, D-036; s18: pertanyaan custom host + editor, D-034/D-035, ringkasan RSVP dashboard E-033; s17: B-027 MAYBE status, headcount hint; s09: B-007 attending_count, B-011 opt-in token + 404, B-008/B-010 side routes)
 
 ## URL unik per-tamu (differentiator utama)
 Format: `/i/:invitationSlug/:guestSlug` → `invitation.com/i/wedding-andi/budi-santoso`
@@ -101,6 +101,51 @@ center). Hanya baca; kode `lib/invitation/host-analytics.ts` (aturan murni) dan 
 - **Bukti:** `tests/b024-*.test.ts`, `scripts/verify-guest-pass-api.ts` (job `rust`, kedua penulis terhadap binary),
   `services/api/tests/guest_pass_*.rs`; browser tanpa kamera di salinan scratch (E-074). Perangkat fisik = EXT; sesi Clerk
   asli = DA-01 butir 7 (NOT RUN).
+
+## Tim undangan: co-host & penerima tamu (G-044, D-057, E-075; kode di ekspor s34, selesai s35)
+- **Siapa membuka apa.** Co-host: meja check-in, daftar tamu (tambah, impor + batal impor, acara khusus undangan,
+  override RSVP, link dan keputusan pendaftaran), ucapan, statistik dan ekspor. Penerima tamu: meja check-in saja. Isi, tema,
+  pengaturan, tim, checkout dan publikasi tetap milik pemilik. Detail peran: `docs/systems/auth.md`.
+- **Pemilik:** halaman `/dashboard/invitations/<id>/team` (kartu "Team" di control center saat flag on): buat tautan per
+  peran dan catatan "untuk siapa" (1–60 karakter), tautan ditampilkan sekali (salin / WhatsApp), berlaku 7 hari, maks. 20
+  baris hidup; cabut anggota atau batalkan tautan kapan saja.
+- **Anggota:** tautan `/gabung/<rahasia>` (noindex, no-referrer) diterima lewat POST; bila belum login, lewat sign-in /
+  sign-up lalu `/gabung/terima`. Undangan muncul di dasbor anggota ("Dibagikan dengan Anda") dengan tombol sesuai peran dan
+  "Keluar dari tim". Meja check-in dibuka dengan muat halaman penuh (kebijakan kamera D-056).
+- **Data penerima tamu:** meja hanya membawa nama tampilan, kunci satu arah pass dan waktu datang; tidak ada nomor HP,
+  RSVP, id pass, ucapan, statistik atau ekspor. Pencarian nama hanya di undangan itu.
+- **Dicabut saat meja terbuka:** batch tersimpan dijawab 404, keluar dari antrean, dan meja menulis "akses Anda ke undangan
+  ini sudah berakhir, atau QR pass sedang dinonaktifkan" (tidak menyebut yang mana). Muat ulang = 404.
+- **Penulis:** setiap penulis host (roster, override RSVP, moderasi / balasan ucapan) memeriksa hak akses di transaksinya
+  dan baru membaca jawaban kunci idempotensi sesudahnya; scope kunci memakai id akun yang bertindak.
+- **Flag off (`FLAG_TEAM_ACCESS`):** hanya pemilik di semua pintu (termasuk formulir yang dirender saat flag masih on),
+  halaman tim dan halaman bergabung 404, hak akses tersimpan tetap dan berlaku lagi saat flag on.
+- **Bukti:** `tests/g044-team-access.test.ts`, `contracts/vectors/member-roles.json` (+ `services/api/tests/member_roles_vectors.rs`),
+  `scripts/verify-team-access-api.ts` (job `rust`, kedua penulis terhadap binary), browser 43 / 43 di salinan scratch
+  dengan Clerk tiruan (E-075). Sesi Clerk asli = DA-01 butir 8 (NOT RUN).
+
+## Meja, suvenir & kado: catatan hari acara pemilik (G-045, D-058, E-076; s35)
+- **Hanya pemilik.** Halaman `/dashboard/invitations/<id>/logs` (kartu "Seating, souvenirs & gifts" di control center saat
+  `FLAG_HOST_LOGS` on), sembilan aksinya dan ekspor CSV meminta `accessFor(…, 'manage')`; co-host dan penerima tamu tidak
+  memegangnya, administrator diarahkan masuk. Tidak ada delegasi sampai ada keputusan peran sendiri.
+- **Meja:** nama 1–60 karakter (unik per undangan), kapasitas kosong atau 1–100, maks. 200. Meja dari rencana tempat duduk
+  di control center (`config.seatingPlan`, sebelumnya hanya konfigurasi) bisa disalin sekali; nama yang sudah ada dilewati.
+  Hapus meja = tamunya belum bermeja dan label kursinya dikosongkan. Lebih dari kapasitas ditandai, tidak ditolak.
+- **Tamu:** pilih meja + label kursi (≤ 20) per tamu; tandai suvenir diberikan (waktu pertama dipertahankan) atau batalkan.
+  Filter nama di tempat (tanpa JavaScript semua baris tetap tampil).
+- **Kado:** dari tamu di daftar (nama tamu jadi pemberi bila tidak diketik) atau nama yang diketik; jenis amplop / kado /
+  transfer / lainnya; nominal rupiah utuh opsional ("1.500.000", "Rp 1.500.000"); catatan ≤ 300; ubah dan hapus. Kunci sekali
+  pakai per formulir: kirim ganda = satu catatan, kunci sama dengan isi lain ditolak. Maks. 5.000 per undangan.
+- **Ekspor:** `?kind=seating` (nama, kategori, meja, kursi, suvenir, waktu suvenir dan check-in WIB) dan `?kind=gifts`;
+  tanpa nomor HP; sel rumus dinetralkan (B-006); `private, no-store`.
+- **Privasi:** tidak ada halaman tamu, payload publik, meja check-in atau handler Rust yang membaca tabel ini. Konfigurasi
+  untuk audiens tamu (`configForAudience`) kini membuang bagian yang seluruhnya khusus tuan rumah (rencana tempat duduk,
+  preferensi makanan, komunikasi, acara sekunder, tiket, perencana acara, templat WhatsApp); `checkInSettings` tetap karena
+  pass membacanya di server.
+- **Flag off (`FLAG_HOST_LOGS`, default off):** halaman, aksi dan ekspor 404, control center kembali ke placeholder meja,
+  baris tetap dan kembali saat flag on.
+- **Bukti:** `tests/g045-host-logs.test.ts`, `scripts/verify-host-logs.ts` (job `database`), browser 32 / 32 di salinan
+  scratch dengan Clerk tiruan (E-076). Sesi Clerk asli = DA-01 butir 9 (NOT RUN). Atribusi sisi keluarga = I-04.
 
 ## Guest book
 - `guest_messages`. **Moderasi, balasan, visibilitas** (R-04, B-028, D-044; s28):

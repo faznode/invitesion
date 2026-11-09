@@ -169,6 +169,20 @@
       "when": 1794085785397,
       "tag": "0023_team_members",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1794219245443,
+      "tag": "0024_host_logs",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1794221435231,
+      "tag": "0025_gift_family_side",
+      "breakpoints": true
     }
   ]
 }

@@ -147,7 +147,8 @@ test('wiring: the action and the dashboard read the same rules, and every host w
   assert.match(decision, /singleAnswerEventAnswers\(/);
   assert.equal(action.match(/db\.update\(guests\)/g)?.length, 1, 'still one UPDATE per RSVP');
   const host = read('app/(customer)/dashboard/invitations/[id]/guests/actions.ts');
-  assert.match(host, /eq\(invitations\.userId, user\.id\)/);
+  // G-044 (D-057): the owner or a co-host (`guests`), through the flag-aware guard, before any write.
+  assert.match(host, /const access = await accessFor\(user\.id, invitationId, 'guests'\);\s*if \(!access\) redirect\('\/dashboard\/invitations'\);/);
   for (const write of host.match(/await db\.update\(guests\)[\s\S]*?\.where\([^;]*/g) ?? []) {
     assert.match(write, /eq\(guests\.invitationId, ?invitationId\)|eq\(guests\.id,guestId\)/, write.slice(0, 80));
   }

@@ -234,8 +234,15 @@ export async function guestOperationNext(input: {
   });
 }
 
-/** Raised inside a pass check-in's transaction when a concurrent twin with the same key committed first. */
-class TwinCommitted extends Error {}
+/**
+ * Raised inside a pass check-in's transaction when a concurrent twin with the same key committed first: it rolls this
+ * transaction's writes back and carries the twin's recorded answer, read in that transaction after its access check.
+ */
+class TwinCommitted extends Error {
+  constructor(readonly outcome: PassCheckinOutcome) {
+    super('pass check-in: a concurrent batch committed this key first');
+  }
+}
 
 /** A recorded answer for this key: the same batch replays it, a different batch under the key is refused. */
 function recordedPassCheckin(prior: Exclude<IdempotentPrior, { kind: 'none' }>): PassCheckinOutcome {
@@ -246,14 +253,16 @@ function recordedPassCheckin(prior: Exclude<IdempotentPrior, { kind: 'none' }>):
 }
 
 /**
- * B-024 (D-056): a batch of guest-pass scans, as the Rust writer applies it (`pass_checkins`). A batch already answered
- * under this owner, invitation and key replays that answer, whichever writer gave it (`api_idempotency_keys`, the API's
- * scope and request hash); another batch under the same key is refused. Otherwise the owner's invitation must have
- * opted in; the roster lock is taken as for every roster write; then each scan in order: the token is read (shape, MAC,
- * expiry); the pass's guest is locked; a first check-in stores the scan's time and one CHECKIN event (`source: pass`),
- * and a guest already checked in is answered `already` with nothing written, so a replayed pass, a retried batch or two
- * ushers scanning one guest never count twice. The answer is recorded with the key in the same transaction; when a
- * concurrent twin committed the key first, this transaction rolls back and answers with the twin's record.
+ * B-024 (D-056): a batch of guest-pass scans, as the Rust writer applies it (`pass_checkins`). First the caller's current
+ * access (G-044, D-057: the owner, or a live grant whose role holds `checkin`), so a revoked member or another account
+ * never reads a stored answer or learns that its key exists. Then a batch already answered under this caller, invitation
+ * and key replays that answer, whichever writer gave it (`api_idempotency_keys`, the API's scope and request hash);
+ * another batch under the same key is refused. Otherwise the invitation must have opted in; the roster lock is taken as
+ * for every roster write; then each scan in order: the token is read (shape, MAC, expiry); the pass's guest is locked; a
+ * first check-in stores the scan's time and one CHECKIN event (`source: pass`), and a guest already checked in is
+ * answered `already` with nothing written, so a replayed pass, a retried batch or two ushers scanning one guest never
+ * count twice. The answer is recorded with the key in the same transaction; when a concurrent twin committed the key
+ * first, this transaction reads the twin's record and rolls back, answering with it.
  */
 export async function passCheckinNext(input: {
   userId: number;
@@ -267,16 +276,12 @@ export async function passCheckinNext(input: {
   const scans = normalizedPassScans(input.scans);
   const scope = passCheckinScope(input.userId, input.invitationId);
   const hash = passCheckinHash(scans);
-  const prior = await lookupIdempotent(db, scope, input.key, hash, now);
-  if (prior.kind !== 'none') return recordedPassCheckin(prior);
   try {
     return await passCheckinTransaction({ ...input, scans, now, scope, hash });
   } catch (error) {
-    if (!(error instanceof TwinCommitted)) throw error;
+    if (error instanceof TwinCommitted) return error.outcome;
+    throw error;
   }
-  const twin = await lookupIdempotent(db, scope, input.key, hash, now);
-  if (twin.kind === 'none') throw new Error('pass check-in: a concurrent batch committed this key, but its record is gone');
-  return recordedPassCheckin(twin);
 }
 
 function passCheckinTransaction(input: {
@@ -292,6 +297,8 @@ function passCheckinTransaction(input: {
   return db.transaction(async (tx) => {
     const invitation = await accessibleInvitation(tx, input.invitationId, input.userId, 'checkin');
     if (!invitation) return { kind: 'notfound' };
+    const prior = await lookupIdempotent(tx, input.scope, input.key, input.hash, input.now);
+    if (prior.kind !== 'none') return recordedPassCheckin(prior);
     if (!passCheckInEnabled(invitation.config)) return { kind: 'disabled' };
     await lockRoster(tx, input.invitationId);
     const now = input.now;
@@ -317,7 +324,11 @@ function passCheckinTransaction(input: {
         results.push({ outcome: 'checked-in', name: guest.name, checkedInAt: at.toISOString() });
       }
     }
-    if (!(await recordIdempotent(tx, input.scope, input.key, input.hash, 200, { results }, now))) throw new TwinCommitted();
+    if (!(await recordIdempotent(tx, input.scope, input.key, input.hash, 200, { results }, now))) {
+      const twin = await lookupIdempotent(tx, input.scope, input.key, input.hash, now);
+      if (twin.kind === 'none') throw new Error('pass check-in: a concurrent batch committed this key, but its record is gone');
+      throw new TwinCommitted(recordedPassCheckin(twin));
+    }
     return { kind: 'checked', results };
   });
 }

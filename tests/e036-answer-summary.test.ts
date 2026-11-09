@@ -92,7 +92,9 @@ test('rendered summary: hostile text stays inert, RTL text resolves its own dire
 
 test('the guest page summarises for its owner only, with the export\u2019s readers, and logs nothing', () => {
   const page = readFileSync(join(process.cwd(), 'app/(customer)/dashboard/invitations/[id]/guests/page.tsx'), 'utf8');
-  assert.match(page, /where\(and\(eq\(invitations\.id,id\),eq\(invitations\.userId,user\.id\)\)\)/, 'ownership before any read');
+  // G-044 (D-057): the owner or a co-host (`guests`), administrators refused, before any read.
+  assert.match(page, /if\(!user\|\|user\.role==='ADMIN'\)redirect\('\/sign-in'\);/);
+  assert.match(page, /const access=await accessFor\(user\.id,id,'guests'\);if\(!access\)notFound\(\);const inv=access\.invitation;/, 'access before any read');
   assert.match(page, /normalizeStoredConfig\(inv\.config\?\?\{\}\)/);
   assert.match(page, /exportedEvents\(config,rows\)/, 'the same events as the CSV');
   // D-037: each guest's lines cover the events their page shows.

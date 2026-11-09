@@ -78,6 +78,13 @@ const DEFAULTS = {
    * next request, so the invitation is owner-only again; stored grants are kept.
    */
   TEAM_ACCESS: false,
+  /**
+   * G-045 (D-058): the owner's day-of logs, `/dashboard/invitations/<id>/logs`: seating tables and each guest's table and
+   * seat, souvenirs handed out, and a gift log, with CSV exports. Owner-only (no member role holds it). Never read by a
+   * guest page, a public payload or the check-in desk. Off: the page, its actions and its exports answer 404 and the
+   * manage centre shows seating as before; stored rows are kept and return when it is switched back on.
+   */
+  HOST_LOGS: false,
 } as const;
 
 export type FlagName = keyof typeof DEFAULTS;

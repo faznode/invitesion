@@ -4,8 +4,8 @@
 > STATUS: LIVE (MVP scope)
 > OWNER: Architect
 > DEPS: PROJECT_OVERVIEW.md
-> GREP: schema, drizzle, tabel, users, invitations, guests, orders, versions, version_no, guest_registrations, guest_registration_links, import_batch_id, template_id, templateId, creation_key
-> UPDATED: 2026-11-07 (s33: invitations.creation_key + index unik parsial (user_id, creation_key) migrasi 0021, pembuatan draf lewat fasad `BACKEND_CONTENT`, B-037 / D-055; s32 turn 3: dua ruang id template_id vs config.theme.templateId, ganti tema B-036 / D-054; s32: index invitation_versions (invitation_id, version_no) migrasi 0020, cek versi simpan editor `BACKEND_CONTENT`, B-035 / D-053; s31: guests import_batch_id + guest_registration_links + guest_registrations migrasi 0019, penulis roster `BACKEND_ROSTER`, B-033 / D-052; s28: guest_messages reviewed_at / host_reply / replied_at + index ucapan VISIBLE migrasi 0017, R-04 / D-044; api_rate_limits + api_idempotency_keys migrasi 0016, ditulis hanya oleh services/api, R-03 / D-043; s20/s21: guests invited_event_ids migrasi 0015, events[].inviteOnly, D-037; showPhoto foto anak, D-038; s19: guests rsvp_event_answers migrasi 0014; id acara tetap di invitations.config.events migrasi data 0013, D-036; guests rsvp_answers, migrasi 0012; earlier: analytics_events view-dedupe index, guests attending_count, link_token)
+> GREP: schema, drizzle, tabel, users, invitations, guests, orders, versions, version_no, guest_registrations, guest_registration_links, import_batch_id, template_id, templateId, creation_key, invitation_members, co-host, usher, team, seating_tables, guest_logs, gift_logs, host logs, meja, suvenir, kado
+> UPDATED: 2026-11-09 (s35: seating_tables + guest_logs + gift_logs migrasi 0024, catatan hari acara pemilik G-045 / D-058; invitation_members migrasi 0023, tim undangan G-044 / D-057; s33: invitations.creation_key + index unik parsial (user_id, creation_key) migrasi 0021, pembuatan draf lewat fasad `BACKEND_CONTENT`, B-037 / D-055; s32 turn 3: dua ruang id template_id vs config.theme.templateId, ganti tema B-036 / D-054; s32: index invitation_versions (invitation_id, version_no) migrasi 0020, cek versi simpan editor `BACKEND_CONTENT`, B-035 / D-053; s31: guests import_batch_id + guest_registration_links + guest_registrations migrasi 0019, penulis roster `BACKEND_ROSTER`, B-033 / D-052; s28: guest_messages reviewed_at / host_reply / replied_at + index ucapan VISIBLE migrasi 0017, R-04 / D-044; api_rate_limits + api_idempotency_keys migrasi 0016, ditulis hanya oleh services/api, R-03 / D-043; s20/s21: guests invited_event_ids migrasi 0015, events[].inviteOnly, D-037; showPhoto foto anak, D-038; s19: guests rsvp_event_answers migrasi 0014; id acara tetap di invitations.config.events migrasi data 0013, D-036; guests rsvp_answers, migrasi 0012; earlier: analytics_events view-dedupe index, guests attending_count, link_token)
 > ORM DECISION (whyme 2026-07-15): pakai **Drizzle** (bukan Prisma) — ikut fondasi nextjs/saas-starter biar backend cepat jalan. Schema di bawah = kanonik, diimplementasi sbg Drizzle schema (lib/db/schema.ts).
 
 ## Prinsip
@@ -99,6 +99,38 @@ guest_registrations                ← B-033, migrasi 0019: antrean pendaftaran 
 > Roster (B-033, D-052): kolom roster `guests` (name, phone, category, guest_count, slug, link_token, invited_event_ids, sent_at,
 > checked_in_at + baris CHECKIN, import_batch_id) dan dua tabel di atas ditulis oleh satu penulis per panggilan, `BACKEND_ROSTER=next|rust`
 > (`lib/invitation/roster.ts`); kolom RSVP tetap milik penulis RSVP. Migrasi 0019 aditif.
+
+invitation_members                 ← G-044 / D-057, migrasi 0023: tautan bergabung tim, menjadi hak akses saat diterima
+  id, invitation_id→invitations (on delete cascade), role varchar(16) CHECK in ('cohost','usher'), label varchar(60)
+                                     (catatan pemilik), token_hash varchar(64) UNIQUE (SHA-256 hex; rahasia tautan tidak pernah
+                                     disimpan), expires_at (7 hari), user_id→users null (on delete no action: akun dihapus lunak),
+                                     accepted_at null, revoked_at null, created_at
+  UNIQUE parsial invitation_members_live_grant_unique (invitation_id, user_id) where user_id not null and revoked_at null
+                                     ← satu hak akses hidup per undangan dan akun
+  index invitation_members_user_idx (user_id) where revoked_at null; invitation_members_invitation_idx (invitation_id, created_at)
+                                     menunggu = user_id null + belum kedaluwarsa; aktif = user_id terisi; dicabut / keluar = revoked_at
+                                     terisi. Maks. 20 baris hidup per undangan (dihitung di bawah kunci baris undangan). Ditulis hanya
+                                     oleh `lib/invitation/members-db.ts`; dibaca juga oleh `services/api/src/members.rs`.
+
+seating_tables                     ← G-045 / D-058, migrasi 0024: meja milik pemilik (catatan hari acara, khusus pemilik)
+  id, invitation_id→invitations (on delete cascade), name varchar(60), capacity int null CHECK (null atau 1–100), created_at
+  UNIQUE seating_tables_invitation_name_unique (invitation_id, name)      ← maks. 200 meja per undangan (batas teknis)
+guest_logs                         ← G-045 / D-058, migrasi 0024: catatan hari acara satu tamu
+  guest_id PK→guests (on delete cascade), invitation_id→invitations (on delete cascade),
+  table_id→seating_tables null (on delete set null: meja dihapus = tamu belum bermeja; label kursinya ikut dikosongkan oleh penulis),
+  seat varchar(20) null, souvenir_at timestamp null (waktu suvenir PERTAMA dipertahankan, seperti kedatangan pertama D-056), updated_at
+  index guest_logs_invitation_idx (invitation_id); guest_logs_table_idx (table_id)
+gift_logs                          ← G-045 / D-058, migrasi 0024: catatan kado pribadi pemilik
+  id, invitation_id→invitations (on delete cascade), guest_id→guests null (on delete set null), giver_name varchar(150)
+                                     (nama saat dicatat; tetap bila baris tamu hilang), kind varchar(16) CHECK in
+                                     ('envelope','present','transfer','other'), amount bigint null CHECK (null atau 0–10^12; rupiah
+                                     utuh, opsional), note varchar(300) null, received_at, request_key varchar(64), created_at, updated_at
+  UNIQUE gift_logs_request_unique (invitation_id, request_key)  ← kunci sekali pakai formulir: kirim ganda = satu baris
+  index gift_logs_invitation_idx (invitation_id, received_at)   ← maks. 5.000 catatan per undangan (batas teknis)
+                                     Ketiganya ditulis hanya oleh `lib/invitation/host-logs-db.ts` (kunci baris undangan + cek pemilik
+                                     + cek setiap id milik undangan itu) dan dibaca hanya oleh halaman `/dashboard/invitations/<id>/logs`
+                                     dan ekspornya; tidak pernah oleh halaman tamu, payload publik, meja check-in atau API Rust.
+                                     `FLAG_HOST_LOGS` off: semua pintu 404, baris tetap. Migrasi 0024 aditif.
 
 guest_messages
   id, invitation_id→invitations, guest_id→guests(nullable),

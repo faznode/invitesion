@@ -18,7 +18,7 @@ export const metadata: Metadata = { title: 'Analitik & tindak lanjut' };
  */
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const user = await getUser();
-  if (!user) redirect('/sign-in');
+  if (!user || user.role === 'ADMIN') redirect('/sign-in');
   const id = Number((await params).id);
   if (!Number.isInteger(id)) notFound();
   const access = await accessFor(user.id, id, 'insights');
