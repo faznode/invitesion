@@ -3,8 +3,8 @@
  * weak signal or a reload loses no arrival. The scanner keeps it in the device's local storage under one key per
  * invitation; it holds pass tokens and scan times only, never a guest's name, and is emptied as batches are confirmed.
  *
- * A batch, once formed, is resent unchanged under the same key until the route answers, so the Rust writer replays its
- * first answer and the TypeScript writer answers `already` for what it had stored: a lost answer never checks in twice.
+ * A batch, once formed, is resent unchanged under the same key until the route answers, and either writer replays the
+ * first answer recorded under that key: a lost answer never checks in twice and never turns a first arrival amber.
  */
 
 export type QueuedScan = { id: string; token: string; scannedAt: string };
@@ -51,7 +51,10 @@ const isScan = (value: unknown): value is QueuedScan =>
   (value as QueuedScan).token.length <= 200 &&
   typeof (value as QueuedScan).scannedAt === 'string';
 
-/** Reads what the device stored, dropping anything malformed; an unreadable value is an empty queue. */
+/**
+ * Reads what the device stored, dropping anything malformed; an unreadable value is an empty queue. A batch in flight is
+ * kept only when all its scans survived, because a resend must be the same batch: a key with other scans is refused.
+ */
 export function parseStoredQueue(raw: string | null): QueueState {
   if (!raw) return EMPTY_QUEUE;
   try {
@@ -61,7 +64,8 @@ export function parseStoredQueue(raw: string | null): QueueState {
       value.batch && typeof value.batch.key === 'string' && Array.isArray(value.batch.ids)
         ? { key: value.batch.key, ids: value.batch.ids.filter((id): id is string => typeof id === 'string') }
         : null;
-    return { scans, batch: batch && batch.ids.some((id) => scans.some((scan) => scan.id === id)) ? batch : null };
+    const kept = batch && batch.ids.length > 0 && batch.ids.every((id) => scans.some((scan) => scan.id === id));
+    return { scans, batch: kept ? batch : null };
   } catch {
     return EMPTY_QUEUE;
   }

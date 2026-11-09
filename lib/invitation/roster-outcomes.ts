@@ -82,12 +82,27 @@ export type PassScanResult =
   | { outcome: 'unknown' };
 
 export type PassCheckinOutcome =
+  /** Each scan's answer; a batch resent under its key gets the answer recorded the first time, from either writer. */
   | { kind: 'checked'; results: PassScanResult[] }
   /** The flag is off or this invitation has not opted in: every pass is inert. */
   | { kind: 'disabled' }
   /** No pass secret is configured where the live writer runs. */
   | { kind: 'unconfigured' }
+  /** The key already answered a different batch (the scanner mints one per batch, so only a crafted request gets this). */
+  | { kind: 'key-reused' }
   | OwnerRefusal;
+
+/**
+ * One result as both writers send and record it: only `checked-in` and `already` name a guest, and only by display name
+ * and time; any other value is the refusal it names, else `invalid`.
+ */
+export function passScanResultOf(value: unknown): PassScanResult {
+  const body = (value && typeof value === 'object' ? value : {}) as { outcome?: unknown; name?: unknown; checkedInAt?: unknown };
+  if ((body.outcome === 'checked-in' || body.outcome === 'already') && typeof body.name === 'string' && typeof body.checkedInAt === 'string') {
+    return { outcome: body.outcome, name: body.name, checkedInAt: body.checkedInAt };
+  }
+  return body.outcome === 'expired' || body.outcome === 'unknown' ? { outcome: body.outcome } : { outcome: 'invalid' };
+}
 
 /** What the registrant sees. A duplicate is `received` too, so the form never reveals who is on the list. */
 export type RegistrationOutcome =

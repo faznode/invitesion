@@ -70,6 +70,14 @@ const DEFAULTS = {
    * pass, no scanner, and every pass is inert (the check-in route answers 404); stored check-ins are kept.
    */
   GUEST_PASS: false,
+  /**
+   * G-044 (D-057): co-hosts and ushers. The owner makes a join link for one role on the invitation's team page
+   * (`/dashboard/invitations/<id>/team`); a signed-in customer accepts it at `/gabung/<token>`. A co-host works on the
+   * guest list, check-in, wishes and insights; an usher only at the check-in desk. Off until the owner's signed-in check
+   * with real keys (DA-01 item 8): off, the team page and the join links answer 404 and every member is refused at the
+   * next request, so the invitation is owner-only again; stored grants are kept.
+   */
+  TEAM_ACCESS: false,
 } as const;
 
 export type FlagName = keyof typeof DEFAULTS;

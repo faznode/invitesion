@@ -148,7 +148,8 @@ export async function decideRosterRegistration(
 /**
  * B-024 (D-056): a batch of guest-pass scans from the host's scanner. Flag off: every pass is inert and no writer is
  * called. Otherwise exactly one writer, like every roster write; the TypeScript writer verifies with this process's
- * secrets, the Rust writer with its own (`GUEST_PASS_SECRET` on the API).
+ * secrets, the Rust writer with its own (`GUEST_PASS_SECRET` on the API). Both record the scanner's batch key with the
+ * answer in `api_idempotency_keys`, so a resent batch replays its first answer whichever writer gave it.
  */
 export async function checkInWithPasses(
   caller: RosterCaller,
@@ -162,7 +163,7 @@ export async function checkInWithPasses(
   }
   const secrets = passVerifySecrets(env);
   if (!secrets.length) return { kind: 'unconfigured' };
-  return next.passCheckinNext({ userId: caller.userId, invitationId: input.invitationId, scans: input.scans, secrets });
+  return next.passCheckinNext({ userId: caller.userId, invitationId: input.invitationId, scans: input.scans, key: input.key, secrets });
 }
 
 /** A self-registration from the public form; the key is the rendered form's, so a double submit writes once (Rust). */

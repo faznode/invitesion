@@ -88,7 +88,13 @@ fn path(invitation: i32) -> String {
     format!("/v1/invitations/{invitation}/guest-pass-checkins")
 }
 
-async fn post(app: &Router, invitation: i32, body: &Value, bearer: &str, key: Option<&str>) -> (StatusCode, Value, bool) {
+async fn post(
+    app: &Router,
+    invitation: i32,
+    body: &Value,
+    bearer: &str,
+    key: Option<&str>,
+) -> (StatusCode, Value, bool) {
     let path = path(invitation);
     let body = body.to_string();
     let mut request = Request::builder()

@@ -15,6 +15,8 @@ import type { NextConfig } from 'next';
  * as B6 in docs/AUDIT-2026-07-27.md. `/media` already sets its own strict
  * sandbox policy, which is where untrusted bytes actually are.
  */
+const permissionsPolicy = (camera: '()' | '(self)') => `camera=${camera}, microphone=(), geolocation=(), payment=()`;
+
 const securityHeaders = [
   // No MIME sniffing anywhere, not just on /media.
   { key: 'X-Content-Type-Options', value: 'nosniff' },
@@ -23,8 +25,8 @@ const securityHeaders = [
   // Guest URLs are personal and contain a guest slug; never leak the full path
   // to third parties via Referer.
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-  // No feature this product uses needs these.
-  { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), payment=()' },
+  // Denied everywhere; only the host's scanner gets the camera (below).
+  { key: 'Permissions-Policy', value: permissionsPolicy('()') },
   // Force HTTPS once seen. Harmless on localhost, which browsers exempt.
   { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains' },
 ];
@@ -41,7 +43,13 @@ const nextConfig: NextConfig = {
   // governs agents in this repository (seen in s27 at the first dev start). With `false` it also removes such a block.
   agentRules: false,
   async headers() {
-    return [{ source: '/:path*', headers: securityHeaders }];
+    return [
+      { source: '/:path*', headers: securityHeaders },
+      // B-024: the scanner reads QR passes through the camera, so its document allows it for this origin; a later entry
+      // overrides the same header. The page is entered by a full load (a plain link), because a client-side navigation
+      // keeps the previous document's policy, which denies the camera.
+      { source: '/dashboard/invitations/:id/checkin', headers: [{ key: 'Permissions-Policy', value: permissionsPolicy('(self)') }] },
+    ];
   },
 };
 

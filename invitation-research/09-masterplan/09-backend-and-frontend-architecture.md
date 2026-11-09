@@ -5,7 +5,7 @@
 > OWNER: Research agent (Architect role)
 > DEPS: ../08-backend-rust-plan/README.md, 04-current-state.md, 06-backlog.md, 08-template-system-and-harness.md, 10-data-privacy-security-payments.md, 12-decision-log.md (ADR-A1, ADR-O01, ADR-O06), ../01-codebase-audit/revalidation-s10.md
 > GREP: architecture, frontend, backend, rsc, server action, cache, rust, axum, sqlx, verdict, schema, migration, deployment, observability, rollback, D-039, use cache, ADR-A2, ADR-F1, data ownership, strangler
-> UPDATED: 2026-11-06
+> UPDATED: 2026-11-07 (s34: §8 service boundary, ADR-A3 for browser writes)
 
 ## 1. Decision in one paragraph
 Invitesion stays a single Next.js App Router application on Postgres (Drizzle) with Clerk for identity (ADR-A1). The s09 spike shows the guest page's cost is our own render path rather than the runtime: the product page needs ≈ 27–30 ms server CPU per page in the lab, the same server doing one load and minimal HTML ≈ 4 ms, and Rust doing identical work ≈ 0.3 ms but then waits on Postgres. A fourth measurement (loader in React `cache()`, two rounds) isolates the duplicate loader call: it costs about a third of the database CPU per page and nothing measurable on the server, so ≈ 85–90 % of the server CPU is rendering the full template. The plan therefore fixes correctness first (allowance and unknown guests shipped in s09 as B-007 and B-011; view dedupe next as B-017a), then caches the invitation-level render inside Next.js (B-014), adds telemetry, and keeps a documented trigger for an incremental Rust service on a future non-React hot path.
@@ -148,7 +148,7 @@ Rules:
   - `sub` mapped to `users.clerk_user_id`;
   - roles from the database.
 - **Guest calls:** the guest link (slug, or the opaque token under `FLAG_OPAQUE_GUEST_LINKS`) is the credential, checked in Rust by the same rules (B-011, D-037, D-040).
-- **Service boundary:** every call carries the internal HMAC signature (two secrets accepted during rotation). The API is not browser-facing in U2–U4 (no CORS). Browser or app access, such as the offline QR scanner, needs its own ADR covering CORS, CSRF and rate limits.
+- **Service boundary:** every call carries the internal HMAC signature (two secrets accepted during rotation). The API is not browser-facing in U2–U4 (no CORS). Browser or app access, such as the offline QR scanner, needs its own ADR covering CORS, CSRF and rate limits. **Settled for the scanner by ADR-A3 (s34):** the browser writes only through same-origin Next.js routes (a Fetch Metadata or Origin check before the session is read, JSON only, a limit per host and invitation), which call the roster facade; the API stays private and sends no CORS headers.
 - **Authorization** is checked in Rust on every request: owner match for invitation-scoped resources, staff roles for admin endpoints. Each endpoint has a cross-tenant denial test.
 
 ### 8.6 Payments, idempotency, background jobs

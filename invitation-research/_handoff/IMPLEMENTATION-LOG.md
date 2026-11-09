@@ -5,7 +5,7 @@
 > OWNER: Operator role (research agent)
 > DEPS: ../09-masterplan/06-backlog.md, ../09-masterplan/08-template-system-and-harness.md, sessions/session-09-20261103-1816.md
 > GREP: implementation, P0, B-0, acceptance, tests, rollback, verify, migration, F-01, R-01, R-02, R-03, R-04, next 16, rust, idempotency, rate limit, moderation, wishes, image variants, gallery, host analytics, follow-up
-> UPDATED: 2026-11-07 (s31: E-067 B-019 and E-068 B-025 verified on the final tree with three test repairs, E-069 B-034 host analytics and follow-up lists; s29: E-061 reconciled with the transfer evidence, E-062 host replay isolation, E-063 B-026 gift block, E-064 F-02 family default, E-065 B-023 couple profiles, E-066 B-018 WhatsApp builder; s28: E-059 R-03 and E-060 R-04 completed in the sandbox, the s27 → `f935d39` transfer corrections; s27: E-056 F-01 adopted, E-057 R-01, E-058 R-02; newest entries last)
+> UPDATED: 2026-11-07 (s34: E-074 B-024 + I-01 / I-27, the guest pass, scanner and offline outbox, four defects fixed; s32–s33: E-071…E-073; s31: E-067 B-019 and E-068 B-025 verified on the final tree with three test repairs, E-069 B-034 host analytics and follow-up lists; s29: E-061 reconciled with the transfer evidence, E-062 host replay isolation, E-063 B-026 gift block, E-064 F-02 family default, E-065 B-023 couple profiles, E-066 B-018 WhatsApp builder; s28: E-059 R-03 and E-060 R-04 completed in the sandbox, the s27 → `f935d39` transfer corrections; s27: E-056 F-01 adopted, E-057 R-01, E-058 R-02; newest entries last)
 
 ## How checks are run
 Product checks run in the local-stack snapshot (`/vercel/share/work/app`, refreshed with `local-stack.sh sync`; `app/spike-min` and stale `.next/types` removed first so spike files never mask a product result): `pnpm typecheck`, `pnpm test`, `pnpm build` (the repository's required gates, `AGENTS.md`). Database steps run against the disposable Postgres (`127.0.0.1:5433`, identity checked: `invitesion|127.0.0.1|5433|/vercel/share/work/pgdata`). Build = production build without `middleware.ts` (placeholder Clerk keys, P-INV-010), so middleware behaviour is not validated here. Results are quoted from the run, never assumed.
@@ -698,7 +698,7 @@ Every figure below was executed in s28 unless marked *reported*. CI jobs ran thr
   - Keys: 6 concurrent sends of one form → all "saved", one write, one stored key; an invalid form key is ignored and the writer mints one.
   - Limits: per link, 8 pass and the 9th is "busy" with `rsvpr` in 1…600 and writes nothing, and after the window it writes again; per address, 20 writes over 3 links pass and a client-supplied left entry does not escape; `TRUSTED_PROXY_HOPS=0` applies no per-address limit; 20 IPv6 addresses of one /64 share one bucket (21 hits) while the next /64 has its own; the table holds hashes only.
   - Host: **8 / 8** dashboard operations give the same result, row and analytics row through both writers (including `event:<id>:…`, an unknown event and an unknown status); concurrent overrides of two events lose neither answer; another customer's token and a foreign guest are "not found", an administrator and an unknown account sign in, expired / foreign-issuer / foreign-party / unknown-key / forged tokens are 401 and propagate, and none writes; a session without a token signs in; the API down is `?error=unconfirmed` with nothing written; `next` needs no API.
-  - **Negative controls** (scratch copy, same binary): M1 the TypeScript writer's analytics meta changed → parity 13 / 34 (the 21 writing scenarios fail); M2 the retry under a fresh key → 4 checks fail (two writes after a lost answer); M3 `BACKEND_RSVP=rust` ignored → 13 checks fail; M4 the leftmost forwarded entry read → only the forged-address check fails; M5 the owner check's 403 mapped to "not found" → only the ownership / role check fails.
+  - **Negative controls** (scratch copy, same binary): M1 the TypeScript writer's analytics meta changed → parity 13 / 34 (the 21 writing scenarios fail); M2 the retry under a fresh key �� 4 checks fail (two writes after a lost answer); M3 `BACKEND_RSVP=rust` ignored → 13 checks fail; M4 the leftmost forwarded entry read → only the forged-address check fails; M5 the owner check's 403 mapped to "not found" → only the ownership / role check fails.
   - **Gates on the final tree:** app typecheck 0, **363 / 363**, build with proxy; database PASS; rust fmt, clippy, **37 / 37**, contract current, views 9 / 9, **RSVP 24 / 24**, feasibility 17 / 17; research PASS after this entry (its reference check had caught D-043 citing E-059 before it existed); product gates in the session file.
 - **Limits:**
   - The owner-token chain is proven with locally minted RS256 tokens served as a JWKS; Clerk's own session tokens (`getToken()` → issuer, `azp`) are DA-01 (deferred, NOT RUN).
@@ -957,3 +957,70 @@ Every figure below was executed in s29 unless marked *reported*. Jobs ran throug
   - Jobs: see the s33 worksheet ("Final jobs").
 - **Limits:** the sign-in and sign-up round trip with real Clerk keys is DA-01 item 6 (NOT RUN); the harness replaced Clerk with a cookie stub. The flag-off path still creates on GET (behaviour before B-037). The wizard's copy is Indonesian only (an English wizard waits on G-018). `BACKEND_CONTENT=rust` is a sandbox result; preview, load and seven days within SLO are owner steps.
 - **Risk / rollback:** `FLAG_CREATION_WIZARD=off` (the default) restores the old catalog path and answers 404 on `/buat/*`; drafts already made stay ordinary drafts. `BACKEND_CONTENT=next` (the default). Migration 0021 is additive (a nullable column and a partial unique index); reverting the code leaves it unused.
+
+## Session 34 (2026-11-07; checkpoint `33c0b12`, tree `a81fadd`; B-024 + I-01 / I-27 finished and its exposure decision recorded)
+
+### E-074 · B-024 + I-01 / I-27: the guest pass, the host's scanner with an offline outbox and a greeting, one arrival per guest through both roster writers (code s33, completed s34; D-056, ADR-A3)
+- **State at `33c0b12` (inspected, then measured):** the export held migration 0022 (`guests.pass_id`), the pass rules and vectors in both languages, `POST /v1/invitations/{invitation}/guest-pass-checkins`, the facade write `checkInWithPasses` with both writers, the same-origin route, the scanner (camera, handheld field, manual fallback, outbox, greeting), the guest's pass page, `FLAG_GUEST_PASS` (off) and two test files. Code cited D-056 and ADR-A3; the decision log had neither. `scripts/verify-guest-pass-api.ts`, cited as the rust job's database flow, did not exist. Measured: typecheck 0; unit **558 / 559** (the failure: the API's definite 503 `guest_pass.not_configured` was resent and reported "unconfirmed").
+- **Defects found in s34 and fixed:**
+  1. **A definite refusal resent.** The Rust client treated every 5xx as an unknown outcome. `guest_pass.not_configured` comes before any write, so it is now definite (`DEFINITE_5XX` in `lib/invitation/roster-api.ts`): one request, answered "not configured".
+  2. **Replay parity.** After a lost answer the TypeScript writer (the default) answered `already` where the Rust writer replays `checked-in`, so the usher saw a false amber screen and the writers disagreed; it also ignored the batch key (no `KEY_REUSED`). New `lib/idempotency.ts` is the TypeScript side of `services/api/src/idempotency.rs`: the same table, scope, request hash, statements and retention. `passCheckinNext` looks the key up, records the answer in the write's own transaction, and answers a concurrent twin from its record. The route admits printable ASCII only, so a batch hashes to the same bytes in both writers (vectors `requests`).
+  3. **One arrival recorded twice.** The manual fallback reused the guest list's `checkin`, which in both writers overwrote `checked_in_at` and inserted another CHECKIN row on every call. Both writers now store the first time only (`… and checked_in_at is null`, with an event only when a row changed). The manual fallback answers `already` with the stored time, and the scanner shows it amber.
+  4. **The camera denied everywhere.** `next.config.ts` sent `Permissions-Policy: camera=()` on every path, so the scanner's camera could never open on a deployment; s34 measured that header on the scanner path before the fix. The scanner path now gets `camera=(self)` from a later header entry. Both links to it (the guest list, the manage centre's Check-in card) load the page in full, because a client-side navigation keeps the previous document's policy.
+  - **Smaller corrections:**
+    - The outbox keeps a stored batch only when all its scans survived, since a resend must be the same batch.
+    - The greeting screens put white text on emerald-700 / rose-700, which gives ≥ 4.5:1 (the 600s gave less).
+    - The shells' closed mobile drawers are `inert`: axe `aria-hidden-focus` showed hidden links in the tab order on every dashboard page.
+    - The scanner's small label uses brand-700.
+    - The scan-time doc comments now state the pinned rule in both languages (an older scan is stored a day before now, not "now"), and the OpenAPI description was regenerated.
+    - The manage centre's flag-on copy replaces "roadmap".
+    - `cargo fmt` drift in the two B-024 Rust test files, already present at `33c0b12`, is formatted.
+- **Exposure (ADR-A3):** the browser never calls the API. The scanner posts to `/api/invitations/<id>/checkins`, which checks Fetch Metadata or Origin before reading the session, accepts JSON only, needs the owner's session and the flag, and limits batches per host and invitation (`RATE_LIMIT_CHECKIN`, 120 / 60 s) before the facade picks one writer. No CORS anywhere.
+- **Evidence (s34):**
+  - **Unit:** `tests/b024-checkin-writer.test.ts` and `tests/b024-guest-pass.test.ts` **18 / 18**. They cover the definite 503, key reuse, the stored-batch rule, the idempotency statements equal in both languages, the first-arrival rule in both writers and the manual fallback, printable-ASCII canonical bytes, and the camera policy with full-load entries. Full suite and typecheck: see the jobs.
+  - **Rust** on a migrated scratch database: fmt clean after formatting; clippy `-D warnings` clean; **111** service tests; contract current (`openapi.json`, `schema.d.ts`; one `.sqlx` query replaced by the first-arrival update).
+  - **`verify-guest-pass-api` 24 / 24** (new; rust job step "guest passes end to end"; both writers against the binary; only Next's request primitives and Clerk's session stubbed). Checks:
+    - every kind of scan answered alike, with the same rows (three arrivals, one CHECKIN event each, `source: pass`);
+    - a pass scanned again through the other writer is `already` with the first time to the millisecond;
+    - an answer lost after the commit is resent once under the batch key and replayed `checked-in`;
+    - a resent batch replays exactly, to the same writer and across writers;
+    - a used key refuses another batch in both writers;
+    - five pairs of desks scanning one guest at once give one `checked-in`, one `already` and one event;
+    - the manual fallback, the list and a scan record one arrival;
+    - under rust with the API down: "unconfirmed" and nothing written;
+    - a missing secret: 503 in both writers, asked once (the binary started again without secrets);
+    - opt-in 409, another owner 404, administrator 403, signed out 401;
+    - the exposure rules (cross-site, same-site, a foreign Origin and neither header refused before the session is read; simple requests 415; no CORS from the route or the API);
+    - the limit 429 across writers;
+    - flag off 404 with check-ins kept;
+    - no fixture row left.
+  - **The same script against the checkpoint's TypeScript** (scratch copy of `33c0b12`, current binary): **5 failed / 19 passed**: the replay, key-reuse, manual-fallback, definite-503 and printable-ASCII checks. It discriminates the defects above.
+  - **Browser** (Chrome for Testing 158 headless via puppeteer-core; a scratch copy with `@clerk/nextjs` replaced by a cookie stub, a scratch database, `next dev`, `FLAG_GUEST_PASS=on`, `BACKEND_ROSTER=next`): **19 / 19**, plus the manage-centre entry **1 / 1**.
+    - the public page offers no pass; the personal page links to it;
+    - the pass page's QR, decoded in the page with jsQR, is the 53-character token (name only, `noindex`, no referrer, a name with markup shown as text);
+    - the guest list denies the camera and its link opens the scanner by a full load that allows it;
+    - without a camera the scanner explains the alternatives;
+    - a handheld-typed pass gives the full-screen greeting, announced, stored once with `source: pass`, the count updated;
+    - again gives amber "Sudah check-in" with the first time;
+    - a non-pass QR is refused at once with nothing sent; a forged pass is refused after the answer;
+    - offline, the scan is named from the page and kept on the device without a name, then sent when the signal returns, keeping its own time;
+    - a write lost twice across a reload is resent under one key until confirmed, one arrival at the scan's time;
+    - the manual search checks a guest in and is disabled offline;
+    - every greeting screen is ≥ 4.5:1 and Escape dismisses it;
+    - axe-core shows no serious or critical violation on the scanner or the pass page (after the drawer and label fixes);
+    - the camera path through Chrome's fake capture device showing a pass checks the guest in, while the guest list's `getUserMedia` is refused (`NotAllowedError`);
+    - one CHECKIN event per arriving guest.
+    - Screenshots outside the repository (`/tmp/agent-browser/s34-*`).
+  - **Jobs on the final code tree `3268105`** (1,912 paths; the working tree at 20:49:59Z, unchanged during the run): research PASS (10 / 10); app PASS (typecheck 0, **564 / 564**, production build with `proxy.ts`); database PASS (9 / 9); rust PASS (16 / 16 steps: fmt, clippy, **111** service tests + 17 feasibility, contract current, guest passes end to end **24 / 24**, roster 18, RSVP 24, wishes 27, content 30, creation 38, replay isolation 29); product gates PASS (18 / 18 steps, 593 s: gift privacy 57 / 57, product bytes ×3, design acceptance 198 / 198 over 33 pages, cover fold 90 / 90, rendered contrast 9 / 9 and F-02 6 / 6, cover gate 69 / 69, gallery 253 / 253). The records tree's research and app runs are in the s34 worksheet.
+- **Limits:**
+  - Acceptance on physical devices (camera, handheld scanner, the ≤ 3 s desk target) is EXT, not run.
+  - The signed-in path with real Clerk keys is DA-01 item 7, NOT RUN: the harness replaced Clerk.
+  - Until G-044 only the owner scans.
+  - `BACKEND_ROSTER=rust` is a sandbox result.
+  - Small `text-brand-600` text on the dashboard's slate-50 is 4.4:1 on every dashboard page (45 uses). That is a brand-token decision for the owner; only the scanner's own label moved to brand-700.
+- **Risk / rollback:**
+  - `FLAG_GUEST_PASS=off` (the default) hides the pass and the scanner, answers 404 on the route (every pass inert) and keeps stored check-ins.
+  - `BACKEND_ROSTER=next` (the default).
+  - Migration 0022 is additive (a column with a database default).
+  - The camera policy reverts by removing the second header entry.
+  - The first-arrival rule reverts in both writers together, with its test guards.

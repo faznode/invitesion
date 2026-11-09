@@ -23,6 +23,7 @@ use crate::guest_link::{self, LinkCodes, check_open};
 use crate::idempotency::{self, replay};
 use crate::identity::resolve_owner;
 use crate::limits;
+use crate::members::Capability;
 use crate::problem::{ApiError, Problem, Subject};
 use crate::views::utc_now;
 
@@ -246,7 +247,7 @@ fn db_json(error: serde_json::Error) -> ApiError {
         (status = 400, description = "Malformed path, body or idempotency key", body = Problem, content_type = "application/problem+json"),
         (status = 401, description = "Missing or invalid signature or owner token", body = Problem, content_type = "application/problem+json"),
         (status = 403, description = "A token for no live customer (`owner.unknown_user`, `owner.role_not_allowed`)", body = Problem, content_type = "application/problem+json"),
-        (status = 404, description = "Not this owner's invitation, or not its guest (`invitation_or_guest.not_found`)", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "Not an invitation this caller may change (its owner, or a member whose role allows it: D-057), or not its guest (`invitation_or_guest.not_found`)", body = Problem, content_type = "application/problem+json"),
         (status = 422, description = "An event the guest is not asked about, or an event answer without per-event RSVP (`rsvp.override_invalid`); `idempotency.key_reused`", body = Problem, content_type = "application/problem+json"),
         (status = 503, description = "Owner tokens are not configured or the signing keys are unreachable", body = Problem, content_type = "application/problem+json"),
     )
@@ -280,12 +281,20 @@ pub async fn host_rsvp_override(
     }
 
     let mut tx = state.pool.begin().await.map_err(db("override_begin"))?;
-    let invitation =
-        sqlx::query!("select config from invitations where id = $1 and user_id = $2", invitation_id, owner.user_id)
-            .fetch_optional(&mut *tx)
-            .await
-            .map_err(db("override_invitation"))?
-            .ok_or(ApiError::NotFound("invitation_or_guest.not_found"))?;
+    // G-044 (D-057): the owner, or a member whose role holds the guest list (a co-host).
+    let roles = Capability::Guests.member_role_args();
+    let invitation = sqlx::query!(
+        "select i.config from invitations i where i.id = $1 and (i.user_id = $2 or exists (select 1 \
+         from invitation_members m where m.invitation_id = i.id and m.user_id = $2 and m.revoked_at is null \
+         and m.role = any($3)))",
+        invitation_id,
+        owner.user_id,
+        &roles[..]
+    )
+    .fetch_optional(&mut *tx)
+    .await
+    .map_err(db("override_invitation"))?
+    .ok_or(ApiError::NotFound("invitation_or_guest.not_found"))?;
     let guest = sqlx::query!(
         "select invited_event_ids, rsvp_event_answers, rsvp_status, attending_count from guests \
          where id = $1 and invitation_id = $2 for update",

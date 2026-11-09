@@ -573,7 +573,10 @@ export interface components {
         PassScan: {
             /** @description The text of the pass's QR (`IVP1.` and 48 base64url characters); anything else is answered `invalid`. */
             token: string;
-            /** @description When the scanner saw it (`YYYY-MM-DDTHH:MM:SS[.fff]Z`); kept within the last day, else this request's time. */
+            /**
+             * @description When the scanner saw it (`YYYY-MM-DDTHH:MM:SS[.fff]Z`). Kept within the last day; an older time is stored a day
+             *     before this request, a future, malformed or absent one as this request's time.
+             */
             scannedAt?: string | null;
         };
         PassScanResult: {
@@ -1109,7 +1112,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description Not this owner's invitation (`roster.not_found`) */
+            /** @description Not an invitation this caller may change (its owner, or a member whose role allows it: D-057) (`roster.not_found`) */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -1286,7 +1289,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description Not this owner's invitation (`roster.not_found`) */
+            /** @description Not an invitation this caller may change (its owner, or a member whose role allows it: D-057) (`roster.not_found`) */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -1368,7 +1371,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description Not this owner's invitation, or no guest of this batch (`roster.not_found`) */
+            /** @description Not an invitation this caller may change (its owner, or a member whose role allows it: D-057), or no guest of this batch (`roster.not_found`) */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -1452,7 +1455,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description Not this owner's invitation (`roster.not_found`) */
+            /** @description Not an invitation this caller may change (its owner, or a member whose role allows it: D-057) (`roster.not_found`) */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -1545,7 +1548,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description Not this owner's invitation (`roster.not_found`) */
+            /** @description Not an invitation this caller may change (its owner, or a member whose role allows it: D-057) (`roster.not_found`) */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -1640,7 +1643,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description Not this owner's invitation, or not its guest (`roster.not_found`) */
+            /** @description Not an invitation this caller may change (its owner, or a member whose role allows it: D-057), or not its guest (`roster.not_found`) */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -1726,7 +1729,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description Not this owner's invitation, or not its guest (`roster.not_found`) */
+            /** @description Not an invitation this caller may change (its owner, or a member whose role allows it: D-057), or not its guest (`roster.not_found`) */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -1812,7 +1815,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description Not this owner's invitation, or not its guest (`invitation_or_guest.not_found`) */
+            /** @description Not an invitation this caller may change (its owner, or a member whose role allows it: D-057), or not its guest (`invitation_or_guest.not_found`) */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -1896,7 +1899,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description Not this owner's invitation (`roster.not_found`) */
+            /** @description Not an invitation this caller may change (its owner, or a member whose role allows it: D-057) (`roster.not_found`) */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -1982,7 +1985,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description Not this owner's invitation, or not its waiting registration (`roster.not_found`) */
+            /** @description Not an invitation this caller may change (its owner, or a member whose role allows it: D-057), or not its waiting registration (`roster.not_found`) */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -2077,7 +2080,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description Not this owner's invitation, or not its wish (`invitation_or_wish.not_found`) */
+            /** @description Not an invitation this caller may change (its owner, or a member whose role allows it: D-057), or not its wish (`invitation_or_wish.not_found`) */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -2163,7 +2166,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description Not this owner's invitation, or not its wish (`invitation_or_wish.not_found`) */
+            /** @description Not an invitation this caller may change (its owner, or a member whose role allows it: D-057), or not its wish (`invitation_or_wish.not_found`) */
             404: {
                 headers: {
                     [name: string]: unknown;

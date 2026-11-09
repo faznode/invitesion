@@ -13,6 +13,7 @@ pub mod identity;
 pub mod jobs;
 pub mod limits;
 pub mod media;
+pub mod members;
 pub mod openapi;
 pub mod owner_auth;
 pub mod problem;

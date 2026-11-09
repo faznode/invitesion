@@ -12,6 +12,7 @@ import {
   uniqueIndex,
   index,
   primaryKey,
+  check,
 } from 'drizzle-orm/pg-core';
 import { relations, sql } from 'drizzle-orm';
 
@@ -223,6 +224,42 @@ export const guestRegistrationLinks = pgTable(
     createdAt: timestamp('created_at').notNull().defaultNow(),
   },
   (t) => ({ tokenUnique: uniqueIndex('guest_registration_links_token_unique').on(t.token) }),
+);
+
+/**
+ * G-044 (D-057): who else works on an invitation. A row starts as a join link the owner made for one role (`cohost` or
+ * `usher`), stored only as the SHA-256 of its secret, and becomes a grant when a signed-in customer accepts it
+ * (`user_id`, `accepted_at`). Revoking sets `revoked_at`; rows are never deleted, so the owner's team page and every
+ * access check read this one table, live: a revoked grant stops working at the next request.
+ */
+export const invitationMembers = pgTable(
+  'invitation_members',
+  {
+    id: serial('id').primaryKey(),
+    invitationId: integer('invitation_id')
+      .notNull()
+      .references(() => invitations.id, { onDelete: 'cascade' }),
+    role: varchar('role', { length: 16 }).notNull(), // cohost | usher
+    // The owner's note for whom the link is ("Rina, penerima tamu"); shown to the owner only.
+    label: varchar('label', { length: 60 }).notNull(),
+    tokenHash: varchar('token_hash', { length: 64 }).notNull(),
+    // The join link's expiry; an accepted grant does not expire.
+    expiresAt: timestamp('expires_at').notNull(),
+    userId: integer('user_id').references(() => users.id),
+    acceptedAt: timestamp('accepted_at'),
+    revokedAt: timestamp('revoked_at'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (t) => ({
+    tokenUnique: uniqueIndex('invitation_members_token_unique').on(t.tokenHash),
+    // One live grant per account and invitation, whatever the number of links it was sent.
+    liveGrantUnique: uniqueIndex('invitation_members_live_grant_unique')
+      .on(t.invitationId, t.userId)
+      .where(sql`${t.userId} is not null and ${t.revokedAt} is null`),
+    userIdx: index('invitation_members_user_idx').on(t.userId).where(sql`${t.revokedAt} is null`),
+    invitationIdx: index('invitation_members_invitation_idx').on(t.invitationId, t.createdAt),
+    roleCheck: check('invitation_members_role_check', sql`${t.role} in ('cohost', 'usher')`),
+  }),
 );
 
 // R-04 (B-028, D-044): a wish is visible (`is_hidden` false), awaiting the host (hidden and never reviewed: the
@@ -571,6 +608,7 @@ export type NewInvitation = typeof invitations.$inferInsert;
 export type InvitationVersion = typeof invitationVersions.$inferSelect;
 export type Guest = typeof guests.$inferSelect;
 export type GuestRegistration = typeof guestRegistrations.$inferSelect;
+export type InvitationMember = typeof invitationMembers.$inferSelect;
 export type Order = typeof orders.$inferSelect;
 export type Conversation = typeof conversations.$inferSelect;
 export type Message = typeof messages.$inferSelect;

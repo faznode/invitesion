@@ -30,15 +30,16 @@ const TITLES: Record<Outcome, string> = {
   refused: 'Check-in ditolak',
 };
 
+// White text needs 4.5:1 for the small lines on these screens: emerald-700 and rose-700 give it, the 600s do not.
 const SCREENS: Record<Outcome, string> = {
-  'checked-in': 'bg-emerald-600 text-white',
+  'checked-in': 'bg-emerald-700 text-white',
   already: 'bg-amber-300 text-slate-950',
   queued: 'bg-slate-800 text-white',
-  expired: 'bg-rose-600 text-white',
-  invalid: 'bg-rose-600 text-white',
-  unknown: 'bg-rose-600 text-white',
-  'not-a-pass': 'bg-rose-600 text-white',
-  refused: 'bg-rose-600 text-white',
+  expired: 'bg-rose-700 text-white',
+  invalid: 'bg-rose-700 text-white',
+  unknown: 'bg-rose-700 text-white',
+  'not-a-pass': 'bg-rose-700 text-white',
+  refused: 'bg-rose-700 text-white',
 };
 
 const MANUAL_REFUSALS: Record<Exclude<ManualCheckInResult, { ok: true }>['reason'], string> = {
@@ -291,7 +292,7 @@ export function CheckinScanner({ invitationId, roster: initialRoster, manual, pa
       const result = await manualCheckIn(invitationId, entry.id);
       if (result.ok) {
         markChecked(entry.key, result.checkedInAt);
-        const line: LogLine = { id, outcome: 'checked-in', name: entry.name, at: result.checkedInAt, scannedAt: result.checkedInAt };
+        const line: LogLine = { id, outcome: result.already ? 'already' : 'checked-in', name: entry.name, at: result.checkedInAt, scannedAt: result.checkedInAt };
         setLog((lines) => [line, ...lines].slice(0, 12));
         setGreeting(line);
         setQuery('');
@@ -460,7 +461,7 @@ export function CheckinScanner({ invitationId, roster: initialRoster, manual, pa
             </p>
           )}
           {greeting.outcome === 'already' && greeting.at && <p className="text-base">sejak pukul {timeOf(greeting.at)}</p>}
-          <p className="text-sm opacity-80">Ketuk untuk lanjut</p>
+          <p className="text-sm">Ketuk untuk lanjut</p>
         </div>
       )}
     </div>

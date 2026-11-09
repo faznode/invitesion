@@ -3,6 +3,7 @@
 // secrets below the minimum are ignored and the previous secret only verifies; the pass link appears in the RSVP block of
 // every layout for a recognised guest and never on the shared invitation link or without the page's decision.
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -10,7 +11,11 @@ import type { DetailConfig } from '../lib/invitation/detail-config';
 import {
   checkInTime,
   GUEST_PASS_TOKEN_LENGTH,
+  normalizedPassScans,
   passCheckInEnabled,
+  passCheckinCanonical,
+  passCheckinHash,
+  passCheckinScope,
   passExpiresAt,
   passLookupKey,
   passLookupKeyFromToken,
@@ -43,6 +48,15 @@ test('every vector is what the rules decide: signs, reads, scan times, opt-ins, 
   for (const { name, config, expect } of vectors.manual) assert.equal(passManualAllowed(config), expect, name);
   for (const { passId, key } of vectors.lookups) assert.equal(passLookupKey(passId), key);
   for (const { name, events, issuedAt, expect } of vectors.expiries) assert.equal(passExpiresAt(events, issuedAt), expect, name);
+  // D-056: the batch's idempotency record is shared by both writers (the Rust suite serialises `sent` to `canonical`).
+  assert.equal(vectors.requests.length, 6);
+  for (const { name, scans, sent, canonical, hash } of vectors.requests) {
+    assert.deepEqual(normalizedPassScans(scans), sent, name);
+    assert.equal(passCheckinCanonical(scans), canonical, name);
+    assert.equal(passCheckinHash(scans), hash, name);
+    assert.equal(createHash('sha256').update(canonical).digest('hex'), hash, `${name}: the hash is the canonical JSON's`);
+  }
+  for (const { owner, invitation, scope } of vectors.scopes) assert.equal(passCheckinScope(owner, invitation), scope);
 });
 
 test('the vector file is current: regenerating it from the rules changes nothing', () => {

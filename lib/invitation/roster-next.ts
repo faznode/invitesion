@@ -1,14 +1,16 @@
 import 'server-only';
 
 import { randomUUID } from 'node:crypto';
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
 import { analyticsEvents, guestRegistrationLinks, guestRegistrations, guests, invitations } from '@/lib/db/schema';
+import { lookupIdempotent, recordIdempotent, type IdempotentPrior } from '@/lib/idempotency';
 import { addressKey, addressSecret, hit, ipBucket, parseLimit, type Limit } from '@/lib/rate-limit';
 import { normalizeStoredConfig } from './content-read';
 import { invitedIdsFromTicked, inviteOnlyEvents } from './event-eligibility';
 import { GUEST_LINK_TOKEN_PATTERN, newGuestLinkToken } from './guest-link';
-import { checkInTime, passCheckInEnabled, readGuestPass } from './guest-pass';
+import { checkInTime, normalizedPassScans, passCheckInEnabled, passCheckinHash, passCheckinScope, readGuestPass } from './guest-pass';
+import { memberRolesFor, operationCapability, type Capability } from './members';
 import type {
   AddOutcome,
   CategoryMode,
@@ -29,6 +31,7 @@ import type {
   RosterOperation,
   UndoOutcome,
 } from './roster-outcomes';
+import { passScanResultOf } from './roster-outcomes';
 import {
   checkRosterRow,
   claimSlug,
@@ -59,13 +62,25 @@ async function lockRoster(tx: Tx, invitationId: number) {
   await tx.execute(sql`select pg_advisory_xact_lock(${ROSTER_LOCK_NAMESPACE}::int4, ${invitationId}::int4)`);
 }
 
-async function ownedInvitation(tx: Tx, invitationId: number, userId: number) {
-  const [row] = await tx
-    .select({ id: invitations.id, config: invitations.config })
-    .from(invitations)
-    .where(and(eq(invitations.id, invitationId), eq(invitations.userId, userId)))
-    .limit(1);
-  return row ?? null;
+/**
+ * G-044 (D-057): the invitation `i` is the caller's, or the caller holds a live grant on it whose role has the
+ * capability (`members.ts`). The Rust writer applies the same rule (`members::caller_may`). A refusal is `notfound`,
+ * exactly as for another owner's invitation, so a member learns nothing about what lies outside their role.
+ */
+function callerMay(userId: number, capability: Capability) {
+  const roles = memberRolesFor(capability);
+  if (!roles.length) return sql`i.user_id = ${userId}`;
+  const allowed = sql.join(
+    roles.map((role) => sql`${role}`),
+    sql`, `,
+  );
+  return sql`(i.user_id = ${userId} or exists (select 1 from invitation_members m where m.invitation_id = i.id and m.user_id = ${userId} and m.revoked_at is null and m.role in (${allowed})))`;
+}
+
+async function accessibleInvitation(tx: Tx, invitationId: number, userId: number, capability: Capability) {
+  const rows = await tx.execute<{ id: number; config: unknown }>(sql`
+    select i.id, i.config from invitations i where i.id = ${invitationId} and ${callerMay(userId, capability)}`);
+  return rows[0] ?? null;
 }
 
 const eventsOf = (config: unknown) => normalizeStoredConfig(config ?? {}).config.events;
@@ -79,7 +94,7 @@ export async function addGuestNext(input: {
   flags: RosterFlags;
 }): Promise<AddOutcome> {
   return db.transaction(async (tx) => {
-    const invitation = await ownedInvitation(tx, input.invitationId, input.userId);
+    const invitation = await accessibleInvitation(tx, input.invitationId, input.userId, 'guests');
     if (!invitation) return { kind: 'notfound' };
     const check = checkRosterRow(input.row);
     if (!check.ok) return { kind: 'invalid', reason: check.reason };
@@ -129,7 +144,7 @@ export async function importGuestsNext(input: {
   flags: RosterFlags;
 }): Promise<ImportOutcome> {
   return db.transaction(async (tx) => {
-    if (!(await ownedInvitation(tx, input.invitationId, input.userId))) return { kind: 'notfound' };
+    if (!(await accessibleInvitation(tx, input.invitationId, input.userId, 'guests'))) return { kind: 'notfound' };
     if (!input.dryRun) await lockRoster(tx, input.invitationId);
     const existing = await tx
       .select({ name: guests.name, phone: guests.phone, slug: guests.slug })
@@ -170,7 +185,7 @@ export const IMPORT_BATCH_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-
 export async function undoImportNext(input: { userId: number; invitationId: number; batchId: string }): Promise<UndoOutcome> {
   if (!IMPORT_BATCH_PATTERN.test(input.batchId)) return { kind: 'notfound' };
   return db.transaction(async (tx) => {
-    if (!(await ownedInvitation(tx, input.invitationId, input.userId))) return { kind: 'notfound' };
+    if (!(await accessibleInvitation(tx, input.invitationId, input.userId, 'guests'))) return { kind: 'notfound' };
     await lockRoster(tx, input.invitationId);
     const rows = await tx.execute<{ id: number; touched: boolean }>(sql`
       select g.id, (g.opened_count > 0 or g.opened_at is not null or g.rsvp_status <> 'PENDING' or g.attending_count is not null
@@ -189,10 +204,10 @@ export async function undoImportNext(input: { userId: number; invitationId: numb
   });
 }
 
-async function ownedGuest(tx: Tx, invitationId: number, guestId: number, userId: number) {
+async function accessibleGuest(tx: Tx, invitationId: number, guestId: number, userId: number, capability: Capability) {
   const rows = await tx.execute<{ id: number; invited_event_ids: unknown; config: unknown }>(sql`
     select g.id, g.invited_event_ids, i.config from guests g join invitations i on i.id = g.invitation_id
-    where g.id = ${guestId} and g.invitation_id = ${invitationId} and i.user_id = ${userId}
+    where g.id = ${guestId} and g.invitation_id = ${invitationId} and ${callerMay(userId, capability)}
     for update of g`);
   return rows[0] ?? null;
 }
@@ -205,37 +220,81 @@ export async function guestOperationNext(input: {
   operation: RosterOperation;
 }): Promise<OperationOutcome> {
   return db.transaction(async (tx) => {
-    if (!(await ownedGuest(tx, input.invitationId, input.guestId, input.userId))) return { kind: 'notfound' };
+    const capability = operationCapability(input.operation);
+    if (!(await accessibleGuest(tx, input.invitationId, input.guestId, input.userId, capability))) return { kind: 'notfound' };
     const where = and(eq(guests.id, input.guestId), eq(guests.invitationId, input.invitationId));
     if (input.operation === 'sent') await tx.update(guests).set({ sentAt: new Date() }).where(where);
     else if (input.operation === 'checkin') {
-      await tx.update(guests).set({ checkedInAt: new Date() }).where(where);
-      await tx.insert(analyticsEvents).values({ invitationId: input.invitationId, guestId: input.guestId, eventType: 'CHECKIN' });
+      // B-024 (D-056): a guest arrives once. Another check-in (a second desk, a stale list, a pass already scanned) keeps
+      // the first time and writes no second CHECKIN row; undo clears the time, so a later check-in counts again.
+      const first = await tx.update(guests).set({ checkedInAt: new Date() }).where(and(where, isNull(guests.checkedInAt))).returning({ id: guests.id });
+      if (first.length) await tx.insert(analyticsEvents).values({ invitationId: input.invitationId, guestId: input.guestId, eventType: 'CHECKIN' });
     } else await tx.update(guests).set({ checkedInAt: null }).where(where);
     return { kind: 'saved' };
   });
 }
 
+/** Raised inside a pass check-in's transaction when a concurrent twin with the same key committed first. */
+class TwinCommitted extends Error {}
+
+/** A recorded answer for this key: the same batch replays it, a different batch under the key is refused. */
+function recordedPassCheckin(prior: Exclude<IdempotentPrior, { kind: 'none' }>): PassCheckinOutcome {
+  if (prior.kind === 'mismatch') return { kind: 'key-reused' };
+  const results = (prior.body as { results?: unknown } | null)?.results;
+  if (prior.status !== 200 || !Array.isArray(results)) throw new Error('pass check-in: the recorded answer is not a check-in answer');
+  return { kind: 'checked', results: results.map(passScanResultOf) };
+}
+
 /**
- * B-024 (D-056): a batch of guest-pass scans, as the Rust writer applies it (`pass_checkins`). The owner's invitation
- * must have opted in; the roster lock is taken as for every roster write; then each scan in order: the token is read
- * (shape, MAC, expiry); the pass's guest is locked; a first check-in stores the scan's time and one CHECKIN event
- * (`source: pass`), and a guest already checked in is answered `already` with nothing written, so a replayed pass, a
- * retried batch or two ushers scanning one guest never count twice.
+ * B-024 (D-056): a batch of guest-pass scans, as the Rust writer applies it (`pass_checkins`). A batch already answered
+ * under this owner, invitation and key replays that answer, whichever writer gave it (`api_idempotency_keys`, the API's
+ * scope and request hash); another batch under the same key is refused. Otherwise the owner's invitation must have
+ * opted in; the roster lock is taken as for every roster write; then each scan in order: the token is read (shape, MAC,
+ * expiry); the pass's guest is locked; a first check-in stores the scan's time and one CHECKIN event (`source: pass`),
+ * and a guest already checked in is answered `already` with nothing written, so a replayed pass, a retried batch or two
+ * ushers scanning one guest never count twice. The answer is recorded with the key in the same transaction; when a
+ * concurrent twin committed the key first, this transaction rolls back and answers with the twin's record.
  */
 export async function passCheckinNext(input: {
   userId: number;
   invitationId: number;
   scans: readonly PassScanInput[];
+  key: string;
   secrets: readonly Uint8Array[];
   now?: Date;
 }): Promise<PassCheckinOutcome> {
+  const now = input.now ?? new Date();
+  const scans = normalizedPassScans(input.scans);
+  const scope = passCheckinScope(input.userId, input.invitationId);
+  const hash = passCheckinHash(scans);
+  const prior = await lookupIdempotent(db, scope, input.key, hash, now);
+  if (prior.kind !== 'none') return recordedPassCheckin(prior);
+  try {
+    return await passCheckinTransaction({ ...input, scans, now, scope, hash });
+  } catch (error) {
+    if (!(error instanceof TwinCommitted)) throw error;
+  }
+  const twin = await lookupIdempotent(db, scope, input.key, hash, now);
+  if (twin.kind === 'none') throw new Error('pass check-in: a concurrent batch committed this key, but its record is gone');
+  return recordedPassCheckin(twin);
+}
+
+function passCheckinTransaction(input: {
+  userId: number;
+  invitationId: number;
+  scans: readonly PassScanInput[];
+  key: string;
+  secrets: readonly Uint8Array[];
+  now: Date;
+  scope: string;
+  hash: string;
+}): Promise<PassCheckinOutcome> {
   return db.transaction(async (tx) => {
-    const invitation = await ownedInvitation(tx, input.invitationId, input.userId);
+    const invitation = await accessibleInvitation(tx, input.invitationId, input.userId, 'checkin');
     if (!invitation) return { kind: 'notfound' };
     if (!passCheckInEnabled(invitation.config)) return { kind: 'disabled' };
     await lockRoster(tx, input.invitationId);
-    const now = input.now ?? new Date();
+    const now = input.now;
     const nowSeconds = Math.floor(now.getTime() / 1000);
     const results: PassScanResult[] = [];
     for (const scan of input.scans) {
@@ -258,6 +317,7 @@ export async function passCheckinNext(input: {
         results.push({ outcome: 'checked-in', name: guest.name, checkedInAt: at.toISOString() });
       }
     }
+    if (!(await recordIdempotent(tx, input.scope, input.key, input.hash, 200, { results }, now))) throw new TwinCommitted();
     return { kind: 'checked', results };
   });
 }
@@ -271,7 +331,7 @@ export async function setInvitedEventsNext(input: {
   flags: RosterFlags;
 }): Promise<InvitedOutcome> {
   return db.transaction(async (tx) => {
-    const guest = await ownedGuest(tx, input.invitationId, input.guestId, input.userId);
+    const guest = await accessibleGuest(tx, input.invitationId, input.guestId, input.userId, 'guests');
     if (!guest) return { kind: 'notfound' };
     if (!input.flags.inviteOnlyEvents) return { kind: 'invalid' };
     const invited = invitedIdsFromTicked(input.ticked, eventsOf(guest.config), guest.invited_event_ids);
@@ -296,7 +356,7 @@ export async function setCategoryInvitationNext(input: {
   flags: RosterFlags;
 }): Promise<CategoryOutcome> {
   return db.transaction(async (tx) => {
-    const invitation = await ownedInvitation(tx, input.invitationId, input.userId);
+    const invitation = await accessibleInvitation(tx, input.invitationId, input.userId, 'guests');
     if (!invitation) return { kind: 'notfound' };
     const category = input.category.trim();
     const current = inviteOnlyEvents(eventsOf(invitation.config)).some((event) => event.id === input.eventId);
@@ -323,7 +383,7 @@ export async function setCategoryInvitationNext(input: {
 /** Open (keeps an open link), rotate (a new token; the old link stops at once) or close the self-registration link. */
 export async function registrationLinkNext(input: { userId: number; invitationId: number; action: RegistrationLinkAction }): Promise<LinkOutcome> {
   return db.transaction(async (tx) => {
-    if (!(await ownedInvitation(tx, input.invitationId, input.userId))) return { kind: 'notfound' };
+    if (!(await accessibleInvitation(tx, input.invitationId, input.userId, 'guests'))) return { kind: 'notfound' };
     await lockRoster(tx, input.invitationId);
     if (input.action === 'close') {
       await tx.delete(guestRegistrationLinks).where(eq(guestRegistrationLinks.invitationId, input.invitationId));
@@ -413,7 +473,7 @@ export async function decideRegistrationNext(input: {
   flags: RosterFlags;
 }): Promise<DecisionOutcome> {
   return db.transaction(async (tx) => {
-    if (!(await ownedInvitation(tx, input.invitationId, input.userId))) return { kind: 'notfound' };
+    if (!(await accessibleInvitation(tx, input.invitationId, input.userId, 'guests'))) return { kind: 'notfound' };
     await lockRoster(tx, input.invitationId);
     const [registration] = await tx
       .select()

@@ -1,4 +1,4 @@
-import { and, asc, desc, eq } from 'drizzle-orm';
+import { asc, desc, eq } from 'drizzle-orm';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { BarChart3, CheckCircle2, ChevronLeft, FileUp, MessageCircle, ScanLine, UserPlus } from 'lucide-react';
@@ -6,7 +6,8 @@ import { RegistrationPanel } from '@/components/dashboard/registration-panel';
 import { RosterBanners } from '@/components/dashboard/roster-banners';
 import { getUser } from '@/lib/db/queries';
 import { db } from '@/lib/db/drizzle';
-import { guestRegistrationLinks, guestRegistrations, guests, invitations } from '@/lib/db/schema';
+import { guestRegistrationLinks, guestRegistrations, guests } from '@/lib/db/schema';
+import { accessFor } from '@/lib/invitation/members-db';
 import { rosterErrorMessage } from '@/lib/invitation/roster-notices';
 import { isFlagOn } from '@/lib/flags';
 import { guestAnswerLines, questionSummaries } from '@/lib/invitation/answer-summary';
@@ -27,7 +28,8 @@ export const dynamic='force-dynamic';
 type Query={added?:string;error?:string;invites?:string;imported?:string;skipped?:string;batch?:string;undone?:string;kept?:string;registration?:string;approved?:string;rejected?:string};
 export default async function Page({params,searchParams}:{params:Promise<{id:string}>,searchParams:Promise<Query>}){
  const user=await getUser();if(!user)redirect('/sign-in');const id=Number((await params).id);if(!Number.isInteger(id))notFound();
- const [inv]=await db.select().from(invitations).where(and(eq(invitations.id,id),eq(invitations.userId,user.id))).limit(1);if(!inv)notFound();
+ // G-044 (D-057): the owner or a co-host (`guests`); a co-host's way back is the dashboard, not the owner's control centre.
+ const access=await accessFor(user.id,id,'guests');if(!access)notFound();const inv=access.invitation;const owner=access.role==='owner';
  const rows=await db.select().from(guests).where(eq(guests.invitationId,id)).orderBy(desc(guests.id));const q=await searchParams;
  // B-033: the import entry and the self-registration panel, each behind its flag (reads only; writes go through the roster writer).
  const importOn=isFlagOn('GUEST_IMPORT');const registrationOn=isFlagOn('SELF_REGISTRATION');
@@ -46,7 +48,7 @@ export default async function Page({params,searchParams}:{params:Promise<{id:str
  const categories=[...new Set(rows.flatMap(r=>r.category?.trim()?[r.category.trim()]:[]))].sort((a,b)=>a.localeCompare(b,'id'));
  const questionSummary=questionSummaries(rows,questions);const eventSummary=eventRsvpSummary(rows,answerEvents,inviteOnlyOn);
  const metrics=[['Total tamu',rows.length],['Hadir',rsvp.CONFIRMED],['Mungkin',rsvp.MAYBE],['Check-in',rows.filter(x=>x.checkedInAt).length],['Undangan dibuka',rows.reduce((n,x)=>n+x.openedCount,0)]];
- return <section className="min-h-full bg-slate-50 p-4 lg:p-8"><div className="mx-auto max-w-7xl space-y-6"><header><Link href={`/dashboard/invitations/${id}/manage`} className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-slate-600"><ChevronLeft className="h-4 w-4"/>Control center</Link><p className="mt-4 text-xs font-bold uppercase tracking-widest text-brand-600">/{inv.slug}</p><h1 className="mt-1 text-2xl font-bold text-slate-950">Tamu, RSVP & Check-in</h1><p className="mt-2 text-sm text-slate-500">Operasional tamu khusus untuk event ini—tidak tercampur dengan undangan lain.</p><div className="mt-3 flex flex-wrap gap-2"><Link href={`/dashboard/invitations/${id}/insights`} className="inline-flex min-h-11 items-center gap-2 rounded-lg border bg-white px-4 text-sm font-semibold text-slate-700"><BarChart3 className="h-4 w-4 text-brand-600"/>Analitik & tindak lanjut</Link>{importOn&&<Link href={`/dashboard/invitations/${id}/guests/import`} className="inline-flex min-h-11 items-center gap-2 rounded-lg border bg-white px-4 text-sm font-semibold text-slate-700"><FileUp className="h-4 w-4 text-brand-600"/>Impor tamu</Link>}{guestPassOn&&<Link href={`/dashboard/invitations/${id}/checkin`} className="inline-flex min-h-11 items-center gap-2 rounded-lg border bg-white px-4 text-sm font-semibold text-slate-700"><ScanLine className="h-4 w-4 text-brand-600"/>Meja check-in (QR)</Link>}</div></header>
+ return <section className="min-h-full bg-slate-50 p-4 lg:p-8"><div className="mx-auto max-w-7xl space-y-6"><header><Link href={owner?`/dashboard/invitations/${id}/manage`:'/dashboard'} className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-slate-600"><ChevronLeft className="h-4 w-4"/>{owner?'Control center':'Dasbor'}</Link><p className="mt-4 text-xs font-bold uppercase tracking-widest text-brand-600">/{inv.slug}</p><h1 className="mt-1 text-2xl font-bold text-slate-950">Tamu, RSVP & Check-in</h1><p className="mt-2 text-sm text-slate-500">Operasional tamu khusus untuk event ini—tidak tercampur dengan undangan lain.</p><div className="mt-3 flex flex-wrap gap-2"><Link href={`/dashboard/invitations/${id}/insights`} className="inline-flex min-h-11 items-center gap-2 rounded-lg border bg-white px-4 text-sm font-semibold text-slate-700"><BarChart3 className="h-4 w-4 text-brand-600"/>Analitik & tindak lanjut</Link>{importOn&&<Link href={`/dashboard/invitations/${id}/guests/import`} className="inline-flex min-h-11 items-center gap-2 rounded-lg border bg-white px-4 text-sm font-semibold text-slate-700"><FileUp className="h-4 w-4 text-brand-600"/>Impor tamu</Link>}{/* B-024: a full page load, so the scanner's own Permissions-Policy (camera) applies; next/link would keep this page's. */}{guestPassOn&&<a href={`/dashboard/invitations/${id}/checkin`} className="inline-flex min-h-11 items-center gap-2 rounded-lg border bg-white px-4 text-sm font-semibold text-slate-700"><ScanLine className="h-4 w-4 text-brand-600"/>Meja check-in (QR)</a>}</div></header>
  {q.added&&<p className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">Tamu berhasil ditambahkan.</p>}{q.error&&<p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{rosterErrorMessage(q.error)}</p>}<RosterBanners q={q} invitationId={id} undo={undoGuestImport}/>{q.invites!==undefined&&<p role="status" className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">Undangan acara khusus diperbarui{/^\d+$/.test(q.invites)&&q.invites!=='1'?` (${q.invites} tamu)`:''}.</p>}
  <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">{metrics.map(([l,v])=><div key={l} className="rounded-xl border bg-white p-4"><p className="text-xs text-slate-500">{l}</p><p className="mt-2 text-2xl font-bold">{v}</p></div>)}</div>
  <AnswerOverview questions={questionSummary} events={eventSummary}/>

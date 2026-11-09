@@ -1,13 +1,11 @@
-import { and, eq } from 'drizzle-orm';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { ChevronLeft } from 'lucide-react';
 import { GuestImport } from '@/components/dashboard/guest-import';
 import { getUser } from '@/lib/db/queries';
-import { db } from '@/lib/db/drizzle';
-import { invitations } from '@/lib/db/schema';
 import { isFlagOn } from '@/lib/flags';
 import { importErrorMessage } from '@/lib/invitation/import-messages';
+import { accessFor } from '@/lib/invitation/members-db';
 import { ROSTER_LIMITS } from '@/lib/invitation/roster-rules';
 import { commitGuestImport, previewGuestImport } from './actions';
 
@@ -19,12 +17,10 @@ export default async function GuestImportPage({ params, searchParams }: { params
   if (!user) redirect('/sign-in');
   const id = Number((await params).id);
   if (!Number.isInteger(id)) notFound();
-  const [invitation] = await db
-    .select({ id: invitations.id, slug: invitations.slug })
-    .from(invitations)
-    .where(and(eq(invitations.id, id), eq(invitations.userId, user.id)))
-    .limit(1);
-  if (!invitation) notFound();
+  // G-044 (D-057): the owner or a co-host (`guests`).
+  const access = await accessFor(user.id, id, 'guests');
+  if (!access) notFound();
+  const invitation = access.invitation;
   const error = importErrorMessage((await searchParams).error);
   return (
     <section className="min-h-full bg-slate-50 p-4 lg:p-8">

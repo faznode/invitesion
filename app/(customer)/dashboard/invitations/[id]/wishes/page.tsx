@@ -4,8 +4,9 @@ import { notFound, redirect } from 'next/navigation';
 import { ChevronLeft, Eye, EyeOff, MessageSquareReply, Settings2, Trash2 } from 'lucide-react';
 import { getUser } from '@/lib/db/queries';
 import { db } from '@/lib/db/drizzle';
-import { guestMessages, invitations } from '@/lib/db/schema';
+import { guestMessages } from '@/lib/db/schema';
 import { normalizeStoredConfig } from '@/lib/invitation/content-read';
+import { accessFor } from '@/lib/invitation/members-db';
 import { REPLY_MAX_LENGTH, guestbookRules, wishState, type WishState } from '@/lib/invitation/wish-decision';
 import { moderateWish, replyToWish } from './actions';
 
@@ -52,8 +53,11 @@ export default async function WishesPage({
   if (!user) redirect('/sign-in');
   const id = Number((await params).id);
   if (!Number.isInteger(id)) notFound();
-  const [inv] = await db.select().from(invitations).where(and(eq(invitations.id, id), eq(invitations.userId, user.id))).limit(1);
-  if (!inv) notFound();
+  // G-044 (D-057): the owner or a co-host (`wishes`). The guestbook's settings live in the editor, which is the owner's.
+  const access = await accessFor(user.id, id, 'wishes');
+  if (!access) notFound();
+  const inv = access.invitation;
+  const owner = access.role === 'owner';
   const q = await searchParams;
   const filter: Filter = FILTERS.some(([value]) => value === q.filter) ? (q.filter as Filter) : 'all';
   const rules = guestbookRules(normalizeStoredConfig(inv.config ?? {}).config);
@@ -82,9 +86,9 @@ export default async function WishesPage({
     <section className="min-h-full bg-slate-50 p-4 lg:p-8">
       <div className="mx-auto max-w-4xl space-y-6">
         <header>
-          <Link href={`/dashboard/invitations/${id}/manage`} className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-slate-600">
+          <Link href={owner ? `/dashboard/invitations/${id}/manage` : '/dashboard'} className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-slate-600">
             <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-            Control center
+            {owner ? 'Control center' : 'Dasbor'}
           </Link>
           <p className="mt-4 text-xs font-bold uppercase tracking-widest text-brand-600">/{inv.slug}</p>
           <h1 className="mt-1 text-2xl font-bold text-balance text-slate-950">Ucapan & Doa</h1>
@@ -102,9 +106,11 @@ export default async function WishesPage({
                   rules.visibility === 'host' ? 'Hanya kamu yang bisa membaca ucapan; undangan tidak menampilkan daftarnya.' : 'Semua tamu bisa membaca ucapan yang tampil.'
                 }`}
           </p>
-          <Link href={`/dashboard/invitations/${id}/edit`} className="inline-flex min-h-10 shrink-0 items-center rounded-lg border px-3 text-xs font-bold text-slate-700 hover:bg-slate-50">
-            Ubah di editor (Buku Tamu)
-          </Link>
+          {owner && (
+            <Link href={`/dashboard/invitations/${id}/edit`} className="inline-flex min-h-10 shrink-0 items-center rounded-lg border px-3 text-xs font-bold text-slate-700 hover:bg-slate-50">
+              Ubah di editor (Buku Tamu)
+            </Link>
+          )}
         </div>
 
         {q.done && DONE[q.done] && (

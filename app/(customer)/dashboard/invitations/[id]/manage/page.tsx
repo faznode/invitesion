@@ -34,5 +34,5 @@ export default async function InvitationManagePage({
   const { module } = await searchParams;
   // The guest page's lenient read (S18-Q4): one section that fails today's rules no longer empties the whole editor.
   const { config } = normalizeStoredConfig(invitation.config ?? {});
-  return <ManageCenter invitationId={invitation.id} slug={invitation.slug} module={module} config={config} guestPassOn={isFlagOn('GUEST_PASS')} />;
+  return <ManageCenter invitationId={invitation.id} slug={invitation.slug} module={module} config={config} guestPassOn={isFlagOn('GUEST_PASS')} teamOn={isFlagOn('TEAM_ACCESS')} />;
 }

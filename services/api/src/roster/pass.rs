@@ -151,7 +151,8 @@ fn is_strict_utc(raw: &str) -> bool {
     }
 }
 
-/// `checkInTime`: the scan's own time when it is a strict UTC timestamp within the last day, else now.
+/// `checkInTime`: a strict UTC timestamp keeps its own time within the last day; an older one is stored a day before
+/// now (the oldest kept time), a future one as now. Absent, malformed or impossible values are stored as now.
 pub fn check_in_time(scanned_at: Option<&str>, now: PrimitiveDateTime) -> PrimitiveDateTime {
     let Some(raw) = scanned_at.filter(|raw| is_strict_utc(raw)) else { return now };
     let Ok(parsed) = OffsetDateTime::parse(raw, &Rfc3339) else { return now };

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "update guests set checked_in_at = $1 where id = $2 and invitation_id = $3",
+  "query": "update guests set checked_in_at = $1 where id = $2 and invitation_id = $3 and checked_in_at is null",
   "describe": {
     "columns": [],
     "parameters": {
@@ -12,5 +12,5 @@
     },
     "nullable": []
   },
-  "hash": "b9701d4c49657b8902dfc4a9f59de9466b4bea5c1d10449fe071345a174f2195"
+  "hash": "376e0a5ebe786cd3b47adba06c0f9128b97f27779b50b110e1ffbef985bfeb1b"
 }

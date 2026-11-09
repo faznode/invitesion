@@ -16,7 +16,6 @@ import type {
   OwnerRefusal,
   PassCheckinOutcome,
   PassScanInput,
-  PassScanResult,
   RegistrationDecision,
   RegistrationLinkAction,
   RegistrationOutcome,
@@ -24,6 +23,7 @@ import type {
   RosterOperation,
   UndoOutcome,
 } from './roster-outcomes';
+import { passScanResultOf } from './roster-outcomes';
 import type { RosterRowInput, RowReason } from './roster-rules';
 
 /**
@@ -38,7 +38,12 @@ import type { RosterRowInput, RowReason } from './roster-rules';
 type Env = Record<string, string | undefined>;
 type Fields = components['schemas']['GuestFields'];
 
-const isAmbiguous = (error: ApiProblem) => error.status === 0 || error.status >= 500;
+/**
+ * 5xx problems the API answers before any write starts, so a resend could only be refused again: B-024's missing
+ * guest-pass secret. They are definite, never resent and never "unconfirmed".
+ */
+const DEFINITE_5XX: ReadonlySet<string> = new Set(['guest_pass.not_configured']);
+const isAmbiguous = (error: ApiProblem) => error.status === 0 || (error.status >= 500 && !DEFINITE_5XX.has(error.code));
 
 async function sendUnderKey<T>(post: (key: string) => Promise<T>, key: string): Promise<T> {
   try {
@@ -175,18 +180,9 @@ export async function guestOperationThroughApi(
   );
 }
 
-type PassResultBody = components['schemas']['PassScanResult'];
-
-function passResult(body: PassResultBody): PassScanResult {
-  if ((body.outcome === 'checked-in' || body.outcome === 'already') && body.name != null && body.checkedInAt != null) {
-    return { outcome: body.outcome, name: body.name, checkedInAt: body.checkedInAt };
-  }
-  return body.outcome === 'expired' || body.outcome === 'unknown' ? { outcome: body.outcome } : { outcome: 'invalid' };
-}
-
 /**
  * B-024 (D-056): a batch of scans. The key is the scanner's own for this batch, so a batch the scanner resends after a
- * lost answer replays the API's first answer instead of turning its first check-ins into `already`.
+ * lost answer replays the first answer (recorded by either writer) instead of turning its first check-ins into `already`.
  */
 export async function passCheckinsThroughApi(
   input: Owner & { invitationId: number; scans: readonly PassScanInput[]; key: string },
@@ -201,11 +197,12 @@ export async function passCheckinsThroughApi(
           { ownerToken: input.ownerToken, idempotencyKey }),
       input.key,
     );
-    return { kind: 'checked', results: answer.results.map(passResult) };
+    return { kind: 'checked', results: answer.results.map(passScanResultOf) };
   } catch (error) {
     if (!(error instanceof ApiProblem)) throw error;
     if (error.code === 'guest_pass.not_enabled') return { kind: 'disabled' };
     if (error.code === 'guest_pass.not_configured') return { kind: 'unconfigured' };
+    if (error.code === 'idempotency.key_reused') return { kind: 'key-reused' };
     const refusal = ownerRefusal(error, 'pass check-in');
     if (refusal) return refusal;
     throw error;

@@ -98,7 +98,8 @@ export function AdminShell({ entry, children, locale }: AdminShellProps) {
         <div className="mt-auto border-t border-slate-100 pt-4 dark:border-slate-800">{account}</div>
       </aside>
 
-      <div className={`fixed inset-0 z-40 lg:hidden ${open ? '' : 'pointer-events-none'}`} aria-hidden={!open}>
+      {/* Closed, the drawer is inert: aria-hidden alone left its links in the tab order (axe aria-hidden-focus, s34). */}
+      <div className={`fixed inset-0 z-40 lg:hidden ${open ? '' : 'pointer-events-none'}`} aria-hidden={!open} inert={!open}>
         <button type="button" tabIndex={open ? 0 : -1} aria-label={en ? 'Close menu' : 'Tutup menu'} onClick={() => setOpen(false)} className={`absolute inset-0 bg-slate-900/40 transition-opacity duration-200 ${open ? 'opacity-100' : 'opacity-0'}`} />
         <div role="dialog" aria-modal="true" aria-label={en ? 'Admin menu' : 'Menu admin'} className={`absolute inset-y-0 left-0 flex w-[17rem] max-w-[82%] flex-col overflow-y-auto border-r border-slate-200 bg-white px-4 py-4 shadow-xl transition-transform duration-200 ease-out dark:border-slate-800 dark:bg-slate-950 ${open ? 'translate-x-0' : '-translate-x-full'}`}>
           <div className="mb-6 flex items-center justify-between">{brand}<button type="button" onClick={() => setOpen(false)} aria-label={en ? 'Close menu' : 'Tutup menu'} className="grid h-10 w-10 place-items-center rounded-lg border border-slate-200 text-slate-500 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"><X className="h-5 w-5" aria-hidden /></button></div>

@@ -7,24 +7,28 @@ import { ownerSessionToken } from '@/lib/auth/clerk-user';
 import { backendFor } from '@/lib/backend';
 import { getUser } from '@/lib/db/queries';
 import { db } from '@/lib/db/drizzle';
-import { analyticsEvents, guests, invitations } from '@/lib/db/schema';
+import { analyticsEvents, guests } from '@/lib/db/schema';
 import { isFlagOn } from '@/lib/flags';
 import { normalizeStoredConfig } from '@/lib/invitation/content-read';
 import { tickedInviteIds } from '@/lib/invitation/event-eligibility';
+import { accessFor } from '@/lib/invitation/members-db';
 import { decideHostRsvp, isHostRsvpStatus } from '@/lib/invitation/rsvp-decision';
 import { writeHostRsvpThroughApi } from '@/lib/invitation/rsvp-writer';
 import { addRosterGuest, rosterOperation, setRosterCategoryInvitation, setRosterInvitedEvents, type RosterCaller } from '@/lib/invitation/roster';
 import { rosterNotice } from '@/lib/invitation/roster-notices';
 import type { RosterOperation } from '@/lib/invitation/roster-outcomes';
 
-/** The signed-in owner's invitation named by the form, with its config read leniently like every other reader. */
+/**
+ * The invitation named by the form, for its owner or a co-host (G-044, D-057: `guests`), with its config read leniently
+ * like every other reader. The writers check the same grant again inside their transactions.
+ */
 async function context(formData: FormData) {
   const user = await getUser(); if (!user || user.role === 'ADMIN') redirect('/sign-in');
   const invitationId = Number(formData.get('invitationId')); if (!Number.isInteger(invitationId)) redirect('/dashboard/invitations');
-  const [inv] = await db.select().from(invitations).where(and(eq(invitations.id, invitationId), eq(invitations.userId, user.id))).limit(1);
-  if (!inv) redirect('/dashboard/invitations');
+  const access = await accessFor(user.id, invitationId, 'guests');
+  if (!access) redirect('/dashboard/invitations');
   const caller: RosterCaller = { userId: user.id, ownerToken: ownerSessionToken };
-  return { invitationId, caller, config: normalizeStoredConfig(inv.config ?? {}).config, path: `/dashboard/invitations/${invitationId}/guests` };
+  return { invitationId, caller, config: normalizeStoredConfig(access.invitation.config ?? {}).config, path: `/dashboard/invitations/${invitationId}/guests` };
 }
 
 /** Where a roster write ends: sign-in when the API knows no live customer for the session, otherwise a notice. */

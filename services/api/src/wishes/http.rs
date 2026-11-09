@@ -20,6 +20,7 @@ use crate::guest_link::{self, LinkCodes, check_open};
 use crate::idempotency::{self, replay};
 use crate::identity::{Owner, resolve_owner};
 use crate::limits;
+use crate::members::Capability;
 use crate::problem::{ApiError, Problem, Subject};
 use crate::views::utc_now;
 
@@ -220,20 +221,24 @@ fn ids(path: Result<Path<(i32, i32)>, PathRejection>) -> Result<(i32, i32), ApiE
     Ok((invitation_id, wish_id))
 }
 
-/// Locks the owner's wish for this transaction: `invitation_or_wish.not_found` unless the invitation is the owner's and
-/// the wish belongs to it.
+/// Locks the wish for this transaction: `invitation_or_wish.not_found` unless the caller may moderate its invitation
+/// (G-044, D-057: the owner, or a member whose role holds the wishes: a co-host) and the wish belongs to it.
 async fn lock_owned_wish(
     tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
     owner: &Owner,
     invitation_id: i32,
     wish_id: i32,
 ) -> Result<(), ApiError> {
+    let roles = Capability::Wishes.member_role_args();
     sqlx::query_scalar!(
-        "select m.id from guest_messages m join invitations i on i.id = m.invitation_id \
-         where m.id = $1 and m.invitation_id = $2 and i.user_id = $3 for update of m",
+        "select w.id from guest_messages w join invitations i on i.id = w.invitation_id \
+         where w.id = $1 and w.invitation_id = $2 and (i.user_id = $3 or exists (select 1 from invitation_members m \
+         where m.invitation_id = i.id and m.user_id = $3 and m.revoked_at is null and m.role = any($4))) \
+         for update of w",
         wish_id,
         invitation_id,
-        owner.user_id
+        owner.user_id,
+        &roles[..]
     )
     .fetch_optional(&mut **tx)
     .await
@@ -258,7 +263,7 @@ async fn lock_owned_wish(
         (status = 400, description = "Malformed path, body or idempotency key", body = Problem, content_type = "application/problem+json"),
         (status = 401, description = "Missing or invalid signature or owner token", body = Problem, content_type = "application/problem+json"),
         (status = 403, description = "A token for no live customer (`owner.unknown_user`, `owner.role_not_allowed`)", body = Problem, content_type = "application/problem+json"),
-        (status = 404, description = "Not this owner's invitation, or not its wish (`invitation_or_wish.not_found`)", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "Not an invitation this caller may change (its owner, or a member whose role allows it: D-057), or not its wish (`invitation_or_wish.not_found`)", body = Problem, content_type = "application/problem+json"),
         (status = 422, description = "`idempotency.key_reused`", body = Problem, content_type = "application/problem+json"),
         (status = 503, description = "Owner tokens are not configured or the signing keys are unreachable", body = Problem, content_type = "application/problem+json"),
     )
@@ -339,7 +344,7 @@ pub async fn moderate_wish(
         (status = 400, description = "Malformed path, body or idempotency key", body = Problem, content_type = "application/problem+json"),
         (status = 401, description = "Missing or invalid signature or owner token", body = Problem, content_type = "application/problem+json"),
         (status = 403, description = "A token for no live customer (`owner.unknown_user`, `owner.role_not_allowed`)", body = Problem, content_type = "application/problem+json"),
-        (status = 404, description = "Not this owner's invitation, or not its wish (`invitation_or_wish.not_found`)", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "Not an invitation this caller may change (its owner, or a member whose role allows it: D-057), or not its wish (`invitation_or_wish.not_found`)", body = Problem, content_type = "application/problem+json"),
         (status = 422, description = "A reply longer than 1,000 UTF-16 units (`wish.reply_invalid`), or `idempotency.key_reused`", body = Problem, content_type = "application/problem+json"),
         (status = 503, description = "Owner tokens are not configured or the signing keys are unreachable", body = Problem, content_type = "application/problem+json"),
     )

@@ -26,21 +26,27 @@ WISH_LIMIT_IP=20
 
 API_PID=
 API_SECRET=
+API_BIN=
+# B-024: the guest-pass secrets, per run; both are accepted, as during a rotation.
+PASS_SECRET=
+PASS_PREVIOUS=
 stop_api() { if [ -n "$API_PID" ]; then kill "$API_PID" 2> /dev/null || true; wait "$API_PID" 2> /dev/null || true; fi; }
 trap stop_api EXIT
 
 # The real binary on the migrated database, configured for every slice's end-to-end check.
 start_api() {
   API_SECRET=$(head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n')
+  PASS_SECRET=$(head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n')
+  PASS_PREVIOUS=$(head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n')
   SQLX_OFFLINE=true cargo build -q --locked --manifest-path "$SERVICE/Cargo.toml" --bin invitesion-api
-  local bin
-  bin="$(cargo metadata --format-version 1 --no-deps --manifest-path "$SERVICE/Cargo.toml" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).target_directory))')/debug/invitesion-api"
+  API_BIN="$(cargo metadata --format-version 1 --no-deps --manifest-path "$SERVICE/Cargo.toml" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).target_directory))')/debug/invitesion-api"
   DATABASE_URL=$POSTGRES_URL INTERNAL_API_SECRET=$API_SECRET PORT=$API_PORT RUST_LOG=warn \
     OWNER_TOKEN_ISSUER=$OWNER_ISSUER OWNER_TOKEN_JWKS_URL="http://127.0.0.1:$JWKS_PORT/.well-known/jwks.json" \
     OWNER_TOKEN_AUTHORIZED_PARTIES=$OWNER_PARTY \
     RATE_LIMIT_RSVP_LINK="$RSVP_LIMIT_LINK/600" RATE_LIMIT_RSVP_IP="$RSVP_LIMIT_IP/600" \
     RATE_LIMIT_WISH_LINK="$WISH_LIMIT_LINK/600" RATE_LIMIT_WISH_IP="$WISH_LIMIT_IP/600" \
-    "$bin" > "$CI_OUT/api.log" 2>&1 &
+    GUEST_PASS_SECRET=$PASS_SECRET GUEST_PASS_SECRET_PREVIOUS=$PASS_PREVIOUS \
+    "$API_BIN" > "$CI_OUT/api.log" 2>&1 &
   API_PID=$!
   for _ in $(seq 1 30); do
     if curl -fsS -o /dev/null "http://127.0.0.1:$API_PORT/v1/health"; then return 0; fi
@@ -75,6 +81,16 @@ wishes_end_to_end() {
 roster_end_to_end() {
   API_BASE_URL="http://127.0.0.1:$API_PORT" INTERNAL_API_SECRET=$API_SECRET OWNER_TOKEN_JWKS_PORT=$JWKS_PORT \
     OWNER_TOKEN_ISSUER=$OWNER_ISSUER OWNER_TOKEN_AUTHORIZED_PARTIES=$OWNER_PARTY npx tsx scripts/verify-roster-api.ts
+}
+
+# B-024 (D-056, ADR-A3): the scanner's check-in route and manual fallback through both roster writers against the binary:
+# every kind of scan, one arrival across desks, writers and the guest list, replays across writers, one writer per call,
+# a missing secret (the binary started once more without one), the route's exposure rules and limit, the flag off.
+guest_pass_end_to_end() {
+  API_BASE_URL="http://127.0.0.1:$API_PORT" INTERNAL_API_SECRET=$API_SECRET OWNER_TOKEN_JWKS_PORT=$JWKS_PORT \
+    OWNER_TOKEN_ISSUER=$OWNER_ISSUER OWNER_TOKEN_AUTHORIZED_PARTIES=$OWNER_PARTY \
+    GUEST_PASS_SECRET=$PASS_SECRET GUEST_PASS_SECRET_PREVIOUS=$PASS_PREVIOUS API_BIN=$API_BIN \
+    npx tsx scripts/verify-guest-pass-api.ts
 }
 
 # B-035: the editor's save (the detail route's GET and PATCH) through both content writers against the binary: version
@@ -112,6 +128,7 @@ if [ -f "$SERVICE/Cargo.toml" ]; then
   step "rsvp end to end (BACKEND_RSVP, both writers)" rsvp_end_to_end
   step "wishes end to end (BACKEND_WISHES, both writers)" wishes_end_to_end
   step "roster end to end (BACKEND_ROSTER, both writers)" roster_end_to_end
+  step "guest passes end to end (B-024, BACKEND_ROSTER, both writers)" guest_pass_end_to_end
   step "content end to end (BACKEND_CONTENT, both writers)" content_end_to_end
   step "creation end to end (wizard, BACKEND_CONTENT, both writers)" creation_end_to_end
   step "host replay isolation (owner, invitation, resource)" host_replay_isolation

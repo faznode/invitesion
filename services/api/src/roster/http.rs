@@ -27,6 +27,7 @@ use crate::app::AppState;
 use crate::idempotency::{self, replay};
 use crate::identity::{Owner, resolve_owner};
 use crate::limits;
+use crate::members::Capability;
 use crate::problem::{ApiError, Problem, Subject};
 use crate::rsvp::content::{is_event_id, read_rsvp_config};
 use crate::views::utc_now;
@@ -323,34 +324,49 @@ async fn host(state: &AppState, headers: &HeaderMap) -> Result<Owner, ApiError> 
     Ok(owner)
 }
 
-/// The owner's invitation and its stored config, or `roster.not_found`.
-async fn owned_invitation(
+/// The invitation and its stored config when the caller may use `capability` on it (G-044, D-057: its owner, or a live
+/// grant whose role holds the capability, as `roster-next.ts` decides), else `roster.not_found`.
+async fn accessible_invitation(
     tx: &mut Transaction<'_, Postgres>,
     owner: &Owner,
     invitation_id: i32,
+    capability: Capability,
 ) -> Result<Value, ApiError> {
-    let row =
-        sqlx::query!("select config from invitations where id = $1 and user_id = $2", invitation_id, owner.user_id)
-            .fetch_optional(&mut **tx)
-            .await
-            .map_err(db("roster_invitation"))?
-            .ok_or(ApiError::NotFound(NOT_FOUND))?;
+    let roles = capability.member_role_args();
+    let row = sqlx::query!(
+        "select i.config from invitations i where i.id = $1 and (i.user_id = $2 or exists (select 1 \
+         from invitation_members m where m.invitation_id = i.id and m.user_id = $2 and m.revoked_at is null \
+         and m.role = any($3)))",
+        invitation_id,
+        owner.user_id,
+        &roles[..]
+    )
+    .fetch_optional(&mut **tx)
+    .await
+    .map_err(db("roster_invitation"))?
+    .ok_or(ApiError::NotFound(NOT_FOUND))?;
     Ok(row.config.unwrap_or(Value::Null))
 }
 
-/// Locks the owner's guest for this transaction, with its stored invitations and the invitation's config.
-async fn owned_guest(
+/// Locks the guest for this transaction when the caller may use `capability` on its invitation (as
+/// `accessible_invitation`), with its stored invitations and the invitation's config.
+async fn accessible_guest(
     tx: &mut Transaction<'_, Postgres>,
     owner: &Owner,
     invitation_id: i32,
     guest_id: i32,
+    capability: Capability,
 ) -> Result<(Option<Value>, Value), ApiError> {
+    let roles = capability.member_role_args();
     let row = sqlx::query!(
         "select g.invited_event_ids, i.config from guests g join invitations i on i.id = g.invitation_id \
-         where g.id = $1 and g.invitation_id = $2 and i.user_id = $3 for update of g",
+         where g.id = $1 and g.invitation_id = $2 and (i.user_id = $3 or exists (select 1 from invitation_members m \
+         where m.invitation_id = i.id and m.user_id = $3 and m.revoked_at is null and m.role = any($4))) \
+         for update of g",
         guest_id,
         invitation_id,
-        owner.user_id
+        owner.user_id,
+        &roles[..]
     )
     .fetch_optional(&mut **tx)
     .await
@@ -481,7 +497,7 @@ async fn commit_with(
         (status = 400, description = "Malformed path, body or idempotency key", body = Problem, content_type = "application/problem+json"),
         (status = 401, description = "Missing or invalid signature or owner token", body = Problem, content_type = "application/problem+json"),
         (status = 403, description = "A token for no live customer (`owner.unknown_user`, `owner.role_not_allowed`)", body = Problem, content_type = "application/problem+json"),
-        (status = 404, description = "Not this owner's invitation (`roster.not_found`)", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "Not an invitation this caller may change (its owner, or a member whose role allows it: D-057) (`roster.not_found`)", body = Problem, content_type = "application/problem+json"),
         (status = 409, description = "The roster holds 3,000 guests (`roster.full`)", body = Problem, content_type = "application/problem+json"),
         (status = 422, description = "A value the rules refuse (`roster.row_invalid`, member `reason`: name, phone, seats or category), or `idempotency.key_reused`", body = Problem, content_type = "application/problem+json"),
         (status = 503, description = "Owner tokens are not configured or the signing keys are unreachable", body = Problem, content_type = "application/problem+json"),
@@ -504,7 +520,7 @@ pub async fn add_guest(
     }
 
     let mut tx = state.pool.begin().await.map_err(db("roster_begin"))?;
-    let config = owned_invitation(&mut tx, &owner, invitation_id).await?;
+    let config = accessible_invitation(&mut tx, &owner, invitation_id, Capability::Guests).await?;
     let row = check_row(&request.guest.input(), MAX_SEATS).map_err(row_invalid)?;
     lock_roster(&mut tx, invitation_id).await?;
     let slugs = sqlx::query_scalar!("select slug from guests where invitation_id = $1", invitation_id)
@@ -576,7 +592,7 @@ fn count(value: usize) -> i32 {
         (status = 400, description = "Malformed path, body or idempotency key", body = Problem, content_type = "application/problem+json"),
         (status = 401, description = "Missing or invalid signature or owner token", body = Problem, content_type = "application/problem+json"),
         (status = 403, description = "A token for no live customer", body = Problem, content_type = "application/problem+json"),
-        (status = 404, description = "Not this owner's invitation (`roster.not_found`)", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "Not an invitation this caller may change (its owner, or a member whose role allows it: D-057) (`roster.not_found`)", body = Problem, content_type = "application/problem+json"),
         (status = 422, description = "`idempotency.key_reused`", body = Problem, content_type = "application/problem+json"),
         (status = 503, description = "Owner tokens are not configured or the signing keys are unreachable", body = Problem, content_type = "application/problem+json"),
     )
@@ -600,7 +616,7 @@ pub async fn import_guests(
     }
 
     let mut tx = state.pool.begin().await.map_err(db("import_begin"))?;
-    owned_invitation(&mut tx, &owner, invitation_id).await?;
+    accessible_invitation(&mut tx, &owner, invitation_id, Capability::Guests).await?;
     if !request.dry_run {
         lock_roster(&mut tx, invitation_id).await?;
     }
@@ -693,7 +709,7 @@ fn is_batch_id(batch: &str) -> bool {
         (status = 400, description = "Malformed path or idempotency key", body = Problem, content_type = "application/problem+json"),
         (status = 401, description = "Missing or invalid signature or owner token", body = Problem, content_type = "application/problem+json"),
         (status = 403, description = "A token for no live customer", body = Problem, content_type = "application/problem+json"),
-        (status = 404, description = "Not this owner's invitation, or no guest of this batch (`roster.not_found`)", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "Not an invitation this caller may change (its owner, or a member whose role allows it: D-057), or no guest of this batch (`roster.not_found`)", body = Problem, content_type = "application/problem+json"),
         (status = 422, description = "`idempotency.key_reused`", body = Problem, content_type = "application/problem+json"),
         (status = 503, description = "Owner tokens are not configured or the signing keys are unreachable", body = Problem, content_type = "application/problem+json"),
     )
@@ -718,7 +734,7 @@ pub async fn undo_import(
     }
 
     let mut tx = state.pool.begin().await.map_err(db("undo_begin"))?;
-    owned_invitation(&mut tx, &owner, invitation_id).await?;
+    accessible_invitation(&mut tx, &owner, invitation_id, Capability::Guests).await?;
     lock_roster(&mut tx, invitation_id).await?;
     let rows = sqlx::query!(
         r#"select g.id, (g.opened_count > 0 or g.opened_at is not null or g.rsvp_status <> 'PENDING'
@@ -767,7 +783,7 @@ pub async fn undo_import(
         (status = 400, description = "Malformed path, body or idempotency key", body = Problem, content_type = "application/problem+json"),
         (status = 401, description = "Missing or invalid signature or owner token", body = Problem, content_type = "application/problem+json"),
         (status = 403, description = "A token for no live customer", body = Problem, content_type = "application/problem+json"),
-        (status = 404, description = "Not this owner's invitation, or not its guest (`roster.not_found`)", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "Not an invitation this caller may change (its owner, or a member whose role allows it: D-057), or not its guest (`roster.not_found`)", body = Problem, content_type = "application/problem+json"),
         (status = 422, description = "`idempotency.key_reused`", body = Problem, content_type = "application/problem+json"),
         (status = 503, description = "Owner tokens are not configured or the signing keys are unreachable", body = Problem, content_type = "application/problem+json"),
     )
@@ -789,7 +805,12 @@ pub async fn guest_operation(
     }
 
     let mut tx = state.pool.begin().await.map_err(db("operation_begin"))?;
-    owned_guest(&mut tx, &owner, invitation_id, guest_id).await?;
+    // G-044 (D-057): checking a guest in is the desk's capability; marking sent and undoing a check-in are the list's.
+    let capability = match request.operation {
+        GuestOperation::Checkin => Capability::Checkin,
+        GuestOperation::Sent | GuestOperation::UndoCheckin => Capability::Guests,
+    };
+    accessible_guest(&mut tx, &owner, invitation_id, guest_id, capability).await?;
     match request.operation {
         GuestOperation::Sent => {
             sqlx::query!(
@@ -803,23 +824,29 @@ pub async fn guest_operation(
             .map_err(db("operation_sent"))?;
         }
         GuestOperation::Checkin => {
-            sqlx::query!(
-                "update guests set checked_in_at = $1 where id = $2 and invitation_id = $3",
+            // B-024 (D-056): a guest arrives once. Another check-in (a second desk, a stale list, a pass already scanned)
+            // keeps the first time and writes no second CHECKIN row; undo clears the time, so a later check-in counts.
+            let first = sqlx::query!(
+                "update guests set checked_in_at = $1 where id = $2 and invitation_id = $3 and checked_in_at is null",
                 now,
                 guest_id,
                 invitation_id
             )
             .execute(&mut *tx)
             .await
-            .map_err(db("operation_checkin"))?;
-            sqlx::query!(
-                "insert into analytics_events (invitation_id, guest_id, event_type) values ($1, $2, 'CHECKIN')",
-                invitation_id,
-                guest_id
-            )
-            .execute(&mut *tx)
-            .await
-            .map_err(db("operation_event"))?;
+            .map_err(db("operation_checkin"))?
+            .rows_affected()
+                == 1;
+            if first {
+                sqlx::query!(
+                    "insert into analytics_events (invitation_id, guest_id, event_type) values ($1, $2, 'CHECKIN')",
+                    invitation_id,
+                    guest_id
+                )
+                .execute(&mut *tx)
+                .await
+                .map_err(db("operation_event"))?;
+            }
         }
         GuestOperation::UndoCheckin => {
             sqlx::query!(
@@ -855,7 +882,7 @@ pub async fn guest_operation(
         (status = 400, description = "Malformed path, body or idempotency key", body = Problem, content_type = "application/problem+json"),
         (status = 401, description = "Missing or invalid signature or owner token", body = Problem, content_type = "application/problem+json"),
         (status = 403, description = "A token for no live customer", body = Problem, content_type = "application/problem+json"),
-        (status = 404, description = "Not this owner's invitation, or not its guest (`roster.not_found`)", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "Not an invitation this caller may change (its owner, or a member whose role allows it: D-057), or not its guest (`roster.not_found`)", body = Problem, content_type = "application/problem+json"),
         (status = 422, description = "Invite-only events are switched off (`roster.invite_invalid`), or `idempotency.key_reused`", body = Problem, content_type = "application/problem+json"),
         (status = 503, description = "Owner tokens are not configured or the signing keys are unreachable", body = Problem, content_type = "application/problem+json"),
     )
@@ -877,7 +904,7 @@ pub async fn set_invited_events(
     }
 
     let mut tx = state.pool.begin().await.map_err(db("invited_begin"))?;
-    let (stored, config) = owned_guest(&mut tx, &owner, invitation_id, guest_id).await?;
+    let (stored, config) = accessible_guest(&mut tx, &owner, invitation_id, guest_id, Capability::Guests).await?;
     if !request.flags.invite_only_events {
         return Err(ApiError::Unprocessable("roster.invite_invalid", Subject::None));
     }
@@ -913,7 +940,7 @@ pub async fn set_invited_events(
         (status = 400, description = "Malformed path, body or idempotency key", body = Problem, content_type = "application/problem+json"),
         (status = 401, description = "Missing or invalid signature or owner token", body = Problem, content_type = "application/problem+json"),
         (status = 403, description = "A token for no live customer", body = Problem, content_type = "application/problem+json"),
-        (status = 404, description = "Not this owner's invitation (`roster.not_found`)", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "Not an invitation this caller may change (its owner, or a member whose role allows it: D-057) (`roster.not_found`)", body = Problem, content_type = "application/problem+json"),
         (status = 422, description = "Not a current invite-only event, a category over 50 characters, or the flag off (`roster.invite_invalid`), or `idempotency.key_reused`", body = Problem, content_type = "application/problem+json"),
         (status = 503, description = "Owner tokens are not configured or the signing keys are unreachable", body = Problem, content_type = "application/problem+json"),
     )
@@ -935,7 +962,7 @@ pub async fn set_category_invitation(
     }
 
     let mut tx = state.pool.begin().await.map_err(db("category_begin"))?;
-    let config = owned_invitation(&mut tx, &owner, invitation_id).await?;
+    let config = accessible_invitation(&mut tx, &owner, invitation_id, Capability::Guests).await?;
     let category = js_trim(&request.category).to_string();
     let current = current_invite_only(&config).contains(&request.event_id);
     if !request.flags.invite_only_events || !current || category.chars().count() > MAX_CATEGORY {
@@ -994,7 +1021,7 @@ pub async fn set_category_invitation(
         (status = 400, description = "Malformed path, body or idempotency key", body = Problem, content_type = "application/problem+json"),
         (status = 401, description = "Missing or invalid signature or owner token", body = Problem, content_type = "application/problem+json"),
         (status = 403, description = "A token for no live customer", body = Problem, content_type = "application/problem+json"),
-        (status = 404, description = "Not this owner's invitation (`roster.not_found`)", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "Not an invitation this caller may change (its owner, or a member whose role allows it: D-057) (`roster.not_found`)", body = Problem, content_type = "application/problem+json"),
         (status = 422, description = "`idempotency.key_reused`", body = Problem, content_type = "application/problem+json"),
         (status = 503, description = "Owner tokens are not configured or the signing keys are unreachable", body = Problem, content_type = "application/problem+json"),
     )
@@ -1016,7 +1043,7 @@ pub async fn registration_link(
     }
 
     let mut tx = state.pool.begin().await.map_err(db("link_begin"))?;
-    owned_invitation(&mut tx, &owner, invitation_id).await?;
+    accessible_invitation(&mut tx, &owner, invitation_id, Capability::Guests).await?;
     lock_roster(&mut tx, invitation_id).await?;
     let token = match request.action {
         LinkAction::Close => {
@@ -1220,7 +1247,7 @@ pub async fn register(
         (status = 400, description = "Malformed path, body or idempotency key", body = Problem, content_type = "application/problem+json"),
         (status = 401, description = "Missing or invalid signature or owner token", body = Problem, content_type = "application/problem+json"),
         (status = 403, description = "A token for no live customer", body = Problem, content_type = "application/problem+json"),
-        (status = 404, description = "Not this owner's invitation, or not its waiting registration (`roster.not_found`)", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "Not an invitation this caller may change (its owner, or a member whose role allows it: D-057), or not its waiting registration (`roster.not_found`)", body = Problem, content_type = "application/problem+json"),
         (status = 409, description = "The roster is full (`roster.full`), or the person is already a guest (`roster.duplicate`)", body = Problem, content_type = "application/problem+json"),
         (status = 422, description = "The stored request breaks a rule (`roster.row_invalid`, member `reason`), or `idempotency.key_reused`", body = Problem, content_type = "application/problem+json"),
         (status = 503, description = "Owner tokens are not configured or the signing keys are unreachable", body = Problem, content_type = "application/problem+json"),
@@ -1243,7 +1270,7 @@ pub async fn decide(
     }
 
     let mut tx = state.pool.begin().await.map_err(db("decision_begin"))?;
-    owned_invitation(&mut tx, &owner, invitation_id).await?;
+    accessible_invitation(&mut tx, &owner, invitation_id, Capability::Guests).await?;
     lock_roster(&mut tx, invitation_id).await?;
     let registration = sqlx::query!(
         "select name, phone, guest_count from guest_registrations where id = $1 and invitation_id = $2",
@@ -1318,7 +1345,8 @@ pub struct PassScan {
     /// The text of the pass's QR (`IVP1.` and 48 base64url characters); anything else is answered `invalid`.
     #[schema(max_length = 200)]
     pub token: String,
-    /// When the scanner saw it (`YYYY-MM-DDTHH:MM:SS[.fff]Z`); kept within the last day, else this request's time.
+    /// When the scanner saw it (`YYYY-MM-DDTHH:MM:SS[.fff]Z`). Kept within the last day; an older time is stored a day
+    /// before this request, a future, malformed or absent one as this request's time.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schema(max_length = 40)]
     pub scanned_at: Option<String>,
@@ -1382,7 +1410,7 @@ const fn unnamed(outcome: PassOutcome) -> PassScanResult {
         (status = 400, description = "Malformed path, body (1–50 scans) or idempotency key", body = Problem, content_type = "application/problem+json"),
         (status = 401, description = "Missing or invalid signature or owner token", body = Problem, content_type = "application/problem+json"),
         (status = 403, description = "A token for no live customer, or an administrator", body = Problem, content_type = "application/problem+json"),
-        (status = 404, description = "Not this owner's invitation (`roster.not_found`)", body = Problem, content_type = "application/problem+json"),
+        (status = 404, description = "Not an invitation this caller may change (its owner, or a member whose role allows it: D-057) (`roster.not_found`)", body = Problem, content_type = "application/problem+json"),
         (status = 409, description = "The invitation has not opted in (`guest_pass.not_enabled`: `checkInSettings.enabled`)", body = Problem, content_type = "application/problem+json"),
         (status = 422, description = "`idempotency.key_reused`", body = Problem, content_type = "application/problem+json"),
         (status = 503, description = "No guest-pass secret (`guest_pass.not_configured`), owner tokens not configured, or the signing keys unreachable", body = Problem, content_type = "application/problem+json"),
@@ -1418,7 +1446,7 @@ pub async fn pass_checkins(
     }
 
     let mut tx = state.pool.begin().await.map_err(db("pass_begin"))?;
-    let config = owned_invitation(&mut tx, &owner, invitation_id).await?;
+    let config = accessible_invitation(&mut tx, &owner, invitation_id, Capability::Checkin).await?;
     if !pass::check_in_enabled(&config) {
         return Err(ApiError::Conflict("guest_pass.not_enabled", None));
     }

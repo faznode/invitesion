@@ -5,19 +5,25 @@ import { db } from '@/lib/db/drizzle';
 import { getUser } from '@/lib/db/queries';
 import { followUpItems, rsvpDigest } from '@/lib/invitation/host-analytics';
 import { loadHostAnalytics } from '@/lib/invitation/host-analytics-query';
+import { accessFor } from '@/lib/invitation/members-db';
 import { getPublicOrigin } from '@/lib/invitation/public-url';
 import { whatsAppShareLink } from '@/lib/invitation/whatsapp';
 
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = { title: 'Analitik & tindak lanjut' };
 
-/** B-034: the owner's analytics and follow-up lists for one invitation; anyone else gets the private 404. */
+/**
+ * B-034: the analytics and follow-up lists for one invitation, for its owner or a co-host (G-044, D-057: `insights`);
+ * anyone else gets the private 404. The query keeps its owner scope, with the owner the access check resolved.
+ */
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const user = await getUser();
   if (!user) redirect('/sign-in');
   const id = Number((await params).id);
   if (!Number.isInteger(id)) notFound();
-  const data = await loadHostAnalytics(db, { userId: user.id, invitationId: id });
+  const access = await accessFor(user.id, id, 'insights');
+  if (!access) notFound();
+  const data = await loadHostAnalytics(db, { userId: access.invitation.userId, invitationId: id });
   if (!data) notFound();
 
   // B-018: reminders carry the host's message and each guest's personal link (token or slug, B-011).

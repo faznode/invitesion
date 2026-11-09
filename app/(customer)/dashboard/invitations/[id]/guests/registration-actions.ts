@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 import { ownerSessionToken } from '@/lib/auth/clerk-user';
 import { getUser } from '@/lib/db/queries';
 import { isFlagOn } from '@/lib/flags';
+import { accessFor } from '@/lib/invitation/members-db';
 import { decideRosterRegistration, setRegistrationLink, type RosterCaller } from '@/lib/invitation/roster';
 import { rosterNotice } from '@/lib/invitation/roster-notices';
 
@@ -17,6 +18,8 @@ async function host(formData: FormData): Promise<{ caller: RosterCaller; invitat
   if (!Number.isInteger(invitationId) || invitationId <= 0) redirect('/dashboard/invitations');
   const path = `/dashboard/invitations/${invitationId}/guests`;
   if (!isFlagOn('SELF_REGISTRATION')) redirect(`${path}?error=invalid`);
+  // G-044 (D-057): the owner or a co-host (`guests`); the writer checks the same grant again.
+  if (!(await accessFor(user.id, invitationId, 'guests'))) redirect('/dashboard/invitations');
   return { caller: { userId: user.id, ownerToken: ownerSessionToken }, invitationId, path };
 }
 

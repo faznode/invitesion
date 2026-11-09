@@ -1,7 +1,10 @@
 //! B-024 parity (D-056): the guest-pass vectors the TypeScript suite runs (`tests/b024-guest-pass.test.ts`), run here
 //! against the Rust port: every signed token, every read (shape, MAC with the accepted secrets, expiry), every scan time
-//! and every opt-in reading, compared as the same values.
+//! and every opt-in reading, and every batch's serialised request, idempotency hash and scope, compared as the same
+//! values.
 
+use invitesion_api::idempotency;
+use invitesion_api::roster::http::PassCheckinRequest;
 use invitesion_api::roster::pass::{self, PassRead};
 use serde_json::{Value, json};
 use time::format_description::well_known::Rfc3339;
@@ -17,7 +20,9 @@ fn secret(vectors: &Value, name: &str) -> Vec<u8> {
 
 fn read_json(read: &PassRead) -> Value {
     match read {
-        PassRead::Valid { pass_id, expires_at } => json!({ "kind": "valid", "passId": pass_id, "expiresAt": expires_at }),
+        PassRead::Valid { pass_id, expires_at } => {
+            json!({ "kind": "valid", "passId": pass_id, "expiresAt": expires_at })
+        }
         PassRead::Expired { pass_id, expires_at } => {
             json!({ "kind": "expired", "passId": pass_id, "expiresAt": expires_at })
         }
@@ -67,5 +72,28 @@ fn every_scan_time_and_opt_in_matches_the_typescript_rules() {
     }
     for case in v["enabled"].as_array().expect("opt-in readings") {
         assert_eq!(pass::check_in_enabled(&case["config"]), case["expect"].as_bool().unwrap(), "{}", case["name"]);
+    }
+}
+
+/// A batch the TypeScript writer recorded replays here and the other way round: the request the API receives serialises
+/// to the TypeScript canonical JSON, so both writers store the same request hash under the same scope.
+#[test]
+fn every_batch_hash_and_scope_is_the_typescript_writers() {
+    let v = vectors();
+    let requests = v["requests"].as_array().expect("requests");
+    assert_eq!(requests.len(), 6);
+    for case in requests {
+        let request: PassCheckinRequest =
+            serde_json::from_value(json!({ "scans": case["sent"] })).expect("the request the API receives");
+        assert_eq!(serde_json::to_string(&request).unwrap(), case["canonical"].as_str().unwrap(), "{}", case["name"]);
+        assert_eq!(idempotency::request_hash(&request), case["hash"].as_str().unwrap(), "{}", case["name"]);
+    }
+    for case in v["scopes"].as_array().expect("scopes") {
+        let owner = i32::try_from(case["owner"].as_i64().unwrap()).unwrap();
+        let invitation = i32::try_from(case["invitation"].as_i64().unwrap()).unwrap();
+        assert_eq!(
+            idempotency::host_scope("roster:pass-checkins", owner, invitation, 0),
+            case["scope"].as_str().unwrap()
+        );
     }
 }

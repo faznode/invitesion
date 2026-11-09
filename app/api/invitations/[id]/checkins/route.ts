@@ -5,6 +5,7 @@ import { apiError, parseId, validationError } from '@/lib/api/respond';
 import { sameOrigin } from '@/lib/api/same-origin';
 import { isFlagOn } from '@/lib/flags';
 import { MAX_SCANS_PER_BATCH, MAX_TOKEN_CHARS } from '@/lib/invitation/guest-pass';
+import { accessFor } from '@/lib/invitation/members-db';
 import { checkInWithPasses } from '@/lib/invitation/roster';
 import { hit, parseLimit } from '@/lib/rate-limit';
 
@@ -12,12 +13,22 @@ export const dynamic = 'force-dynamic';
 
 type Ctx = { params: Promise<{ id: string }> };
 
+/**
+ * A pass is ASCII, and so is a scan time. Admitting printable ASCII only also keeps the batch's canonical JSON the same
+ * bytes in both writers (`passCheckinCanonical`), so a resent batch replays through either.
+ */
+const PRINTABLE = /^[\x20-\x7e]*$/;
+
 const bodySchema = z
   .object({
     /** The scanner's key for this batch: a resend after a lost answer carries the same one. */
     key: z.string().regex(/^[\x21-\x7e]{8,100}$/),
     scans: z
-      .array(z.object({ token: z.string().max(MAX_TOKEN_CHARS), scannedAt: z.string().max(40).optional() }).strict())
+      .array(
+        z
+          .object({ token: z.string().max(MAX_TOKEN_CHARS).regex(PRINTABLE), scannedAt: z.string().max(40).regex(PRINTABLE).optional() })
+          .strict(),
+      )
       .min(1)
       .max(MAX_SCANS_PER_BATCH),
   })
@@ -42,6 +53,8 @@ export async function POST(req: Request, { params }: Ctx) {
   const id = parseId((await params).id);
   if (!id) return apiError(400, 'BAD_REQUEST', 'Invalid invitation id');
   if (!isFlagOn('GUEST_PASS')) return apiError(404, 'NOT_FOUND', 'Not found');
+  // G-044 (D-057, ADR-A3): the owner, a co-host or an usher (`checkin`); the writer checks the same grant again.
+  if (!(await accessFor(user.id, id, 'checkin'))) return apiError(404, 'NOT_FOUND', 'Invitation not found');
 
   let body: unknown;
   try {
@@ -71,6 +84,8 @@ export async function POST(req: Request, { params }: Ctx) {
       return apiError(409, 'GUEST_PASS_OFF', 'Guest passes are not switched on for this invitation');
     case 'unconfigured':
       return apiError(503, 'GUEST_PASS_UNCONFIGURED', 'Guest passes are not configured');
+    case 'key-reused':
+      return apiError(422, 'KEY_REUSED', 'This key already answered another batch');
     case 'notfound':
       return apiError(404, 'NOT_FOUND', 'Invitation not found');
     case 'signin':

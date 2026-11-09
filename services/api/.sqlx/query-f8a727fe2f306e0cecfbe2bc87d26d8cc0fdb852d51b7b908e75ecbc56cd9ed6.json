@@ -1,0 +1,31 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "select w.id from guest_messages w join invitations i on i.id = w.invitation_id where w.id = $1 and w.invitation_id = $2 and (i.user_id = $3 or exists (select 1 from invitation_members m where m.invitation_id = i.id and m.user_id = $3 and m.revoked_at is null and m.role = any($4))) for update of w",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "guest_messages",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int4",
+        "Int4",
+        "TextArray"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "f8a727fe2f306e0cecfbe2bc87d26d8cc0fdb852d51b7b908e75ecbc56cd9ed6"
+}

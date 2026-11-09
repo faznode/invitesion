@@ -5,7 +5,7 @@
 > OWNER: Research agent
 > DEPS: ../01-codebase-audit/flows.md, ../03-teardowns/_flows/, ../03-teardowns/*/dossier.md §2, 06-backlog.md, ../07-ideation/top-10.md
 > GREP: flow, journey, creator, guest, host, reseller, post-event, steps, observed, claimed, proposed, today s25
-> UPDATED: 2026-11-07 (s33: §1 steps 2–3, the creation wizard; s32: §1 steps 4–6)
+> UPDATED: 2026-11-07 (s34: the day-of check-in, B-024; s33: §1 steps 2–3, the creation wizard; s32: §1 steps 4–6)
 
 Step = one screen or one deliberate action. Vocabulary as in `../03-teardowns/_flows/README.md`: OBSERVED (seen on a public page or capture), CLAIMED (vendor's own description), PROPOSED (our target), UNKNOWN. Competitor step counts are CLAIMED unless a capture ID is given (ENV 4 steps to a shareable link, PLO 5 steps "under 5 minutes", IDI "5 menit").
 
@@ -53,6 +53,7 @@ Import guests (B-033) → groups → send personal links (wa.me with an editable
 Ushers open the scanner on a phone (B-024; co-host / usher roles G-044) → scan the guest's QR pass or search the name (manual fallback, already present) → greeting screen shows the name (B-024) → attendance count updates.
 **Target:** ≤ 3 s per guest at the desk; works with a weak signal (idea I-27 as a later option).
 **Today (s25):** manual arrival tracking only. The manage centre states that "QR scanner flow remains a roadmap item". There is no QR pass, scanner, greeting screen or usher role (B-024, G-044 open).
+**s34 (sandbox; `FLAG_GUEST_PASS` off):** B-024 + I-01 / I-27 are implemented (E-074, D-056, ADR-A3). The guest opens their pass from their personal link. The host's scanner reads it by camera or handheld scanner, or finds the name; scans wait on the device without a signal and keep their own time; the greeting shows the name; a guest arrives once whichever desk or path records them. The host scans as the owner until G-044's usher roles. The desk target is not yet measured on a device (EXT).
 
 ## 5. Reseller (later, G-052; comparison: `../03-teardowns/_flows/reseller.md`, CLAIMED)
 Buy credits → create invitations for clients or give clients edit access → own branding → resale floor. Depends on the tenant model and automated payments.

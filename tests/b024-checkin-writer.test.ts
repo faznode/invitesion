@@ -67,6 +67,7 @@ test('the Rust client resends an unknown outcome once under the batch key and ma
     { name: 'refusals carry no name', replies: [{ status: 200, body: { results: [{ outcome: 'expired' }, { outcome: 'unknown' }, { outcome: 'invalid', name: 'x' }] } }], expect: { kind: 'checked', results: [{ outcome: 'expired' }, { outcome: 'unknown' }, { outcome: 'invalid' }] }, calls: 1 },
     { name: 'not opted in', replies: [problem(409, 'guest_pass.not_enabled')], expect: { kind: 'disabled' }, calls: 1 },
     { name: 'no secret on the API', replies: [problem(503, 'guest_pass.not_configured')], expect: { kind: 'unconfigured' }, calls: 1 },
+    { name: 'the key answered another batch', replies: [problem(422, 'idempotency.key_reused')], expect: { kind: 'key-reused' }, calls: 1 },
     { name: 'not this owner', replies: [problem(404, 'roster.not_found')], expect: { kind: 'notfound' }, calls: 1 },
     { name: 'no live customer behind the token', replies: [problem(403, 'owner.role_not_allowed')], expect: { kind: 'signin' }, calls: 1 },
   ];
@@ -83,7 +84,7 @@ test('the Rust client resends an unknown outcome once under the batch key and ma
 test('both writers run the same statements in the same order', () => {
   const ts = source('lib/invitation/roster-next.ts');
   const writer = ts.slice(ts.indexOf('export async function passCheckinNext'), ts.indexOf('/** D-037: one guest'));
-  const order = [/ownedInvitation\(tx,/, /passCheckInEnabled\(invitation\.config\)/, /lockRoster\(tx,/, /readGuestPass\(scan\.token, input\.secrets, nowSeconds\)/, /eq\(guests\.passId, read\.passId\)\)\)\n\s*\.for\('update'\)/, /checkInTime\(scan\.scannedAt, now\)/, /\.update\(guests\)\.set\(\{ checkedInAt: at \}\)/, /eventType: 'CHECKIN', meta: \{ source: 'pass' \}/];
+  const order = [/passCheckinScope\(input\.userId, input\.invitationId\)/, /passCheckinHash\(scans\)/, /lookupIdempotent\(db, scope, input\.key, hash, now\)/, /ownedInvitation\(tx,/, /passCheckInEnabled\(invitation\.config\)/, /lockRoster\(tx,/, /readGuestPass\(scan\.token, input\.secrets, nowSeconds\)/, /eq\(guests\.passId, read\.passId\)\)\)\n\s*\.for\('update'\)/, /checkInTime\(scan\.scannedAt, now\)/, /\.update\(guests\)\.set\(\{ checkedInAt: at \}\)/, /eventType: 'CHECKIN', meta: \{ source: 'pass' \}/, /recordIdempotent\(tx, input\.scope, input\.key, input\.hash, 200, \{ results \}, now\)\)\) throw new TwinCommitted\(\)/];
   let at = 0;
   for (const step of order) {
     const found = writer.slice(at).search(step);
@@ -92,7 +93,7 @@ test('both writers run the same statements in the same order', () => {
   }
   const rs = source('services/api/src/roster/http.rs');
   const handler = rs.slice(rs.indexOf('pub async fn pass_checkins'));
-  const rustOrder = [/owned_invitation\(&mut tx, &owner, invitation_id\)/, /pass::check_in_enabled\(&config\)/, /lock_roster\(&mut tx, invitation_id\)/, /pass::read\(&scan\.token, &state\.guest_pass_secrets, now_seconds\)/, /select id, name, checked_in_at from guests where invitation_id = \$1 and pass_id = \$2 for update/, /pass::check_in_time\(scan\.scanned_at\.as_deref\(\), now\)/, /update guests set checked_in_at = \$1 where id = \$2/, /'CHECKIN', \$3\)",[\s\S]*?json!\(\{ "source": "pass" \}\)/];
+  const rustOrder = [/idempotency::host_scope\("roster:pass-checkins", owner\.user_id, invitation_id, 0\)/, /idempotency::request_hash\(&request\)/, /replay_for\(&state, &headers, &scope, &hash\)/, /owned_invitation\(&mut tx, &owner, invitation_id\)/, /pass::check_in_enabled\(&config\)/, /lock_roster\(&mut tx, invitation_id\)/, /pass::read\(&scan\.token, &state\.guest_pass_secrets, now_seconds\)/, /select id, name, checked_in_at from guests where invitation_id = \$1 and pass_id = \$2 for update/, /pass::check_in_time\(scan\.scanned_at\.as_deref\(\), now\)/, /update guests set checked_in_at = \$1 where id = \$2/, /'CHECKIN', \$3\)",[\s\S]*?json!\(\{ "source": "pass" \}\)/, /commit_with\(&state, &headers, tx, &scope, &hash, &answer, now\)/];
   at = 0;
   for (const step of rustOrder) {
     const found = handler.slice(at).search(step);
@@ -161,6 +162,82 @@ test('the scanner page hands out one-way keys, never pass ids, and the flag and 
   assert.doesNotMatch(page, /passId: row\.passId|passId=\{/, 'the pass id stays on the server');
   assert.match(page, /if \(!Number\.isInteger\(id\) \|\| !isFlagOn\('GUEST_PASS'\)\) notFound\(\);/);
   const actions = source('app/(customer)/dashboard/invitations/[id]/checkin/actions.ts');
-  assert.match(actions, /if \(!passManualAllowed\(invitation\.config\)\) return \{ ok: false, reason: 'manual-off' \};/);
+  assert.match(actions, /if \(!passManualAllowed\(guest\.config\)\) return \{ ok: false, reason: 'manual-off' \};/);
   assert.match(source('lib/flags.ts'), /GUEST_PASS: false,/);
+});
+
+test("the TypeScript writer's idempotency record is the API's: same table, statements, scope, conflict rule and retention", () => {
+  const flat = (text: string) => text.replace(/\s+/g, ' ');
+  const ts = flat(source('lib/idempotency.ts'));
+  const rs = flat(source('services/api/src/idempotency.rs'));
+  for (const fragment of [
+    'select request_hash, response_status, response_body from api_idempotency_keys',
+    'insert into api_idempotency_keys (scope, key, request_hash, response_status, response_body, created_at)',
+    'on conflict (scope, key) do update set request_hash = excluded.request_hash, response_status = excluded.response_status, response_body = excluded.response_body, created_at = excluded.created_at',
+    'where api_idempotency_keys.created_at <',
+    'returning true',
+    'delete from api_idempotency_keys where (scope, key) in',
+    'order by created_at limit 100)',
+  ]) {
+    assert.ok(ts.includes(fragment), `TypeScript: ${fragment}`);
+    assert.ok(rs.includes(fragment), `Rust: ${fragment}`);
+  }
+  assert.match(ts, /where scope = \$\{scope\} and key = \$\{key\} and created_at >= /);
+  assert.match(rs, /where scope = \$1 and key = \$2 and created_at >= \$3/);
+  assert.match(ts, /IDEMPOTENCY_RETENTION_MS = 24 \* 3_600_000/);
+  assert.match(rs, /RETENTION: Duration = Duration::hours\(24\)/);
+  assert.match(ts, /::text::jsonb/, 'the answer is stored as a JSON object, never a JSON string');
+  const next = source('lib/invitation/roster-next.ts');
+  assert.match(next, /if \(prior\.kind === 'mismatch'\) return \{ kind: 'key-reused' \};/);
+  assert.match(next, /if \(!\(error instanceof TwinCommitted\)\) throw error;[\s\S]*?const twin = await lookupIdempotent\(db, scope, input\.key, hash, now\);/, 'a twin that committed first is answered from its record');
+});
+
+test('a guest checks in once: both writers keep the first time and write one CHECKIN row, and the manual fallback says already', () => {
+  const next = source('lib/invitation/roster-next.ts');
+  const operation = next.slice(next.indexOf('export async function guestOperationNext'), next.indexOf('/** Raised inside a pass check-in'));
+  assert.match(operation, /\.set\(\{ checkedInAt: new Date\(\) \}\)\.where\(and\(where, isNull\(guests\.checkedInAt\)\)\)\.returning\(\{ id: guests\.id \}\);\n\s*if \(first\.length\) await tx\.insert\(analyticsEvents\)/);
+  const rust = source('services/api/src/roster/http.rs');
+  const checkin = rust.slice(rust.indexOf('GuestOperation::Checkin => {'), rust.indexOf('GuestOperation::UndoCheckin => {'));
+  assert.match(checkin, /"update guests set checked_in_at = \$1 where id = \$2 and invitation_id = \$3 and checked_in_at is null"/);
+  assert.match(checkin, /\.rows_affected\(\)\s*== 1;\s*if first \{\s*sqlx::query!\(\s*"insert into analytics_events \(invitation_id, guest_id, event_type\) values \(\$1, \$2, 'CHECKIN'\)"/);
+
+  const actions = source('app/(customer)/dashboard/invitations/[id]/checkin/actions.ts');
+  const already = actions.indexOf("if (guest.checkedInAt) return { ok: true, checkedInAt: guest.checkedInAt.toISOString(), already: true };");
+  assert.ok(already > 0 && already < actions.indexOf('rosterOperation({'), 'an arrival already stored is answered before any write');
+  assert.match(source('app/(customer)/dashboard/invitations/[id]/checkin/checkin-scanner.tsx'), /outcome: result\.already \? 'already' : 'checked-in'/);
+});
+
+test('the route admits printable ASCII only, so both writers hash a batch to the same bytes', () => {
+  const route = source('app/api/invitations/[id]/checkins/route.ts');
+  assert.match(route, /const PRINTABLE = \/\^\[\\x20-\\x7e\]\*\$\/;/);
+  assert.match(route, /token: z\.string\(\)\.max\(MAX_TOKEN_CHARS\)\.regex\(PRINTABLE\), scannedAt: z\.string\(\)\.max\(40\)\.regex\(PRINTABLE\)\.optional\(\)/);
+  assert.match(route, /case 'key-reused':\n\s*return apiError\(422, 'KEY_REUSED'/);
+});
+
+test('a stored batch is resent only when every scan of it survived, so a key never travels with other scans', () => {
+  const scan = (id: string) => ({ id, token: `IVP1.${id.padStart(48, 'A')}`, scannedAt: '2026-11-07T11:30:00.000Z' });
+  const whole = parseStoredQueue(JSON.stringify({ scans: [scan('a'), scan('b'), scan('c')], batch: { key: 'k-1', ids: ['a', 'b'] } }));
+  assert.deepEqual(whole.batch, { key: 'k-1', ids: ['a', 'b'] });
+  assert.deepEqual(nextBatch(whole, () => 'fresh')?.scans.map((s) => s.id), ['a', 'b'], 'the same batch under the same key');
+  const partial = parseStoredQueue(JSON.stringify({ scans: [scan('a'), { id: 'b' }, scan('c')], batch: { key: 'k-1', ids: ['a', 'b'] } }));
+  assert.equal(partial.batch, null, 'a damaged batch gets a new key');
+  assert.equal(nextBatch(partial, () => 'fresh')?.key, 'fresh');
+  assert.equal(parseStoredQueue(JSON.stringify({ scans: [scan('a')], batch: { key: 'k', ids: [] } })).batch, null);
+});
+
+test('only the scanner may use the camera, and both entries (guest list, manage centre) open it by a full load', async () => {
+  const { default: config } = await import('../next.config');
+  const entries = (await config.headers?.()) ?? [];
+  const policyOf = (path: string) => entries.find((entry) => entry.source === path)?.headers.find((header) => header.key === 'Permissions-Policy')?.value;
+  assert.match(policyOf('/:path*') ?? '', /^camera=\(\), /, 'denied everywhere else');
+  assert.equal(policyOf('/dashboard/invitations/:id/checkin'), 'camera=(self), microphone=(), geolocation=(), payment=()', 'the scanner, for this origin only');
+  const index = (path: string) => entries.findIndex((entry) => entry.source === path);
+  assert.ok(index('/dashboard/invitations/:id/checkin') > index('/:path*'), 'the later entry overrides the site-wide one');
+  const guests = source('app/(customer)/dashboard/invitations/[id]/guests/page.tsx');
+  assert.match(guests, /<a href=\{`\/dashboard\/invitations\/\$\{id\}\/checkin`\}/, "next/link would keep the guest list's policy, which denies the camera");
+  assert.doesNotMatch(guests, /<Link href=\{`\/dashboard\/invitations\/\$\{id\}\/checkin`\}/);
+  const manage = source('app/(customer)/dashboard/invitations/[id]/manage/manage-center.tsx');
+  assert.match(manage, /href: 'checkin', fullLoad: true \}/, 'the manage centre names its scanner card a full load');
+  assert.match(manage, /const CardLink: ElementType = item\.fullLoad \? 'a' : Link;/, 'and renders it as a plain anchor');
+  assert.doesNotMatch(manage, /href: 'checkin'(?!, fullLoad: true)/, 'no scanner entry without a full load');
 });

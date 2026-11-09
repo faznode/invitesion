@@ -6,6 +6,7 @@ import { ownerSessionToken } from '@/lib/auth/clerk-user';
 import { getUser } from '@/lib/db/queries';
 import { isFlagOn } from '@/lib/flags';
 import { parseGuestImport } from '@/lib/invitation/guest-import-parse';
+import { accessFor } from '@/lib/invitation/members-db';
 import { importRosterGuests, undoRosterImport, type RosterCaller } from '@/lib/invitation/roster';
 import { rosterNotice } from '@/lib/invitation/roster-notices';
 import type { ImportPreview } from '@/lib/invitation/roster-outcomes';
@@ -16,9 +17,11 @@ import type { ImportPreview } from '@/lib/invitation/roster-outcomes';
  * under the roster lock (the list may have changed since the preview) and writes every accepted row as one batch.
  */
 
-async function host(): Promise<RosterCaller> {
+/** The owner or a co-host of this invitation (G-044, D-057: `guests`), else null; the writer checks the grant again. */
+async function host(invitationId: number): Promise<RosterCaller | null> {
   const user = await getUser();
   if (!user || user.role === 'ADMIN') redirect('/sign-in');
+  if (!(await accessFor(user.id, invitationId, 'guests'))) return null;
   return { userId: user.id, ownerToken: ownerSessionToken };
 }
 
@@ -26,7 +29,8 @@ const validId = (id: number) => Number.isInteger(id) && id > 0;
 
 export async function previewGuestImport(invitationId: number, text: string): Promise<ImportPreview> {
   if (!isFlagOn('GUEST_IMPORT') || !validId(invitationId)) return { ok: false, error: 'notfound' };
-  const caller = await host();
+  const caller = await host(invitationId);
+  if (!caller) return { ok: false, error: 'notfound' };
   const parsed = parseGuestImport(String(text ?? ''));
   if (!parsed.ok) return { ok: false, error: parsed.error, rowCount: parsed.rowCount };
   const outcome = await importRosterGuests(caller, { invitationId, rows: parsed.rows, dryRun: true });
@@ -39,7 +43,8 @@ export async function commitGuestImport(formData: FormData) {
   const invitationId = Number(formData.get('invitationId'));
   if (!isFlagOn('GUEST_IMPORT') || !validId(invitationId)) redirect('/dashboard/invitations');
   const path = `/dashboard/invitations/${invitationId}/guests`;
-  const caller = await host();
+  const caller = await host(invitationId);
+  if (!caller) redirect('/dashboard/invitations');
   const parsed = parseGuestImport(String(formData.get('text') ?? ''));
   if (!parsed.ok) redirect(`${path}/import?error=${parsed.error}`);
   const outcome = await importRosterGuests(caller, { invitationId, rows: parsed.rows, dryRun: false });
@@ -56,7 +61,8 @@ export async function undoGuestImport(formData: FormData) {
   const invitationId = Number(formData.get('invitationId'));
   if (!validId(invitationId)) redirect('/dashboard/invitations');
   const path = `/dashboard/invitations/${invitationId}/guests`;
-  const caller = await host();
+  const caller = await host(invitationId);
+  if (!caller) redirect('/dashboard/invitations');
   const outcome = await undoRosterImport(caller, { invitationId, batchId: String(formData.get('batchId') ?? '') });
   if (outcome.kind === 'signin') redirect('/sign-in');
   revalidatePath(path);

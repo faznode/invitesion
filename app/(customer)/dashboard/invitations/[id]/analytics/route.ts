@@ -1,32 +1,30 @@
-import { and, eq } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { getUser } from '@/lib/db/queries';
 import { db } from '@/lib/db/drizzle';
-import { guests, invitations } from '@/lib/db/schema';
+import { guests } from '@/lib/db/schema';
 import { isFlagOn } from '@/lib/flags';
 import { normalizeStoredConfig } from '@/lib/invitation/content-read';
 import { inviteOnlyEvents } from '@/lib/invitation/event-eligibility';
 import { guestExportCsv } from '@/lib/invitation/guest-export';
 import { followUpCsv, followUpItems, isFollowUpKind } from '@/lib/invitation/host-analytics';
 import { loadHostAnalytics } from '@/lib/invitation/host-analytics-query';
+import { accessFor } from '@/lib/invitation/members-db';
 import { getPublicOrigin } from '@/lib/invitation/public-url';
 import { exportedEvents } from '@/lib/invitation/rsvp-events';
 
 /**
- * Guest list export for the invitation owner; rows and neutralisation in `lib/invitation/guest-export.ts` (B-006, B-027).
- * `?list=unopened|unanswered` exports one B-034 follow-up list instead.
+ * Guest list export for the invitation's owner or a co-host (G-044, D-057: `insights`); rows and neutralisation in
+ * `lib/invitation/guest-export.ts` (B-006, B-027). `?list=unopened|unanswered` exports one B-034 follow-up list instead.
  */
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getUser();
   if (!user) return new Response('Unauthorized', { status: 401 });
   const id = Number((await params).id);
+  const access = await accessFor(user.id, id, 'insights');
+  if (!access) return new Response('Not found', { status: 404 });
   const list = new URL(req.url).searchParams.get('list');
-  if (list !== null) return followUpExport(user.id, id, list);
-  const [inv] = await db
-    .select({ id: invitations.id, slug: invitations.slug, config: invitations.config })
-    .from(invitations)
-    .where(and(eq(invitations.id, id), eq(invitations.userId, user.id)))
-    .limit(1);
-  if (!inv) return new Response('Not found', { status: 404 });
+  if (list !== null) return followUpExport(access.invitation.userId, id, list);
+  const inv = access.invitation;
   const rows = await db.select().from(guests).where(eq(guests.invitationId, id));
   // Every stored question, switched on or not, so answers collected before the host closed the form are exported (D-034).
   const { config } = normalizeStoredConfig(inv.config ?? {});

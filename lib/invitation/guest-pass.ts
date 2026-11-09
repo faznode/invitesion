@@ -19,7 +19,7 @@ export const MIN_PASS_SECRET_BYTES = 32;
 export const PASS_GRACE_SECONDS = 2 * 86_400;
 /** Without a dated event, 30 days from the next UTC midnight, so the QR stays the same all day. */
 export const PASS_UNDATED_SECONDS = 30 * 86_400;
-/** A scan queued offline keeps its own time for up to a day; anything older or in the future is stored as "now". */
+/** A scan queued offline keeps its own time for up to a day; an older one keeps the oldest such time, a future one "now". */
 export const SCAN_MAX_AGE_SECONDS = 86_400;
 export const MAX_SCANS_PER_BATCH = 50;
 export const MAX_TOKEN_CHARS = 200;
@@ -74,7 +74,10 @@ export function passExpiresAt(events: readonly { startAt?: string | null; endAt?
   return Math.min(Math.max(expiry, 0), 0xffff_ffff);
 }
 
-/** The time a scan is stored with: its own time when it is a strict UTC timestamp within the last day, else now. */
+/**
+ * The time a scan is stored with. A strict UTC timestamp keeps its own time within the last day; an older one is stored
+ * a day before now (the oldest kept time), a future one as now. Absent, malformed or impossible values are stored as now.
+ */
 export function checkInTime(scannedAt: unknown, now: Date): Date {
   if (typeof scannedAt !== 'string' || !SCANNED_AT_PATTERN.test(scannedAt)) return now;
   const ms = Date.parse(scannedAt);
@@ -115,6 +118,35 @@ export function passIdOfToken(token: string): string | null {
 export function passLookupKeyFromToken(token: string): string | null {
   const passId = passIdOfToken(token);
   return passId ? passLookupKey(passId) : null;
+}
+
+type ScanLike = { token: string; scannedAt?: string | null };
+
+/** A scan as both writers judge and hash it: `scannedAt` only when the scanner sent one (an empty value is none). */
+export function normalizedPassScans(scans: readonly ScanLike[]): { token: string; scannedAt?: string }[] {
+  return scans.map(({ token, scannedAt }) => (scannedAt ? { token, scannedAt } : { token }));
+}
+
+/**
+ * The batch exactly as the Rust writer serialises its request for the idempotency hash (`PassCheckinRequest`: `scans`,
+ * each `token`, then `scannedAt` when present). The check-in route admits printable ASCII only, where `JSON.stringify`
+ * and serde_json write the same bytes; `requests` in the vectors pins it in both languages.
+ */
+export function passCheckinCanonical(scans: readonly ScanLike[]): string {
+  return JSON.stringify({ scans: normalizedPassScans(scans) });
+}
+
+/** `request_hash` of a batch: SHA-256 (hex) of its canonical JSON. */
+export function passCheckinHash(scans: readonly ScanLike[]): string {
+  return createHash('sha256').update(passCheckinCanonical(scans), 'utf8').digest('hex');
+}
+
+/**
+ * The scope either writer records a batch's key under (`host_scope("roster:pass-checkins", owner, invitation, 0)`), so
+ * another owner or another invitation never replays it.
+ */
+export function passCheckinScope(ownerUserId: number, invitationId: number): string {
+  return `roster:pass-checkins:${ownerUserId}:${invitationId}:0`;
 }
 
 type Env = Record<string, string | undefined>;

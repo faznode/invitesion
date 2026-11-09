@@ -7,26 +7,22 @@ import { ownerSessionToken } from '@/lib/auth/clerk-user';
 import { backendFor } from '@/lib/backend';
 import { getUser } from '@/lib/db/queries';
 import { db } from '@/lib/db/drizzle';
-import { guestMessages, invitations } from '@/lib/db/schema';
+import { guestMessages } from '@/lib/db/schema';
+import { accessFor } from '@/lib/invitation/members-db';
 import { decideHostReply, isWishModeration, moderationUpdate } from '@/lib/invitation/wish-decision';
 import { moderateWishThroughApi, replyToWishThroughApi, type HostWishOutcome } from '@/lib/invitation/wish-writer';
 
 /**
- * R-04 (B-028, D-044): the host's moderation and replies. The invitation must be the signed-in customer's (the guests
- * actions' rule: administrators sign in), and the wish must belong to it. Exactly one writer per call (`BACKEND_WISHES`,
- * default `next`), never a fallback to the other.
+ * R-04 (B-028, D-044): the host's moderation and replies. The invitation must be the signed-in customer's or one they
+ * co-host (G-044, D-057: `wishes`; administrators sign in), and the wish must belong to it. Exactly one writer per call
+ * (`BACKEND_WISHES`, default `next`), never a fallback to the other; the Rust writer checks the same grant again.
  */
 async function context(formData: FormData) {
   const user = await getUser();
   if (!user || user.role === 'ADMIN') redirect('/sign-in');
   const invitationId = Number(formData.get('invitationId'));
   if (!Number.isInteger(invitationId) || invitationId <= 0) redirect('/dashboard/invitations');
-  const [owned] = await db
-    .select({ id: invitations.id })
-    .from(invitations)
-    .where(and(eq(invitations.id, invitationId), eq(invitations.userId, user.id)))
-    .limit(1);
-  if (!owned) redirect('/dashboard/invitations');
+  if (!(await accessFor(user.id, invitationId, 'wishes'))) redirect('/dashboard/invitations');
   const path = `/dashboard/invitations/${invitationId}/wishes`;
   const wishId = Number(formData.get('wishId'));
   if (!Number.isInteger(wishId) || wishId <= 0) redirect(`${path}?error=notfound`);
