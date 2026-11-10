@@ -21,7 +21,7 @@ import {
 } from '@/components/invitation/guest-blocks';
 import type { GuestPageProps, GuestView } from '@/components/invitation/guest-view';
 import { GalleryBody, type GalleryFrame } from '@/components/invitation/gallery';
-import { composedSectionOrder, type FamilyManifest, type SectionId } from '@/lib/invitation/family-manifest';
+import { composedSectionOrder, familyChoices, type FamilyManifest, type SectionId } from '@/lib/invitation/family-manifest';
 import { IMAGE_SIZES } from '@/lib/media/variants';
 
 /** A family's drawing of each section; a renderer returns nothing when the invitation has no content for it. */
@@ -30,10 +30,17 @@ export type SectionRenderers = Partial<Record<SectionId, () => ReactNode>>;
 /**
  * B-030: the page's sections in the manifest's order (`composedSectionOrder`). Each renderer is called once, in that
  * order, so a layout whose look depends on position (Riang's alternating bands) can count as it renders. A section the
- * family does not draw comes from `fallback` (the shared sections below), never a blank.
+ * family does not draw comes from `fallback` (the shared sections below), never a blank. G-041: the invitation's theme
+ * may choose one of the manifest's other orders (`familyChoices`); anything else keeps the manifest's own.
  */
-export function composeSections(manifest: FamilyManifest, renderers: SectionRenderers, fallback: SectionRenderers): ReactNode[] {
-  return composedSectionOrder(manifest).map((id) => <Fragment key={id}>{(renderers[id] ?? fallback[id])?.() ?? null}</Fragment>);
+export function composeSections(
+  manifest: FamilyManifest,
+  renderers: SectionRenderers,
+  fallback: SectionRenderers,
+  theme?: { sectionOrder?: unknown },
+): ReactNode[] {
+  const chosen = familyChoices(manifest, theme).manifest;
+  return composedSectionOrder(chosen).map((id) => <Fragment key={id}>{(renderers[id] ?? fallback[id])?.() ?? null}</Fragment>);
 }
 
 const SHARED_GALLERY: GalleryFrame = {

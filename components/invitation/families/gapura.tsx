@@ -28,7 +28,7 @@ import {
 import type { GuestPageProps, GuestView } from '@/components/invitation/guest-view';
 import { GalleryBody, type GalleryFrame } from '@/components/invitation/gallery';
 import { composeSections, sharedSections, type SectionRenderers } from '@/components/invitation/family-sections';
-import { FAMILY_MANIFESTS, motionClasses, type SectionId } from '@/lib/invitation/family-manifest';
+import { FAMILY_MANIFESTS, familyChoices, motionClasses, type SectionId } from '@/lib/invitation/family-manifest';
 import { MASONRY_PORTRAIT_ASPECTS } from '@/lib/invitation/gallery';
 import { IMAGE_SIZES } from '@/lib/media/variants';
 
@@ -51,6 +51,7 @@ type Tone = GuestView['tone'];
  */
 export function GapuraLayout({ props, view }: { props: GuestPageProps; view: GuestView }) {
   const { invitation, config, guest, readOnly } = props;
+  const choices = familyChoices(FAMILY_MANIFESTS.gapura, config.theme);
   const { tone, formatDate, names, events, primaryEvent, renderedAt, primaryStartMs, showCountdown, gallery, organiser } = view;
   const arch = `rounded-t-[3rem] rounded-b-2xl ${tone.card} shadow-sm`;
   const photo = view.coverImageSrc;
@@ -329,8 +330,8 @@ export function GapuraLayout({ props, view }: { props: GuestPageProps; view: Gue
   };
 
   return (
-    <main className={`min-h-screen ${tone.bg} ${tone.ink}`} style={tone.style}>
-      {composeSections(FAMILY_MANIFESTS.gapura, sections, sharedSections(props, view))}
+    <main className={`min-h-screen ${tone.bg} ${tone.ink}`} style={tone.style} data-font-pairing={choices.fontPairing}>
+      {composeSections(FAMILY_MANIFESTS.gapura, sections, sharedSections(props, view), config.theme)}
     </main>
   );
 }

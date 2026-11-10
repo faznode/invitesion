@@ -25,6 +25,9 @@ const guestPageFiles = [
   'components/invitation/guest-blocks.tsx',
   'components/invitation/cover-audio.tsx',
   ...readdirSync(join(process.cwd(), 'components/invitation/families')).map((file) => `components/invitation/families/${file}`),
+  // B-030's composition and shared sections, and G-041's choices (`familyChoices` reads the theme's order and pairing).
+  'components/invitation/family-sections.tsx',
+  'lib/invitation/family-manifest.ts',
   'lib/invitation/headline.ts',
 ];
 const guestPageSource = guestPageFiles.map(source).join('\n');

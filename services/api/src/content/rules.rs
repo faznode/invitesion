@@ -126,27 +126,44 @@ pub fn catalog_theme_tier(template_id: f64) -> Option<Tier> {
     TEMPLATES.iter().find(|(id, _)| f64::from(*id) == template_id).map(|(_, tier)| *tier)
 }
 
+/// G-041: the section-order options every family contract declares (`family-manifest.ts`). The vectors carry the
+/// TypeScript list, so an option added there fails this crate's suite until it is added here.
+pub const SECTION_ORDERS: &[&str] = &["standard", "story-first", "photos-last"];
+
+/// G-041: the font pairings over the families' two faces (`family-manifest.ts`), checked the same way.
+pub const FONT_PAIRINGS: &[&str] = &["serif-display", "sans"];
+
 /// A config's theme fields, read leniently: a template id is any JSON number (compared by value, as JavaScript compares
-/// numbers), a palette id any string; anything else is absent.
+/// numbers), a palette id, section order or font pairing any string; anything else is absent.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct ThemeFields {
     pub template_id: Option<f64>,
     pub palette_id: Option<String>,
+    pub section_order: Option<String>,
+    pub font_pairing: Option<String>,
 }
 
 pub fn stored_theme_fields(config: &Value) -> ThemeFields {
     let Some(theme) = config.get("theme").filter(|theme| theme.is_object()) else { return ThemeFields::default() };
+    let text = |key: &str| theme.get(key).and_then(Value::as_str).map(str::to_string);
     ThemeFields {
         template_id: theme.get("templateId").and_then(Value::as_f64),
-        palette_id: theme.get("paletteId").and_then(Value::as_str).map(str::to_string),
+        palette_id: text("paletteId"),
+        section_order: text("sectionOrder"),
+        font_pairing: text("fontPairing"),
     }
 }
 
 /// Fields a write sets to a new value; a cleared field is not a change.
 pub fn changed_theme_fields(stored: &ThemeFields, next: &ThemeFields) -> ThemeFields {
+    let changed = |stored: &Option<String>, next: &Option<String>| {
+        next.clone().filter(|value| stored.as_deref() != Some(value.as_str()))
+    };
     ThemeFields {
         template_id: next.template_id.filter(|id| stored.template_id != Some(*id)),
-        palette_id: next.palette_id.clone().filter(|id| stored.palette_id.as_deref() != Some(id.as_str())),
+        palette_id: changed(&stored.palette_id, &next.palette_id),
+        section_order: changed(&stored.section_order, &next.section_order),
+        font_pairing: changed(&stored.font_pairing, &next.font_pairing),
     }
 }
 
@@ -161,8 +178,9 @@ fn issue(path: &str, reason: &str) -> ProblemIssue {
 }
 
 /// B-036 (D-054): the catalog theme may be any the catalog knows within the entitled tier (a Premium theme needs a
-/// Premium entitlement); a palette must be registered, and a Premium one needs a Premium entitlement. The theme's issue
-/// comes first. The purchased theme (`invitations.template_id`) is not judged here: a switch never writes it.
+/// Premium entitlement); a palette must be registered, and a Premium one needs a Premium entitlement. G-041: a section
+/// order and a font pairing must be contract options (free in every tier). Issues come in that order. The purchased
+/// theme (`invitations.template_id`) is not judged here: a switch never writes it.
 pub fn theme_change_issues(changed: &ThemeFields, tier: Tier) -> Vec<ProblemIssue> {
     let mut issues = Vec::new();
     if let Some(id) = changed.template_id {
@@ -178,6 +196,12 @@ pub fn theme_change_issues(changed: &ThemeFields, tier: Tier) -> Vec<ProblemIssu
             Some(Tier::Premium) if tier != Tier::Premium => issues.push(issue("theme.paletteId", "premium-palette")),
             Some(_) => {}
         }
+    }
+    if changed.section_order.as_deref().is_some_and(|order| !SECTION_ORDERS.contains(&order)) {
+        issues.push(issue("theme.sectionOrder", "unknown-section-order"));
+    }
+    if changed.font_pairing.as_deref().is_some_and(|pairing| !FONT_PAIRINGS.contains(&pairing)) {
+        issues.push(issue("theme.fontPairing", "unknown-font-pairing"));
     }
     issues
 }

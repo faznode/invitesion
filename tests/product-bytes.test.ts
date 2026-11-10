@@ -157,6 +157,26 @@ test('product-bytes (s24 → s25, Q-O11): an upload stays in the family figure a
   assert.equal(isHostUpload('/media/avatars/7/0123456789abcdef01234567.webp'), true);
   assert.equal(isHostUpload('http://lab/media/review/cover.png'), false, 'not an upload path');
   assert.equal(isHostUpload('http://lab/media/007/0123456789abcdef01234567.png'), false, 'no leading zeros, as the product rule');
+  assert.equal(isHostUpload('http://lab/media/variants/7/0123456789abcdef01234567/standard-640.webp'), true, 's43: a variant of an upload is an upload');
+  assert.equal(isHostUpload('/media/variants/7/0123456789abcdef01234567/lite-320.webp'), true);
+  assert.equal(isHostUpload('/media/variants/7/0123456789abcdef01234567/hero-640.webp'), false, 'only the tiers the job writes');
+  assert.equal(isHostUpload('/media/variants/7/0123456789abcdef01234567/standard-640.png'), false, 'variants are WebP only');
+  assert.equal(isHostUpload('/media/variants/07/0123456789abcdef01234567/standard-640.webp'), false, 'no leading zeros, as VARIANT_KEY');
+  assert.equal(isHostUpload('/media/variants/review/standard-640.webp'), false, 'not a variant key');
+});
+
+test('s43: a family that serves the host photos as variants keeps them out of its design bytes', () => {
+  const chunk = resource('/_next/static/chunks/app.js', 'Script', 600_000);
+  const original = resource('http://lab/media/9/0123456789abcdef01234567.jpg', 'Image', 220_000);
+  const variant = resource('http://lab/media/variants/10/89abcdef0123456789abcdef/standard-640.webp', 'Image', 21_000);
+  const attribution = attributeBytes([
+    page('legacy', [resource('/i/a', 'Document', 45_000), chunk, original]),
+    page('gapura', [resource('/i/b', 'Document', 63_000), chunk, variant]),
+  ]);
+  const gapura = attribution.families.find((family) => family.label === 'gapura')!;
+  assert.deepEqual(gapura.hostMedia.map((r) => r.url), [variant.url]);
+  assert.equal(gapura.designBytes, 63_000, 'the document alone is design');
+  assert.equal(gapura.totalBytes, 684_000, 'the page total still carries the variant');
 });
 
 // s24's census of the B-029 `corporate` stress page (E-052; build `xZBBe0c6HlX_kBcDDxsiM`; stored JSON sha256

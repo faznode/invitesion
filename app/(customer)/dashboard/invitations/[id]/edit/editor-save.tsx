@@ -128,7 +128,9 @@ function statusText(snapshot: AutosaveSnapshot, en: boolean): string {
       case 'media':
         return en ? 'Not saved yet: that image cannot be used here.' : 'Belum tersimpan: gambar itu tidak bisa dipakai di bagian ini.';
       case 'theme':
-        return en ? 'Not saved yet: that theme or palette is not in your package.' : 'Belum tersimpan: tema atau palet itu tidak termasuk paket undanganmu.';
+        return en
+          ? 'Not saved yet: that theme, palette or layout choice is not available for this invitation.'
+          : 'Belum tersimpan: tema, palet, atau pilihan tata letak itu tidak tersedia untuk undangan ini.';
       case 'signin':
         return en ? 'Your session ended. Sign in again, then save.' : 'Sesi berakhir. Masuk lagi, lalu simpan.';
       case 'notfound':

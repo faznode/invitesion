@@ -28,7 +28,7 @@ import {
 import type { GuestPageProps, GuestView } from '@/components/invitation/guest-view';
 import { GalleryBody, type GalleryFrame } from '@/components/invitation/gallery';
 import { composeSections, sharedSections, type SectionRenderers } from '@/components/invitation/family-sections';
-import { FAMILY_MANIFESTS, motionClasses, type SectionId } from '@/lib/invitation/family-manifest';
+import { FAMILY_MANIFESTS, familyChoices, motionClasses, type SectionId } from '@/lib/invitation/family-manifest';
 import { IMAGE_SIZES } from '@/lib/media/variants';
 
 /** B-025: Riang's soft square tiles, two to a row on phones and three from `sm`, the same corners in every layout. */
@@ -50,6 +50,7 @@ type Tone = GuestView['tone'];
  */
 export function RiangLayout({ props, view }: { props: GuestPageProps; view: GuestView }) {
   const { invitation, config, guest, readOnly } = props;
+  const choices = familyChoices(FAMILY_MANIFESTS.riang, config.theme);
   const { tone, formatTime, dateParts, names, events, primaryEvent, renderedAt, primaryStartMs, showCountdown, gallery, organiser } = view;
   const tile = dateParts(primaryEvent?.startAt);
   const startTime = formatTime(primaryEvent?.startAt);
@@ -388,8 +389,8 @@ export function RiangLayout({ props, view }: { props: GuestPageProps; view: Gues
   };
 
   return (
-    <main className={`min-h-screen ${tone.bg} ${tone.ink}`} style={tone.style}>
-      {composeSections(FAMILY_MANIFESTS.riang, sections, sharedSections(props, view))}
+    <main className={`min-h-screen ${tone.bg} ${tone.ink}`} style={tone.style} data-font-pairing={choices.fontPairing}>
+      {composeSections(FAMILY_MANIFESTS.riang, sections, sharedSections(props, view), config.theme)}
     </main>
   );
 }

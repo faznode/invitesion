@@ -119,7 +119,13 @@
     background-color: var(--background);
     color: var(--foreground);
   }
-}
+  /* s43 R9: `VariantImage` wraps an image in `<picture class="contents">`, so the picture's children are laid out by its
+   * parent. A <source> must never take a grid cell or a flex slot of its own (it pushed Lontar's cover photo under the
+   * date band at 1280 px); the browser still reads it to choose the file. */
+  picture > source { display: none; }
+  /* G-041: the `sans` font pairing sets a family page's headings in its text face (Manrope); no other font file. */
+  [data-font-pairing='sans'] { --font-serif: var(--font-sans); }
+  }
 
 /* App-shell utility compatibility; invitation renderer remains opt-out. */
 [data-app-shell] :is(.bg-white, .bg-white\/95):not([data-invitation-renderer], [data-invitation-renderer] *) { background-color: #fff; }

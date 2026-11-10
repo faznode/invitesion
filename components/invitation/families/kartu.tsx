@@ -29,7 +29,7 @@ import {
 import type { GuestPageProps, GuestView } from '@/components/invitation/guest-view';
 import { GalleryBody, type GalleryFrame } from '@/components/invitation/gallery';
 import { composeSections, sharedSections, type SectionRenderers } from '@/components/invitation/family-sections';
-import { FAMILY_MANIFESTS, type SectionId } from '@/lib/invitation/family-manifest';
+import { FAMILY_MANIFESTS, familyChoices, type SectionId } from '@/lib/invitation/family-manifest';
 import { IMAGE_SIZES } from '@/lib/media/variants';
 
 /** B-025: Kartu's grid opens with one wide photo across both columns; its rounded cards keep that shape in every layout. */
@@ -59,6 +59,7 @@ const PROGRAMME_LABELS: Record<ProgrammeSectionId, string> = { about: 'Sekilas',
  */
 export function KartuLayout({ props, view }: { props: GuestPageProps; view: GuestView }) {
   const { invitation, config, guest, readOnly } = props;
+  const choices = familyChoices(FAMILY_MANIFESTS.kartu, config.theme);
   const { tone, formatDate, dateParts, names, events, primaryEvent, renderedAt, primaryStartMs, showCountdown, gallery, organiser } = view;
   const stamp = dateParts(primaryEvent?.startAt);
   const card = `rounded-2xl border ${tone.line} ${tone.card} shadow-sm`;
@@ -356,8 +357,8 @@ export function KartuLayout({ props, view }: { props: GuestPageProps; view: Gues
   };
 
   return (
-    <main className={`min-h-screen ${tone.bg} ${tone.ink}`} style={tone.style}>
-      {composeSections(FAMILY_MANIFESTS.kartu, sections, sharedSections(props, view))}
+    <main className={`min-h-screen ${tone.bg} ${tone.ink}`} style={tone.style} data-font-pairing={choices.fontPairing}>
+      {composeSections(FAMILY_MANIFESTS.kartu, sections, sharedSections(props, view), config.theme)}
     </main>
   );
 }

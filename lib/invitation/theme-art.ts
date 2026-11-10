@@ -4,8 +4,15 @@ import {
   type TemplateCategory,
   type TemplateMotif,
 } from './templates';
+import { THEME_ART_REGISTER, type ThemeArtAsset } from './theme-art-register';
 
 /**
+ * Theme art: each catalog template gets a cover and a six-photo gallery from one of 22 mood pools.
+ *
+ * G-016 (session 43): a pool listed in `theme-art-register.ts` is served from self-hosted, original WebP files under
+ * `/theme-art/` (marble, gold and night so far: 26 of 64 templates). Every other pool still hotlinks Unsplash photos at
+ * runtime (Unsplash License) until its own assets ship; `REMOTE_THEME_ART_POOLS` names that boundary.
+ *
  * BASIS DATA ASET FOTO TEMA — ±105 foto dari Unsplash (Unsplash License:
  * gratis komersial, tanpa atribusi), dikurasi ke 22 “mood pool”.
  *
@@ -25,6 +32,8 @@ import {
 export type ThemeArt = {
   cover: string;
   gallery: string[];
+  /** The catalog card's smaller cut. Only self-hosted art has one; the card falls back to `cover`. */
+  card?: string;
 };
 
 // URL dirakit dari potongan agar tidak dirusak linkifier saat transfer file.
@@ -78,7 +87,8 @@ const POOLS = {
   elegant: ['V9MbvZdcjrA', 'ZsmGM195K1w', 'EJQnHC6GEe8'],
 } satisfies Record<string, string[]>;
 
-type PoolKey = keyof typeof POOLS;
+export type ThemeArtPoolKey = keyof typeof POOLS;
+type PoolKey = ThemeArtPoolKey;
 
 /** Override per tema signature — pasangan seni paling pas. */
 const SLUG_POOLS: Record<string, PoolKey> = {
@@ -157,32 +167,71 @@ const poolKeyFor = (
   CATEGORY_POOLS[template.category] ??
   'floral';
 
-const buildArt = (photos: string[], index: number): ThemeArt => ({
+const buildRemoteArt = (photos: string[], index: number): ThemeArt => ({
   cover: asset(photos[index % photos.length], 1400),
   gallery: Array.from({ length: 6 }, (_, g) =>
     asset(photos[(index + 1 + g) % photos.length], 800),
   ),
 });
 
+/** The same rotation as the remote pools, over the register's files. */
+const buildLocalArt = (assets: readonly ThemeArtAsset[], index: number): ThemeArt => {
+  const lead = assets[index % assets.length];
+  return {
+    cover: lead.files.cover.path,
+    gallery: Array.from({ length: 6 }, (_, g) => assets[(index + 1 + g) % assets.length].files.gallery.path),
+    card: lead.files.card.path,
+  };
+};
+
+const groupByPool = (register: readonly ThemeArtAsset[]): Map<PoolKey, ThemeArtAsset[]> => {
+  const pools = new Map<PoolKey, ThemeArtAsset[]>();
+  for (const entry of register) pools.set(entry.pool, [...(pools.get(entry.pool) ?? []), entry]);
+  return pools;
+};
+
 /**
  * Registry deterministik: iterasi katalog sekali, tiap pool punya counter
  * sendiri — template ke-n dalam satu pool memakai foto ke-n. Hasilnya
  * setiap tema mendapat cover unik (sampai pool-nya habis) dan urutan galeri
  * yang bergeser, tanpa random sehingga aman untuk SSR & seeding DB.
+ *
+ * A pool with register entries resolves to its self-hosted files; any other pool to its remote photos. Exported so a
+ * test can prove that an empty register reproduces the pre-G-016 output (the rollback).
  */
-const REGISTRY = new Map<string, ThemeArt>();
-{
+export function buildThemeArtRegistry(register: readonly ThemeArtAsset[]): Map<string, ThemeArt> {
+  const local = groupByPool(register);
+  const registry = new Map<string, ThemeArt>();
   const counters = new Map<PoolKey, number>();
   for (const tpl of invitationTemplates) {
     const key = poolKeyFor(tpl);
     const index = counters.get(key) ?? 0;
     counters.set(key, index + 1);
-    REGISTRY.set(tpl.slug, buildArt(POOLS[key], index));
+    const assets = local.get(key);
+    registry.set(tpl.slug, assets ? buildLocalArt(assets, index) : buildRemoteArt(POOLS[key], index));
   }
+  return registry;
 }
+
+const LOCAL_POOLS = groupByPool(THEME_ART_REGISTER);
+const REGISTRY = buildThemeArtRegistry(THEME_ART_REGISTER);
+
+/** Pools that still hotlink remote photos at runtime (the G-016 boundary). */
+export const REMOTE_THEME_ART_POOLS: readonly PoolKey[] = (Object.keys(POOLS) as PoolKey[]).filter(
+  (key) => !LOCAL_POOLS.has(key),
+);
 
 export function getThemeArt(
   template: Pick<InvitationTemplate, 'slug' | 'category' | 'motif'>,
 ): ThemeArt {
-  return REGISTRY.get(template.slug) ?? buildArt(POOLS[poolKeyFor(template)], 0);
+  const registered = REGISTRY.get(template.slug);
+  if (registered) return registered;
+  const key = poolKeyFor(template);
+  const assets = LOCAL_POOLS.get(key);
+  return assets ? buildLocalArt(assets, 0) : buildRemoteArt(POOLS[key], 0);
+}
+
+/** True when every image of an art set is served from this origin's `/theme-art/` files. */
+export function isSelfHostedThemeArt(art: ThemeArt): boolean {
+  return [art.cover, ...art.gallery, ...(art.card ? [art.card] : [])].every((src) => src.startsWith('/theme-art/'));
 }

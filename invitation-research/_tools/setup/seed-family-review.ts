@@ -50,6 +50,9 @@
  * the upload route stores them; set UPLOAD_ROOT), with the gallery listed in `media_assets` and one image-variant job
  * queued per upload exactly as the route queues it (`enqueueImageVariants`). Run `invitesion-jobs` afterwards to make the
  * variants. Use fictional, generated photos only; review assets never enter the repository.
+ * `--photo-layouts` (s43, Q-D17; with `--photos`) adds per family photos-masonry and photos-carousel: the same uploads
+ * under the masonry and carousel gallery, so photo-heavy page totals cover every gallery layout with host uploads (and
+ * their variants) rather than fixture URLs, which the byte gate would count as design bytes.
  * `--gallery <url>,<url>[,…]` (s30, B-025) adds per family gallery-grid, gallery-masonry and gallery-carousel (the full
  * wedding with those photo URLs and the three fictional videos of `GALLERY_FIXTURE_VIDEOS` in `media_assets`; grid leaves
  * `gallery.layout` unset) and legacy gallery-carousel (D-041: still its grid, no video, no lightbox). The product-gates job
@@ -463,6 +466,8 @@ export type ReviewOptions = {
   profiles?: boolean;
   /** `--photos <files>` (s30, B-019 / B-025): per layout `photos`, the full wedding with uploaded cover, couple and gallery photos. */
   photos?: boolean;
+  /** `--photo-layouts` (s43, Q-D17; with `--photos`): per family `photos-masonry` and `photos-carousel` on the same uploads. */
+  photoLayouts?: boolean;
   /** `--gallery <urls>` (s30, B-025): per family the three gallery layouts, plus legacy with a carousel stored. */
   gallery?: boolean;
 };
@@ -577,8 +582,18 @@ export function familyReviewInvitations(options: ReviewOptions = {}): ReviewInvi
   const profileVariants = (layout: string, familyId?: FamilyId): ReviewInvitation[] =>
     options.profiles ? [make(`review-${layout}-profiles`, weddingProfiles(familyId ? fullPalette[familyId] : 'ivory', familyId), { withMessages: false })] : [];
   // `--photos`: the upload paths are added by `attachPhotos` once the invitation id (the media key) exists.
-  const photoVariants = (layout: string, familyId?: FamilyId): ReviewInvitation[] =>
-    options.photos ? [make(`review-${layout}-photos`, weddingFull(familyId ? fullPalette[familyId] : 'ivory', familyId), { photos: true })] : [];
+  // `--photo-layouts`: `attachPhotos` keeps the stored gallery layout, so masonry and carousel get the same uploads.
+  const photoVariants = (layout: string, familyId?: FamilyId): ReviewInvitation[] => {
+    if (!options.photos) return [];
+    const full = weddingFull(familyId ? fullPalette[familyId] : 'ivory', familyId);
+    const rows = [make(`review-${layout}-photos`, full, { photos: true })];
+    if (options.photoLayouts && familyId) {
+      for (const galleryLayout of ['masonry', 'carousel'] as const) {
+        rows.push(make(`review-${layout}-photos-${galleryLayout}`, { ...full, gallery: { ...full.gallery, enabled: true, layout: galleryLayout } }, { photos: true }));
+      }
+    }
+    return rows;
+  };
   // `--gallery` (B-025): the media rows are added by `attachGallery`; "grid" is the family's own (no layout stored).
   const withGallery = (config: DetailConfig, layout?: 'masonry' | 'carousel'): DetailConfig => ({ ...config, gallery: { enabled: true, ...(layout && { layout }) } });
   const galleryVariants = (layout: string, familyId?: FamilyId): ReviewInvitation[] => {
@@ -835,6 +850,7 @@ async function main() {
     newInvitationPalettes: process.argv.includes('--new-invitation-palettes'),
     profiles: process.argv.includes('--profiles'),
     photos: process.argv.includes('--photos'),
+    photoLayouts: process.argv.includes('--photo-layouts'),
     gallery: process.argv.includes('--gallery'),
   });
   const match = argValue('--match');

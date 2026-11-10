@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# CI job "app" (B-020): typecheck, unit tests and the production build exactly as deployed (proxy.ts included).
+# CI job "app" (B-020): typecheck, unit tests, the family manifests (B-030) and the production build exactly as deployed
+# (proxy.ts included).
 #   CI=true bash scripts/ci/app.sh            # in a disposable workspace; locally: bash scripts/ci/local.sh app
 set -euo pipefail
 cd "$(dirname "$0")/../.."
@@ -12,4 +13,5 @@ export POSTGRES_URL=${POSTGRES_URL:-postgres://build:build@127.0.0.1:9/no-databa
 
 step "typecheck" pnpm typecheck
 step "unit tests" pnpm test
+step "family manifests (B-030, pnpm harness families)" pnpm harness families
 step "production build (with proxy)" pnpm build

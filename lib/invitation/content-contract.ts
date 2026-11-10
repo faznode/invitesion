@@ -59,7 +59,9 @@ export const RENDER_CAPABILITIES = {
     ],
     storedOnly: [],
   },
-  theme: { rendered: ['paletteId', 'familyId', 'cover.imageUrl', 'cover.headline'], storedOnly: [], hostOnly: ['templateId'] },
+  // G-041: the design families apply `sectionOrder` and `fontPairing` (`familyChoices` in family-manifest.ts); the legacy
+  // layout ignores both (D-041), like `familyId` itself.
+  theme: { rendered: ['paletteId', 'familyId', 'sectionOrder', 'fontPairing', 'cover.imageUrl', 'cover.headline'], storedOnly: [], hostOnly: ['templateId'] },
   // D-037: `inviteOnly` decides who sees an event (`lib/invitation/event-eligibility.ts`) and is never shown itself, like `id`.
   events: { rendered: ['title', 'startAt', 'endAt', 'venueName', 'address', 'mapUrl', 'note'], storedOnly: [], hostOnly: ['id', 'inviteOnly'] },
   // B-009 (D-045): a playable http(s) source plays from the "Buka Undangan" cover (`autoplay` unset or on) or from the

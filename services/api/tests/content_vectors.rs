@@ -55,6 +55,16 @@ fn the_catalog_theme_tiers_are_the_typescript_ones() {
 }
 
 #[test]
+fn the_layout_choices_are_the_typescript_ones() {
+    let vectors = vectors();
+    let list = |key: &str| -> Vec<String> {
+        vectors[key].as_array().expect(key).iter().map(|value| value.as_str().unwrap().to_string()).collect()
+    };
+    assert_eq!(rules::SECTION_ORDERS.iter().map(|id| id.to_string()).collect::<Vec<_>>(), list("sectionOrders"));
+    assert_eq!(rules::FONT_PAIRINGS.iter().map(|id| id.to_string()).collect::<Vec<_>>(), list("fontPairings"));
+}
+
+#[test]
 fn the_child_photo_fields_and_the_qris_field_are_the_typescript_ones() {
     let vectors = vectors();
     for (event_type, field) in vectors["childPhotoFields"].as_object().expect("childPhotoFields") {

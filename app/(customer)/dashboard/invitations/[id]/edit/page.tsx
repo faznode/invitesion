@@ -8,9 +8,18 @@ import { isFlagOn } from '@/lib/flags';
 import { getLocale } from '@/lib/locale-server';
 import { loadContentState, loadThemeTier } from '@/lib/invitation/content';
 import { normalizeStoredConfig } from '@/lib/invitation/content-read';
+import { paletteHex, paletteIds } from '@/lib/invitation/palettes';
 import { ownerPreviewPath } from '@/lib/invitation/public-path';
+import { paletteTier } from '@/lib/invitation/theme-entitlement';
 import { themeSwitchOptions } from '@/lib/invitation/theme-switch';
 import { InvitationEditor } from './editor';
+import type { PaletteOption } from './editor-appearance';
+
+/** G-041: the colour choice, judged like the writers do (`paletteTier`); every registered palette is known. */
+const PALETTE_OPTIONS: PaletteOption[] = paletteIds.map((id) => {
+  const tokens = paletteHex(id);
+  return { id, tier: paletteTier(id) ?? 'standard', bg: tokens.bg, accent: tokens.accent, ink: tokens.ink };
+});
 
 export const dynamic = 'force-dynamic';
 
@@ -58,6 +67,7 @@ export default async function EditInvitationPage({
       autosave={isFlagOn('EDITOR_AUTOSAVE')}
       themeOptions={themeOptions}
       themeTier={themeTier}
+      paletteOptions={PALETTE_OPTIONS}
       initialMedia={media.map((m) => ({
         id: m.id,
         url: m.url,

@@ -28,7 +28,7 @@ import {
 import type { GuestPageProps, GuestView } from '@/components/invitation/guest-view';
 import { GalleryBody } from '@/components/invitation/gallery';
 import { composeSections, sharedSections, type SectionRenderers } from '@/components/invitation/family-sections';
-import { FAMILY_MANIFESTS, type SectionId } from '@/lib/invitation/family-manifest';
+import { FAMILY_MANIFESTS, familyChoices, type SectionId } from '@/lib/invitation/family-manifest';
 import { IMAGE_SIZES } from '@/lib/media/variants';
 
 type Tone = GuestView['tone'];
@@ -42,6 +42,7 @@ type Tone = GuestView['tone'];
  */
 export function LontarLayout({ props, view }: { props: GuestPageProps; view: GuestView }) {
   const { invitation, config, guest, readOnly } = props;
+  const choices = familyChoices(FAMILY_MANIFESTS.lontar, config.theme);
   const { tone, formatDate, formatTime, names, events, primaryEvent, renderedAt, primaryStartMs, showCountdown, gallery, organiser } = view;
   const card = `rounded-2xl border ${tone.line} ${tone.card}`;
   const date = formatDate(primaryEvent?.startAt);
@@ -326,8 +327,8 @@ export function LontarLayout({ props, view }: { props: GuestPageProps; view: Gue
   };
 
   return (
-    <main className={`min-h-screen ${tone.bg} ${tone.ink}`} style={tone.style}>
-      {composeSections(FAMILY_MANIFESTS.lontar, sections, sharedSections(props, view))}
+    <main className={`min-h-screen ${tone.bg} ${tone.ink}`} style={tone.style} data-font-pairing={choices.fontPairing}>
+      {composeSections(FAMILY_MANIFESTS.lontar, sections, sharedSections(props, view), config.theme)}
     </main>
   );
 }

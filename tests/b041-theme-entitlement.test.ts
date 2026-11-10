@@ -116,8 +116,12 @@ test('unknown palettes are refused for every tier', () => {
 test('stored theme fields are read leniently', () => {
   assert.deepEqual(storedThemeFields(null), {});
   assert.deepEqual(storedThemeFields({ theme: 'ivory' }), {});
-  assert.deepEqual(storedThemeFields({ theme: { templateId: '7', paletteId: 3 } }), { templateId: undefined, paletteId: undefined });
-  assert.deepEqual(storedThemeFields({ theme: { templateId: 7, paletteId: 'sage', familyId: 'gapura' } }), { templateId: 7, paletteId: 'sage' });
+  const none = { templateId: undefined, paletteId: undefined, sectionOrder: undefined, fontPairing: undefined };
+  assert.deepEqual(storedThemeFields({ theme: { templateId: '7', paletteId: 3 } }), none);
+  assert.deepEqual(storedThemeFields({ theme: { templateId: 7, paletteId: 'sage', familyId: 'gapura' } }), { ...none, templateId: 7, paletteId: 'sage' });
+  // G-041: the layout choices are read the same way, any string or nothing.
+  assert.deepEqual(storedThemeFields({ theme: { sectionOrder: 2, fontPairing: ['sans'] } }), none);
+  assert.deepEqual(storedThemeFields({ theme: { sectionOrder: 'lama', fontPairing: 'sans' } }), { ...none, sectionOrder: 'lama', fontPairing: 'sans' });
 });
 
 test('the error names paths and reasons, never stored values', () => {

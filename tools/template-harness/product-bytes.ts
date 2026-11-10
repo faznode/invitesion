@@ -19,7 +19,8 @@
  *   content, the shared blocks inside it included) plus every counted resource that not every page requested.
  * - **host uploads** (s24): the part of a family's own resources that is the host's upload (`/media/<id>/…`, protected
  *   and avatar paths included; each invitation's upload has its own URL, so it always lands in family bytes), with
- *   `design` = family − host uploads.
+ *   `design` = family − host uploads. Since s43 the image job's WebP variants of an upload
+ *   (`/media/variants/<id>/<24 hex>/<tier>-<width>.webp`) count as uploads too.
  * Verdict basis (Q-O11, s25; `FAMILY_BUDGET_BASIS` in `policy.ts`): the family budget judges `design`; the host uploads
  * stay inside both page totals and are reported separately per family. Nothing is dropped from the record: the JSON
  * keeps every resource, the family figure with the uploads, and the verdict under the other basis (`otherBasis`).
@@ -75,10 +76,17 @@ const kib = (bytes: number) => Math.round((bytes / 1024) * 10) / 10;
 
 /** The upload paths `lib/invitation/image-url.ts` accepts (public, protected, avatar), matched on the URL's path. */
 const HOST_UPLOAD_PATH = /^\/media\/(?:protected\/|avatars\/)?[1-9]\d*\/[0-9a-f]{24}\.[a-z0-9]+$/i;
+/**
+ * s43: the WebP variants the image job derives from a public upload (`VARIANT_KEY` in `lib/media/variants.ts`, served
+ * under `/media/`). Their bytes are the host's photo resized, so they are uploads too; which width a layout's `sizes`
+ * picks stays limited by the page totals, as any other upload is.
+ */
+const HOST_UPLOAD_VARIANT_PATH = /^\/media\/variants\/(?:0|[1-9]\d{0,9})\/[0-9a-f]{24}\/(?:standard|lite)-[1-9]\d{0,4}\.webp$/;
 
 export function isHostUpload(url: string): boolean {
   try {
-    return HOST_UPLOAD_PATH.test(new URL(url, 'http://localhost').pathname);
+    const { pathname } = new URL(url, 'http://localhost');
+    return HOST_UPLOAD_PATH.test(pathname) || HOST_UPLOAD_VARIANT_PATH.test(pathname);
   } catch {
     return false;
   }

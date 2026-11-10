@@ -131,7 +131,7 @@ The upgrade plan lives in [`invitation-research/09-masterplan/`](invitation-rese
 
 - **Code:** MIT. [`LICENSE`](LICENSE) is the MIT text inherited from the `nextjs/saas-starter` template this codebase started from; its copyright line still reads "Copyright (c) 2025 Vercel".
 - **Fonts:** Manrope and Instrument Serif through `next/font/google` (SIL Open Font License 1.1).
-- **Template photos:** about 105 Unsplash photos loaded from Unsplash at runtime under the Unsplash License (`lib/invitation/theme-art.ts`); none are stored in the repository.
+- **Template photos:** 26 of the 64 catalog templates (the marble, gold and night mood pools) use original art generated for this repository and served from `public/theme-art/` (licence own-work, provenance generated; one record per asset with its prompt, original's SHA-256, crop and derivative sizes in `lib/invitation/theme-art-register.ts`). The other 38 still load Unsplash photos from Unsplash at runtime under the Unsplash License (`lib/invitation/theme-art.ts`, `REMOTE_THEME_ART_POOLS`) until their own assets ship (G-016).
 - **Harness samples:** images, audio and the 3D model are own work or generated for this repository; their fonts are OFL-1.1, declared per asset in each `template.manifest.json`.
 - **README screenshots:** captured from this codebase with fictional data; no customer data.
 - **Competitors:** the research records facts and measurements only; no competitor code, assets, fonts, audio or copy is used in the product.

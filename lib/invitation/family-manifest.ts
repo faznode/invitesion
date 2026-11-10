@@ -62,6 +62,23 @@ export function motionClasses(tier: MotionTier) {
   return { rise: (classes = '') => [entrance, classes].filter(Boolean).join(' ') };
 }
 
+/**
+ * G-041: the choices a host may make inside a family's contract, stored in the invitation's theme (`theme.sectionOrder`,
+ * `theme.fontPairing`) next to its palette. Option ids are shared by every family and every family declares every
+ * section-order option (the validator checks), so the writers judge an id without knowing the family and a family
+ * switch never strands a stored choice. `standard` is the family's own order (`sections`).
+ */
+export const SECTION_ORDER_OPTIONS = ['standard', 'story-first', 'photos-last'] as const;
+export type SectionOrderOption = (typeof SECTION_ORDER_OPTIONS)[number];
+export const DEFAULT_SECTION_ORDER: SectionOrderOption = 'standard';
+
+/**
+ * Font pairings over the two faces every family ships (`provenance.fonts`); none adds a font file. `serif-display` sets
+ * headings in the serif and text in the sans (each family's default); `sans` sets both in the sans.
+ */
+export const FONT_PAIRINGS = ['serif-display', 'sans'] as const;
+export type FontPairing = (typeof FONT_PAIRINGS)[number];
+
 /** An aspect window as the layout draws it: a CSS ratio, or `bounded` where the height follows the viewport (S18-G2). */
 export type Aspect = '4:3' | '3:4' | '1:1' | 'bounded';
 
@@ -74,6 +91,10 @@ export type FamilyManifest = {
   coverIncludes: readonly SectionId[];
   /** This family's own order rules on top of `CONTRACT_ORDER_RULES`. */
   orderRules: readonly (readonly [SectionId, SectionId])[];
+  /** G-041: the other orders a host may choose; each reorders `sections` and keeps every order rule. */
+  sectionOrders: Record<Exclude<SectionOrderOption, 'standard'>, readonly SectionId[]>;
+  /** G-041: the font pairings a host may choose; the first is the family's default look. */
+  fontPairings: readonly FontPairing[];
   /** Every event type the family renders (all of them: a template change never requires a content change). */
   eventTypes: readonly EventType[];
   /** The event types a new invitation starts on this family for (F-02, `defaultFamilyFor`). */
@@ -107,6 +128,7 @@ const SHARED = {
   music: { coverGate: 'shared', audio: 'shared' },
   palettes: 'all-registered',
   byteBudget: { familyKiB: 80, basis: 'design' },
+  fontPairings: FONT_PAIRINGS,
 } as const;
 const fonts = ['font-serif', 'font-sans'] as const;
 
@@ -121,6 +143,10 @@ export const FAMILY_MANIFESTS: Record<FamilyId, FamilyManifest> = {
       ['greeting', 'events'],
       ['profiles', 'events'],
     ],
+    sectionOrders: {
+      'story-first': ['cover', 'notices', 'greeting', 'quote', 'profiles', 'story', 'gallery', 'events', 'ceremony', 'programme', 'streaming', 'share', 'gift', 'rsvp', 'guestbook', 'footer'],
+      'photos-last': ['cover', 'notices', 'greeting', 'quote', 'profiles', 'events', 'ceremony', 'programme', 'story', 'streaming', 'share', 'gallery', 'gift', 'rsvp', 'guestbook', 'footer'],
+    },
     startsNewFor: ['wedding'],
     photoSlots: { cover: { phone: '4:3', wide: 'bounded' }, portrait: 'arch', gallery: { tile: '3:4', columns: { phone: 2, wide: 2 } } },
     logoFrame: 'center',
@@ -137,6 +163,10 @@ export const FAMILY_MANIFESTS: Record<FamilyId, FamilyManifest> = {
       ['greeting', 'events'],
       ['profiles', 'events'],
     ],
+    sectionOrders: {
+      'story-first': ['cover', 'notices', 'greeting', 'quote', 'profiles', 'story', 'gallery', 'events', 'ceremony', 'programme', 'streaming', 'share', 'gift', 'rsvp', 'guestbook', 'footer'],
+      'photos-last': ['cover', 'notices', 'greeting', 'quote', 'profiles', 'events', 'ceremony', 'programme', 'story', 'streaming', 'share', 'gallery', 'gift', 'rsvp', 'guestbook', 'footer'],
+    },
     startsNewFor: [],
     photoSlots: { cover: { phone: '4:3', wide: 'bounded' }, portrait: 'card', gallery: { tile: '1:1', columns: { phone: 2, wide: 2 } } },
     logoFrame: 'start',
@@ -153,6 +183,10 @@ export const FAMILY_MANIFESTS: Record<FamilyId, FamilyManifest> = {
       ['events', 'greeting'],
       ['events', 'quote'],
     ],
+    sectionOrders: {
+      'story-first': ['cover', 'notices', 'profiles', 'story', 'gallery', 'events', 'ceremony', 'programme', 'greeting', 'quote', 'streaming', 'share', 'gift', 'rsvp', 'guestbook', 'footer'],
+      'photos-last': ['cover', 'notices', 'profiles', 'events', 'ceremony', 'programme', 'greeting', 'quote', 'story', 'streaming', 'share', 'gallery', 'gift', 'rsvp', 'guestbook', 'footer'],
+    },
     startsNewFor: ['birthday', 'aqiqah', 'tasyakuran', 'khitanan'],
     photoSlots: { cover: { phone: '1:1', wide: '1:1' }, portrait: 'round', gallery: { tile: '1:1', columns: { phone: 2, wide: 3 } } },
     logoFrame: 'center',
@@ -169,6 +203,10 @@ export const FAMILY_MANIFESTS: Record<FamilyId, FamilyManifest> = {
       ['programme', 'events'],
       ['ceremony', 'events'],
     ],
+    sectionOrders: {
+      'story-first': ['cover', 'notices', 'profiles', 'story', 'gallery', 'ceremony', 'programme', 'events', 'quote', 'streaming', 'share', 'gift', 'rsvp', 'guestbook', 'footer'],
+      'photos-last': ['cover', 'notices', 'profiles', 'ceremony', 'programme', 'events', 'quote', 'story', 'streaming', 'share', 'gallery', 'gift', 'rsvp', 'guestbook', 'footer'],
+    },
     startsNewFor: ['corporate'],
     photoSlots: { cover: { phone: '4:3', wide: 'bounded' }, portrait: 'leaf', gallery: { tile: '1:1', columns: { phone: 2, wide: 3 } } },
     logoFrame: 'start',
@@ -228,5 +266,79 @@ export function validateFamilyManifest(manifest: FamilyManifest): string[] {
   for (const type of manifest.startsNewFor) if (!manifest.eventTypes.includes(type)) problems.push(`starts new ${type} invitations it does not render`);
   if (manifest.provenance.fonts.length > 2) problems.push('more than two font families');
   if (manifest.byteBudget.familyKiB <= 0) problems.push('no byte budget');
+  // G-041: each section-order option keeps every rule above. A section an option leaves out is still composed, at its
+  // canonical place (`composedSectionOrder`), so only duplicates, unknown ids and sections the cover draws are refused.
+  for (const option of SECTION_ORDER_OPTIONS) {
+    if (option === 'standard') continue;
+    const order = manifest.sectionOrders[option];
+    if (!order) {
+      problems.push(`section order ${option} is not declared`);
+      continue;
+    }
+    const listed = new Set<string>();
+    for (const id of order) {
+      if (!(SECTION_IDS as readonly string[]).includes(id)) problems.push(`section order ${option}: unknown section ${id}`);
+      if (listed.has(id)) problems.push(`section order ${option} declares ${id} twice`);
+      if (manifest.coverIncludes.includes(id)) problems.push(`section order ${option} composes ${id}, which the cover draws`);
+      listed.add(id);
+    }
+    for (const problem of orderProblems(manifest, order)) problems.push(`section order ${option}: ${problem}`);
+  }
+  for (const key of Object.keys(manifest.sectionOrders)) {
+    if (key === DEFAULT_SECTION_ORDER || !(SECTION_ORDER_OPTIONS as readonly string[]).includes(key)) problems.push(`unknown section order ${key}`);
+  }
+  if (manifest.fontPairings.length === 0) problems.push('no font pairing');
+  if (new Set(manifest.fontPairings).size !== manifest.fontPairings.length) problems.push('a font pairing is declared twice');
+  for (const pairing of manifest.fontPairings) {
+    if (!(FONT_PAIRINGS as readonly string[]).includes(pairing)) problems.push(`unknown font pairing ${pairing}`);
+  }
   return problems;
+}
+
+/** The position and order rules one candidate order must keep (the same checks as the declared order above). */
+function orderProblems(manifest: FamilyManifest, sections: readonly SectionId[]): string[] {
+  const problems: string[] = [];
+  if (sections[0] !== 'cover') problems.push('the cover comes first');
+  if (sections[1] !== 'notices') problems.push('the notices follow the cover, before any other section');
+  if (sections.at(-1) !== 'footer') problems.push('the footer comes last');
+  const composed = composedSectionOrder({ ...manifest, sections });
+  for (const [first, then] of [...CONTRACT_ORDER_RULES, ...manifest.orderRules]) {
+    const a = composed.indexOf(first);
+    const b = composed.indexOf(then);
+    if (a >= 0 && b >= 0 && a > b) problems.push(`${first} must come before ${then}`);
+  }
+  return problems;
+}
+
+/** G-041: the order a stored choice selects; an unset, unknown or retired value keeps the family's own order. */
+export function sectionOrderFor(manifest: FamilyManifest, option: unknown): readonly SectionId[] {
+  if (option === DEFAULT_SECTION_ORDER || !(SECTION_ORDER_OPTIONS as readonly unknown[]).includes(option)) return manifest.sections;
+  return manifest.sectionOrders[option as Exclude<SectionOrderOption, 'standard'>] ?? manifest.sections;
+}
+
+/** G-041: a stored font pairing the family offers, otherwise the family's default (its first pairing). */
+export function fontPairingFor(manifest: FamilyManifest, option: unknown): FontPairing {
+  return manifest.fontPairings.find((pairing) => pairing === option) ?? manifest.fontPairings[0];
+}
+
+export type FamilyChoices = {
+  /** The manifest in the chosen order; the family's own object when the order is its own. */
+  manifest: FamilyManifest;
+  /** `data-font-pairing` for the page root; absent for the default pairing. */
+  fontPairing: FontPairing | undefined;
+};
+
+/**
+ * G-041: what a layout applies from the invitation's theme. Without choices (or with values the contract does not
+ * offer) it returns the family's own manifest and no attribute, so such a page renders exactly as before. Rollback:
+ * return `{ manifest, fontPairing: undefined }` here and every page draws its family's own look again; the stored keys
+ * stay valid and are simply ignored.
+ */
+export function familyChoices(manifest: FamilyManifest, theme: { sectionOrder?: unknown; fontPairing?: unknown } | undefined): FamilyChoices {
+  const sections = sectionOrderFor(manifest, theme?.sectionOrder);
+  const pairing = fontPairingFor(manifest, theme?.fontPairing);
+  return {
+    manifest: sections === manifest.sections ? manifest : { ...manifest, sections },
+    fontPairing: pairing === manifest.fontPairings[0] ? undefined : pairing,
+  };
 }

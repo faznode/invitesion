@@ -28,7 +28,8 @@ const slot = z
 
 const section = z.object({ id: z.enum(SECTION_IDS), required: z.boolean(), slots: z.array(slot) }).strict();
 
-const asset = z
+/** One declared asset; exported so other asset registers (the G-016 theme art) are validated against the same shape. */
+export const assetSchema = z
   .object({
     id: kebab,
     path: relativePath,
@@ -92,7 +93,7 @@ export const manifestSchema = z
       .object({ asset: kebab, preload: z.literal('none'), startsOn: z.literal('open-gesture'), control: z.literal(true) })
       .strict()
       .optional(),
-    assets: z.array(asset),
+    assets: z.array(assetSchema),
     personalization: z
       .object({
         guestName: z.object({ slot: z.literal('guest.name'), maxLength: z.number().int().positive().max(150), dir: z.literal('auto') }).strict(),

@@ -328,6 +328,11 @@ export const detailConfigSchema = z
         // B-030 design family. `.catch` instead of a hard failure: the read path drops a whole section that fails, so a
         // retired family id must fall back to the legacy layout without taking the palette and cover with it.
         familyId: z.enum(FAMILY_IDS).optional().catch(undefined),
+        // G-041: the host's choices inside the family's contract (`family-manifest.ts`). Plain strings like `paletteId`:
+        // the writers refuse an id outside the contract when a save changes it (`theme-entitlement.ts`), and the renderer
+        // draws the family's default for any other stored value, so saved data always reads and legacy ignores both.
+        sectionOrder: optionalText(40),
+        fontPairing: optionalText(40),
         cover: z
           .object({
             imageUrl: imageUrlField(),

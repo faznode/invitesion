@@ -15,8 +15,11 @@
  *   Premium entitlement; an id the catalog does not know is refused. A switch changes the config only: it never writes
  *   `invitations.template_id`, so checkout, publishing and settlement keep pricing the purchased theme, and the
  *   entitlement cannot change through a switch (D-054). A higher tier waits for U6's upgrade.
+ * - G-041: `sectionOrder` and `fontPairing` must be options the family contract declares (`family-manifest.ts`). They
+ *   are free in every tier, so they never need the tier lookup.
  */
 import type { Tier } from '../pricing';
+import { FONT_PAIRINGS, SECTION_ORDER_OPTIONS } from './family-manifest';
 import { paletteIds } from './palettes';
 import { invitationTemplates } from './templates';
 
@@ -50,16 +53,18 @@ export function catalogThemeTier(templateId: number): Tier | null {
   return CATALOG_TIER_BY_ID.get(templateId) ?? null;
 }
 
-export type ThemeFields = { templateId?: number; paletteId?: string };
+export type ThemeFields = { templateId?: number; paletteId?: string; sectionOrder?: string; fontPairing?: string };
 
 /** The theme fields of a stored config, read leniently: stored JSON may predate today's schema. */
 export function storedThemeFields(config: unknown): ThemeFields {
   const theme = (config as { theme?: unknown } | null)?.theme;
   if (!theme || typeof theme !== 'object') return {};
-  const { templateId, paletteId } = theme as Record<string, unknown>;
+  const { templateId, paletteId, sectionOrder, fontPairing } = theme as Record<string, unknown>;
   return {
     templateId: typeof templateId === 'number' ? templateId : undefined,
     paletteId: typeof paletteId === 'string' ? paletteId : undefined,
+    sectionOrder: typeof sectionOrder === 'string' ? sectionOrder : undefined,
+    fontPairing: typeof fontPairing === 'string' ? fontPairing : undefined,
   };
 }
 
@@ -68,12 +73,14 @@ export function changedThemeFields(stored: ThemeFields, next: ThemeFields | unde
   const changed: ThemeFields = {};
   if (next?.templateId !== undefined && next.templateId !== stored.templateId) changed.templateId = next.templateId;
   if (next?.paletteId !== undefined && next.paletteId !== stored.paletteId) changed.paletteId = next.paletteId;
+  if (next?.sectionOrder !== undefined && next.sectionOrder !== stored.sectionOrder) changed.sectionOrder = next.sectionOrder;
+  if (next?.fontPairing !== undefined && next.fontPairing !== stored.fontPairing) changed.fontPairing = next.fontPairing;
   return changed;
 }
 
 export type ThemeIssue = {
-  path: 'theme.templateId' | 'theme.paletteId';
-  reason: 'unknown-template' | 'premium-template' | 'unknown-palette' | 'premium-palette';
+  path: 'theme.templateId' | 'theme.paletteId' | 'theme.sectionOrder' | 'theme.fontPairing';
+  reason: 'unknown-template' | 'premium-template' | 'unknown-palette' | 'premium-palette' | 'unknown-section-order' | 'unknown-font-pairing';
 };
 
 /** Whether the changed fields need the database lookup of the invitation's tier: only a Premium palette or theme does. */
@@ -98,7 +105,18 @@ export function themeChangeIssues(changed: ThemeFields, tier: Tier): ThemeIssue[
     if (needed === null) issues.push({ path: 'theme.paletteId', reason: 'unknown-palette' });
     else if (needed === 'premium' && tier !== 'premium') issues.push({ path: 'theme.paletteId', reason: 'premium-palette' });
   }
+  if (changed.sectionOrder !== undefined && !(SECTION_ORDER_OPTIONS as readonly string[]).includes(changed.sectionOrder)) {
+    issues.push({ path: 'theme.sectionOrder', reason: 'unknown-section-order' });
+  }
+  if (changed.fontPairing !== undefined && !(FONT_PAIRINGS as readonly string[]).includes(changed.fontPairing)) {
+    issues.push({ path: 'theme.fontPairing', reason: 'unknown-font-pairing' });
+  }
   return issues;
+}
+
+/** G-041: whether every refusal is a layout choice outside the contract (the editor words that apart from a tier). */
+export function onlyChoiceIssues(issues: readonly Pick<ThemeIssue, 'reason'>[]): boolean {
+  return issues.length > 0 && issues.every((issue) => issue.reason === 'unknown-section-order' || issue.reason === 'unknown-font-pairing');
 }
 
 export class ThemeEntitlementError extends Error {

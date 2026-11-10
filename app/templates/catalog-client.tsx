@@ -229,7 +229,7 @@ export default function CatalogClient({ locale = 'id', wizard = false }: { local
                     data-font={tpl.font}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img className={ui.art} src={art.cover} alt="" loading="lazy" />
+                    <img className={ui.art} src={art.card ?? art.cover} alt="" loading="lazy" decoding="async" />
                     <span className={ui.tint} aria-hidden="true" />
                     <span className={`${styles.tierBadge} ${ui.raise}`} data-tier={tpl.tier}>
                       {t.tiers[tpl.tier]}

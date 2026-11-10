@@ -213,6 +213,16 @@ test('B-019: every slot names its rendered width for the browser (sizes)', () =>
   }
 });
 
+test('s43 R9: the <source> of a <picture class="contents"> never takes a grid cell or a flex slot', () => {
+  const css = readFileSync('app/globals.css', 'utf8');
+  const base = css.slice(css.indexOf('@layer base {'), css.indexOf('@layer components {'));
+  assert.match(base, /picture > source \{ display: none; \}/, 'the rule sits in the base layer, below every utility');
+  const lontar = LAYOUTS.find((layout) => layout.familyId === 'lontar')!;
+  const html = render(lontar, 'wedding', 'link', { imageVariants: everyVariant });
+  const cover = html.slice(html.indexOf('data-section="cover"'), html.indexOf('</header>'));
+  assert.match(cover, /sm:grid-cols-\[1fr_13rem\][^]*?<picture class="contents"><source /, 'Lontar sets its cover photo, a <picture>, in a two-column grid beside the band');
+});
+
 test('B-019: generation is flagged and best-effort; a failing read never fails a page', async () => {
   const { enqueueImageVariants, loadImageVariants } = await import('../lib/media/variant-jobs');
   const previous = process.env.FLAG_IMAGE_VARIANTS;
