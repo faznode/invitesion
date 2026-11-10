@@ -5,6 +5,7 @@
  *
  *   POSTGRES_URL=postgres://postgres@127.0.0.1:5433/scratch npx tsx scripts/verify-retention.ts
  *   JOBS_BIN=…/invitesion-jobs POSTGRES_URL=… npx tsx scripts/verify-retention.ts   # plus the Rust purge, cross-language
+ *   REQUIRE_JOBS_BIN=1 JOBS_BIN=… POSTGRES_URL=… npx tsx scripts/verify-retention.ts  # CI (scripts/ci/rust.sh): no skip
  *
  * It proves, with the answer and the stored rows each time:
  *  1. availability: flag off, or on without a window, refuses at the action with nothing written; the list offers the
@@ -12,18 +13,31 @@
  *  2. the boundary: an outsider, a co-host holding a live grant and a post without the confirmation change nothing;
  *  3. the owner's deletion: one transaction writes `deleted_at`, `purge_after` and the purge job (payload, dedupe key,
  *     run time, attempts); a repeat answers `already`; two concurrent deletions write one deletion and one job;
- *  4. gone everywhere: the guest page and personal link, the side routes, the owner preview, the manage page, the
+ *  4. gone everywhere: the guest page, personal link and pass, the side routes, the owner preview, the manage page, the
  *     registration page, every access check, every writer (content, host logs, roster, team links, self-registration,
- *     publish, the guest's RSVP form), the public media check; the list shows it deleted with its restore only;
+ *     publish, the guest's RSVP and wish forms, the dashboard's guest operation and wish moderation), no view or guest
+ *     event recorded, the public media check; the list shows it deleted with its restore only. Each refused page and
+ *     action is first shown working while the invitation is live. A pending order settled after a draft's deletion
+ *     (an administrator's confirmation; a late webhook takes the same path) is recorded but never activates the draft,
+ *     which a restore brings back exactly as it was, its payment counting for publishing;
  *  5. restore: refused to an outsider, allowed with the flag off, the invitation back exactly as it was;
  *  6. purged: restore and deletion refused, the tombstone off the list;
- *  7. with JOBS_BIN: the Rust runner consumes the job Next.js wrote (dry run first), the rows and objects go, the
- *     restore then answers "purged".
+ *  7. with JOBS_BIN, the real binary under a configuration built from nothing (scratch database, disposable upload root,
+ *     no S3, durations only in the sweep's own passes): the stale job of section 5's restore finishes without touching
+ *     the invitation; the dry run is read-only (rows, money, invitation, job and files unchanged) and lists what the purge
+ *     removes; with storage refusing deletions the rows and tombstone commit, the job records its objects and retries,
+ *     and the retry removes them; a key another invitation uses is kept, and the order, payment and webhook event stay
+ *     on the tombstone; the restore then answers "purged". The retention sweep does nothing without both durations,
+ *     then deletes an expired invitation with the payload and dedupe key Next.js writes; Next.js lists it, its owner
+ *     restores it, the next sweep deletes it again with a fresh full window (D-063's open question), and the stale
+ *     sweep job purges nothing.
+ *     Without JOBS_BIN section 7 is skipped; with REQUIRE_JOBS_BIN=1 a missing or non-executable binary FAILS, and the
+ *     summary line names `rust section: ran` only when it ran.
  * Fixture rows are fictional, tagged per run and removed.
  */
 import { execFileSync } from 'node:child_process';
-import { randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { randomBytes, randomUUID } from 'node:crypto';
+import { accessSync, constants, existsSync, mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import Module from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -111,6 +125,27 @@ function form(values: Record<string, string | number>): FormData {
   return data;
 }
 
+/** Every file under `root`, as sorted keys relative to it. */
+function listFiles(root: string, dir = ''): string[] {
+  const here = join(root, dir);
+  if (!existsSync(here)) return [];
+  return readdirSync(here, { withFileTypes: true })
+    .flatMap((entry) => {
+      const key = dir ? `${dir}/${entry.name}` : entry.name;
+      return entry.isDirectory() ? listFiles(root, key) : [key];
+    })
+    .sort();
+}
+
+function isExecutableFile(path: string): boolean {
+  try {
+    accessSync(path, constants.X_OK);
+    return statSync(path).isFile();
+  } catch {
+    return false;
+  }
+}
+
 const DAY = 86_400_000;
 
 async function main() {
@@ -125,7 +160,10 @@ async function main() {
   const { default: PreviewPage } = await import('../app/preview/[id]/page');
   const { default: ManagePage } = await import('../app/(customer)/dashboard/invitations/[id]/manage/page');
   const { default: RegistrationPage } = await import('../app/daftar/[token]/page');
-  const { submitRsvp } = await import('../app/i/[slug]/actions');
+  const { submitRsvp, submitGuestMessage } = await import('../app/i/[slug]/actions');
+  const { default: PassPage } = await import('../app/i/[slug]/[guestSlug]/pass/page');
+  const { updateGuestOperation } = await import('../app/(customer)/dashboard/invitations/[id]/guests/actions');
+  const { moderateWish } = await import('../app/(customer)/dashboard/invitations/[id]/wishes/actions');
   const publicLoaders = await import('../lib/invitation/public');
   const members = await import('../lib/invitation/members-db');
   const { requireOwnedInvitation, OwnershipError } = await import('../lib/invitation/service');
@@ -133,16 +171,24 @@ async function main() {
   const { addTable } = await import('../lib/invitation/host-logs-db');
   const { addGuestNext, registerNext } = await import('../lib/invitation/roster-next');
   const { PURGE_JOB_KIND, PURGE_MAX_ATTEMPTS } = await import('../lib/invitation/retention');
+  const paymentService = await import('../lib/payment/service');
 
   const tag = randomUUID().replaceAll('-', '').slice(0, 12);
   const created = { users: [] as number[], invitations: [] as number[] };
-  const names = ['FLAG_INVITATION_DELETION', 'INVITATION_DELETION_WINDOW_DAYS', 'FLAG_TEAM_ACCESS', 'FLAG_SELF_REGISTRATION', 'FLAG_GUEST_CALENDAR', 'BACKEND_RSVP', 'BACKEND_CONTENT', 'BACKEND_ROSTER'];
+  const names = [
+    'FLAG_INVITATION_DELETION', 'INVITATION_DELETION_WINDOW_DAYS', 'INVITATION_RETENTION_DAYS_AFTER_EXPIRY', 'FLAG_TEAM_ACCESS',
+    'FLAG_SELF_REGISTRATION', 'FLAG_GUEST_CALENDAR', 'FLAG_GUEST_PASS', 'GUEST_PASS_SECRET', 'GUEST_PASS_SECRET_PREVIOUS',
+    'FLAG_RSVP_PER_EVENT', 'FLAG_INVITE_ONLY_EVENTS', 'BACKEND_RSVP', 'BACKEND_CONTENT', 'BACKEND_ROSTER', 'BACKEND_WISHES',
+  ];
   const saved = Object.fromEntries(names.map((name) => [name, env[name]]));
   for (const name of names) delete env[name];
   env.FLAG_TEAM_ACCESS = 'on';
   env.FLAG_SELF_REGISTRATION = 'on';
   env.FLAG_GUEST_CALENDAR = 'on';
+  env.FLAG_GUEST_PASS = 'on';
+  env.GUEST_PASS_SECRET = randomBytes(32).toString('hex');
   const uploads = join(tmpdir(), `invitesion-b031-verify-${tag}`);
+  let rustRan = false;
 
   type Person = { id: number; clerk: string };
   async function person(name: string): Promise<Person> {
@@ -154,11 +200,17 @@ async function main() {
   const as = (who: Person | null) => {
     session.clerkUserId = who?.clerk ?? null;
   };
-  const config = { settings: { title: 'Budi & Sari' }, events: [{ id: 'akad', name: 'Akad', date: '2027-02-14', time: '09:00', venue: 'Masjid Raya', address: 'Jl. Contoh 1' }] };
-  async function invitation(owner: Person, name: string): Promise<{ id: number; slug: string }> {
+  const config = {
+    settings: { title: 'Budi & Sari' },
+    events: [{ id: 'akad', title: 'Akad Nikah', startAt: '2027-02-14T09:00:00+07:00', venueName: 'Masjid Raya Contoh', address: 'Jl. Contoh 1' }],
+    checkInSettings: { enabled: true },
+  };
+  /** A published wedding; `expiredDaysAgo` puts its active period that far in the past instead of 300 days ahead. */
+  async function invitation(owner: Person, name: string, content: object = config, expiredDaysAgo?: number): Promise<{ id: number; slug: string }> {
     const slug = `b031v-${name}-${tag}`;
+    const expiresIn = `${expiredDaysAgo === undefined ? 300 : -expiredDaysAgo} days`;
     const [row] = await sql`insert into invitations (user_id, slug, event_type, status, config, published_at, expires_at)
-      values (${owner.id}, ${slug}, 'wedding', 'PUBLISHED', ${JSON.stringify(config)}::text::jsonb, now(), now() + interval '300 days') returning id`;
+      values (${owner.id}, ${slug}, 'wedding', 'PUBLISHED', ${JSON.stringify(content)}::text::jsonb, now(), now() + ${expiresIn}::interval) returning id`;
     created.invitations.push(row.id);
     return { id: row.id as number, slug };
   }
@@ -185,8 +237,20 @@ async function main() {
     const joinToken = teamLink.kind === 'created' ? teamLink.token : '';
     const regToken = `r${tag}${randomUUID().replaceAll('-', '').slice(0, 19)}`;
     await sql`insert into guest_registration_links (invitation_id, token) values (${mine.id}, ${regToken})`;
+    const [wish] = await sql`insert into guest_messages (invitation_id, guest_id, name, message) values (${mine.id}, ${budi.id}, 'Budi', 'Selamat berbahagia') returning id`;
+    const wishId = wish.id as number;
     const before = await rowOf(mine.id);
     check('fixture: the invitation is live for guests, its owner and its co-host', Boolean(await publicLoaders.loadPublicInvitation(mine.slug, budi.slug)) && Boolean(await members.accessFor(cohost.id, mine.id, 'guests')) && joinToken !== '');
+    // Positive controls: each page and action that must refuse the deleted invitation works while it is live.
+    as(null);
+    const livePass = await outcome(() => PassPage(params({ slug: mine.slug, guestSlug: budi.slug }) as never));
+    check('control: the guest pass renders while the invitation is live', livePass.kind === 'returned', describe(livePass));
+    as(owner);
+    const liveModeration = await outcome(() => moderateWish(form({ invitationId: mine.id, wishId, action: 'show' })));
+    check('control: the owner moderates a wish while the invitation is live', redirectedTo(liveModeration, 'done=show'), describe(liveModeration));
+    const liveOperation = await outcome(() => updateGuestOperation(form({ invitationId: mine.id, guestId: budi.id, operation: 'CONFIRMED' })));
+    const confirmed = (await sql`select rsvp_status from guests where id = ${budi.id}`)[0].rsvp_status;
+    check('control: the dashboard\u2019s guest operation writes while the invitation is live', liveOperation.kind === 'returned' && confirmed === 'CONFIRMED', `${describe(liveOperation)} ${confirmed}`);
 
     // ── 1. Availability.
     as(owner);
@@ -241,6 +305,8 @@ async function main() {
       !(await publicLoaders.loadPublicInvitation(mine.slug)) && !(await publicLoaders.loadPublicInvitation(mine.slug, budi.slug)) &&
         !(await publicLoaders.loadPublicInvitation(mine.slug, undefined, true)) && !(await publicLoaders.loadPublishedInvitationSummary(mine.slug)) &&
         !(await publicLoaders.loadInvitationForGiftAudience(mine.slug)) && !(await publicLoaders.loadInvitationForGiftAudience(mine.slug, budi.slug)));
+    const guestEvents = async () => (await sql`select count(*)::int as n from analytics_events where invitation_id = ${mine.id}`)[0].n as number;
+    const eventsBefore = await guestEvents();
     as(null);
     o = await outcome(() => GuestPage(params({ slug: mine.slug }) as never));
     check('the guest page is a 404', o.kind === 'notfound', describe(o));
@@ -258,6 +324,13 @@ async function main() {
     o = await outcome(() => submitRsvp(form({ slug: mine.slug, guestSlug: budi.slug, status: 'attending', attendingCount: 1 })));
     const rsvpAfter = (await sql`select rsvp_status from guests where id = ${budi.id}`)[0].rsvp_status;
     check('an old RSVP form posted after the deletion is refused, nothing written', redirectedTo(o, 'rsvp=closed') && rsvpAfter === rsvpBefore, `${describe(o)} ${rsvpBefore}->${rsvpAfter}`);
+    o = await outcome(() => PassPage(params({ slug: mine.slug, guestSlug: budi.slug }) as never));
+    check('the guest pass is a 404', o.kind === 'notfound', describe(o));
+    const wishCount = async () => (await sql`select count(*)::int as n from guest_messages where invitation_id = ${mine.id}`)[0].n as number;
+    const wishesBefore = await wishCount();
+    o = await outcome(() => submitGuestMessage(form({ slug: mine.slug, guestSlug: budi.slug, message: 'Selamat menempuh hidup baru' })));
+    check('an old wish form posted after the deletion is refused, nothing written', redirectedTo(o, 'wish=closed') && (await wishCount()) === wishesBefore, describe(o));
+    check('no view or other guest event was recorded for the refused visits and posts', (await guestEvents()) === eventsBefore);
 
     as(owner);
     o = await outcome(() => PreviewPage(params({ id: String(mine.id) }) as never));
@@ -281,6 +354,13 @@ async function main() {
         (await members.joinPreview(joinToken, outsider.id)).state === 'invalid' && (await members.acceptJoinLink(outsider.id, joinToken)).kind === 'invalid');
     o = await outcome(() => actions.publish(form({ invitationId: mine.id })));
     check('publishing is refused as "not found"', redirectedTo(o, 'error=notfound'), describe(o));
+    const answerOf = async () => (await sql`select rsvp_status from guests where id = ${budi.id}`)[0].rsvp_status as string;
+    const heldAnswer = await answerOf();
+    o = await outcome(() => updateGuestOperation(form({ invitationId: mine.id, guestId: budi.id, operation: 'DECLINED' })));
+    check('the dashboard\u2019s guest operation is refused (back to the list), the answer unchanged', o.kind === 'redirect' && o.url === '/dashboard/invitations' && (await answerOf()) === heldAnswer, describe(o));
+    o = await outcome(() => moderateWish(form({ invitationId: mine.id, wishId, action: 'hide' })));
+    const hidden = (await sql`select is_hidden from guest_messages where id = ${wishId}`)[0].is_hidden;
+    check('wish moderation is refused (back to the list), the wish unchanged', o.kind === 'redirect' && o.url === '/dashboard/invitations' && hidden === false, `${describe(o)} hidden=${hidden}`);
     check('the public media check refuses this invitation\u2019s uploads; an unknown id behaves as before', (await deletion.invitationMediaGone(mine.id)) && !(await deletion.invitationMediaGone(2_000_000_000)));
 
     page = await ListPage({ searchParams: Promise.resolve({}) });
@@ -288,6 +368,33 @@ async function main() {
     const mineCard = deletedCards.find((card) => card.id === mine.id);
     check('the list shows it deleted, with the purge date, and no delete control or other link for it',
       Boolean(mineCard) && (mineCard?.purgeAfter as Date).getTime() === ms(deleted.purge_after) && !elementsOf(page, 'DeleteControl').some((c) => c.id === mine.id) && !elementsOf(page, 'PublishControl').some((c) => c.id === mine.id));
+
+    // ── 4b. A payment that settles after the deletion: a draft's pending QRIS order, confirmed by an administrator once the
+    //        owner has deleted the draft (a late webhook takes the same settlement path). The money is recorded; the
+    //        deleted draft is not activated, and restored it is exactly as it was, its payment counting for publishing.
+    const [draftRow] = await sql`insert into invitations (user_id, slug, event_type, status, config)
+      values (${owner.id}, ${`b031v-draft-${tag}`}, 'wedding', 'DRAFT', ${JSON.stringify(config)}::text::jsonb) returning id`;
+    created.invitations.push(draftRow.id);
+    const draftId = draftRow.id as number;
+    const pendingRef = `b031v-pending-${tag}`;
+    await sql`insert into orders (user_id, invitation_id, amount, rail, reference, status) values (${owner.id}, ${draftId}, 149000, 'qris', ${pendingRef}, 'PENDING')`;
+    const draftDeletion = await deletion.scheduleInvitationDeletion(owner.id, draftId);
+    const draftDeleted = await rowOf(draftId);
+    const settlement = await paymentService.confirmManually({ reference: pendingRef, adminUserId: outsider.id, note: 'b031v' });
+    const draftAfter = await rowOf(draftId);
+    const [paidOrder] = await sql`select o.status, (select count(*) from payments p where p.order_id = o.id)::int as payments,
+      (select count(*) from payment_events e where e.order_id = o.id)::int as events from orders o where o.reference = ${pendingRef}`;
+    check('a payment settling after the deletion is recorded (order PAID, its payment and event) and never activates the deleted draft',
+      draftDeletion.kind === 'scheduled' && settlement.applied && settlement.invitationActivated === false && paidOrder.status === 'PAID' && paidOrder.payments === 1 &&
+        paidOrder.events === 1 && draftAfter.status === 'DRAFT' && draftAfter.published_at === null && draftAfter.expires_at === null &&
+        ms(draftAfter.deleted_at) === ms(draftDeleted.deleted_at),
+      JSON.stringify({ draftDeletion, settlement, paidOrder, draftAfter }));
+    const draftRestore = await deletion.restoreDeletedInvitation(owner.id, draftId);
+    const draftRestored = await rowOf(draftId);
+    check('restored, the draft is exactly as it was and its payment counts for publishing',
+      draftRestore.kind === 'restored' && draftRestored.status === 'DRAFT' && draftRestored.published_at === null && draftRestored.deleted_at === null &&
+        (await paymentService.hasPaidOrder(draftId, null)),
+      JSON.stringify({ draftRestore, draftRestored }));
 
     // ── 5. Restore.
     as(outsider);
@@ -315,40 +422,166 @@ async function main() {
     page = await ListPage({ searchParams: Promise.resolve({}) });
     check('the tombstone is off the owner\u2019s list', !elementsOf(page, 'DeletedCard').some((c) => c.id === racing.id) && !elementsOf(page, 'PublishControl').some((c) => c.id === racing.id));
 
-    // ── 7. Cross-language: the Rust runner consumes the job Next.js wrote.
-    const jobsBin = env.JOBS_BIN?.trim();
-    if (!jobsBin) {
-      console.log('SKIP  7 (set JOBS_BIN to the invitesion-jobs binary to run the Rust purge against this job)');
+    // ── 7. Cross-language: the Rust runner consumes the jobs Next.js wrote, and Next.js reads what the Rust sweep wrote.
+    const jobsBin = env.JOBS_BIN?.trim() ?? '';
+    const rustRequired = env.REQUIRE_JOBS_BIN === '1';
+    if (!jobsBin || !isExecutableFile(jobsBin)) {
+      if (rustRequired) {
+        check('7: JOBS_BIN names an executable invitesion-jobs (REQUIRE_JOBS_BIN=1: the Rust section must run)', false, jobsBin ? `not an executable file: ${jobsBin}` : 'JOBS_BIN is not set');
+      } else {
+        console.log('SKIP  7 (set JOBS_BIN to the invitesion-jobs binary to run the Rust purge against these jobs)');
+      }
     } else {
+      rustRan = true;
+      // A configuration built from nothing: the scratch database, the disposable upload root, no S3 and no retention
+      // durations except in the sweep's own passes. Nothing else from the caller's environment reaches the binary.
+      const jobsEnv = (extra: Record<string, string> = {}): Record<string, string | undefined> => ({
+        PATH: env.PATH ?? '/usr/local/bin:/usr/bin:/bin',
+        DATABASE_URL: env.POSTGRES_URL as string,
+        UPLOAD_ROOT: uploads,
+        JOBS_BATCH: '200',
+        RUST_LOG: 'warn',
+        ...extra,
+      });
+      const lastLine = (out: string) => out.trim().split('\n').pop() ?? '{}';
+      const runJobs = (args: string[] = [], extra?: Record<string, string>) =>
+        // Next 16's types require NODE_ENV on ProcessEnv; this environment is deliberately built without it.
+        JSON.parse(lastLine(execFileSync(jobsBin, args, { env: jobsEnv(extra) as NodeJS.ProcessEnv, encoding: 'utf8' }))) as Record<string, any>;
+      const makeDue = (jobId: number) => sql`update jobs set run_at = (now() at time zone 'utc') - interval '1 minute' where id = ${jobId}`;
+      const jobRow = async (id: number) => (await sql`select payload, attempts, done_at, last_error from jobs where id = ${id}`)[0];
+      const purgeJobIds = async (invitationId: number) =>
+        (await sql`select id from jobs where kind = ${PURGE_JOB_KIND} and (payload->>'invitationId')::int = ${invitationId} order by id`).map((r) => r.id as number);
+      const rowsOf = async (id: number) => (await sql`select (select count(*) from guests where invitation_id = ${id})::int as guests,
+        (select count(*) from guest_messages where invitation_id = ${id})::int as wishes,
+        (select count(*) from media_assets where invitation_id = ${id})::int as media`)[0];
+      const moneyOf = async (id: number) => (await sql`select (select count(*) from orders where invitation_id = ${id})::int as orders,
+        (select count(*) from payments p join orders o on o.id = p.order_id where o.invitation_id = ${id})::int as payments,
+        (select count(*) from payment_events e join orders o on o.id = e.order_id where o.invitation_id = ${id})::int as events,
+        (select string_agg(status, ',') from orders where invitation_id = ${id}) as statuses`)[0];
+
+      // 7a. The job of section 5's restored deletion comes due; the invitation is live.
+      const [staleJob] = await purgeJobIds(mine.id);
+      await makeDue(staleJob);
+      const mineLive = await rowOf(mine.id);
+
+      // 7b. An invitation with a wish, an order with its payment and webhook event, and four uploads: one its media row
+      //     refers to, an orphan, a protected child photo, and one another live invitation also uses.
       const doomed = await invitation(owner, 'doomed');
       const sari = await guest(doomed.id, 'Sari Wulandari');
       await sql`insert into guest_messages (invitation_id, guest_id, name, message) values (${doomed.id}, ${sari.id}, 'Sari', 'Bahagia selalu')`;
-      const keys = [`${doomed.id}/${tag}00000000000a.jpg`, `${doomed.id}/${tag}00000000000b.jpg`, `protected/${doomed.id}/${tag}00000000000c.png`];
-      await sql`insert into media_assets (invitation_id, type, url) values (${doomed.id}, 'image', ${`/media/${keys[0]}`})`;
-      for (const key of keys) {
-        mkdirSync(join(uploads, key, '..'), { recursive: true });
-        writeFileSync(join(uploads, key), 'bytes');
+      const key = (prefix: string, n: string, ext: string) => `${prefix}/${tag}${n.padStart(12, '0')}.${ext}`;
+      const keys = {
+        referenced: key(String(doomed.id), 'a', 'jpg'),
+        orphan: key(String(doomed.id), 'b', 'jpg'),
+        child: key(`protected/${doomed.id}`, 'c', 'png'),
+        shared: key(String(doomed.id), 'd', 'jpg'),
+      };
+      const withShared = { ...config, gallery: [`/media/${keys.shared}`] };
+      await sql`update invitations set config = ${JSON.stringify(withShared)}::text::jsonb where id = ${doomed.id}`;
+      const sharing = await invitation(owner, 'sharing', withShared);
+      await sql`insert into media_assets (invitation_id, type, url) values (${doomed.id}, 'image', ${`/media/${keys.referenced}`})`;
+      for (const k of Object.values(keys)) {
+        mkdirSync(join(uploads, k, '..'), { recursive: true });
+        writeFileSync(join(uploads, k), 'bytes');
       }
+      const [order] = await sql`insert into orders (user_id, invitation_id, amount, rail, reference, status)
+        values (${owner.id}, ${doomed.id}, 149000, 'qris', ${`b031v-${tag}`}, 'PAID') returning id`;
+      await sql`insert into payments (order_id, provider) values (${order.id}, 'qris')`;
+      await sql`insert into payment_events (rail, event_id, order_id) values ('qris', ${`b031v-ev-${tag}`}, ${order.id})`;
+
       const o7 = await outcome(() => actions.deleteInvitation(form({ invitationId: doomed.id, confirm: 'yes' })));
       // The window passes: a zero-length window is the only shortening the check constraint allows (purge_after >= deleted_at).
       await sql`update invitations set purge_after = deleted_at where id = ${doomed.id}`;
-      await sql`update jobs set run_at = (select deleted_at from invitations where id = ${doomed.id}) where kind = ${PURGE_JOB_KIND} and (payload->>'invitationId')::int = ${doomed.id}`;
-      const runEnv = { ...env, DATABASE_URL: env.POSTGRES_URL, UPLOAD_ROOT: uploads, RUST_LOG: 'warn' };
-      const lastLine = (out: string) => out.trim().split('\n').pop() ?? '{}';
-      const plan = JSON.parse(lastLine(execFileSync(jobsBin, ['--plan-purge', String(doomed.id)], { env: runEnv, encoding: 'utf8' })));
-      check('the dry run (Rust) sees the deletion due, its rows and all three objects, and changes nothing',
-        redirectedTo(o7, `deleted=${doomed.id}`) && plan.state === 'due' && plan.objects.length === 3 &&
-          plan.rows.find((r: { table: string }) => r.table === 'guest_messages')?.rows === 1 && existsSync(join(uploads, keys[1])),
+      const [doomedJob] = await purgeJobIds(doomed.id);
+      await sql`update jobs set run_at = (select deleted_at from invitations where id = ${doomed.id}) where id = ${doomedJob}`;
+
+      const snapshot = async () =>
+        JSON.stringify({ rows: await rowsOf(doomed.id), money: await moneyOf(doomed.id), invitation: await rowOf(doomed.id), job: await jobRow(doomedJob), files: listFiles(uploads) });
+      const beforePlan = await snapshot();
+      const plan = runJobs(['--plan-purge', String(doomed.id)]);
+      const own = [keys.referenced, keys.orphan, keys.child].sort();
+      const retained = (table: string) => plan.retained?.find((r: { table: string }) => r.table === table)?.rows;
+      check('the dry run (Rust) sees the deletion due, its rows and own objects, keeps the shared key, counts the money it keeps',
+        redirectedTo(o7, `deleted=${doomed.id}`) && plan.state === 'due' && JSON.stringify(plan.objects) === JSON.stringify(own) &&
+          JSON.stringify(plan.keptShared) === JSON.stringify([keys.shared]) && plan.rows?.find((r: { table: string }) => r.table === 'guest_messages')?.rows === 1 &&
+          retained('orders') === 1 && retained('payments') === 1 && retained('payment_events') === 1,
         JSON.stringify(plan));
-      const pass = JSON.parse(lastLine(execFileSync(jobsBin, [], { env: runEnv, encoding: 'utf8' })));
-      const left = (await sql`select (select count(*) from guests where invitation_id = ${doomed.id})::int as guests,
-        (select count(*) from guest_messages where invitation_id = ${doomed.id})::int as wishes,
-        (select count(*) from media_assets where invitation_id = ${doomed.id})::int as media`)[0];
+      check('the dry run changed nothing: rows, money, the invitation, its job and every file', (await snapshot()) === beforePlan);
+
+      // Storage refuses one deletion for one pass, as an outage would: the referenced object's path is briefly a directory,
+      // which no unlink removes whatever the process may do (permission bits would not stop a process holding
+      // CAP_DAC_OVERRIDE, as the v0 sandbox's user does).
+      const blocked = join(uploads, keys.referenced);
+      rmSync(blocked);
+      mkdirSync(blocked);
+      const firstPass = runJobs();
+      const left = await rowsOf(doomed.id);
       const tomb = await rowOf(doomed.id);
-      check('the Rust runner purged the rows Next.js deleted', pass.done >= 1 && left.guests === 0 && left.wishes === 0 && left.media === 0 && tomb.purged_at !== null && tomb.config === null, `${JSON.stringify(pass)} ${JSON.stringify(left)}`);
-      check('and the objects, including the orphan and the protected photo', keys.every((key) => !existsSync(join(uploads, key))));
+      const waiting = await jobRow(doomedJob);
+      check('storage refusing: the rows Next.js deleted are purged and the tombstone written all the same',
+        left.guests === 0 && left.wishes === 0 && left.media === 0 && tomb.purged_at !== null && tomb.config === null, `${JSON.stringify(firstPass)} ${JSON.stringify(left)}`);
+      check('the job records its objects, keeps its error and waits to retry; the refused object stays, the other two went',
+        waiting.done_at === null && /^1 of 3 objects not deleted/.test(String(waiting.last_error)) && JSON.stringify(waiting.payload.objects) === JSON.stringify(own) &&
+          existsSync(blocked) && !existsSync(join(uploads, keys.orphan)) && !existsSync(join(uploads, keys.child)),
+        JSON.stringify(waiting));
+      // The outage ends with the object still in place, for the retry to delete.
+      rmSync(blocked, { recursive: true });
+      writeFileSync(blocked, 'bytes');
+      const stale = await jobRow(staleJob);
+      const mineAfter = await rowOf(mine.id);
+      check('the stale job of the restored deletion finished without touching it (live, same content, its guest link works)',
+        stale.done_at !== null && stale.last_error === null && mineAfter.deleted_at === null && mineAfter.purged_at === null &&
+          JSON.stringify(mineAfter.config) === JSON.stringify(mineLive.config) && Boolean(await publicLoaders.loadPublicInvitation(mine.slug, budi.slug)),
+        JSON.stringify(stale));
+
+      await makeDue(doomedJob);
+      const secondPass = runJobs();
+      const retried = await jobRow(doomedJob);
+      const sharingRow = await rowOf(sharing.id);
+      check('the retry removes exactly the recorded objects; the shared key and the invitation using it are untouched',
+        retried.done_at !== null && retried.last_error === null && own.every((k) => !existsSync(join(uploads, k))) && existsSync(join(uploads, keys.shared)) &&
+          sharingRow.deleted_at === null && JSON.stringify(sharingRow.config).includes(keys.shared),
+        `${JSON.stringify(secondPass)} ${JSON.stringify(retried)}`);
+      const money = await moneyOf(doomed.id);
+      check('the order, its payment and its webhook event are kept, still pointing at the tombstone',
+        money.orders === 1 && money.payments === 1 && money.events === 1 && money.statuses === 'PAID', JSON.stringify(money));
       o = await outcome(() => actions.restoreInvitation(form({ invitationId: doomed.id })));
-      check('after the purge the owner\u2019s restore answers "purged"', redirectedTo(o, 'error=purged'), describe(o));
+      check('after the purge the owner\u2019s restore answers "purged" and its public media stays refused', redirectedTo(o, 'error=purged') && (await deletion.invitationMediaGone(doomed.id)), describe(o));
+
+      // 7c. The retention sweep (Rust) deletes an expired invitation as its owner would; Next.js reads that deletion.
+      const expired = await invitation(owner, 'expired', config, 3640);
+      const sweep = { INVITATION_DELETION_WINDOW_DAYS: '30', INVITATION_RETENTION_DAYS_AFTER_EXPIRY: '3600' };
+      runJobs();
+      runJobs([], { INVITATION_DELETION_WINDOW_DAYS: '30' });
+      check('the sweep does nothing without both durations (neither unset nor with the window alone)', (await rowOf(expired.id)).deleted_at === null && (await purgeJobIds(expired.id)).length === 0);
+      const sweptPass = runJobs([], sweep);
+      const swept = await rowOf(expired.id);
+      const sweptAt = ms(swept.deleted_at);
+      const [sweptJob] = await jobsOf(expired.id);
+      check('the sweep (Rust) opens the window and queues the job exactly as Next.js does: payload, dedupe key, run time, attempts',
+        Number(sweptPass.swept) >= 1 && Number.isFinite(sweptAt) && ms(swept.purge_after) - sweptAt === 30 * DAY && (await jobsOf(expired.id)).length === 1 &&
+          sweptJob.payload.invitationId === expired.id && sweptJob.payload.deletedAt === new Date(sweptAt).toISOString() &&
+          Object.keys(sweptJob.payload).sort().join() === 'deletedAt,invitationId' && sweptJob.dedupe_key === `invitation:${expired.id}:${sweptAt}` &&
+          ms(sweptJob.run_at) === sweptAt + 30 * DAY && sweptJob.max_attempts === PURGE_MAX_ATTEMPTS,
+        `${JSON.stringify(sweptPass)} ${JSON.stringify(sweptJob)}`);
+      page = await ListPage({ searchParams: Promise.resolve({}) });
+      check('Next.js reads the Rust deletion: the owner\u2019s list shows it deleted with its purge date and its restore',
+        elementsOf(page, 'DeletedCard').some((card) => card.id === expired.id && (card.purgeAfter as Date).getTime() === sweptAt + 30 * DAY));
+      o = await outcome(() => actions.restoreInvitation(form({ invitationId: expired.id })));
+      check('its owner restores it through Next.js', redirectedTo(o, `restored=${expired.id}`) && (await rowOf(expired.id)).deleted_at === null, describe(o));
+      // D-063's open question: while both durations stay set, retention outranks the restore. The next pass deletes the
+      // expired invitation again with a fresh full window and the earlier job turns stale; nothing is purged sooner than
+      // a whole window after the latest deletion.
+      runJobs([], sweep);
+      const again = await rowOf(expired.id);
+      const sweepJobs = await purgeJobIds(expired.id);
+      check('while retention stays configured, the next sweep deletes it again with a fresh full window (open question, D-063)',
+        again.deleted_at !== null && ms(again.deleted_at) > sweptAt && ms(again.purge_after) - ms(again.deleted_at) === 30 * DAY && sweepJobs.length === 2);
+      await makeDue(sweepJobs[0]);
+      runJobs();
+      const settled = await rowOf(expired.id);
+      check('the earlier sweep job, now stale, finishes and purges nothing: the invitation keeps its latest window and content',
+        (await jobRow(sweepJobs[0])).done_at !== null && settled.purged_at === null && ms(settled.deleted_at) === ms(again.deleted_at) && settled.config !== null);
     }
   } finally {
     as(null);
@@ -359,6 +592,10 @@ async function main() {
     if (created.invitations.length) {
       const ids = sql(created.invitations);
       await sql`delete from jobs where kind = ${PURGE_JOB_KIND} and (payload->>'invitationId')::int in ${ids}`;
+      await sql`delete from analytics_events where invitation_id in ${ids}`;
+      await sql`delete from payment_events where order_id in (select id from orders where invitation_id in ${ids})`;
+      await sql`delete from payments where order_id in (select id from orders where invitation_id in ${ids})`;
+      await sql`delete from orders where invitation_id in ${ids}`;
       await sql`delete from guest_messages where invitation_id in ${ids}`;
       await sql`delete from media_assets where invitation_id in ${ids}`;
       await sql`delete from guest_registrations where invitation_id in ${ids}`;
@@ -371,7 +608,8 @@ async function main() {
     rmSync(uploads, { recursive: true, force: true });
     await sql.end();
   }
-  console.log(failures ? `verify-retention: ${failures} FAILED, ${passes} passed` : `verify-retention: all ${passes} checks passed`);
+  const rust = `rust section: ${rustRan ? 'ran' : 'skipped'}`;
+  console.log(failures ? `verify-retention: ${failures} FAILED, ${passes} passed (${rust})` : `verify-retention: all ${passes} checks passed (${rust})`);
   process.exit(failures ? 1 : 0);
 }
 

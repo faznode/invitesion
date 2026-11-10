@@ -3,9 +3,9 @@
 > WHAT: Manage tamu, slug anti-collision, URL unik per-tamu, RSVP, import CSV.
 > STATUS: LIVE (design)
 > OWNER: Operator
-> DEPS: DATABASE_SCHEMA.md (guests, guest_messages, analytics_events, guest_registrations, guest_registration_links)
-> GREP: guest, tamu, slug, url, rsvp, csv, import, impor, pendaftaran, daftar, self-registration, BACKEND_ROSTER, roster, tracking, collision, token, link_token, attending_count, calendar, og, analitik, tindak lanjut, follow-up, insights, digest, guest pass, QR pass, check-in, pemindai, scanner, GUEST_PASS, pass_id, tim, team, co-host, usher, penerima tamu, invitation_members, FLAG_TEAM_ACCESS, pihak keluarga, family_side, buku ucapan, wishes book, PDF, FLAG_WISHES_BOOK
-> UPDATED: 2026-11-09 (s36: pihak keluarga kado khusus pernikahan, I-04 / D-059 / E-077; buku ucapan PDF khusus pemilik, I-22 / D-060 / E-078; s35: meja, suvenir & kado khusus pemilik + ekspor, G-045 / D-058 / E-076; tim undangan, co-host & penerima tamu, G-044 / D-057 / E-075; s34: QR pass tamu + meja check-in + antrean tanpa sinyal, B-024 / D-056 / ADR-A3 / E-074; koreksi: kedua penulis menulis RSVP / GUESTBOOK / CHECKIN ke analytics_events; s31: impor tamu + pendaftaran mandiri + penulis roster `BACKEND_ROSTER` Next.js / API Rust, B-033 / D-052 / E-070; analitik & tindak lanjut host, daftar belum membuka / belum menjawab, ringkasan harian, B-034 / E-069; hanya VIEW yang ditulis ke analytics_events; s29: detail hadiah hanya di link pribadi, QRIS statis host, tombol salin, B-026 / D-047 / E-063; s28: musik latar + sampul "Buka Undangan", B-009 / D-045 / E-061; moderasi / balasan / visibilitas buku tamu dan penulis ucapan `BACKEND_WISHES`, R-04 / D-044 / E-060; penulis RSVP `BACKEND_RSVP` Next.js / API Rust, kunci idempotensi, batas per link / alamat, kontrak proxy tepercaya, R-03 / D-043 / E-059; s23r: akses file foto anak D-040 / E-047; s20, dicatat s21: acara khusus undangan + override RSVP host D-037, foto mempelai / anak D-038; s19: id acara tetap, konfirmasi per acara, ringkasan jawaban host, D-036; s18: pertanyaan custom host + editor, D-034/D-035, ringkasan RSVP dashboard E-033; s17: B-027 MAYBE status, headcount hint; s09: B-007 attending_count, B-011 opt-in token + 404, B-008/B-010 side routes)
+> DEPS: DATABASE_SCHEMA.md (guests, guest_messages, analytics_events, guest_registrations, guest_registration_links), services/api/README.md (jobs runner)
+> GREP: guest, tamu, slug, url, rsvp, csv, import, impor, pendaftaran, daftar, self-registration, BACKEND_ROSTER, roster, tracking, collision, token, link_token, attending_count, calendar, og, analitik, tindak lanjut, follow-up, insights, digest, guest pass, QR pass, check-in, pemindai, scanner, GUEST_PASS, pass_id, tim, team, co-host, usher, penerima tamu, invitation_members, FLAG_TEAM_ACCESS, pihak keluarga, family_side, buku ucapan, wishes book, PDF, FLAG_WISHES_BOOK, hapus undangan, pulihkan, retensi, deleted_at, purge, FLAG_INVITATION_DELETION
+> UPDATED: 2026-11-10 (s38: hapus & retensi undangan, pulihkan, sapuan setelah kedaluwarsa, B-031 / D-063 / E-081; s36: pihak keluarga kado khusus pernikahan, I-04 / D-059 / E-077; buku ucapan PDF khusus pemilik, I-22 / D-060 / E-078; s35: meja, suvenir & kado khusus pemilik + ekspor, G-045 / D-058 / E-076; tim undangan, co-host & penerima tamu, G-044 / D-057 / E-075; s34: QR pass tamu + meja check-in + antrean tanpa sinyal, B-024 / D-056 / ADR-A3 / E-074; koreksi: kedua penulis menulis RSVP / GUESTBOOK / CHECKIN ke analytics_events; s31: impor tamu + pendaftaran mandiri + penulis roster `BACKEND_ROSTER` Next.js / API Rust, B-033 / D-052 / E-070; analitik & tindak lanjut host, daftar belum membuka / belum menjawab, ringkasan harian, B-034 / E-069; hanya VIEW yang ditulis ke analytics_events; s29: detail hadiah hanya di link pribadi, QRIS statis host, tombol salin, B-026 / D-047 / E-063; s28: musik latar + sampul "Buka Undangan", B-009 / D-045 / E-061; moderasi / balasan / visibilitas buku tamu dan penulis ucapan `BACKEND_WISHES`, R-04 / D-044 / E-060; penulis RSVP `BACKEND_RSVP` Next.js / API Rust, kunci idempotensi, batas per link / alamat, kontrak proxy tepercaya, R-03 / D-043 / E-059; s23r: akses file foto anak D-040 / E-047; s20, dicatat s21: acara khusus undangan + override RSVP host D-037, foto mempelai / anak D-038; s19: id acara tetap, konfirmasi per acara, ringkasan jawaban host, D-036; s18: pertanyaan custom host + editor, D-034/D-035, ringkasan RSVP dashboard E-033; s17: B-027 MAYBE status, headcount hint; s09: B-007 attending_count, B-011 opt-in token + 404, B-008/B-010 side routes)
 
 ## URL unik per-tamu (differentiator utama)
 Format: `/i/:invitationSlug/:guestSlug` → `invitation.com/i/wedding-andi/budi-santoso`
@@ -194,3 +194,29 @@ center). Hanya baca; kode `lib/invitation/host-analytics.ts` (aturan murni) dan 
 
 ## Expired (12 bulan)
 - Undangan READ-ONLY: tamu masih bisa lihat, RSVP + guestbook NUTUP. Data tamu disimpan.
+
+## Hapus & retensi undangan (B-031, D-063, E-081; kode s37, integrasi s38)
+- **Hapus oleh pemilik** (`FLAG_INVITATION_DELETION`, default **off**, + `INVITATION_DELETION_WINDOW_DAYS`): di kartu
+  undangan, di balik disclosure + kotak konfirmasi wajib (dicek ulang oleh action). Hanya pemilik; co-host, usher,
+  akun lain dan admin tidak pernah bisa menghapus. Satu transaksi menulis `deleted_at`, `purge_after` dan job
+  `invitation_purge` (`lib/invitation/deletion-db.ts`); hapus ulang menjawab tanggal yang sama.
+- **Langsung hilang di mana-mana:** halaman tamu, link personal, pass, kalender, gambar pratinjau, pendaftaran mandiri,
+  pratinjau pemilik, halaman kelola, akses co-host, semua penulis (konten, roster, RSVP, ucapan, catatan host, tim,
+  publish) di Next.js dan API Rust, serta unggahan publik di `/media` (404 `private, no-store`, objek tidak dibaca).
+  Jawabannya 404 / `not_found`, sama dengan undangan yang tidak pernah ada (bukan 410), jadi slug yang dihapus tidak bisa
+  ditebak. Form lama yang dikirim ulang ditolak tanpa menulis apa pun, dan tidak ada catatan VIEW / tamu baru.
+  Pembayaran order PENDING yang selesai setelah penghapusan (konfirmasi admin atau webhook terlambat) tetap dicatat,
+  tetapi tidak pernah mem-publish undangan yang dihapus atau tombstone-nya (`docs/systems/payment.md`).
+- **Pulihkan** sampai purge berjalan, juga saat flag off; undangan kembali persis (status, tanggal, konten). Purge dan
+  pemulihan mengambil kunci baris yang sama: siapa duluan menang, job lama yang tertinggal selesai tanpa mengubah apa pun.
+- **Retensi setelah kedaluwarsa** (`INVITATION_RETENTION_DAYS_AFTER_EXPIRY` + window, keduanya wajib): `invitesion-jobs`
+  menghapus undangan yang `expires_at`-nya lewat sekian hari persis seperti pemiliknya (window dibuka, job yang sama).
+  Selama kedua durasi tetap terisi, undangan kedaluwarsa yang dipulihkan pemilik akan dihapus lagi pada putaran
+  berikutnya dengan window baru (pertanyaan terbuka D-063 Q3); tidak ada yang di-purge sebelum satu window penuh.
+- **Purge** (Rust, runbook di `services/api/README.md`): baris tamu, ucapan, statistik, catatan, versi, media + objeknya
+  di prefiks milik undangan; tombstone, orders / payments / payment_events dan percakapan pelanggan disimpan. Dry run:
+  `invitesion-jobs --plan-purge <id>`.
+- **Batas:** salinan di luar origin tidak terjangkau (gambar yang sudah disimpan peramban atau cache jaringan; unggahan
+  publik `public, max-age=31536000, immutable`), file CSV / PDF yang sudah diunduh, tangkapan layar. Tidak ada purge CDN.
+  Durasi, teks pemberitahuan ID/EN dan retensi data keuangan menunggu keputusan pemilik + konsultan hukum (UU PDP, EXT);
+  B-021 tetap terblokir sampai itu ada.

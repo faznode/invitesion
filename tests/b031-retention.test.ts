@@ -137,7 +137,6 @@ const TS_UNGUARDED: Record<string, string> = {
   'app/(admin)/admin/[entry]/(console)/page.tsx': 'counts of invitations ever created',
   'lib/invitation/create-next.ts': 'slug uniqueness must count tombstones (a deleted slug is never handed out again); the creation key',
   'lib/invitation/create.ts': 'reads back the row it has just created',
-  'lib/payment/service.ts': 'a late settlement for a deleted invitation leaves the deletion in place (checkout itself is guarded)',
 };
 const TS_GUARD = /isNull\(invitations\.deletedAt\)|liveInvitation|deleted_at is null/;
 
@@ -150,6 +149,17 @@ test('B-031 guards: every TypeScript read of invitations refuses deleted rows, o
     assert.match(read(file), TS_GUARD, `${file} reads invitations without the B-031 guard`);
   }
   for (const file of Object.keys(TS_UNGUARDED)) assert.ok(querying.includes(file) || file === 'lib/db/schema.ts', `${file} still queries invitations`);
+});
+
+test('B-031 payments: a settlement after the deletion records the money and never activates the deleted invitation', () => {
+  const service = read('lib/payment/service.ts');
+  const settle = service.slice(service.indexOf('export async function applySettlement'), service.indexOf('async function activateInvitation'));
+  const activate = service.slice(service.indexOf('async function activateInvitation'), service.indexOf('export async function confirmManually'));
+  assert.ok(settle.indexOf("status: 'PAID'") < settle.indexOf('tx.insert(payments)') && settle.indexOf('tx.insert(payments)') < settle.indexOf('activateInvitation('),
+    'the order and the payment are written before, and whatever, the activation decides');
+  assert.match(activate, /\.where\(and\(eq\(invitations\.id, invitationId\), isNull\(invitations\.deletedAt\)\)\)\s*\.limit\(1\)\s*\.for\('update'\)/,
+    'the activation reads only a live row, under the lock the deletion takes');
+  assert.match(activate, /if \(!invitation \|\| invitation\.status === 'PUBLISHED'\) return false;/, 'a deleted (unfound) row is left as it is');
 });
 
 /** Rust statements on `invitations` that deliberately see deleted rows. */
@@ -230,6 +240,25 @@ test('B-031 media: a deleted invitation\'s public uploads and variants stop at t
   assert.match(route, /invitationGone: invitationMediaGone/, 'the route wires the check');
 });
 
+test('B-031 CI: the database job runs the Next.js acceptance; the rust job builds the jobs binary and refuses to skip its section', () => {
+  const database = read('scripts/ci/database.sh');
+  assert.match(database, /step "verify-retention \(B-031[^"]*" npx tsx scripts\/verify-retention\.ts/);
+  const rust = read('scripts/ci/rust.sh');
+  assert.match(rust, /jobs_binary\(\) \{\s*SQLX_OFFLINE=true cargo build -q --locked --manifest-path "\$SERVICE\/Cargo\.toml" --bin invitesion-jobs/);
+  assert.match(rust, /retention_end_to_end\(\) \{[^}]*REQUIRE_JOBS_BIN=1 JOBS_BIN=\$JOBS_BIN npx tsx scripts\/verify-retention\.ts/);
+  assert.match(rust, /grep -q 'rust section: ran'/, 'the step checks the section ran');
+  const order = ['step "host replay isolation', 'step "jobs binary', 'step "retention end to end'].map((s) => rust.indexOf(s));
+  assert.ok(order.every((at, i) => at > 0 && (i === 0 || at > order[i - 1])), `steps in order: ${order}`);
+
+  const script = read('scripts/verify-retention.ts');
+  const jobsEnv = script.slice(script.indexOf('const jobsEnv = '), script.indexOf('const lastLine', script.indexOf('const jobsEnv = ')));
+  assert.ok(jobsEnv.length > 0, 'the binary has its own environment');
+  assert.doesNotMatch(jobsEnv, /\.\.\.(process\.)?env\b/, 'nothing from the caller\u2019s environment reaches the binary');
+  assert.doesNotMatch(jobsEnv, /S3_/, 'no S3 configuration');
+  assert.match(script, /rustRequired[\s\S]*check\('7: JOBS_BIN names an executable invitesion-jobs/, 'a required section without a binary FAILS');
+  assert.match(script, /rust section: \$\{rustRan \? 'ran' : 'skipped'\}/);
+});
+
 test('B-031 owner controls: confirmation required, owner-only, restore independent of the flag, flag off by default', async () => {
   const actions = read('app/(customer)/dashboard/invitations/actions.ts');
   assert.match(actions, /formData\.get\('confirm'\) !== 'yes'/);
@@ -243,7 +272,8 @@ test('B-031 owner controls: confirmation required, owner-only, restore independe
   const db = read('lib/invitation/deletion-db.ts');
   const restore = db.slice(db.indexOf('export async function restoreDeletedInvitation'), db.indexOf('export async function invitationMediaGone'));
   assert.doesNotMatch(restore, /deletionWindowDays|isFlagOn/, 'restoring never depends on the flag');
-  assert.match(restore, /eq\(invitations\.userId, ownerId\)/);
+  assert.match(restore, /eq\(invitations\.userId, ownerId\)[\s\S]*\.for\('update'\)/, 'the restore takes the row lock the purge takes');
+  assert.match(RUST, /from invitations where id = \$1 for update/, 'and the purge takes it before deciding');
   assert.match(db.slice(db.indexOf('export async function scheduleInvitationDeletion')), /eq\(invitations\.userId, ownerId\)[\s\S]*\.for\('update'\)/);
 
   const { deletionWindowDays } = await import('../lib/invitation/deletion-db');

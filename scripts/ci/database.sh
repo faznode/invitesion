@@ -34,3 +34,6 @@ step "verify-theme-entitlement (B-041, B-036)" npx tsx scripts/verify-theme-enti
 step "verify-host-analytics (B-034)" npx tsx scripts/verify-host-analytics.ts
 step "verify-host-logs (G-045, I-04)" npx tsx scripts/verify-host-logs.ts
 step "verify-wishes-book (I-22)" npx tsx scripts/verify-wishes-book.ts
+# B-031 (D-063): deletion and restore through the Next.js entry points. Its Rust section (the purge, the dry run and the
+# sweep through the real binary) runs in the rust job, which builds invitesion-jobs and refuses to skip it.
+step "verify-retention (B-031, Next.js entry points)" npx tsx scripts/verify-retention.ts

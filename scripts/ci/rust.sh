@@ -2,8 +2,9 @@
 # CI job "rust" (B-020, ADR-A2): every Rust crate in the repository against a database migrated by drizzle-kit, the only
 # migration owner. The service crate (R-01) must be formatted and lint-clean, build from its committed query metadata
 # alone, keep its contract artifacts current, and serve its slices end to end through the Next.js call sites: views
-# (R-02), RSVP (R-03) and wishes (R-04), with host idempotency keys bound to their owner (s29, D-046). The s26 feasibility
-# experiment is frozen research and only has to keep passing.
+# (R-02), RSVP (R-03) and wishes (R-04), with host idempotency keys bound to their owner (s29, D-046); the jobs binary
+# carries B-031's purge, dry run and retention sweep across both languages. The s26 feasibility experiment is frozen
+# research and only has to keep passing.
 #   POSTGRES_URL=postgres://…/scratch bash scripts/ci/rust.sh        # locally: bash scripts/ci/local.sh rust
 set -euo pipefail
 cd "$(dirname "$0")/../.."
@@ -126,6 +127,32 @@ host_replay_isolation() {
     OWNER_TOKEN_ISSUER=$OWNER_ISSUER OWNER_TOKEN_AUTHORIZED_PARTIES=$OWNER_PARTY npx tsx scripts/verify-host-replay-isolation.ts
 }
 
+# B-031 (D-063): the jobs binary, built like the API from the committed query metadata with the locked dependencies.
+JOBS_BIN=
+jobs_binary() {
+  SQLX_OFFLINE=true cargo build -q --locked --manifest-path "$SERVICE/Cargo.toml" --bin invitesion-jobs || return 1
+  JOBS_BIN="$(cargo metadata --format-version 1 --no-deps --manifest-path "$SERVICE/Cargo.toml" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).target_directory))')/debug/invitesion-jobs"
+  if [ ! -x "$JOBS_BIN" ]; then
+    echo "invitesion-jobs was not built at $JOBS_BIN" >&2
+    return 1
+  fi
+}
+
+# B-031 (D-063): deletion across both languages through the real binary, on this job's migrated database with a
+# disposable upload root and a configuration the script builds from nothing: Next.js deletes and restores, the Rust
+# runner plans, purges (storage refusing once, then the retry), honours stale jobs and sweeps expired invitations.
+# A missing binary or a skipped Rust section fails the step.
+retention_end_to_end() {
+  local log="$CI_OUT/verify-retention.log" code=0
+  REQUIRE_JOBS_BIN=1 JOBS_BIN=$JOBS_BIN npx tsx scripts/verify-retention.ts > "$log" 2>&1 || code=$?
+  cat "$log"
+  if [ "$code" != 0 ]; then return "$code"; fi
+  if ! grep -q 'rust section: ran' "$log" || grep -q '^SKIP' "$log"; then
+    echo "verify-retention did not run every section through the binary" >&2
+    return 1
+  fi
+}
+
 step "migrate (drizzle-kit)" pnpm db:migrate
 step "toolchain" cargo --version
 if [ -f "$SERVICE/Cargo.toml" ]; then
@@ -144,5 +171,7 @@ if [ -f "$SERVICE/Cargo.toml" ]; then
   step "content end to end (BACKEND_CONTENT, both writers)" content_end_to_end
   step "creation end to end (wizard, BACKEND_CONTENT, both writers)" creation_end_to_end
   step "host replay isolation (owner, invitation, resource)" host_replay_isolation
+  step "jobs binary (invitesion-jobs, offline metadata, locked)" jobs_binary
+  step "retention end to end (B-031: Next.js deletion, Rust plan, purge and sweep)" retention_end_to_end
 fi
 step "test ($EXPERIMENT)" cargo test --manifest-path "$EXPERIMENT/Cargo.toml" --locked

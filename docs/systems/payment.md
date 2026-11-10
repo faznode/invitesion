@@ -1,11 +1,11 @@
 <!-- SUMMARY (first 7 lines — greppable) -->
 # payment.md — Sistem Pembayaran (QRIS lokal + Stripe internasional)
 > WHAT: Dua rail pembayaran, webhook idempotent, dan aktivasi undangan setelah bayar.
-> STATUS: LIVE (implemented; acquirer QRIS belum dipilih). s26: entitlement tema di sisi server (B-041); s32: ganti tema dalam tier tanpa checkout (B-036)
+> STATUS: LIVE (implemented; acquirer QRIS belum dipilih). s26: entitlement tema di sisi server (B-041); s32: ganti tema dalam tier tanpa checkout (B-036); s38: settlement setelah undangan dihapus tidak mengaktifkannya (B-031, D-063)
 > OWNER: Operator
 > DEPS: DATABASE_SCHEMA.md (orders, payments, payment_events), lib/payment/*, lib/invitation/theme-entitlement.ts
 > GREP: payment, qris, stripe, webhook, idempotent, signature, order, rail, currency, entitlement, palette, B-041, B-036, template_id
-> UPDATED: 2026-11-07
+> UPDATED: 2026-11-10
 
 > **Perubahan keputusan (2026-07-27, whyme):** Midtrans **tidak dipakai**. Pembayaran lokal
 > lewat **QRIS**, internasional lewat **Stripe**. Dokumen ini menggantikan seluruh rancangan
@@ -107,6 +107,13 @@ adalah entry point tersendiri, mencapainya tidak butuh merender halaman yang men
 
 Publish ulang setelah unpublish tetap gratis: masa aktif sudah dibayar.
 
+**Undangan yang dihapus (B-031, D-063, s38):** settlement yang tiba setelah pemilik menghapus undangan (konfirmasi
+manual admin atau webhook yang terlambat, jalurnya sama: `applySettlement`) tetap mencatat uangnya (order `PAID`,
+baris `payments`, event), tetapi `activateInvitation` hanya membaca baris yang `deleted_at IS NULL` di bawah kunci baris
+yang juga diambil penghapusan, jadi draft yang dihapus (atau tombstone yang sudah di-purge) tidak pernah di-publish.
+Setelah dipulihkan, draft kembali persis seperti semula dan `publishInvitation` menemukan order `PAID`-nya. Bukti:
+`scripts/verify-retention.ts` bagian 4b, `tests/b031-retention.test.ts`.
+
 ## Entitlement tema saat menyimpan (B-041, s26; ganti tema B-036, s32)
 
 Checkout menagih sesuai tier **tema yang dibeli** (`invitations.template_id`, id baris `templates` →
@@ -157,6 +164,31 @@ Endpoint webhook: `POST /api/payments/{stripe|qris}/webhook`
   menyimpan id katalog dan paletnya, isi tetap, `template_id` tetap, tanpa order baru, dan `hasPaidOrder` tetap benar.
   Skrip database ini dijalankan di job database (`scripts/ci/database.sh`); kedua penulis diuji
   `scripts/verify-content-api.ts` di job rust.
+
+## Inventaris penulis domain pembayaran (U6 / B-039, s38)
+
+Titik awal pemindahan pembayaran ke Rust (09 §8: webhook penulis otoritatif, id event unik, transisi bersyarat,
+entitlement lewat outbox di transaksi yang sama, kunci idempotensi checkout, signature dengan vektor resmi).
+
+| Yang ditulis | Penulis (satu-satunya hari ini) | Pemanggil |
+|---|---|---|
+| `orders` INSERT `PENDING`, lalu `provider_payment_id` / `expires_at` | `createOrder` (`lib/payment/service.ts`), sebelum memanggil rail | checkout action (pemilik, lewat `requireOwnedInvitation`, termasuk penjaga B-031) |
+| `payment_events` INSERT (UNIQUE `rail, event_id`) + `order_id`; `orders` status / `paid_at`; `payments` INSERT; aktivasi `invitations` | `applySettlement`, satu transaksi, order dikunci `FOR UPDATE` | webhook `app/api/payments/[rail]/webhook/route.ts` (`parseWebhook` memverifikasi signature; 400 / 409 / 500 = sinyal retry) dan `confirmManually` admin (event sintetis `manual:<ref>`) |
+| `invitations` `PUBLISHED` / `DRAFT` | `publishInvitation` / `unpublishInvitation` (`lib/invitation/publish.ts`), entitlement lewat `hasPaidOrder` | action dashboard |
+| Entitlement (dibaca, tidak disimpan) | `hasPaidOrder`, `paidInvitationIds`, `lib/invitation/theme-entitlement.ts`; penulis konten Rust membaca order `PAID` (`services/api/src/content/http.rs`) | publish, daftar pemilik, kedua penulis konten |
+| Disimpan saat purge (B-031) | `orders`, `payments`, `payment_events` tetap menunjuk tombstone | `services/api/src/retention.rs` |
+
+Belum ada penulis pembayaran di Rust, outbox entitlement, kunci idempotensi checkout (submit ganda membuat dua order
+`PENDING` dengan referensi berbeda), nomor kuitansi (G-050), kupon (G-053) atau kredit (G-052). Transisi hari ini aman
+karena kunci baris, tetapi belum berbentuk `where status = expected`.
+
+**Langkah berikut yang bisa dieksekusi (tanpa kontrak PJP):** vektor bersama `contracts/vectors/payment-settlement.json`
+(duplikat, sudah final, nominal salah, undangan dihapus, tema berbeda, order lama tanpa tema) dijalankan oleh
+`tests/payment.test.ts` dan tes Rust; penulis settlement Rust (`services/api/src/payment/`) dengan dua lapis
+idempotensi, transisi bersyarat, aktivasi berpenjaga B-031 dan outbox entitlement dalam satu transaksi; route webhook
+memilih penulis lewat `BACKEND_PAYMENT=next|rust` (default `next`, tanpa fallback; retry dengan kunci yang sama untuk
+hasil ambigu); `verify-payment` dijalankan terhadap kedua penulis di job rust; kunci idempotensi checkout. Adapter PJP
+(sandbox) di balik interface rail baru setelah pemilik memilih acquirer (kontrak EXT); uang sungguhan EXT.
 
 ## Belum dikerjakan
 

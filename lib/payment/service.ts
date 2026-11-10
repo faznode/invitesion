@@ -1,7 +1,7 @@
 import 'server-only';
 
 import { randomBytes } from 'node:crypto';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
 import { orders, paymentEvents, payments } from '@/lib/db/schema';
 import { ACTIVE_PERIOD_MONTHS, addMonths } from '@/lib/invitation/publish-rules';
@@ -203,6 +203,13 @@ export async function applySettlement(event: SettlementEvent): Promise<SettleOut
  * publishing waits until the themes agree again (or the new theme is paid for).
  * Orders without a recorded theme (pre-`template_id` rows) keep the old
  * behaviour and activate unconditionally.
+ *
+ * B-031 (D-063): a deleted invitation, in its window or purged, is never
+ * activated. The money is recorded all the same (the caller has already moved
+ * the order to PAID and written the payment); a restore brings the invitation
+ * back exactly as it was, and publishing then finds the PAID order. The row lock
+ * serialises this with the deletion, which takes the same lock: a deletion that
+ * commits first makes this read find nothing.
  */
 async function activateInvitation(
   tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
@@ -215,7 +222,7 @@ async function activateInvitation(
   const [invitation] = await tx
     .select({ id: invitations.id, status: invitations.status, templateId: invitations.templateId, publishedAt: invitations.publishedAt, expiresAt: invitations.expiresAt })
     .from(invitations)
-    .where(eq(invitations.id, invitationId))
+    .where(and(eq(invitations.id, invitationId), isNull(invitations.deletedAt)))
     .limit(1)
     .for('update');
 

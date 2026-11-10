@@ -4,8 +4,8 @@
 > STATUS: LIVE (MVP scope)
 > OWNER: Architect
 > DEPS: PROJECT_OVERVIEW.md
-> GREP: schema, drizzle, tabel, users, invitations, guests, orders, versions, version_no, guest_registrations, guest_registration_links, import_batch_id, template_id, templateId, creation_key, invitation_members, co-host, usher, team, seating_tables, guest_logs, gift_logs, host logs, meja, suvenir, kado, family_side, pihak keluarga
-> UPDATED: 2026-11-09 (s36: gift_logs.family_side migrasi 0025, pihak keluarga kado I-04 / D-059; buku ucapan membaca guest_messages VISIBLE, I-22 / D-060; s35: seating_tables + guest_logs + gift_logs migrasi 0024, catatan hari acara pemilik G-045 / D-058; invitation_members migrasi 0023, tim undangan G-044 / D-057; s33: invitations.creation_key + index unik parsial (user_id, creation_key) migrasi 0021, pembuatan draf lewat fasad `BACKEND_CONTENT`, B-037 / D-055; s32 turn 3: dua ruang id template_id vs config.theme.templateId, ganti tema B-036 / D-054; s32: index invitation_versions (invitation_id, version_no) migrasi 0020, cek versi simpan editor `BACKEND_CONTENT`, B-035 / D-053; s31: guests import_batch_id + guest_registration_links + guest_registrations migrasi 0019, penulis roster `BACKEND_ROSTER`, B-033 / D-052; s28: guest_messages reviewed_at / host_reply / replied_at + index ucapan VISIBLE migrasi 0017, R-04 / D-044; api_rate_limits + api_idempotency_keys migrasi 0016, ditulis hanya oleh services/api, R-03 / D-043; s20/s21: guests invited_event_ids migrasi 0015, events[].inviteOnly, D-037; showPhoto foto anak, D-038; s19: guests rsvp_event_answers migrasi 0014; id acara tetap di invitations.config.events migrasi data 0013, D-036; guests rsvp_answers, migrasi 0012; earlier: analytics_events view-dedupe index, guests attending_count, link_token)
+> GREP: schema, drizzle, tabel, users, invitations, guests, orders, versions, version_no, guest_registrations, guest_registration_links, import_batch_id, template_id, templateId, creation_key, invitation_members, co-host, usher, team, seating_tables, guest_logs, gift_logs, host logs, meja, suvenir, kado, family_side, pihak keluarga, deleted_at, purge_after, purged_at, hapus, retensi, tombstone, invitation_purge
+> UPDATED: 2026-11-10 (s38: invitations.deleted_at / purge_after / purged_at migrasi 0026, hapus + retensi B-031 / D-063, diuji 0025 → 0026 dengan baris; s36: gift_logs.family_side migrasi 0025, pihak keluarga kado I-04 / D-059; buku ucapan membaca guest_messages VISIBLE, I-22 / D-060; s35: seating_tables + guest_logs + gift_logs migrasi 0024, catatan hari acara pemilik G-045 / D-058; invitation_members migrasi 0023, tim undangan G-044 / D-057; s33: invitations.creation_key + index unik parsial (user_id, creation_key) migrasi 0021, pembuatan draf lewat fasad `BACKEND_CONTENT`, B-037 / D-055; s32 turn 3: dua ruang id template_id vs config.theme.templateId, ganti tema B-036 / D-054; s32: index invitation_versions (invitation_id, version_no) migrasi 0020, cek versi simpan editor `BACKEND_CONTENT`, B-035 / D-053; s31: guests import_batch_id + guest_registration_links + guest_registrations migrasi 0019, penulis roster `BACKEND_ROSTER`, B-033 / D-052; s28: guest_messages reviewed_at / host_reply / replied_at + index ucapan VISIBLE migrasi 0017, R-04 / D-044; api_rate_limits + api_idempotency_keys migrasi 0016, ditulis hanya oleh services/api, R-03 / D-043; s20/s21: guests invited_event_ids migrasi 0015, events[].inviteOnly, D-037; showPhoto foto anak, D-038; s19: guests rsvp_event_answers migrasi 0014; id acara tetap di invitations.config.events migrasi data 0013, D-036; guests rsvp_answers, migrasi 0012; earlier: analytics_events view-dedupe index, guests attending_count, link_token)
 > ORM DECISION (whyme 2026-07-15): pakai **Drizzle** (bukan Prisma) — ikut fondasi nextjs/saas-starter biar backend cepat jalan. Schema di bawah = kanonik, diimplementasi sbg Drizzle schema (lib/db/schema.ts).
 
 ## Prinsip
@@ -48,6 +48,17 @@ invitations
     (retry, ketuk dua kali, kirim ulang) mendapat draf yang sama. Ditulis hanya saat pembuatan, oleh fasad pembuatan
     (`lib/invitation/creation.ts`, `BACKEND_CONTENT`: `create-next.ts` atau `POST /v1/invitations`). Baris lama: NULL.
     `template_id` dan versi 1 ditulis di transaksi yang sama; sejak B-037 `create.ts` hanya pembungkus untuk skrip.
+  deleted_at, purge_after, purged_at (timestamp, nullable)
+  ← B-031 (migrasi 0026, D-063): hapus oleh pemilik + retensi. `deleted_at` dan `purge_after` selalu terisi bersama,
+    `purge_after >= deleted_at` (CHECK invitations_deletion_window_check); `purged_at` hanya setelah `deleted_at`
+    (CHECK invitations_purged_check). Index parsial invitations_purge_due_idx (purge_after) WHERE deleted_at IS NOT NULL
+    AND purged_at IS NULL. `deleted_at` terisi = hilang bagi tamu dan SEMUA penulis di kedua bahasa (404 / not_found,
+    sama seperti tidak ada); pemilik bisa memulihkan sampai purge berjalan (kunci baris yang sama). Purge (job Rust
+    `invitation_purge`) mengosongkan 15 tabel anak (`PURGED_TABLES`), catatan replay idempotensi dan job varian, mengosongkan
+    `config` + `creation_key`, mengisi `purged_at`; baris tombstone tetap (slug tidak pernah dipakai ulang) bersama
+    orders / payments / payment_events dan conversations / messages / customer_session_summary (`RETAINED_TABLES`).
+    Ditulis: Next.js (hapus / pulihkan, `lib/invitation/deletion-db.ts`) dan `invitesion-jobs` (sapuan retensi, purge).
+    Baris lama: NULL (aditif; diuji 0025 → 0026 dengan baris, s38).
 
 invitation_versions               ← rollback revisi AI
   id, invitation_id→invitations, version_no,

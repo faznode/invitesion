@@ -323,8 +323,8 @@ function DeleteControl({ id, windowDays, en }: { id: number; windowDays: number;
         <input type="hidden" name="invitationId" value={id} />
         <p className="text-pretty text-[11px] leading-5 text-rose-900">
           {en
-            ? `Guests lose access at once: the invitation link, personal links, passes and photos stop working. You can restore it for ${days}; after that its guests, wishes, statistics, logs, version history and photos are deleted permanently. Payment records are kept.`
-            : `Tamu langsung kehilangan akses: tautan undangan, tautan pribadi, pass, dan foto berhenti berfungsi. Anda bisa memulihkannya selama ${days}; setelah itu tamu, ucapan, statistik, catatan, riwayat versi, dan fotonya dihapus permanen. Catatan pembayaran tetap disimpan.`}
+            ? `Guests lose access at once: the invitation link, personal links and passes stop working, and its photos are no longer served (a copy a guest's browser already saved may still show). You can restore it for ${days}; after that its guests, wishes, statistics, logs, version history and photos are deleted permanently. Payment records are kept.`
+            : `Tamu langsung kehilangan akses: tautan undangan, tautan pribadi, dan pass berhenti berfungsi, dan fotonya tidak lagi disajikan (salinan yang sudah tersimpan di peramban tamu mungkin masih tampil). Anda bisa memulihkannya selama ${days}; setelah itu tamu, ucapan, statistik, catatan, riwayat versi, dan fotonya dihapus permanen. Catatan pembayaran tetap disimpan.`}
         </p>
         <label className="flex items-start gap-2 text-[11px] font-medium leading-5 text-rose-900">
           <input type="checkbox" name="confirm" value="yes" required className="mt-0.5 h-4 w-4 shrink-0 accent-rose-600" />

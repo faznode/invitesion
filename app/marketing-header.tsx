@@ -185,6 +185,7 @@ export default function MarketingHeader({ locale = 'id' }: { locale?: Locale }) 
   const [open, setOpen] = useState<MenuKey | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const openedByClick = useRef(false);
   const L = LABELS[locale];
   const menus = getMenus(locale);
 
@@ -194,6 +195,21 @@ export default function MarketingHeader({ locale = 'id' }: { locale?: Locale }) 
     closeTimer.current = setTimeout(() => setOpen(null), 140);
   };
   const openMenu = (key: MenuKey) => { cancelClose(); setOpen(key); };
+  const previewMenu = (key: MenuKey) => {
+    if (open !== key) openedByClick.current = false;
+    openMenu(key);
+  };
+  // Hover, focus and a touch tap's emulated events open the menu just before the click lands;
+  // that click keeps it open, and only a click on a menu the user clicked open closes it.
+  const toggleMenu = (key: MenuKey) => {
+    if (open === key && openedByClick.current) {
+      openedByClick.current = false;
+      setOpen(null);
+      return;
+    }
+    openedByClick.current = true;
+    openMenu(key);
+  };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -221,9 +237,9 @@ export default function MarketingHeader({ locale = 'id' }: { locale?: Locale }) 
               type="button"
               className={open === key ? styles.navActive : undefined}
               aria-expanded={open === key}
-              onMouseEnter={() => openMenu(key)}
-              onFocus={() => openMenu(key)}
-              onClick={() => setOpen(open === key ? null : key)}
+              onPointerEnter={(e) => { if (e.pointerType === 'mouse') previewMenu(key); }}
+              onFocus={() => previewMenu(key)}
+              onClick={() => toggleMenu(key)}
             >
               {label} <ChevronDown size={14} />
             </button>
