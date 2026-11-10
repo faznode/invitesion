@@ -68,11 +68,12 @@
   content: ''; position: absolute; inset: 4px;
   border: 1px solid color-mix(in srgb, var(--a) 24%, transparent);
 }
-.cEyebrow { position: relative; z-index: 3; font-size: 10px; font-weight: 700; letter-spacing: 0.3em; opacity: 0.72; margin: 0; }
+/* Full-strength ink over theme art: at 72 % the eyebrow and date fell below 4.5:1 on most pools (G-016, session 44). */
+.cEyebrow { position: relative; z-index: 3; font-size: 10px; font-weight: 700; letter-spacing: 0.3em; margin: 0; }
 .cNames, .gNames { position: relative; z-index: 3; margin: 0; font-size: 38px; line-height: 1.15; font-weight: 600; }
 .stage[data-font='serif'] .cNames,
 .stage[data-font='serif'] .gNames { font-family: Georgia, 'Times New Roman', serif; font-weight: 500; }
-.cDate { position: relative; z-index: 3; font-size: 11px; letter-spacing: 0.24em; opacity: 0.72; margin: 0; }
+.cDate { position: relative; z-index: 3; font-size: 11px; letter-spacing: 0.24em; margin: 0; }
 .scrollHint {
   position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 3;
   font-size: 16px; opacity: 0.55; animation: hintBob 2.2s ease-in-out infinite;

@@ -9,9 +9,10 @@ import { THEME_ART_REGISTER, type ThemeArtAsset } from './theme-art-register';
 /**
  * Theme art: each catalog template gets a cover and a six-photo gallery from one of 22 mood pools.
  *
- * G-016 (session 43): a pool listed in `theme-art-register.ts` is served from self-hosted, original WebP files under
- * `/theme-art/` (marble, gold and night so far: 26 of 64 templates). Every other pool still hotlinks Unsplash photos at
- * runtime (Unsplash License) until its own assets ship; `REMOTE_THEME_ART_POOLS` names that boundary.
+ * G-016 (sessions 43–44): a pool listed in `theme-art-register.ts` is served from self-hosted, original WebP files under
+ * `/theme-art/`; every pool that serves a catalog template is listed, so all 64 catalog templates are self-hosted. The
+ * three pools no catalog template uses (watercolor, lavender, graduation) still name Unsplash photos for a template
+ * outside the catalog; `REMOTE_THEME_ART_POOLS` names that boundary, and the remote ids stay for the rollback.
  *
  * BASIS DATA ASET FOTO TEMA — ±105 foto dari Unsplash (Unsplash License:
  * gratis komersial, tanpa atribusi), dikurasi ke 22 “mood pool”.

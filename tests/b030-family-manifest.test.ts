@@ -135,7 +135,10 @@ test('B-030: three distinct compositions through the same contract, two of them 
   assert.equal(compositions.size, 3, [...compositions].join(' | '));
 });
 
-test('B-030: the manifest drives the page: a changed order or motion tier changes the rendered page and nothing else', () => {
+test('B-030: the manifest drives the page: a changed order or motion tier changes the rendered page and nothing else', (t) => {
+  // Two renders are compared byte for byte below, and the countdown renders with the request time (B-008): the clock is
+  // held so a second boundary between them cannot fail the test (found in session 44 by advancing the render clock).
+  t.mock.timers.enable({ apis: ['Date'], now: Date.now() });
   const kartu = FAMILY_MANIFESTS.kartu;
   const gapura = FAMILY_MANIFESTS.gapura;
   const original = markers(renderRow('review-kartu-full'));

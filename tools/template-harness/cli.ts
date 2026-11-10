@@ -1,6 +1,7 @@
 import { writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { runLighthouse, takeSnapshots } from './browser';
+import { checkCatalogManifests } from './catalog';
 import { checkFamilyManifests } from './families';
 import { formatCheck, runChecks } from './gates';
 import { runProofs } from './proofs';
@@ -20,6 +21,8 @@ import { scaffoldTemplate } from './scaffold';
  *                             checks missing or invalid), 1 FAIL
  *   families                  B-030: validate every product family's manifest (sections, order rules, motion tier,
  *                             event types, budget); exit 1 on any problem
+ *   catalog                   G-062: validate every catalog template's manifest (registry agreement, palette tokens,
+ *                             entitlement, G-041 choices, G-016 art files byte for byte); exit 1 on any problem
  */
 function option(args: string[], name: string, fallback?: string) {
   const index = args.indexOf(`--${name}`);
@@ -30,6 +33,11 @@ async function main() {
   const [command, target, ...rest] = process.argv.slice(2);
   if (command === 'families') {
     const result = checkFamilyManifests();
+    console.log(result.lines.join('\n'));
+    process.exit(result.ok ? 0 : 1);
+  }
+  if (command === 'catalog') {
+    const result = checkCatalogManifests();
     console.log(result.lines.join('\n'));
     process.exit(result.ok ? 0 : 1);
   }

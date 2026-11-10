@@ -3,16 +3,18 @@
 // layout) renders exactly as before, which is also the rollback. Fictional names.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import test from 'node:test';
+import test, { type TestContext } from 'node:test';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { fixtureGuest, fixtureInvitation, LAYOUTS, renderGuestPage, withFamily } from './support/render-guest-page';
 import { familyReviewInvitations } from '../invitation-research/_tools/setup/seed-family-review';
+import { prepareConfigWrite } from '../lib/invitation/content-read';
 import { contentDecision, contentNeedsTier, type ContentWriteInput } from '../lib/invitation/content-rules';
 import { detailConfigSchema, type DetailConfig } from '../lib/invitation/detail-config';
 import { FAMILY_IDS, type FamilyId } from '../lib/invitation/families';
 import {
   composedSectionOrder,
+  DEFAULT_SECTION_ORDER,
   familyChoices,
   FAMILY_MANIFESTS,
   FONT_PAIRINGS,
@@ -23,7 +25,7 @@ import {
   type SectionId,
 } from '../lib/invitation/family-manifest';
 import { onlyChoiceIssues, themeChangeIssues } from '../lib/invitation/theme-entitlement';
-import { LayoutChoices, PaletteChoice } from '../app/(customer)/dashboard/invitations/[id]/edit/editor-appearance';
+import { fontPairingPick, LayoutChoices, PaletteChoice, sectionOrderPick } from '../app/(customer)/dashboard/invitations/[id]/edit/editor-appearance';
 
 const markers = (html: string) =>
   [...html.matchAll(/data-section="([a-z]+)"/g)].map((match) => match[1] as SectionId).filter((id, index, all) => id !== all[index - 1]);
@@ -36,6 +38,11 @@ const fixture = (slug: string) => {
 const withTheme = (config: DetailConfig, theme: Record<string, unknown>): DetailConfig => ({ ...config, theme: { ...config.theme, ...theme } as DetailConfig['theme'] });
 const render = (slug: string, config: DetailConfig) =>
   renderGuestPage({ config, invitation: fixtureInvitation({ slug, eventType: fixture(slug).eventType }), guest: fixtureGuest() });
+/**
+ * The countdown renders with the request time (B-008), so two renders a second apart differ in its seconds (session 44
+ * caught `40` against `39` on a Riang page). A test that compares renders holds the clock, as `b035-preview-parity` does.
+ */
+const holdClock = (t: TestContext) => t.mock.timers.enable({ apis: ['Date'], now: Date.now() });
 
 test('G-041: every family declares every section-order option as a valid reordering, and the font pairings', () => {
   for (const id of FAMILY_IDS) {
@@ -98,7 +105,8 @@ test('G-041: each family renders each section order in its declared order on the
   }
 });
 
-test('G-041: the sans pairing marks the family page root and changes nothing else', () => {
+test('G-041: the sans pairing marks the family page root and changes nothing else', (t) => {
+  holdClock(t);
   for (const id of FAMILY_IDS) {
     const slug = `review-${id}-full`;
     const config = fixture(slug).config;
@@ -114,7 +122,8 @@ test('G-041: the sans pairing marks the family page root and changes nothing els
   assert.match(base, /\[data-font-pairing='sans'\] \{ --font-serif: var\(--font-sans\); \}/, 'the rule maps headings to the text face, in the base layer');
 });
 
-test('G-041: no choice, a default choice, an unknown choice and the legacy layout all render exactly as before (rollback)', () => {
+test('G-041: no choice, a default choice, an unknown choice and the legacy layout all render exactly as before (rollback)', (t) => {
+  holdClock(t);
   const config = fixture('review-gapura-full').config;
   for (const { label, familyId } of LAYOUTS) {
     const page = withFamily(config, familyId);
@@ -138,7 +147,8 @@ test('G-041: no choice, a default choice, an unknown choice and the legacy layou
   }
 });
 
-test('G-041: the strict schema stores the choice keys; a retired option id still reads and renders the default', () => {
+test('G-041: the strict schema stores the choice keys; a retired option id still reads and renders the default', (t) => {
+  holdClock(t);
   const parsed = detailConfigSchema.parse({ theme: { familyId: 'riang', paletteId: 'sage', sectionOrder: 'photos-last', fontPairing: 'sans' } });
   assert.deepEqual(parsed.theme, { familyId: 'riang', paletteId: 'sage', sectionOrder: 'photos-last', fontPairing: 'sans' });
   assert.equal(detailConfigSchema.safeParse({ theme: { sectionOrder: 'x'.repeat(41) } }).success, false);
@@ -175,6 +185,40 @@ test('G-041: the writers refuse a choice outside the contract only when the save
   assert.deepEqual(vectors.fontPairings, [...FONT_PAIRINGS]);
 });
 
+test('G-041: returning to the defaults reaches storage through the save path and renders as no choice (session 44)', (t) => {
+  holdClock(t);
+  const stored = { theme: { familyId: 'gapura', paletteId: 'sage', sectionOrder: 'story-first', fontPairing: 'sans' } };
+  // The editor's patch (`{ ...v, ...next }`), serialised as `sendDetailSave` does and parsed as the detail route does.
+  const save = (next: Record<string, unknown>) =>
+    prepareConfigWrite(stored, detailConfigSchema.partial().parse(JSON.parse(JSON.stringify({ theme: { ...stored.theme, ...next } }))));
+
+  for (const id of FAMILY_IDS) {
+    const reset = save({ familyId: id, ...sectionOrderPick(DEFAULT_SECTION_ORDER), ...fontPairingPick(FAMILY_MANIFESTS[id].fontPairings[0]) });
+    assert.equal(reset.theme?.sectionOrder, 'standard', id);
+    assert.equal(reset.theme?.fontPairing, 'serif-display', id);
+  }
+  // The merge contract the fix relies on: a key the patch leaves out (an `undefined` the JSON dropped) keeps the stored value.
+  const omitted = save({ sectionOrder: undefined, fontPairing: undefined });
+  assert.equal(omitted.theme?.sectionOrder, 'story-first');
+  assert.equal(omitted.theme?.fontPairing, 'sans');
+  // A family switch keeps the stored choices, which every family declares.
+  assert.deepEqual(save({ familyId: 'kartu' }).theme, { ...stored.theme, familyId: 'kartu' });
+
+  for (const id of FAMILY_IDS) {
+    const slug = `review-${id}-full`;
+    const config = fixture(slug).config;
+    const chosen = render(slug, withTheme(config, { sectionOrder: 'story-first', fontPairing: 'sans' }));
+    const back = render(slug, withTheme(config, { ...sectionOrderPick('standard'), ...fontPairingPick(FAMILY_MANIFESTS[id].fontPairings[0]) }));
+    assert.notEqual(back, chosen, `${id}: the choice changed the page`);
+    assert.equal(back, render(slug, config), `${id}: back to the defaults renders as a page that never chose`);
+  }
+
+  const editor = readFileSync('app/(customer)/dashboard/invitations/[id]/edit/editor-appearance.tsx', 'utf8');
+  assert.match(editor, /onPick=\{\(\) => onChange\(sectionOrderPick\(option\)\)\}/, 'the order cards send the pick helper');
+  assert.match(editor, /onPick=\{\(\) => onChange\(fontPairingPick\(pairing\)\)\}/, 'the pairing cards send the pick helper');
+  assert.doesNotMatch(editor, /\?\s*undefined\s*:\s*(option|pairing)\b/, 'no pick maps a default to undefined');
+});
+
 test('G-041: the editor offers only contract options and locks Premium palettes below a Premium entitlement', () => {
   const html = (familyId: FamilyId | undefined, sectionOrder?: string, fontPairing?: string) =>
     renderToStaticMarkup(createElement(LayoutChoices, { familyId, sectionOrder, fontPairing, onChange: () => {} }));
@@ -202,4 +246,25 @@ test('G-041: the editor offers only contract options and locks Premium palettes 
   assert.match(premium, /tidak dikenal/, 'an unknown stored palette is named');
   const page = readFileSync('app/(customer)/dashboard/invitations/[id]/edit/page.tsx', 'utf8');
   assert.match(page, /paletteIds\.map/, 'the editor lists the registered palettes');
+});
+
+test('G-041: the opt-in `--choices` review rows cover every family and choice, and leave the default fixture as it was (session 44)', () => {
+  const base = familyReviewInvitations();
+  const withChoices = familyReviewInvitations({ choices: true });
+  for (const row of base) assert.deepEqual(withChoices.find((candidate) => candidate.slug === row.slug)?.config, row.config, row.slug);
+  const added = withChoices.filter((row) => !base.some((candidate) => candidate.slug === row.slug));
+  const familyCases = ['none', 'default', 'story-first', 'photos-last', 'sans', 'retired'];
+  assert.deepEqual(
+    added.map((row) => row.slug),
+    ['review-legacy-choice-none', 'review-legacy-choice-story-first', ...FAMILY_IDS.flatMap((family) => familyCases.map((name) => `review-${family}-choice-${name}`))],
+  );
+  for (const row of added) {
+    assert.equal(row.gallery, true, `${row.slug} takes the --gallery media`);
+    const family = row.config.theme?.familyId as FamilyId | undefined;
+    if (!family) continue;
+    const { manifest, fontPairing } = familyChoices(FAMILY_MANIFESTS[family], row.config.theme);
+    const name = row.slug.replace(`review-${family}-choice-`, '');
+    assert.equal(manifest.sections === FAMILY_MANIFESTS[family].sections, !['story-first', 'photos-last'].includes(name), `${row.slug} order`);
+    assert.equal(fontPairing, name === 'sans' ? 'sans' : undefined, `${row.slug} pairing`);
+  }
 });

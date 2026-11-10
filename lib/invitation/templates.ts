@@ -1,4 +1,5 @@
 import { detailConfigSchema, type DetailConfig } from './detail-config';
+import { paletteHex } from './palettes';
 
 /**
  * Invitation template catalog.
@@ -82,27 +83,40 @@ export type TemplateFont = 'serif' | 'sans';
 
 export type TemplatePalette = { bg: string; ink: string; accent: string; soft: string };
 
-/** Hex mirrors of the renderer palettes, used for the pure-CSS catalog previews. */
-export const templatePalettes: Record<string, TemplatePalette> = {
-  ivory: { bg: '#faf7f2', ink: '#3f3a34', accent: '#a1743c', soft: '#f1e9dd' },
-  'rose-gold': { bg: '#fdf6f4', ink: '#453437', accent: '#b76e79', soft: '#f7e4e3' },
-  confetti: { bg: '#fef8f3', ink: '#3b3340', accent: '#e2653f', soft: '#fde5d6' },
-  sage: { bg: '#f5f8f4', ink: '#34403a', accent: '#5f7d63', soft: '#e3ede2' },
-  sand: { bg: '#faf7f0', ink: '#403a30', accent: '#9a7a4f', soft: '#efe6d5' },
-  slate: { bg: '#f6f7f9', ink: '#2b3138', accent: '#3f6fa8', soft: '#e5eaf1' },
-  midnight: { bg: '#101526', ink: '#e8e9f2', accent: '#d3b16a', soft: '#1c2338' },
-  terracotta: { bg: '#faf3ee', ink: '#41332c', accent: '#bd5f34', soft: '#f3e0d3' },
-  orchid: { bg: '#faf6fb', ink: '#3d3242', accent: '#8e5a9e', soft: '#efe0f2' },
-  emerald: { bg: '#f2f7f4', ink: '#22352b', accent: '#1f6f50', soft: '#dcebe2' },
-  dusk: { bg: '#f6f4f9', ink: '#33303f', accent: '#6a5acd', soft: '#e6e1f2' },
-  mocha: { bg: '#f9f5f1', ink: '#3c332c', accent: '#8a6248', soft: '#eee2d7' },
-  ocean: { bg: '#f3f8fa', ink: '#27353d', accent: '#2a7f9e', soft: '#dcedf2' },
-  blossom: { bg: '#fdf5f6', ink: '#43333a', accent: '#d26d85', soft: '#f8e2e7' },
-  'gold-noir': { bg: '#171310', ink: '#f1e9dc', accent: '#caa353', soft: '#262019' },
-  lavender: { bg: '#f8f6fc', ink: '#3a3547', accent: '#7d6bb3', soft: '#ebe5f6' },
-  mint: { bg: '#f3faf6', ink: '#2c3b33', accent: '#3e8e6b', soft: '#def0e6' },
-  sunshine: { bg: '#fffaf0', ink: '#3f3626', accent: '#d98e04', soft: '#fdedcb' },
+/**
+ * The catalog card's accent per palette: the hues from before B-016's contrast solver, lighter than the guest page's
+ * text-safe accents in `palettes.ts`. The card draws them as keylines and petals only, never as text. G-062 (session 44)
+ * proved bg, ink and soft identical in all 18 palettes and dropped that copy; 15 of the 18 accents differ, so this
+ * table stays until the catalog's accent is a design decision (`tests/g062-catalog-manifest.test.ts` pins the output).
+ */
+const CARD_ACCENTS: Record<string, string> = {
+  ivory: '#a1743c',
+  'rose-gold': '#b76e79',
+  confetti: '#e2653f',
+  sage: '#5f7d63',
+  sand: '#9a7a4f',
+  slate: '#3f6fa8',
+  midnight: '#d3b16a',
+  terracotta: '#bd5f34',
+  orchid: '#8e5a9e',
+  emerald: '#1f6f50',
+  dusk: '#6a5acd',
+  mocha: '#8a6248',
+  ocean: '#2a7f9e',
+  blossom: '#d26d85',
+  'gold-noir': '#caa353',
+  lavender: '#7d6bb3',
+  mint: '#3e8e6b',
+  sunshine: '#d98e04',
 };
+
+/** The catalog card's palette: the guest page's own surface, ink and soft tone (`palettes.ts`), with the card accent. */
+export const templatePalettes: Record<string, TemplatePalette> = Object.fromEntries(
+  Object.entries(CARD_ACCENTS).map(([id, accent]) => {
+    const { bg, ink, soft } = paletteHex(id);
+    return [id, { bg, ink, accent, soft }];
+  }),
+);
 
 export const templateCategoryLabels: Record<TemplateCategory, { id: string; en: string }> = {
   wedding: { id: 'Pernikahan', en: 'Wedding' },

@@ -13,7 +13,11 @@
  * protected image of another invitation and a Premium palette on a Standard invitation are refused; B-036: a switch to a
  * Standard catalog theme is stored with the content kept and `invitations.template_id` untouched, a Premium one is
  * refused; another customer, an administrator and a signed-out request are refused; a page loaded before B-035 (no
- * version sent) still saves. Across
+ * version sent) still saves. G-041: a family's section order and font pairing are stored, and returning to the defaults
+ * (sent as their own ids since session 44) is stored and read back; choices outside the contract are refused with nothing
+ * written; an unchanged retired order does not block another change; a family switch keeps the choices; a Standard
+ * invitation's Premium palette is refused whole and a paid Premium one stores it; a config-only restore keeps every event
+ * id and the guests' RSVP rows. Across
  * writers: the same answers and the same stored rows. For the Rust writer: a lost answer is retried under its key and
  * replayed, written once and never reported as a conflict; two lost answers report "unconfirmed" and the next save from
  * the old version meets the conflict. Exactly one writer per call: with the API down under `rust` nothing is written,
@@ -114,7 +118,7 @@ async function main() {
   const jose = await import('jose');
 
   const tag = randomUUID().replaceAll('-', '').slice(0, 12);
-  const created = { users: [] as number[], invitations: [] as number[] };
+  const created = { users: [] as number[], invitations: [] as number[], orders: [] as number[] };
 
   async function user(name: string, role: 'CUSTOMER' | 'ADMIN') {
     const clerk = `user_contentapi_${name}_${tag}`;
@@ -265,6 +269,97 @@ async function main() {
       check(`${backend}: another invitation's protected photo is refused, this invitation's is stored (D-040)`,
         foreign.status === 400 && foreign.body.error.code === 'INVALID_MEDIA' && own.status === 200 && own.body.version === 2);
 
+      // G-041: layout choices through the editor's real save. `call` serialises the body as `sendDetailSave` does, so an
+      // `undefined` key is dropped exactly as in the browser. A separate invitation keeps the version arithmetic above.
+      const g = await invitation(owner.id, `g041-${backend}`);
+      let gv = 1;
+      const themeOf = async () => ({ ...((await state(g)).config as { theme?: Record<string, unknown> }).theme });
+      const saveTheme = async (theme: Record<string, unknown>, recorded = true) => {
+        const answer = await call(backend, 'PATCH', g, { theme, expectedVersion: gv });
+        if (recorded) record(answer);
+        if (answer.status === 200) gv = answer.body.version;
+        return answer;
+      };
+      const chosen = await saveTheme({ ...(await themeOf()), familyId: 'gapura', sectionOrder: 'story-first', fontPairing: 'sans' });
+      const afterChoice = await themeOf();
+      check(`${backend}: G-041 a family with its section order and font pairing is stored`,
+        chosen.status === 200 && afterChoice.familyId === 'gapura' && afterChoice.sectionOrder === 'story-first' && afterChoice.fontPairing === 'sans', `${chosen.status}`);
+
+      const reset = await saveTheme({ ...afterChoice, sectionOrder: 'standard', fontPairing: 'serif-display' });
+      const resetReload = record(await call(backend, 'GET', g));
+      const afterReset = await state(g);
+      check(`${backend}: G-041 returning to the defaults is stored, read back by the editor's reload, one live version`,
+        reset.status === 200 && (afterReset.config as any).theme.sectionOrder === 'standard' && (afterReset.config as any).theme.fontPairing === 'serif-display'
+          && resetReload.body.data.theme.sectionOrder === 'standard' && resetReload.body.data.theme.fontPairing === 'serif-display' && coherent(afterReset),
+        `${reset.status} ${JSON.stringify(resetReload.body?.data?.theme)}`);
+
+      await saveTheme({ ...(await themeOf()), sectionOrder: 'photos-last' });
+      const omitted = await saveTheme({ ...(await themeOf()), sectionOrder: undefined });
+      check(`${backend}: G-041 a theme save that leaves a choice out keeps it (how the pre-fix editor sent a default, so it never reached storage)`,
+        omitted.status === 200 && (await themeOf()).sectionOrder === 'photos-last');
+
+      const beforeUnknown = await state(g);
+      const unknown = await saveTheme({ ...(await themeOf()), sectionOrder: 'acak', fontPairing: 'Comic Sans' });
+      check(`${backend}: G-041 an order and a pairing outside the contract are refused and nothing is written`,
+        unknown.status === 403 && unknown.body.error.code === 'THEME_NOT_ENTITLED'
+          && same(unknown.body.error.details, [{ path: 'theme.sectionOrder', reason: 'unknown-section-order' }, { path: 'theme.fontPairing', reason: 'unknown-font-pairing' }])
+          && same(await state(g), beforeUnknown),
+        `${unknown.status}`);
+
+      // A value an older release stored (written past the writers, in the config and its live version alike).
+      await sql`update invitations set config = jsonb_set(config, '{theme,sectionOrder}', '"lama"'::jsonb) where id = ${g}`;
+      await sql`update invitation_versions set config = jsonb_set(config, '{theme,sectionOrder}', '"lama"'::jsonb) where invitation_id = ${g} and is_live`;
+      const keptRetired = await saveTheme({ ...(await themeOf()), paletteId: 'sand' });
+      const afterRetired = await themeOf();
+      const replaced = await saveTheme({ ...afterRetired, sectionOrder: 'story-first' });
+      check(`${backend}: G-041 an unchanged retired order does not block another theme change, and a valid order replaces it`,
+        keptRetired.status === 200 && afterRetired.sectionOrder === 'lama' && afterRetired.paletteId === 'sand' && replaced.status === 200 && (await themeOf()).sectionOrder === 'story-first',
+        `${keptRetired.status}/${replaced.status}`);
+
+      const switchedFamily = await saveTheme({ ...(await themeOf()), familyId: 'kartu' });
+      const afterFamily = await themeOf();
+      check(`${backend}: G-041 a family switch keeps the choices, which every family declares`,
+        switchedFamily.status === 200 && afterFamily.familyId === 'kartu' && afterFamily.sectionOrder === 'story-first' && afterFamily.fontPairing === 'serif-display');
+
+      const beforePremium = await state(g);
+      const premiumChoice = await saveTheme({ ...afterFamily, sectionOrder: 'photos-last', paletteId: 'midnight' });
+      check(`${backend}: G-041 a Standard invitation's save with a Premium palette is refused whole, its valid order included`,
+        premiumChoice.status === 403 && same(premiumChoice.body.error.details, [{ path: 'theme.paletteId', reason: 'premium-palette' }]) && same(await state(g), beforePremium));
+
+      const [paid] = await sql`insert into orders (user_id, invitation_id, tier, amount, currency, rail, reference, status, paid_at)
+        values (${owner.id}, ${g}, 'premium', 249000, 'IDR', 'qris', ${`vne_g041_${backend}_${tag}`}, 'PAID', now() at time zone 'utc') returning id`;
+      created.orders.push(paid.id);
+      const paidChoice = await saveTheme({ ...afterFamily, sectionOrder: 'photos-last', fontPairing: 'sans', paletteId: 'midnight' });
+      const afterPaid = await themeOf();
+      check(`${backend}: G-041 a paid Premium invitation stores a valid change with a Premium palette`,
+        paidChoice.status === 200 && afterPaid.sectionOrder === 'photos-last' && afterPaid.fontPairing === 'sans' && afterPaid.paletteId === 'midnight', `${paidChoice.status}`);
+
+      // A config-only restore (what G-046 will send): an earlier version's theme and events saved back. Event ids are random
+      // per run, so these answers stay out of the cross-writer comparison; the check compares within the writer.
+      const withEvents = await call(backend, 'PATCH', g, {
+        events: [{ title: 'Akad (fiktif)', startAt: '2027-03-14T09:00:00+07:00' }, { title: 'Resepsi (fiktif)', startAt: '2027-03-14T11:00:00+07:00' }],
+        expectedVersion: gv,
+      });
+      gv = withEvents.body?.version ?? gv;
+      const [liveVersion] = await sql`select config from invitation_versions where invitation_id = ${g} and is_live`;
+      const savedConfig = liveVersion.config as { theme: Record<string, unknown>; events: Array<{ id: string }> };
+      const eventIds = savedConfig.events.map((event) => event.id);
+      const answers = Object.fromEntries(eventIds.map((eventId, i) => [eventId, { status: i === 0 ? 'CONFIRMED' : 'DECLINED', attending: i === 0 ? 2 : null }]));
+      const [guest] = await sql`insert into guests (invitation_id, name, slug, rsvp_status, rsvp_event_answers)
+        values (${g}, 'Budi Tamu (fiktif)', ${`budi-tamu-${backend}-${tag}`}, 'CONFIRMED', ${JSON.stringify(answers)}::text::jsonb) returning id`;
+      const guestRow = async () => (await sql`select rsvp_status, rsvp_event_answers, rsvp_answers, guest_count from guests where id = ${guest.id}`)[0];
+      const guestBefore = await guestRow();
+      await saveTheme({ ...savedConfig.theme, sectionOrder: 'standard', fontPairing: 'serif-display' }, false);
+      const restored = await call(backend, 'PATCH', g, { theme: savedConfig.theme, events: savedConfig.events, expectedVersion: gv });
+      gv = restored.body?.version ?? gv;
+      const afterRestore = await state(g);
+      const restoredConfig = afterRestore.config as typeof savedConfig;
+      check(`${backend}: G-041 restoring a saved version's theme and events keeps every event id and leaves the guest's RSVP untouched`,
+        withEvents.status === 200 && eventIds.length === 2 && restored.status === 200 && same(restoredConfig.theme, savedConfig.theme)
+          && same(restoredConfig.events.map((event) => event.id), eventIds) && same(await guestRow(), guestBefore) && coherent(afterRestore),
+        `${withEvents.status}/${restored.status}`);
+      results[backend].states.push({ config: { theme: restoredConfig.theme }, versions: afterRestore.versions, live: [] });
+
       await signIn(other);
       const intruder = record(await call(backend, 'PATCH', id, { quote: { ...quote, text: 'Bukan milikmu' }, expectedVersion: 4 }));
       const peek = record(await call(backend, 'GET', id));
@@ -317,14 +412,18 @@ async function main() {
       flips.map((f) => f.body?.version).join() === '5,6,7' && afterFlips.versions.map(([n]) => n).join() === '1,2,3,4,5,6,7' && coherent(afterFlips) && (afterFlips.config as any).quote.text === 'Balik 2');
   } finally {
     const ids = created.invitations;
+    await sql`delete from guests where invitation_id = any(${ids}::int[])`;
+    await sql`delete from orders where id = any(${created.orders}::int[])`;
     await sql`delete from invitation_versions where invitation_id = any(${ids}::int[])`;
     await sql`delete from invitations where id = any(${ids}::int[])`;
     await sql`delete from users where id = any(${created.users}::int[])`;
     await sql`delete from api_idempotency_keys where scope like 'content:%' and (string_to_array(scope, ':'))[3] = any(${ids.map(String)}::text[])`;
     const [left] = await sql`select (select count(*) from invitations where id = any(${ids}::int[]))::int as invitations,
       (select count(*) from users where clerk_user_id like ${`user_contentapi_%_${tag}`})::int as users,
-      (select count(*) from api_idempotency_keys where scope like 'content:%' and (string_to_array(scope, ':'))[3] = any(${ids.map(String)}::text[]))::int as keys`;
-    check('the fixture leaves no row behind', left.invitations === 0 && left.users === 0 && left.keys === 0, JSON.stringify(left));
+      (select count(*) from api_idempotency_keys where scope like 'content:%' and (string_to_array(scope, ':'))[3] = any(${ids.map(String)}::text[]))::int as keys,
+      (select count(*) from orders where id = any(${created.orders}::int[]))::int as orders,
+      (select count(*) from guests where invitation_id = any(${ids}::int[]))::int as guests`;
+    check('the fixture leaves no row behind', left.invitations === 0 && left.users === 0 && left.keys === 0 && left.orders === 0 && left.guests === 0, JSON.stringify(left));
     for (const server of servers) server.close();
     await sql.end();
   }

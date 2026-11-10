@@ -83,6 +83,13 @@ test("the API's refusals map to the outcomes the TypeScript writer returns", asy
       problem(422, 'content.theme_not_entitled', { issues: [{ path: 'theme.paletteId', reason: 'premium-palette' }, { path: 'theme.other', reason: 'premium-palette' }] }),
       { kind: 'theme', issues: [{ path: 'theme.paletteId', reason: 'premium-palette' }] },
     ],
+    // G-041 (session 44): the layout-choice rules reach the editor through the Rust writer as through Next.js.
+    [
+      problem(422, 'content.theme_not_entitled', {
+        issues: [{ path: 'theme.sectionOrder', reason: 'unknown-section-order' }, { path: 'theme.fontPairing', reason: 'unknown-font-pairing' }, { path: 'theme.fontPairing', reason: 'made-up' }],
+      }),
+      { kind: 'theme', issues: [{ path: 'theme.sectionOrder', reason: 'unknown-section-order' }, { path: 'theme.fontPairing', reason: 'unknown-font-pairing' }] },
+    ],
   ];
   for (const [reply, expected] of cases) {
     const sent = scriptApi(reply);

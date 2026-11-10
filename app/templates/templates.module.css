@@ -92,10 +92,11 @@
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 10px; text-align: center; padding: 30px;
 }
-.cEyebrow { font-size: 8.5px; font-weight: 700; letter-spacing: 0.26em; opacity: 0.72; }
+/* Full-strength ink: over theme art a 70 % label fell below 4.5:1 on most cards (G-016, measured in session 44). */
+.cEyebrow { font-size: 8.5px; font-weight: 700; letter-spacing: 0.26em; }
 .cNames { font-size: 21px; line-height: 1.25; font-weight: 600; letter-spacing: 0.01em; }
 .cover[data-font='serif'] .cNames { font-family: Georgia, 'Times New Roman', serif; font-weight: 500; }
-.cDate { font-size: 9.5px; letter-spacing: 0.2em; opacity: 0.7; }
+.cDate { font-size: 9.5px; letter-spacing: 0.2em; }
 
 .tierBadge {
   position: absolute; top: 0; left: 0; z-index: 4;

@@ -1,5 +1,6 @@
-// G-016: self-hosted, original theme art replaces the runtime Unsplash hotlinks pool by pool; the other pools keep their
-// remote photos, and an empty register restores the pre-G-016 output exactly (the rollback).
+// G-016: self-hosted, original theme art replaces the runtime Unsplash hotlinks pool by pool (sessions 43–44: every pool
+// that serves a catalog template); the three pools no catalog template uses keep their remote photos, and an empty
+// register restores the pre-G-016 output exactly (the rollback).
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
@@ -21,11 +22,31 @@ import { assetSchema } from '../tools/template-harness/schema';
 const PRE_G016_FINGERPRINT = 'e36902ddbbdc77e40cdeebece2068b5a39bc4d3c8eaec3bfc468fb5b195c84e4';
 
 const COVERED: Record<string, string[]> = {
+  // Session 43.
   marble: ['boardroom', 'boardroom-charter', 'eternal-ivory', 'expo-hall', 'keynote', 'rumah-baru', 'sand-minimal', 'syukur-hangat', 'terracotta-vow', 'toga-slate'],
   gold: ['alumni-classic', 'gala-awards', 'gold-noir-deco', 'golden-years', 'kurma-oasis', 'midnight-gala', 'orchid-monogram', 'summa-gold', 'velvet-gala'],
   night: ['bintang-kecil', 'little-star', 'midnight-countdown', 'natal-hangat', 'neon-night', 'reveal-dusk', 'teratai-subuh'],
+  // Session 44.
+  floral: ['melati-suci'],
+  peony: ['blossom-aquarelle', 'rose-gold-romance'],
+  rose: ['emerald-royale', 'garden-rose', 'silver-years', 'velvet-rope'],
+  sakura: ['pink-or-blue'],
+  eucalyptus: ['atelier', 'boho-picnic', 'sage-garden', 'vine-ivy'],
+  tropics: ['frangipani-bali'],
+  sawah: ['offsite-escape'],
+  batik: ['batik-kencana'],
+  islamic: ['barakah-mint', 'doa-khusyuk', 'halal-bihalal', 'sakinah-sand'],
+  boho: ['bunga-kering'],
+  beach: ['awan-lembut', 'launch-day'],
+  mist: ['pearl-koi'],
+  candle: ['after-hours-mixer'],
+  party: ['bravo-team', 'kampung-fest', 'marigold-fiesta', 'pastel-wonder', 'peach-cuddle'],
+  fireworks: ['blush-brunch', 'confetti-pop', 'grand-opening', 'grand-stage', 'ignition', 'kickoff-arena', 'retro-reunion', 'sweet-seventeen'],
+  elegant: ['purnabakti-emas'],
 };
 const coveredSlugs = new Set(Object.values(COVERED).flat());
+/** Quality step budgets (`THEME_ART_PROVENANCE.derivation`): a gallery cut is held to the cover's. */
+const BUDGETS = { cover: 100 * 1024, card: 48 * 1024, gallery: 100 * 1024 } as const;
 
 const fingerprint = (registry: Map<string, ThemeArt>) =>
   createHash('sha256')
@@ -64,14 +85,22 @@ const sourceFiles = (dir: string): string[] =>
 
 test('every register file is in public/, byte-identical to its record, and a WebP of the recorded size', () => {
   const files = registerFiles();
-  assert.equal(files.size, 36, '14 covers, 14 cards and 8 distinct gallery cuts');
+  assert.equal(files.size, 177, '70 covers, 70 cards and 37 distinct gallery cuts');
   assert.deepEqual(
     readdirSync('public/theme-art').sort(),
     [...files.keys()].map((path) => path.replace('/theme-art/', '')).sort(),
     'no orphan file and no missing file',
   );
+  for (const entry of THEME_ART_REGISTER) {
+    for (const [kind, file] of Object.entries(entry.files)) {
+      assert.match(file.path, new RegExp(`^/theme-art/${entry.pool}-\\d{2}-(cover|card|gallery)\\.webp$`), `${entry.id} ${kind}`);
+      assert.ok(file.path.startsWith(`/theme-art/${entry.id}-`), `${entry.id} ${kind}: named after its asset`);
+      assert.ok(file.bytes <= BUDGETS[kind as keyof typeof BUDGETS], `${entry.id} ${kind} stays within its budget`);
+      const quality = (file as { quality?: number }).quality;
+      if (quality !== undefined) assert.ok(quality >= 60 && quality < 78 && (78 - quality) % 4 === 0, `${entry.id} ${kind}: a recorded step, never below 60`);
+    }
+  }
   for (const [path, record] of files) {
-    assert.match(path, /^\/theme-art\/(marble|gold|night)-\d{2}-(cover|card|gallery)\.webp$/);
     const data = readFileSync(join('public', path));
     assert.equal(data.length, record.bytes, path);
     assert.equal(createHash('sha256').update(data).digest('hex'), record.sha256, path);
@@ -98,7 +127,7 @@ test('every register asset has a licence record in the harness asset shape', () 
     assert.ok(left >= 0 && top >= 0 && right <= 1024 && bottom <= 1024 && right > left && bottom > top, entry.id);
   }
   const assets = themeArtManifestAssets();
-  assert.equal(assets.length, 36);
+  assert.equal(assets.length, 177);
   for (const asset of assets) {
     assert.doesNotThrow(() => assetSchema.parse(asset), asset.id);
     assert.equal(asset.license, 'own-work');
@@ -107,7 +136,8 @@ test('every register asset has a licence record in the harness asset shape', () 
   }
 });
 
-test('templates in the marble, gold and night pools resolve to self-hosted files only', () => {
+test('every catalog template resolves to self-hosted files from its own pool only', () => {
+  assert.equal(coveredSlugs.size, invitationTemplates.length, 'all 64 catalog templates are listed once');
   const local = invitationTemplates.filter((tpl) => isSelfHostedThemeArt(getThemeArt(tpl)));
   assert.deepEqual(local.map((tpl) => tpl.slug).sort(), [...coveredSlugs].sort());
   const files = registerFiles();
@@ -125,39 +155,47 @@ test('templates in the marble, gold and night pools resolve to self-hosted files
     }
   }
   const covers = new Map<string, string[]>();
+  const used = new Set<string>();
   for (const slug of coveredSlugs) {
     const art = getThemeArt(invitationTemplates.find((tpl) => tpl.slug === slug)!);
     covers.set(art.cover, [...(covers.get(art.cover) ?? []), slug]);
+    for (const src of [art.cover, ...art.gallery]) used.add(src.replace(/-(cover|gallery)\.webp$/, ''));
   }
-  assert.equal(covers.size, 14, 'every generated original leads at least one template');
+  const poolSize = (pool: string) => THEME_ART_REGISTER.filter((entry) => entry.pool === pool).length;
+  const distinctCovers = Object.entries(COVERED).reduce((sum, [pool, slugs]) => sum + Math.min(slugs.length, poolSize(pool)), 0);
+  assert.equal(covers.size, distinctCovers, 'templates of a pool lead with different originals until the pool runs out');
+  assert.equal(distinctCovers, 50);
+  assert.equal(used.size, THEME_ART_REGISTER.length, 'every generated original appears in some template (cover or gallery)');
 });
 
-test('the other 38 templates keep exactly their pre-G-016 remote art (the explicit boundary)', () => {
+test('no catalog template hotlinks; only the three template-less pools keep remote photos (the explicit boundary)', () => {
+  assert.deepEqual([...REMOTE_THEME_ART_POOLS], ['watercolor', 'lavender', 'graduation']);
   const remote = buildThemeArtRegistry([]);
-  const uncovered = invitationTemplates.filter((tpl) => !coveredSlugs.has(tpl.slug));
-  assert.equal(uncovered.length, 38);
-  for (const tpl of uncovered) {
+  for (const tpl of invitationTemplates) {
     const art = getThemeArt(tpl);
-    assert.deepEqual(art, remote.get(tpl.slug), tpl.slug);
-    assert.equal(art.card, undefined);
-    assert.ok([art.cover, ...art.gallery].every((src) => src.startsWith('https://unsplash.com/photos/')), tpl.slug);
+    assert.ok(isSelfHostedThemeArt(art), `${tpl.slug} is self-hosted`);
+    assert.notDeepEqual(art, remote.get(tpl.slug), tpl.slug);
   }
-  assert.deepEqual(
-    [...REMOTE_THEME_ART_POOLS],
-    ['floral', 'peony', 'rose', 'watercolor', 'sakura', 'lavender', 'eucalyptus', 'tropics', 'sawah', 'batik', 'islamic', 'boho', 'beach', 'mist', 'candle', 'party', 'fireworks', 'graduation', 'elegant'],
-  );
+  // A template outside the catalog still resolves through its motif or category: to a self-hosted pool where one serves
+  // it, otherwise to the remaining remote photos.
+  const offCatalog = getThemeArt({ slug: 'off-catalog', category: 'graduation', motif: 'floral' });
+  assert.ok([offCatalog.cover, ...offCatalog.gallery].every((src) => src.startsWith('https://unsplash.com/photos/')));
+  assert.equal(offCatalog.card, undefined);
+  assert.ok(isSelfHostedThemeArt(getThemeArt({ slug: 'off-catalog', category: 'wedding', motif: 'floral' })), 'wedding → the peony pool');
 });
 
 test('rollback: an empty register reproduces the pre-G-016 output exactly; one pool can be rolled back alone', () => {
   assert.equal(fingerprint(buildThemeArtRegistry([])), PRE_G016_FINGERPRINT);
   assert.notEqual(fingerprint(buildThemeArtRegistry(THEME_ART_REGISTER)), PRE_G016_FINGERPRINT);
 
-  const withoutNight = buildThemeArtRegistry(THEME_ART_REGISTER.filter((entry) => entry.pool !== 'night'));
   const remote = buildThemeArtRegistry([]);
-  for (const tpl of invitationTemplates) {
-    const art = withoutNight.get(tpl.slug)!;
-    if (COVERED.night.includes(tpl.slug) || !coveredSlugs.has(tpl.slug)) assert.deepEqual(art, remote.get(tpl.slug), tpl.slug);
-    else assert.ok(isSelfHostedThemeArt(art), tpl.slug);
+  for (const pool of ['night', 'fireworks', 'islamic']) {
+    const without = buildThemeArtRegistry(THEME_ART_REGISTER.filter((entry) => entry.pool !== pool));
+    for (const tpl of invitationTemplates) {
+      const art = without.get(tpl.slug)!;
+      if (COVERED[pool].includes(tpl.slug) || !coveredSlugs.has(tpl.slug)) assert.deepEqual(art, remote.get(tpl.slug), `${pool}: ${tpl.slug}`);
+      else assert.ok(isSelfHostedThemeArt(art), `${pool}: ${tpl.slug}`);
+    }
   }
 });
 
@@ -178,4 +216,30 @@ test('the catalog card loads the card cut, and no other source file builds an Un
     .flatMap(sourceFiles)
     .filter((path) => /unsplash\.com/i.test(readFileSync(path, 'utf8')));
   assert.deepEqual(builders, ['lib/invitation/theme-art.ts']);
+});
+
+/** The declarations of one top-level rule (`.name { … }`) in a CSS module. */
+function ruleBody(file: string, selector: string): string {
+  const css = readFileSync(file, 'utf8');
+  const match = new RegExp(`(^|\\n)\\${selector}\\s*\\{([^}]*)\\}`).exec(css);
+  assert.ok(match, `${file} has no ${selector} rule`);
+  return match[2];
+}
+
+test('text over theme art keeps full-strength ink on a centred plate (card and preview gate)', () => {
+  // Session 44 measured the served catalog (64 cards) and the 19 pool previews: at 70 % opacity on the vertical wash
+  // alone, 110 of 192 card texts and 29 of 114 gate texts fell below 4.5:1 at the 5th percentile; with full-strength
+  // labels and the plate every one cleared it. The browser harness proves the pixels; this guards the two rules.
+  const surfaces = [
+    { styles: 'app/templates/templates.module.css', tint: 'app/templates/catalog-ui.module.css', tintRule: '.tint' },
+    { styles: 'app/templates/[slug]/preview.module.css', tint: 'app/templates/[slug]/art.module.css', tintRule: '.artTint' },
+  ];
+  for (const { styles, tint, tintRule } of surfaces) {
+    for (const label of ['.cEyebrow', '.cDate']) assert.doesNotMatch(ruleBody(styles, label), /opacity/, `${styles} ${label}`);
+    const background = ruleBody(tint, tintRule);
+    const plate = background.indexOf('radial-gradient(');
+    const wash = background.indexOf('linear-gradient(');
+    assert.ok(plate >= 0 && wash > plate, `${tint} ${tintRule}: the plate is painted over the wash`);
+    assert.match(background, /color-mix\(in srgb, var\(--bg\) 90%, transparent\) 0%/, `${tint} ${tintRule}: the plate is the palette surface`);
+  }
 });

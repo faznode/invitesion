@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { ApiProblem, apiConfigFromEnv, apiPostTo, type ApiProblemIssue } from '@/lib/api/client';
 import type { ContentWriteOutcome, ContentWriteRequest } from './content-rules';
 import type { MediaReferenceIssue } from './media-ownership';
-import type { ThemeIssue } from './theme-entitlement';
+import { THEME_ISSUE_PATHS, THEME_ISSUE_REASONS, type ThemeIssue } from './theme-entitlement';
 
 /**
  * B-035: the Rust writer's side of the editor's save (`BACKEND_CONTENT=rust`; `next` stays the default). Exactly one
@@ -20,8 +20,8 @@ type Env = Record<string, string | undefined>;
 const isAmbiguous = (error: ApiProblem) => error.status === 0 || error.status >= 500;
 
 const MEDIA_REASONS: ReadonlySet<string> = new Set<MediaReferenceIssue['reason']>(['protected-outside-child-photo', 'not-this-invitation']);
-const THEME_PATHS: ReadonlySet<string> = new Set<ThemeIssue['path']>(['theme.templateId', 'theme.paletteId']);
-const THEME_REASONS: ReadonlySet<string> = new Set<ThemeIssue['reason']>(['unknown-template', 'premium-template', 'unknown-palette', 'premium-palette']);
+const THEME_PATHS: ReadonlySet<string> = new Set<string>(THEME_ISSUE_PATHS);
+const THEME_REASONS: ReadonlySet<string> = new Set<string>(THEME_ISSUE_REASONS);
 
 const mediaIssues = (issues: ApiProblemIssue[] = []): MediaReferenceIssue[] =>
   issues.filter((issue) => MEDIA_REASONS.has(issue.reason)).map((issue) => ({ path: issue.path, reason: issue.reason as MediaReferenceIssue['reason'] }));

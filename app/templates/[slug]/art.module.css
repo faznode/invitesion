@@ -15,16 +15,28 @@
   animation: artZoom 22s ease-in-out infinite alternate;
 }
 
+/*
+ * A soft plate in the palette's surface behind the centred text, over the vertical wash: the edges keep the picture
+ * while the gate's texts measure >= 6.2:1 at the 5th percentile on every pool (G-016, session 44; the wash alone left
+ * 29 of 114 below 4.5:1).
+ */
 .artTint {
   position: absolute;
   inset: 0;
   z-index: 0;
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--bg) 58%, transparent) 0%,
-    color-mix(in srgb, var(--bg) 74%, transparent) 55%,
-    color-mix(in srgb, var(--bg) 92%, transparent) 100%
-  );
+  background:
+    radial-gradient(
+      ellipse 80% 60% at 50% 50%,
+      color-mix(in srgb, var(--bg) 90%, transparent) 0%,
+      color-mix(in srgb, var(--bg) 80%, transparent) 60%,
+      transparent 100%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--bg) 58%, transparent) 0%,
+      color-mix(in srgb, var(--bg) 74%, transparent) 55%,
+      color-mix(in srgb, var(--bg) 92%, transparent) 100%
+    );
 }
 
 /* Ubin galeri: klip foto mengikuti radius ubin. */

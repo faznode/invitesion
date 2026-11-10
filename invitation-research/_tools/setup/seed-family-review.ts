@@ -57,6 +57,11 @@
  * wedding with those photo URLs and the three fictional videos of `GALLERY_FIXTURE_VIDEOS` in `media_assets`; grid leaves
  * `gallery.layout` unset) and legacy gallery-carousel (D-041: still its grid, no video, no lightbox). The product-gates job
  * serves generated photos (`gallery-gate.ts --write-photos`) and runs `gallery-gate.ts` on these pages.
+ * `--choices` (s44, G-041) adds per family choice-none (nothing stored), choice-default (the default ids the editor stores
+ * when the host returns to them), choice-story-first, choice-photos-last, choice-sans and choice-retired (ids the contract
+ * does not offer, as an old row may hold), and legacy choice-none and choice-story-first (D-041: a legacy page ignores
+ * stored choices): the full wedding each time. With `--gallery <urls>` the choice rows get the gallery too, so
+ * `photos-last` is visible, e.g. `--choices --gallery "$GALLERY_URLS" --match '-choice-'`.
  */
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -470,6 +475,22 @@ export type ReviewOptions = {
   photoLayouts?: boolean;
   /** `--gallery <urls>` (s30, B-025): per family the three gallery layouts, plus legacy with a carousel stored. */
   gallery?: boolean;
+  /** `--choices` (s44, G-041): the full wedding under every stored section order and font pairing, per family and legacy. */
+  choices?: boolean;
+};
+
+/** `--choices` (G-041): what each choice row stores in `theme`; `retired` holds ids the contract never offered. */
+const FAMILY_CHOICE_THEMES: Record<string, { sectionOrder?: string; fontPairing?: string }> = {
+  none: {},
+  default: { sectionOrder: 'standard', fontPairing: 'serif-display' },
+  'story-first': { sectionOrder: 'story-first' },
+  'photos-last': { sectionOrder: 'photos-last' },
+  sans: { fontPairing: 'sans' },
+  retired: { sectionOrder: 'gallery-first', fontPairing: 'comic-sans' },
+};
+const LEGACY_CHOICE_THEMES: Record<string, { sectionOrder?: string; fontPairing?: string }> = {
+  none: {},
+  'story-first': { sectionOrder: 'story-first', fontPairing: 'sans' },
 };
 
 /** `--profiles` (B-023): the couple under stress, without photos; every name is fictional. */
@@ -606,6 +627,15 @@ export function familyReviewInvitations(options: ReviewOptions = {}): ReviewInvi
       make(`review-${layout}-gallery-carousel`, withGallery(full, 'carousel'), { gallery: true, withMessages: false }),
     ];
   };
+  // `--choices` (G-041): the same full wedding under each stored choice; `--gallery` adds the media rows (`attachGallery`).
+  const choiceVariants = (layout: string, familyId?: FamilyId): ReviewInvitation[] => {
+    if (!options.choices) return [];
+    const full = withGallery(weddingFull(familyId ? fullPalette[familyId] : 'ivory', familyId));
+    const themes = familyId ? FAMILY_CHOICE_THEMES : LEGACY_CHOICE_THEMES;
+    return Object.entries(themes).map(([name, choice]) =>
+      make(`review-${layout}-choice-${name}`, { ...full, theme: { ...full.theme, ...choice } }, { gallery: true, withMessages: false }),
+    );
+  };
   // `--new-invitations` / `--new-invitation-palettes` (F-02): the review content of the type under a new invitation's theme
   // (the template's palette and the default family) and its B-026 gift default.
   const content: Record<ReviewEventType, (familyId: FamilyId) => DetailConfig> = {
@@ -659,6 +689,7 @@ export function familyReviewInvitations(options: ReviewOptions = {}): ReviewInvi
   rows.push(...profileVariants('legacy'));
   rows.push(...photoVariants('legacy'));
   rows.push(...galleryVariants('legacy'));
+  rows.push(...choiceVariants('legacy'));
   if (coverImageUrl) rows.push(make('review-legacy-photo', weddingFull('ivory', undefined, coverImageUrl)));
   if (coverLowUrl) rows.push(make('review-legacy-photo-low', weddingFull('ivory', undefined, coverLowUrl)));
   rows.push(make('review-legacy-corporate', corporate(undefined, logoUrl), { ...corporateOptions, logo: 'square' }));
@@ -683,6 +714,7 @@ export function familyReviewInvitations(options: ReviewOptions = {}): ReviewInvi
     rows.push(...profileVariants(familyId, familyId));
     rows.push(...photoVariants(familyId, familyId));
     rows.push(...galleryVariants(familyId, familyId));
+    rows.push(...choiceVariants(familyId, familyId));
   }
   rows.push(...newInvitationVariants());
   if (withPaletteSweep) rows.push(...paletteSweep());
@@ -852,6 +884,7 @@ async function main() {
     photos: process.argv.includes('--photos'),
     photoLayouts: process.argv.includes('--photo-layouts'),
     gallery: process.argv.includes('--gallery'),
+    choices: process.argv.includes('--choices'),
   });
   const match = argValue('--match');
   const rows = match ? all.filter((row) => new RegExp(match).test(row.slug)) : all;

@@ -15,8 +15,17 @@ import type { Tier } from '@/lib/pricing';
 /**
  * G-041: the choices inside a design family's contract (`family-manifest.ts`): the section order, the font pairing and
  * the palette. Only contract-declared options are offered; the writers refuse anything else. Picking a family's default
- * clears the key, so the stored config stays as it was before the host chose anything.
+ * stores the default's own id (`standard`, the family's first pairing), which renders exactly like no choice.
  */
+
+/**
+ * What a pick sends to the editor: always the option's own id, the family's default included. The save merges `theme`
+ * into the stored one (`mergeDetailConfig` keeps every key a patch leaves out) and `sendDetailSave`'s `JSON.stringify`
+ * drops an `undefined` key, so a default sent as "no value" never reached storage and the host could not return to it
+ * (fixed in session 44). `familyChoices` reads the default ids exactly like an absent key.
+ */
+export const sectionOrderPick = (option: SectionOrderOption) => ({ sectionOrder: option });
+export const fontPairingPick = (pairing: FontPairing) => ({ fontPairing: pairing });
 
 export type PaletteOption = { id: string; tier: Tier; bg: string; accent: string; ink: string };
 
@@ -108,7 +117,7 @@ export function LayoutChoices({
             group={orderGroup}
             value={option}
             chosen={currentOrder === option}
-            onPick={() => onChange({ sectionOrder: option === DEFAULT_SECTION_ORDER ? undefined : option })}
+            onPick={() => onChange(sectionOrderPick(option))}
           >
             <Labelled {...ORDER_LABELS[option]} />
           </ChoiceCard>
@@ -122,7 +131,7 @@ export function LayoutChoices({
             group={fontGroup}
             value={pairing}
             chosen={currentPairing === pairing}
-            onPick={() => onChange({ fontPairing: pairing === defaultPairing ? undefined : pairing })}
+            onPick={() => onChange(fontPairingPick(pairing))}
           >
             <span aria-hidden="true" className={`w-8 shrink-0 text-center text-xl text-slate-900 ${pairing === 'sans' ? 'font-sans font-semibold' : 'font-serif'}`}>
               Aa

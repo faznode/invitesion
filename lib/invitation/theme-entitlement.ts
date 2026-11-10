@@ -78,9 +78,24 @@ export function changedThemeFields(stored: ThemeFields, next: ThemeFields | unde
   return changed;
 }
 
+/**
+ * Every field a theme refusal names and every rule it cites (B-041, B-036, G-041). `content-api.ts` maps the Rust
+ * writer's problems through these lists, so a rule added here reaches the editor through both writers (session 44 found
+ * G-041's two rules dropped from the Rust writer's answer by a list that predated them).
+ */
+export const THEME_ISSUE_PATHS = ['theme.templateId', 'theme.paletteId', 'theme.sectionOrder', 'theme.fontPairing'] as const;
+export const THEME_ISSUE_REASONS = [
+  'unknown-template',
+  'premium-template',
+  'unknown-palette',
+  'premium-palette',
+  'unknown-section-order',
+  'unknown-font-pairing',
+] as const;
+
 export type ThemeIssue = {
-  path: 'theme.templateId' | 'theme.paletteId' | 'theme.sectionOrder' | 'theme.fontPairing';
-  reason: 'unknown-template' | 'premium-template' | 'unknown-palette' | 'premium-palette' | 'unknown-section-order' | 'unknown-font-pairing';
+  path: (typeof THEME_ISSUE_PATHS)[number];
+  reason: (typeof THEME_ISSUE_REASONS)[number];
 };
 
 /** Whether the changed fields need the database lookup of the invitation's tier: only a Premium palette or theme does. */

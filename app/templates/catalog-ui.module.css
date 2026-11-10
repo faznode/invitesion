@@ -130,16 +130,28 @@
   object-fit: cover;
 }
 
+/*
+ * A soft plate in the palette's own surface sits behind the centred text, over the vertical wash, so the names stay
+ * legible on busy art while the edges keep the picture (G-016: every one of the 64 cards measured at >= 4.5:1 at the
+ * 5th percentile in session 44; the wash alone left 110 of 192 texts below).
+ */
 .tint {
   position: absolute;
   inset: 0;
   z-index: 0;
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--bg) 55%, transparent) 0%,
-    color-mix(in srgb, var(--bg) 74%, transparent) 60%,
-    color-mix(in srgb, var(--bg) 88%, transparent) 100%
-  );
+  background:
+    radial-gradient(
+      ellipse 72% 50% at 50% 50%,
+      color-mix(in srgb, var(--bg) 90%, transparent) 0%,
+      color-mix(in srgb, var(--bg) 80%, transparent) 60%,
+      transparent 100%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--bg) 55%, transparent) 0%,
+      color-mix(in srgb, var(--bg) 74%, transparent) 60%,
+      color-mix(in srgb, var(--bg) 88%, transparent) 100%
+    );
 }
 
 /* Konten cover harus tetap di atas lapisan foto. */
