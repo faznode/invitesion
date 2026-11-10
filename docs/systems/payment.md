@@ -1,10 +1,10 @@
 <!-- SUMMARY (first 7 lines — greppable) -->
 # payment.md — Sistem Pembayaran (QRIS lokal + Stripe internasional)
 > WHAT: Dua rail pembayaran, webhook idempotent, dan aktivasi undangan setelah bayar.
-> STATUS: LIVE (implemented; acquirer QRIS belum dipilih). s26: entitlement tema di sisi server (B-041); s32: ganti tema dalam tier tanpa checkout (B-036); s38: settlement setelah undangan dihapus tidak mengaktifkannya (B-031, D-063); s39: B-039 netral-provider (D-064): penulis settlement Rust di balik `BACKEND_PAYMENT` (default `next`), outbox entitlement `payment_settled`, kunci idempotensi checkout (migrasi 0027); adapter PJP dan uang sungguhan EXT
+> STATUS: LIVE (implemented; acquirer QRIS belum dipilih). s26: entitlement tema di sisi server (B-041); s32: ganti tema dalam tier tanpa checkout (B-036); s38: settlement setelah undangan dihapus tidak mengaktifkannya (B-031, D-063); s39: B-039 netral-provider (D-064): penulis settlement Rust di balik `BACKEND_PAYMENT` (default `next`), outbox entitlement `payment_settled`, kunci idempotensi checkout (migrasi 0027); adapter PJP dan uang sungguhan EXT; s40: kuitansi G-050 selesai di sandbox (E-083, D-065): migrasi 0028, penerbitan oleh runner untuk kedua penulis, upgrade 0027 → 0028 berisi data, halaman pemilik diuji di browser, skema sebelum worker; s40: kupon G-053 selesai di sandbox (E-084, D-066): migrasi 0029, diskon dihitung server di bawah kunci baris kupon, kedua penulis tanpa perubahan, tutup order QRIS manual tanpa bayar, atribusi mitra (komisi EXT)
 > OWNER: Operator
 > DEPS: DATABASE_SCHEMA.md (orders, payments, payment_events, jobs), lib/payment/*, lib/invitation/theme-entitlement.ts, services/api/src/payment/, contracts/vectors/payment-settlement.json
-> GREP: payment, qris, stripe, webhook, idempotent, signature, order, rail, currency, entitlement, palette, B-041, B-036, template_id, B-039, BACKEND_PAYMENT, settle, outbox, payment_settled, checkout_key, checkout_intent, idempotency key, D-064
+> GREP: payment, qris, stripe, webhook, idempotent, signature, order, rail, currency, entitlement, palette, B-041, B-036, template_id, B-039, BACKEND_PAYMENT, settle, outbox, payment_settled, checkout_key, checkout_intent, idempotency key, D-064, receipts, kuitansi, receipt_counters, FLAG_RECEIPTS, G-050, D-065, coupons, kupon, order_coupons, list_amount, FLAG_COUPONS, closeUnpaid, afiliasi, G-053, D-066
 > UPDATED: 2026-11-10
 
 > **Perubahan keputusan (2026-07-27, whyme):** Midtrans **tidak dipakai**. Pembayaran lokal
@@ -261,11 +261,62 @@ Kupon G-053 dan kredit G-052 di bagian masing-masing.
   dan flag mati: 404 yang sama. Checkout yang lunas menautkan kuitansinya.
 - **Flag `FLAG_RECEIPTS` (default off):** off menyembunyikan halaman, permintaan dan tautan (404); runner tetap
   menerbitkan kuitansi untuk setiap pembayaran baru, dan kuitansi yang terbit disimpan. Rollback = flag off.
+- **Urutan rollout (s40, D-065 (7)): skema sebelum worker.** Migrasi 0028 dulu, baru `invitesion-jobs` versi G-050.
+  Flag tidak melindungi runner yang jalan lebih dulu (flag hanya menutup halaman pemilik): runner seperti itu gagal
+  karena relasi `receipts` belum ada, tidak menulis apa pun selain status job, dan mencoba lagi nanti; baris yang sudah
+  menyerah tidak diambil. Setelah 0028 baris yang sama terbit dengan nomor berikutnya. Baris yang menyerah selama itu
+  di-arm ulang lewat permintaan pemilik atau pernyataan roll-forward di `services/api/README.md`.
+- **Rollback kode ke rilis B-039** di atas skema 0028 (aditif): runner B-039 menyelesaikan baris tanpa kuitansi
+  (ordernya tampil "atas permintaan"). Roll-forward meng-arm ulang tepat baris yang selesai sejak rollback dan belum
+  punya kuitansi (diuji s40 dengan data: dua baris, kuitansi 9 dan 10, penomoran 1–10 tanpa celah).
 - **Verifikasi:** `tests/g050-receipts.test.ts`; `services/api/tests/payment_database.rs` (salinan catatan, sekali,
   delapan order masing-masing diantar tiga kali bersamaan: nomor berikutnya tanpa celah); `scripts/verify-receipts.ts`
   di job rust (kedua penulis, dua runner bersamaan, delivery ulang, cakupan pemilik, permintaan pembayaran lama).
+  Bukti s40 (E-083): `verify-receipts` 26 / 26 dengan flag off; mutasi yang memindahkan increment keluar dari transaksi
+  tertangkap; upgrade 0027 → 0028 berisi data 19 / 19 (runner sebelum migrasi, jendela rollback, roll-forward); halaman
+  pemilik 32 / 32 di build produksi dengan Clerk di-stub (uji ber-Clerk sungguhan: DA-01 item 12).
 - **Belum:** kuitansi lewat e-mail atau WA (belum ada kanal), PDF dari server (dialog cetak dipakai), identitas
   penjual resmi dan faktur pajak (EXT).
+
+## Kupon (G-053, s40, D-066)
+
+- **Dibuat admin, selalu belum aktif:** konsol `/admin/<entry>/coupons` (menu "Kupon"; otorisasi dicek ulang di tiap
+  action): persentase 1–99 atau nominal tetap IDR / USD, opsional untuk satu paket, periode (WIB), kuota, batas
+  per customer (default 1 = satu pemakaian per aturan), boleh digabung atau tidak, label mitra afiliasi. Aktifkan / jeda
+  terpisah; nonaktifkan permanen = kode tetap tercatat dan tidak bisa dipakai ulang. Migrasi 0029 (aditif).
+- **Diskon dihitung server:** form hanya mengirim kode (maks. tiga). `createOrder` mengunci baris kupon (`FOR UPDATE`,
+  urut id), mencari order milik kunci checkout lagi di bawah kunci itu, menghitung pemakaian yang masih berlaku, lalu
+  `decideCoupons` (`lib/payment/coupons.ts`): urutan aturan too_many → unknown / malformed → inactive / not_started /
+  expired / wrong_tier / wrong_currency → not_stackable → already_used / exhausted → persentase dulu lalu nominal
+  (masing-masing dibulatkan ke bawah) → minimal Rp 1.000 / US$ 0,50 (`below_minimum`, ditolak, bukan dipotong). Order
+  ditulis dengan `amount` setelah diskon, `list_amount` dan satu baris `order_coupons` per kupon di transaksi yang sama.
+  Penolakan tidak menulis apa pun. Kode yang tidak ada, belum aktif atau rusak mendapat jawaban yang sama.
+- **Settlement tidak berubah:** kedua penulis memeriksa nominal terhadap `orders.amount`; order berkupon lunas dengan
+  nominal diskonnya dan harga penuh ditolak. Tidak ada perubahan Rust. Kuitansi menyalin nominal yang dibayar.
+- **Kapan pemakaian dihitung:** selama order `PAID`, atau `PENDING` tanpa jendela bayar / sebelum jendela habis. Order
+  `FAILED` / `EXPIRED` atau yang lewat jendela mengembalikan kuotanya tanpa penulisan apa pun. QRIS manual tidak punya
+  jendela: ordernya memegang kuota sampai ditandai lunas atau **ditutup tanpa bayar** di konsol Pesanan
+  (`closeUnpaid`: event `EXPIRED` `manual-close:<referensi>` lewat `settle`, hanya QRIS, tekan dua kali = duplikat).
+  Pembayaran yang dikonfirmasi setelah ditutup disimpan tanpa efek (aturan 4 keputusan settlement), jadi operator
+  memeriksa mutasi rekening dulu.
+- **Intent & resume:** kode (terurut) masuk intent checkout hanya bila ada, jadi hash setiap intent tanpa kupon tetap
+  sama (order PENDING lama tetap bisa dilanjutkan). Order yang dilanjutkan ditagih nominal yang tersimpan.
+- **Flag `FLAG_COUPONS` (default off):** on menampilkan kolom kupon. Off: kode yang diketik ditolak `unavailable`
+  (tidak pernah ditagih penuh diam-diam), tetapi order yang sudah dibuat kunci itu dengan kodenya tetap bisa dilanjutkan
+  (form lanjut Stripe mengirim kodenya kembali). Konsol tetap bisa dipakai menyiapkan kupon. Rollback = flag off.
+- **Afiliasi = atribusi saja:** label mitra di kupon, konsol menampilkan jumlah lunas dan total yang dibayar lewat
+  kode itu per mata uang. Tarif komisi, perjanjian mitra dan pembayaran komisi = keputusan pemilik dan aktivitas
+  keuangan (EXT); self-service mitra menunggu tenancy G-052.
+- **Urutan rollout: skema sebelum kode.** Migrasi 0029 dulu (checkout dan konsol membaca `orders.list_amount` dan tabel
+  baru), baru rilis G-053; worker tidak berubah. Rollback kode ke rilis G-050 di atas 0029: penulisnya melunasi order
+  berkupon dengan nominal diskon dan menolak harga penuh; roll-forward tanpa langkah tambahan (diuji s40 dengan data).
+- **Verifikasi:** `tests/g053-coupons.test.ts` (aturan, intent, parser konsol, notice, pin sisi server);
+  `scripts/verify-coupons.ts` di job database (penulis Next.js) dan job rust (kedua penulis). Bukti s40 (E-084):
+  `verify-coupons` 31 / 31 lewat kedua penulis (28 tanpa API); mutasi yang membuang kunci baris kupon tertangkap
+  (8 dari 8 customer diterima pada kuota 3); upgrade 0028 → 0029 berisi data 11 / 11 langkah; halaman di build
+  produksi dengan Clerk di-stub 33 / 33 (uji ber-Clerk sungguhan: DA-01 item 12).
+- **Belum:** pratinjau diskon sebelum order dibuat (diskon tampil di halaman order), mengganti kode order yang masih
+  PENDING, baris diskon di kuitansi, komisi afiliasi (EXT), harga entry tier B-040 (EXT).
 
 ## Belum dikerjakan
 

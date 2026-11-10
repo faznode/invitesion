@@ -30,6 +30,7 @@ step "seed a customer row (fictional email)" env CUSTOMER_SEED_EMAIL=ci-customer
 step "seed the demo invitations (Budi & Sari)" npx tsx invitation-research/_tools/setup/seed-local-demo.ts
 step "verify-payment (QRIS / Stripe vectors)" npx tsx scripts/verify-payment.ts
 step "verify-checkout-key (B-039: one order per key, conflicts, scope)" npx tsx scripts/verify-checkout-key.ts
+step "verify-coupons (G-053: server-side discounts, caps under concurrency, stacking)" npx tsx scripts/verify-coupons.ts
 step "verify-view-dedupe (B-017a)" npx tsx scripts/verify-view-dedupe.ts
 step "verify-theme-entitlement (B-041, B-036)" npx tsx scripts/verify-theme-entitlement.ts
 step "verify-host-analytics (B-034)" npx tsx scripts/verify-host-analytics.ts

@@ -9,8 +9,35 @@ import {
   OrderNotFoundError,
   RailMismatchError,
   SettlementUnconfirmedError,
+  closeUnpaid,
   confirmManually,
 } from '@/lib/payment/service';
+
+/**
+ * G-053 (D-066): closes a manual QRIS order the customer never paid, after the operator has checked that no transfer
+ * arrived. A static QR has no payment window, so without this an abandoned order would hold its coupon redemption (a
+ * cap, a customer's one use) for good. Through the same settlement as a confirmation; pressing twice is a duplicate.
+ */
+export async function closeOrderUnpaid(formData: FormData): Promise<void> {
+  const admin = assertAuthorizedAdmin(await getUser());
+  const adminPath = getPrivateAdminPath() ?? '/sign-in';
+  const ordersPath = `${adminPath}/orders`;
+
+  const reference = String(formData.get('reference') || '').trim();
+  if (!reference) redirect(`${ordersPath}?error=invalid`);
+
+  try {
+    const outcome = await closeUnpaid({ reference, adminUserId: admin.id, note: String(formData.get('note') || '').trim() || undefined });
+    revalidatePath(ordersPath);
+    if (!outcome.applied) redirect(`${ordersPath}?notice=${outcome.reason}`);
+    redirect(`${ordersPath}?closed=${encodeURIComponent(reference)}`);
+  } catch (error) {
+    if (error instanceof OrderNotFoundError) redirect(`${ordersPath}?error=notfound`);
+    if (error instanceof RailMismatchError) redirect(`${ordersPath}?error=rail`);
+    if (error instanceof SettlementUnconfirmedError) redirect(`${ordersPath}?error=unconfirmed`);
+    throw error;
+  }
+}
 
 /**
  * Marks a QRIS order paid after an operator has seen the money arrive.

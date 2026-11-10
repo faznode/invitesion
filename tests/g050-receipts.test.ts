@@ -56,7 +56,10 @@ test('G-050 flag: off by default; every surface answers 404 or shows nothing whi
   }
   assert.match(source('app/(customer)/dashboard/layout.tsx'), /receiptsEnabled=\{isFlagOn\('RECEIPTS'\)\}/);
   assert.match(source('app/(customer)/dashboard/customer-shell.tsx'), /\.\.\.\(receiptsEnabled \? \[\['\/dashboard\/receipts'/);
-  assert.match(source('app/(customer)/dashboard/invitations/[id]/checkout/page.tsx'), /const receiptsEnabled = isFlagOn\('RECEIPTS'\);/);
+  const checkout = source('app/(customer)/dashboard/invitations/[id]/checkout/page.tsx');
+  assert.match(checkout, /const receiptsEnabled = isFlagOn\('RECEIPTS'\);/);
+  // The settlement publishes the invitation, so the live state is the usual one after paying: it must carry the link too.
+  assert.match(checkout, /This invitation is already live\.[\s\S]*?\{receiptLink\}[\s\S]*?Payment confirmed\. Your invitation is live\.[\s\S]*?\{receiptLink\}/);
   assert.match(source('.env.example'), /^# FLAG_RECEIPTS=off$/m);
 });
 

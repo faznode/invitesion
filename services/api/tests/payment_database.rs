@@ -273,7 +273,11 @@ async fn receipts_copy_the_payment_record_once_and_are_numbered_without_gaps() {
     .unwrap();
     assert_eq!(receipt.0, start + 1, "the next number");
     assert_eq!(receipt.8, 1, "one receipt for the order");
-    assert_eq!((receipt.1, receipt.2, receipt.3, receipt.4, receipt.5, receipt.6, receipt.7), record, "the payment record");
+    assert_eq!(
+        (receipt.1, receipt.2, receipt.3, receipt.4, receipt.5, receipt.6, receipt.7),
+        record,
+        "the payment record"
+    );
     assert_eq!(counter(&fixture.pool).await, start + 1, "the second delivery took no number");
 
     // Eight orders, each delivered three times at once: one receipt each, the next eight numbers, none skipped.

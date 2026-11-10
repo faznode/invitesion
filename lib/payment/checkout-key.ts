@@ -30,15 +30,22 @@ export type CheckoutIntent = {
   invitationId: number | null;
   templateId: number | null;
   tier: string;
+  /** The price before any coupon (`lib/pricing.ts`); a coupon-free order charges exactly this. */
   amount: number;
   currency: string;
   rail: string;
+  /** G-053: the sorted coupon codes the customer asked for (`normalizeCouponCodes`); absent or empty for none. */
+  coupons?: readonly string[];
 };
 
-/** SHA-256 of the intent in a fixed field order, as stored in `orders.checkout_intent`. */
+/**
+ * SHA-256 of the intent in a fixed field order, as stored in `orders.checkout_intent`. G-053 appends the codes only when
+ * there are some, so every coupon-free intent, including those already stored on PENDING orders, hashes as before.
+ */
 export function checkoutIntentHash(intent: CheckoutIntent): string {
-  const canonical = JSON.stringify([intent.invitationId, intent.templateId, intent.tier, intent.amount, intent.currency, intent.rail]);
-  return createHash('sha256').update(canonical).digest('hex');
+  const fields: unknown[] = [intent.invitationId, intent.templateId, intent.tier, intent.amount, intent.currency, intent.rail];
+  if (intent.coupons && intent.coupons.length > 0) fields.push([...intent.coupons]);
+  return createHash('sha256').update(JSON.stringify(fields)).digest('hex');
 }
 
 export type CheckoutResolution = 'resume' | 'paid' | 'closed' | 'conflict';

@@ -15,13 +15,15 @@ import { ownerReceiptNumberForOrder } from '@/lib/payment/receipts';
 import { OwnershipError, requireOwnedInvitation } from '@/lib/invitation/service';
 import { formatMoney, isCurrency, money } from '@/lib/payment/money';
 import { getProvider, railStatus } from '@/lib/payment/registry';
+import { orderCouponLines } from '@/lib/payment/service';
 import { startCheckout } from './actions';
+import { couponNotice } from './coupon-notice';
 
 export const dynamic = 'force-dynamic';
 
 type Params = {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ ref?: string; paid?: string; cancelled?: string; error?: string }>;
+  searchParams: Promise<{ ref?: string; paid?: string; cancelled?: string; error?: string; reason?: string }>;
 };
 
 /**
@@ -72,14 +74,31 @@ export default async function CheckoutPage({ params, searchParams }: Params) {
   const currency = order && isCurrency(order.currency) ? order.currency : 'IDR';
   const amount = order ? formatMoney(money(order.amount, currency), en ? 'en' : 'id') : null;
 
+  // G-053: a coupon order shows its price, each coupon's discount and what it charges (all as recorded on the order).
+  const couponsEnabled = isFlagOn('COUPONS');
+  const couponLines = order && order.listAmount !== null ? await orderCouponLines(order.id) : [];
+  const show = (value: number) => formatMoney(money(value, currency), en ? 'en' : 'id');
+
   // B-039: every render carries a fresh checkout key, so a double tap or a resubmitted page reaches one order. A failed
   // or expired attempt is over: the page offers a new one under a new key.
   const checkoutKey = randomUUID();
   const attemptOver = order?.status === 'FAILED' || order?.status === 'EXPIRED';
 
-  // G-050: a paid order links to its receipt once the jobs runner has issued it.
+  // G-050: a paid order links to its receipt once the jobs runner has issued it. The settlement itself usually publishes
+  // the invitation, so the live state carries the link as well as the paid-but-not-live one.
   const receiptsEnabled = isFlagOn('RECEIPTS');
   const receiptNumber = receiptsEnabled && order?.status === 'PAID' ? await ownerReceiptNumberForOrder(user.id, order.id) : null;
+  const receiptLink =
+    receiptsEnabled && order?.status === 'PAID' ? (
+      <Link
+        href={receiptNumber !== null ? `/dashboard/receipts/${receiptNumber}` : '/dashboard/receipts'}
+        className="mt-3 inline-flex text-sm font-semibold text-emerald-900 underline underline-offset-2 hover:text-emerald-950"
+      >
+        {receiptNumber !== null
+          ? `${en ? 'View receipt' : 'Lihat kuitansi'} ${formatReceiptNumber(receiptNumber)}`
+          : en ? 'Receipt being prepared: see your receipts' : 'Kuitansi sedang disiapkan: lihat daftar kuitansi'}
+      </Link>
+    ) : null;
 
   // Rendered server-side into an SVG: no client-side QR library, and the raw
   // payload never has to reach the browser as data.
@@ -134,6 +153,12 @@ export default async function CheckoutPage({ params, searchParams }: Params) {
           </p>
         )}
 
+        {query.error === 'coupon' && (
+          <p role="alert" className="mt-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            {couponNotice(query.reason, en)}
+          </p>
+        )}
+
         {query.error === 'closed' && (
           <p role="alert" className="mt-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
             {en
@@ -148,6 +173,7 @@ export default async function CheckoutPage({ params, searchParams }: Params) {
               <CheckCircle2 className="h-4 w-4" />
               {en ? 'This invitation is already live.' : 'Undangan ini sudah tayang.'}
             </p>
+            {receiptLink}
           </div>
         ) : !order || attemptOver ? (
           <form action={startCheckout} className="mt-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -163,6 +189,29 @@ export default async function CheckoutPage({ params, searchParams }: Params) {
                 ? 'One-time payment. The invitation goes live for 12 months once payment is confirmed.'
                 : 'Bayar sekali. Undangan tayang selama 12 bulan setelah pembayaran dikonfirmasi.'}
             </p>
+            {couponsEnabled && (
+              <div className="mt-4">
+                <label htmlFor="couponCodes" className="text-sm font-medium text-slate-800">
+                  {en ? 'Coupon code (optional)' : 'Kode kupon (opsional)'}
+                </label>
+                <input
+                  id="couponCodes"
+                  name="couponCodes"
+                  type="text"
+                  autoComplete="off"
+                  autoCapitalize="characters"
+                  spellCheck={false}
+                  maxLength={100}
+                  aria-describedby="couponCodesHelp"
+                  className="mt-1.5 block min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 font-mono text-sm uppercase text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-500"
+                />
+                <p id="couponCodesHelp" className="mt-1.5 text-xs leading-5 text-slate-600">
+                  {en
+                    ? 'The discount is checked on our side and shown with the amount before you pay.'
+                    : 'Diskon diperiksa di sistem kami dan ditampilkan bersama nominal sebelum kamu membayar.'}
+                </p>
+              </div>
+            )}
             <button
               type="submit"
               className="mt-5 inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-brand-600 px-4 text-sm font-semibold text-white transition hover:bg-brand-700"
@@ -173,8 +222,24 @@ export default async function CheckoutPage({ params, searchParams }: Params) {
         ) : (
           <div className="mt-6 space-y-4">
             <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+              {order.listAmount !== null && (
+                <dl className="mb-3 flex flex-col gap-1.5 border-b border-slate-100 pb-3 text-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <dt className="text-slate-500">{en ? 'Price' : 'Harga'}</dt>
+                    <dd className="text-slate-800">{show(order.listAmount)}</dd>
+                  </div>
+                  {couponLines.map((line) => (
+                    <div key={line.code} className="flex items-center justify-between gap-3">
+                      <dt className="text-slate-500">
+                        {en ? 'Coupon' : 'Kupon'} <span className="font-mono text-slate-700">{line.code}</span>
+                      </dt>
+                      <dd className="text-emerald-800">{`−${show(line.discount)}`}</dd>
+                    </div>
+                  ))}
+                </dl>
+              )}
               <div className="flex items-center justify-between gap-3">
-                <span className="text-sm text-slate-500">{en ? 'Amount' : 'Nominal'}</span>
+                <span className="text-sm text-slate-500">{order.listAmount !== null ? 'Total' : en ? 'Amount' : 'Nominal'}</span>
                 <span className="text-lg font-bold text-slate-900">{amount}</span>
               </div>
               <div className="mt-2 flex items-center justify-between gap-3">
@@ -196,16 +261,7 @@ export default async function CheckoutPage({ params, searchParams }: Params) {
             {order.status === 'PAID' ? (
               <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-5 text-sm text-emerald-800">
                 <p>{en ? 'Payment confirmed. Your invitation is live.' : 'Pembayaran terkonfirmasi. Undangan kamu sudah tayang.'}</p>
-                {receiptsEnabled && (
-                  <Link
-                    href={receiptNumber !== null ? `/dashboard/receipts/${receiptNumber}` : '/dashboard/receipts'}
-                    className="mt-3 inline-flex font-semibold text-emerald-900 underline underline-offset-2 hover:text-emerald-950"
-                  >
-                    {receiptNumber !== null
-                      ? `${en ? 'View receipt' : 'Lihat kuitansi'} ${formatReceiptNumber(receiptNumber)}`
-                      : en ? 'Receipt being prepared: see your receipts' : 'Kuitansi sedang disiapkan: lihat daftar kuitansi'}
-                  </Link>
-                )}
+                {receiptLink}
               </div>
             ) : qrSvg ? (
               <div className="rounded-xl border border-slate-200 bg-white p-5 text-center shadow-sm">
@@ -234,6 +290,8 @@ export default async function CheckoutPage({ params, searchParams }: Params) {
               <form action={startCheckout} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
                 <input type="hidden" name="invitationId" value={invitationId} />
                 <input type="hidden" name="checkoutKey" value={order.checkoutKey ?? checkoutKey} />
+                {/* G-053: the order's own codes, so the resubmitted intent matches and the same order resumes. */}
+                {couponLines.length > 0 && <input type="hidden" name="couponCodes" value={couponLines.map((line) => line.code).join(' ')} />}
                 <p className="text-sm text-slate-600">
                   {en
                     ? 'Complete the payment on Stripe. This page updates once the payment is confirmed.'

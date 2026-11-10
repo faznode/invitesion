@@ -1,11 +1,12 @@
 import 'server-only';
 
 import { randomBytes } from 'node:crypto';
-import { and, eq, isNull, ne, sql } from 'drizzle-orm';
+import { and, asc, eq, gt, inArray, isNull, ne, or, sql } from 'drizzle-orm';
 import { backendFor } from '@/lib/backend';
 import { db } from '@/lib/db/drizzle';
-import { invitations, jobs, orders, paymentEvents, payments } from '@/lib/db/schema';
+import { coupons, invitations, jobs, orderCoupons, orders, paymentEvents, payments } from '@/lib/db/schema';
 import { checkoutIntentHash, resolveExistingCheckout } from './checkout-key';
+import { CouponRefusedError, decideCoupons, type CouponUsage } from './coupons';
 import { AmountMismatchError, OrderNotFoundError, RailMismatchError } from './errors';
 import { money, type Money } from './money';
 import { getProvider } from './registry';
@@ -73,6 +74,16 @@ export type CheckoutStart =
  * is written; a submit that finds its key resumes that order's charge under the same reference, reports it paid, or
  * refuses a changed intent (`CheckoutConflictError`) or a closed attempt (`CheckoutClosedError`). The provider is called
  * outside any transaction, and its handle is stored only while the order is still PENDING.
+ *
+ * G-053 (D-066): `couponCodes` (normalised and sorted by `normalizeCouponCodes`; the caller checks `FLAG_COUPONS`) are
+ * part of the intent, next to the price before coupons. With codes, the order is written in one transaction that locks
+ * the coupons' rows in id order, looks for the key's order again under those locks (a concurrent submit with the same
+ * key has committed by then and is resumed, never counted against itself), counts the redemptions that still count,
+ * decides (`decideCoupons`) and writes the order with the discounted `amount`, its `list_amount` and one
+ * `order_coupons` row per coupon. A refusal (`CouponRefusedError`) writes nothing. A resumed order is charged its own
+ * stored amount. `couponsOpen` is the caller's `FLAG_COUPONS`: while it is false no new coupon order is written
+ * (`unavailable`), but the order a key already made with these codes still resumes, so turning the flag off never
+ * strands a customer midway through paying a discounted order.
  */
 export async function createOrder({
   userId,
@@ -85,6 +96,8 @@ export async function createOrder({
   successUrl,
   cancelUrl,
   checkoutKey = null,
+  couponCodes = [],
+  couponsOpen = true,
 }: {
   userId: number;
   invitationId: number | null;
@@ -96,44 +109,83 @@ export async function createOrder({
   successUrl: string;
   cancelUrl: string;
   checkoutKey?: string | null;
+  couponCodes?: readonly string[];
+  couponsOpen?: boolean;
 }): Promise<CheckoutStart> {
   const rail = railForCurrency(price.currency);
+  const codes = [...couponCodes];
   const intent = checkoutKey
-    ? checkoutIntentHash({ invitationId, templateId, tier, amount: price.amount, currency: price.currency, rail })
+    ? checkoutIntentHash({ invitationId, templateId, tier, amount: price.amount, currency: price.currency, rail, coupons: codes })
     : null;
+  const keyedOrder = (executor: Pick<typeof db, 'select'>) =>
+    checkoutKey && invitationId !== null
+      ? executor
+          .select({ id: orders.id, reference: orders.reference, status: orders.status, checkoutIntent: orders.checkoutIntent, amount: orders.amount })
+          .from(orders)
+          .where(and(eq(orders.userId, userId), eq(orders.invitationId, invitationId), eq(orders.checkoutKey, checkoutKey)))
+          .limit(1)
+          .then((rows) => rows[0])
+      : Promise.resolve(undefined);
+  const values = {
+    userId,
+    invitationId,
+    templateId,
+    tier,
+    amount: price.amount,
+    currency: price.currency,
+    rail,
+    reference: newReference(),
+    status: 'PENDING',
+    checkoutKey,
+    checkoutIntent: intent,
+  };
+  const keyConflict = { target: [orders.userId, orders.invitationId, orders.checkoutKey], where: sql`${orders.checkoutKey} is not null` };
 
-  const inserted = await db
-    .insert(orders)
-    .values({
-      userId,
-      invitationId,
-      templateId,
-      tier,
-      amount: price.amount,
-      currency: price.currency,
-      rail,
-      reference: newReference(),
-      status: 'PENDING',
-      checkoutKey,
-      checkoutIntent: intent,
-    })
-    .onConflictDoNothing({
-      target: [orders.userId, orders.invitationId, orders.checkoutKey],
-      where: sql`${orders.checkoutKey} is not null`,
-    })
-    .returning({ id: orders.id, reference: orders.reference });
+  let order: { id: number; reference: string } | undefined;
+  let charge: Money = price;
+  let existing: Awaited<ReturnType<typeof keyedOrder>>;
+  if (codes.length > 0) {
+    const outcome = await db.transaction(async (tx) => {
+      const rows = await tx.select().from(coupons).where(inArray(coupons.code, codes)).orderBy(asc(coupons.id)).for('update');
+      const found = await keyedOrder(tx);
+      if (found) return { kind: 'existing' as const, found };
+      if (!couponsOpen) throw new CouponRefusedError('unavailable', null);
+      const now = new Date();
+      const usage = await couponUsage(tx, rows.map((row) => row.id), userId, now);
+      const decision = decideCoupons({ list: price, tier, now, codes, coupons: rows, usage });
+      if (!decision.ok) throw new CouponRefusedError(decision.reason, decision.code);
+      const [inserted] = await tx
+        .insert(orders)
+        .values({ ...values, amount: decision.payable.amount, listAmount: price.amount })
+        .onConflictDoNothing(keyConflict)
+        .returning({ id: orders.id, reference: orders.reference });
+      if (!inserted) return { kind: 'existing' as const, found: await keyedOrder(tx) };
+      await tx.insert(orderCoupons).values(
+        decision.lines.map((line, index) => ({ orderId: inserted.id, couponId: line.couponId, userId, discount: line.discount, position: index + 1 })),
+      );
+      return { kind: 'created' as const, inserted, payable: decision.payable };
+    });
+    if (outcome.kind === 'created') {
+      order = outcome.inserted;
+      charge = outcome.payable;
+    } else {
+      existing = outcome.found;
+      if (!existing) throw new Error('the conflicting checkout order is gone');
+    }
+  } else {
+    const inserted = await db.insert(orders).values(values).onConflictDoNothing(keyConflict).returning({ id: orders.id, reference: orders.reference });
+    order = inserted[0];
+    if (!order) {
+      // Only a keyed insert can conflict, and the conflicting row has committed by now (the insert waited for it).
+      if (!checkoutKey || invitationId === null || !intent) throw new Error('an unkeyed order insert conflicted');
+      existing = await keyedOrder(db);
+      if (!existing) throw new Error('the conflicting checkout order is gone');
+    }
+  }
 
-  let order = inserted[0];
   let resumed = false;
   if (!order) {
-    // Only a keyed insert can conflict, and the conflicting row has committed by now (the insert waited for it).
-    if (!checkoutKey || invitationId === null || !intent) throw new Error('an unkeyed order insert conflicted');
-    const [existing] = await db
-      .select({ id: orders.id, reference: orders.reference, status: orders.status, checkoutIntent: orders.checkoutIntent })
-      .from(orders)
-      .where(and(eq(orders.userId, userId), eq(orders.invitationId, invitationId), eq(orders.checkoutKey, checkoutKey)))
-      .limit(1);
-    if (!existing) throw new Error('the conflicting checkout order is gone');
+    if (!existing || !intent) throw new Error('a checkout without an order');
     switch (resolveExistingCheckout(existing, intent)) {
       case 'conflict':
         throw new CheckoutConflictError();
@@ -143,6 +195,8 @@ export async function createOrder({
         return { kind: 'paid', orderId: existing.id, reference: existing.reference };
       case 'resume':
         order = { id: existing.id, reference: existing.reference };
+        // The same intent, so the same currency; the amount is the order's own (a coupon order's discounted one).
+        charge = money(existing.amount, price.currency);
         resumed = true;
     }
   }
@@ -150,7 +204,7 @@ export async function createOrder({
   const provider = getProvider(rail);
   const handle = await provider.createCharge({
     reference: order.reference,
-    price,
+    price: charge,
     description,
     customerEmail,
     successUrl,
@@ -374,6 +428,38 @@ export async function confirmManually({
 }
 
 /**
+ * G-053 (D-066): an operator closes a manual QRIS order that was never paid. A static QR has no payment window, so an
+ * abandoned order would otherwise stay PENDING for good, and with it any coupon redemption it holds (a cap or a
+ * customer's one use). Closing goes through the same settlement as everything else (`settle`, an `EXPIRED` event under
+ * a synthetic id, so a second press is a duplicate), which gives the redemption back and lets the customer start a new
+ * attempt. Only QRIS: a Stripe session closes itself through its own expiry webhook. A payment confirmed after the close
+ * is kept against the order without effect (the decision's rule 4), so the operator checks the account first. The
+ * caller has authorised the administrator.
+ */
+export async function closeUnpaid({
+  reference,
+  adminUserId,
+  note,
+}: {
+  reference: string;
+  adminUserId: number;
+  note?: string;
+}): Promise<SettleOutcome> {
+  const [order] = await db.select({ rail: orders.rail, providerPaymentId: orders.providerPaymentId }).from(orders).where(eq(orders.reference, reference)).limit(1);
+  if (!order) throw new OrderNotFoundError(reference);
+  if (order.rail !== 'qris') throw new RailMismatchError('qris', order.rail);
+  return settle({
+    rail: 'qris',
+    eventId: `manual-close:${reference}`,
+    reference,
+    providerPaymentId: order.providerPaymentId ?? null,
+    status: 'EXPIRED',
+    paid: null,
+    raw: { source: 'manual-close', adminUserId, note: note ?? null, at: new Date().toISOString() },
+  });
+}
+
+/**
  * B-039: the one settlement entry point (the webhook route, the administrator's confirmation). Exactly one writer per
  * call, selected by `BACKEND_PAYMENT` (`lib/backend.ts`, default `next`), and never a fallback to the other: after an
  * unknown outcome the Rust writer retries once under its key and then reports `SettlementUnconfirmedError`.
@@ -416,6 +502,44 @@ export async function paidInvitationIds(userId: number): Promise<Set<number>> {
     .from(orders)
     .where(and(eq(orders.userId, userId), eq(orders.status, 'PAID')));
   return new Set(rows.map((row) => row.invitationId).filter((id): id is number => id !== null));
+}
+
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/**
+ * G-053: a redemption still counts while its order is PAID, or PENDING and payable (no payment window, or one that has
+ * not ended). A FAILED or EXPIRED order, or a pending one past its window, gives its coupons back without any write.
+ */
+export function liveRedemption(now: Date) {
+  return or(eq(orders.status, 'PAID'), and(eq(orders.status, 'PENDING'), or(isNull(orders.expiresAt), gt(orders.expiresAt, now))));
+}
+
+/** Redemptions that still count per coupon, for everyone and for this customer; read under the coupons' row locks. */
+async function couponUsage(tx: Tx, couponIds: number[], userId: number, now: Date): Promise<Map<number, CouponUsage>> {
+  const usage = new Map<number, CouponUsage>();
+  if (couponIds.length === 0) return usage;
+  const rows = await tx
+    .select({
+      couponId: orderCoupons.couponId,
+      live: sql<number>`count(*)::int`,
+      mine: sql<number>`(count(*) filter (where ${orderCoupons.userId} = ${userId}))::int`,
+    })
+    .from(orderCoupons)
+    .innerJoin(orders, eq(orders.id, orderCoupons.orderId))
+    .where(and(inArray(orderCoupons.couponId, couponIds), liveRedemption(now)))
+    .groupBy(orderCoupons.couponId);
+  for (const row of rows) usage.set(row.couponId, { live: Number(row.live), mine: Number(row.mine) });
+  return usage;
+}
+
+/** G-053: the coupons an order used, in the order they were applied, each with its discount (the checkout's summary). */
+export async function orderCouponLines(orderId: number): Promise<{ code: string; discount: number }[]> {
+  return db
+    .select({ code: coupons.code, discount: orderCoupons.discount })
+    .from(orderCoupons)
+    .innerJoin(coupons, eq(coupons.id, orderCoupons.couponId))
+    .where(eq(orderCoupons.orderId, orderId))
+    .orderBy(asc(orderCoupons.position));
 }
 
 /** Orders awaiting operator confirmation, newest first. */

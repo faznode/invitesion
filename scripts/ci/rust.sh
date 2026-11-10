@@ -186,6 +186,12 @@ receipts_end_to_end() {
   fi
 }
 
+# G-053: coupon orders settle at their discounted amount through the Rust writer as through Next.js (the full price is
+# refused and nothing kept); the database job runs the same script for the Next.js writer alone.
+coupons_end_to_end() {
+  API_BASE_URL="http://127.0.0.1:$API_PORT" INTERNAL_API_SECRET=$API_SECRET REQUIRE_RUST=1 npx tsx scripts/verify-coupons.ts
+}
+
 step "migrate (drizzle-kit)" pnpm db:migrate
 step "toolchain" cargo --version
 if [ -f "$SERVICE/Cargo.toml" ]; then
@@ -208,5 +214,6 @@ if [ -f "$SERVICE/Cargo.toml" ]; then
   step "retention end to end (B-031: Next.js deletion, Rust plan, purge and sweep)" retention_end_to_end
   step "payment end to end (B-039, BACKEND_PAYMENT, both writers, outbox)" payment_end_to_end
   step "receipts end to end (G-050, outbox delivery, gapless numbers, owner reads)" receipts_end_to_end
+  step "coupons end to end (G-053, discounted orders through both writers)" coupons_end_to_end
 fi
 step "test ($EXPERIMENT)" cargo test --manifest-path "$EXPERIMENT/Cargo.toml" --locked

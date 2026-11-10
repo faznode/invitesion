@@ -1,16 +1,16 @@
 import { desc } from 'drizzle-orm';
-import { CheckCircle2, QrCode, CreditCard } from 'lucide-react';
+import { CheckCircle2, QrCode, CreditCard, XCircle } from 'lucide-react';
 import { getUser } from '@/lib/db/queries';
 import { db } from '@/lib/db/drizzle';
 import { orders } from '@/lib/db/schema';
 import { assertAuthorizedAdmin } from '@/lib/auth/admin-access';
 import { formatMoney, isCurrency, money } from '@/lib/payment/money';
 import { railStatus } from '@/lib/payment/registry';
-import { confirmOrderPaid } from './actions';
+import { closeOrderUnpaid, confirmOrderPaid } from './actions';
 
 export const dynamic = 'force-dynamic';
 
-type Search = { confirmed?: string; activated?: string; notice?: string; error?: string };
+type Search = { confirmed?: string; activated?: string; closed?: string; notice?: string; error?: string };
 
 export default async function OrdersPage({ searchParams }: { searchParams: Promise<Search> }) {
   assertAuthorizedAdmin(await getUser());
@@ -26,7 +26,7 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
   return (
     <section className="p-4 lg:p-8">
       <div className="mx-auto max-w-7xl">
-        <p className="text-sm font-medium text-brand-600">Transaksi</p>
+        <p className="text-sm font-medium text-brand-700">Transaksi</p>
         <h1 className="mt-1 text-2xl font-semibold">Pesanan &amp; Pembayaran</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           QRIS untuk pembayaran lokal (IDR), Stripe untuk internasional.
@@ -61,7 +61,14 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
                     <td className="px-5 py-4 font-mono text-xs font-medium">{row.reference}</td>
                     <td className="px-5 py-4 uppercase text-muted-foreground">{row.rail}</td>
                     <td className="px-5 py-4 text-muted-foreground">{row.tier || '—'}</td>
-                    <td className="px-5 py-4">{formatMoney(money(row.amount, currency), 'id')}</td>
+                    <td className="px-5 py-4">
+                      {formatMoney(money(row.amount, currency), 'id')}
+                      {row.listAmount !== null && (
+                        <span className="block text-xs text-muted-foreground">
+                          kupon · dari {formatMoney(money(row.listAmount, currency), 'id')}
+                        </span>
+                      )}
+                    </td>
                     <td className="px-5 py-4">
                       <span
                         className={`rounded-full px-2.5 py-1 text-xs ${
@@ -78,16 +85,30 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
                     <td className="px-5 py-4 text-muted-foreground">{row.createdAt.toLocaleDateString('id-ID')}</td>
                     <td className="px-5 py-4">
                       {awaitingManual ? (
-                        <form action={confirmOrderPaid}>
-                          <input type="hidden" name="reference" value={row.reference} />
-                          <button
-                            type="submit"
-                            className="inline-flex min-h-9 items-center gap-1.5 rounded-md bg-emerald-600 px-3 text-xs font-semibold text-white transition hover:bg-emerald-700"
-                          >
-                            <CheckCircle2 className="h-3.5 w-3.5" />
-                            Tandai lunas
-                          </button>
-                        </form>
+                        <div className="flex flex-wrap gap-2">
+                          <form action={confirmOrderPaid}>
+                            <input type="hidden" name="reference" value={row.reference} />
+                            <button
+                              type="submit"
+                              className="inline-flex min-h-9 items-center gap-1.5 rounded-md bg-emerald-700 px-3 text-xs font-semibold text-white transition hover:bg-emerald-800"
+                            >
+                              <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
+                              Tandai lunas
+                            </button>
+                          </form>
+                          {/* G-053: an abandoned manual order would otherwise hold its coupon redemption for good. */}
+                          <form action={closeOrderUnpaid}>
+                            <input type="hidden" name="reference" value={row.reference} />
+                            <button
+                              type="submit"
+                              aria-label={`Tutup tanpa bayar: order ${row.reference}`}
+                              className="inline-flex min-h-9 items-center gap-1.5 rounded-md border border-slate-300 px-3 text-xs font-semibold text-slate-800 transition hover:bg-slate-100"
+                            >
+                              <XCircle className="h-3.5 w-3.5" aria-hidden />
+                              Tutup tanpa bayar
+                            </button>
+                          </form>
+                        </div>
                       ) : (
                         <span className="text-xs text-muted-foreground">—</span>
                       )}
@@ -139,6 +160,14 @@ function Feedback({ feedback }: { feedback: Search }) {
         {feedback.activated === '0'
           ? 'Undangan terkait tidak diterbitkan otomatis (sudah tayang, dihapus, atau temanya berbeda); pemilik bisa menerbitkannya.'
           : 'Undangan terkait diterbitkan.'}
+      </p>
+    );
+  }
+  if (feedback.closed) {
+    return (
+      <p role="status" className="mt-6 rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800">
+        Order {feedback.closed} ditutup tanpa pembayaran. Kupon yang dipakainya kembali tersedia, dan customer bisa memulai
+        pembayaran baru. Kalau transfernya ternyata masuk, order ini tidak lagi bisa ditandai lunas: tangani manual.
       </p>
     );
   }

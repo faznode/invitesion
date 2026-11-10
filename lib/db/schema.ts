@@ -417,6 +417,9 @@ export const orders = pgTable('orders', {
   // server-computed intent it was bound to (lib/payment/checkout-key.ts). NULL on older orders and on keyless submits.
   checkoutKey: varchar('checkout_key', { length: 64 }),
   checkoutIntent: varchar('checkout_intent', { length: 64 }),
+  // G-053 (migration 0029): the price before coupons when the order has any (`order_coupons`); `amount` is what it
+  // charges. NULL on every coupon-free order, where `amount` is the price.
+  listAmount: integer('list_amount'),
 }, (t) => ({
   checkoutKeyIdx: uniqueIndex('orders_user_checkout_key_idx')
     .on(t.userId, t.invitationId, t.checkoutKey)
@@ -504,6 +507,75 @@ export const receiptCounters = pgTable('receipt_counters', {
   lastNumber: integer('last_number').notNull(),
 });
 
+/**
+ * G-053 (migration 0029, D-066): coupons, created only by an administrator and always inactive until activated. A
+ * percentage (1–99) or a fixed amount in one currency, optionally for one tier, inside an optional window, with an
+ * optional cap on redemptions that still count and a per-customer limit (1: one use per rule). Stacking only between
+ * coupons that all allow it. The rules are `lib/payment/coupons.ts`; the checks below refuse a malformed row anyway.
+ */
+export const coupons = pgTable(
+  'coupons',
+  {
+    id: serial('id').primaryKey(),
+    code: varchar('code', { length: 32 }).notNull(),
+    kind: varchar('kind', { length: 10 }).notNull(),
+    percentOff: integer('percent_off'),
+    amountOff: integer('amount_off'),
+    currency: varchar('currency', { length: 3 }),
+    tier: varchar('tier', { length: 50 }),
+    startsAt: timestamp('starts_at'),
+    endsAt: timestamp('ends_at'),
+    maxRedemptions: integer('max_redemptions'),
+    perCustomer: integer('per_customer').notNull().default(1),
+    stackable: boolean('stackable').notNull().default(false),
+    active: boolean('active').notNull().default(false),
+    // Affiliate attribution: the partner a code was issued to, an administrator's label shown only in the console.
+    // Commission rates, partner agreements and payouts are owner decisions and are not modelled.
+    partner: varchar('partner', { length: 64 }),
+    createdBy: integer('created_by')
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    disabledAt: timestamp('disabled_at'),
+  },
+  (t) => [
+    unique('coupons_code_unique').on(t.code),
+    check('coupons_kind_check', sql`${t.kind} in ('percent', 'fixed')`),
+    check(
+      'coupons_value_check',
+      sql`(${t.kind} = 'percent' and ${t.percentOff} between 1 and 99 and ${t.amountOff} is null) or (${t.kind} = 'fixed' and ${t.amountOff} >= 1 and ${t.percentOff} is null and ${t.currency} in ('IDR', 'USD'))`,
+    ),
+    check('coupons_limits_check', sql`${t.perCustomer} >= 1 and (${t.maxRedemptions} is null or ${t.maxRedemptions} >= 1)`),
+    check('coupons_window_check', sql`${t.startsAt} is null or ${t.endsAt} is null or ${t.startsAt} < ${t.endsAt}`),
+  ],
+);
+
+/**
+ * G-053: the coupons an order used, written with the order in one transaction under the coupons' row locks. The order's
+ * customer is copied for the per-customer count. A redemption counts while its order is PAID, or PENDING and payable.
+ */
+export const orderCoupons = pgTable(
+  'order_coupons',
+  {
+    orderId: integer('order_id')
+      .notNull()
+      .references(() => orders.id),
+    couponId: integer('coupon_id')
+      .notNull()
+      .references(() => coupons.id),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id),
+    discount: integer('discount').notNull(),
+    position: integer('position').notNull(),
+  },
+  (t) => [
+    primaryKey({ name: 'order_coupons_pk', columns: [t.orderId, t.couponId] }),
+    index('order_coupons_coupon_user_idx').on(t.couponId, t.userId),
+    check('order_coupons_discount_check', sql`${t.discount} >= 0 and ${t.position} between 1 and 3`),
+  ],
+);
+
 // ─────────────────────────────────────────────
 // AI / MESSAGING
 // ─────────────────────────────────────────────
@@ -588,7 +660,7 @@ export const customerSessionSummary = pgTable('customer_session_summary', {
 
 // ─────────���──────────────────────────────────���
 // ANALYTICS
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────��───────
 export const analyticsEvents = pgTable(
   'analytics_events',
   {

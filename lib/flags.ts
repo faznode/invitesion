@@ -105,6 +105,13 @@ const DEFAULTS = {
    * the owner's request. Off: the pages and the request answer 404 and no link shows; issued receipts are kept.
    */
   RECEIPTS: false,
+  /**
+   * G-053 (D-066): the checkout's coupon field. Coupons are created by an administrator (`/admin/<entry>/coupons`),
+   * always inactive until activated there; the discount is computed on the server and recorded on the order. Off: the
+   * field is hidden and a submitted code is refused with a notice (never silently charged in full); orders already made
+   * keep their discounted amount and stay payable; coupons and their redemptions are kept.
+   */
+  COUPONS: false,
 } as const;
 
 export type FlagName = keyof typeof DEFAULTS;

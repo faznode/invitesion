@@ -9,8 +9,10 @@ import { getUser } from '@/lib/db/queries';
 import { getLocale } from '@/lib/locale-server';
 import { OwnershipError, requireOwnedInvitation } from '@/lib/invitation/service';
 import { getPublicOrigin } from '@/lib/invitation/public-url';
+import { isFlagOn } from '@/lib/flags';
 import { activationPrice, currencyForLocale, tierFor } from '@/lib/pricing';
 import { normalizeCheckoutKey } from '@/lib/payment/checkout-key';
+import { CouponRefusedError, normalizeCouponCodes } from '@/lib/payment/coupons';
 import { CheckoutClosedError, CheckoutConflictError, createOrder, hasPaidOrder } from '@/lib/payment/service';
 import { ProviderError } from '@/lib/payment/types';
 
@@ -77,6 +79,18 @@ export async function startCheckout(formData: FormData): Promise<void> {
 
   const checkoutKey = normalizeCheckoutKey(formData.get('checkoutKey')) ?? randomUUID();
 
+  // G-053: the codes are all a form says about a discount; `createOrder` decides it on the server. While coupons are off
+  // a typed code is refused with a notice rather than ignored, so nobody is charged in full when they expected less;
+  // the order a key already made with its codes (the Stripe resume form sends them back) still resumes.
+  const couponsOpen = isFlagOn('COUPONS');
+  const typedCodes = formData.get('couponCodes');
+  let couponCodes: string[] = [];
+  if (typeof typedCodes === 'string' && typedCodes.trim() !== '') {
+    const parsed = normalizeCouponCodes(typedCodes);
+    if (!parsed.ok) redirect(`${checkoutPath}?error=coupon&reason=${couponsOpen ? parsed.reason : 'unavailable'}`);
+    couponCodes = parsed.codes;
+  }
+
   let start;
   try {
     start = await createOrder({
@@ -90,8 +104,11 @@ export async function startCheckout(formData: FormData): Promise<void> {
       successUrl: `${origin}${checkoutPath}?paid=1`,
       cancelUrl: `${origin}${checkoutPath}?cancelled=1`,
       checkoutKey,
+      couponCodes,
+      couponsOpen,
     });
   } catch (error) {
+    if (error instanceof CouponRefusedError) redirect(`${checkoutPath}?error=coupon&reason=${error.reason}`);
     if (error instanceof CheckoutConflictError) redirect(`${checkoutPath}?error=changed`);
     if (error instanceof CheckoutClosedError) redirect(`${checkoutPath}?error=closed`);
     if (error instanceof ProviderError) {

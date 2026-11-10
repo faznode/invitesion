@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   FileText, LayoutDashboard, LogOut, Menu, Palette, ReceiptText,
-  Settings, ShieldCheck, UserRound, Users, X,
+  Settings, ShieldCheck, TicketPercent, UserRound, Users, X,
 } from 'lucide-react';
 import { useClerk } from '@clerk/nextjs';
 import type { Locale } from '@/lib/i18n';
@@ -27,6 +27,7 @@ export function AdminShell({ entry, children, locale }: AdminShellProps) {
     ['/customers', Users, 'Customer'],
     ['/templates', Palette, en ? 'Themes' : 'Tema'],
     ['/orders', ReceiptText, en ? 'Orders' : 'Pesanan'],
+    ['/coupons', TicketPercent, en ? 'Coupons' : 'Kupon'],
     ['/general', Settings, en ? 'Account' : 'Akun'],
     ['/security', ShieldCheck, en ? 'Security' : 'Keamanan'],
   ] as const;

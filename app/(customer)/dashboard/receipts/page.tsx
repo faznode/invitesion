@@ -45,7 +45,7 @@ export default async function ReceiptsPage({ searchParams }: { searchParams: Pro
     <section className="min-h-full bg-slate-50/70 p-4 lg:p-8">
       <div className="mx-auto max-w-3xl">
         <header>
-          <p className="text-sm font-semibold text-brand-600">{en ? 'Payments' : 'Pembayaran'}</p>
+          <p className="text-sm font-semibold text-brand-700">{en ? 'Payments' : 'Pembayaran'}</p>
           <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900 text-balance">{en ? 'Receipts' : 'Kuitansi'}</h1>
           <p className="mt-2 text-sm leading-6 text-slate-500 text-pretty">
             {en
