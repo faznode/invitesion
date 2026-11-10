@@ -79,11 +79,16 @@ export const CAPABILITIES = {
   teamAccess: { built: 'yes', evidence: 'app/(customer)/dashboard/invitations/[id]/team/page.tsx', flag: 'TEAM_ACCESS', rollout: 'DA-01 item 8 with real sign-in' },
   wishesBook: { built: 'yes', evidence: 'app/(customer)/dashboard/invitations/[id]/wishes/book/route.ts', flag: 'WISHES_BOOK', rollout: 'DA-01 item 10 with real sign-in' },
   supportEmail: { built: 'yes', evidence: 'app/marketing-footer.tsx' },
+  resellerWorkspace: { built: 'yes', evidence: 'app/(customer)/dashboard/workspace/page.tsx', flag: 'WORKSPACES', rollout: 'DA-01 item 13 with real sign-in' },
+  receipts: { built: 'yes', evidence: 'app/(customer)/dashboard/receipts/page.tsx', flag: 'RECEIPTS', rollout: 'DA-01 item 12 (G-050 extension) with real sign-in' },
+  coupons: { built: 'yes', evidence: 'app/(customer)/dashboard/invitations/[id]/checkout/page.tsx', flag: 'COUPONS', rollout: 'DA-01 item 12 (G-053 extension) with real sign-in' },
+  // G-061: the help centre is always on; each article publishes only while the capabilities it describes are available.
+  helpArticles: { built: 'yes', evidence: 'app/resources/help-center/page.tsx' },
 
   // ── Roadmap (a backlog row, nothing built) ─────────────────────────────────────
   whatsappAutomation: { built: 'roadmap', evidence: 'G-038 WhatsApp workflow (official API, reminders)' },
-  resellerWorkspace: { built: 'roadmap', evidence: 'G-052 Reseller workspace and credits' },
-  helpArticles: { built: 'roadmap', evidence: 'G-061 Help centre and tutorials' },
+  // G-052's ledger mechanics exist, but nothing sells, grants or spends a credit until the owner sets prices and packs.
+  workspaceCredits: { built: 'roadmap', evidence: 'B-040 Entry-tier / reverse-trial experiment (credit prices, packs and top-ups are owner decisions)' },
 
   // ── Not built, not planned ───────────────────────────────────────────────────
   emailSending: { built: 'no', evidence: 'no email provider in package.json; `communications` is host-only config' },

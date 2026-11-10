@@ -4,8 +4,8 @@
 > STATUS: LIVE (MVP scope)
 > OWNER: Architect
 > DEPS: PROJECT_OVERVIEW.md
-> GREP: schema, drizzle, tabel, users, invitations, guests, orders, versions, version_no, guest_registrations, guest_registration_links, import_batch_id, template_id, templateId, creation_key, invitation_members, co-host, usher, team, seating_tables, guest_logs, gift_logs, host logs, meja, suvenir, kado, family_side, pihak keluarga, deleted_at, purge_after, purged_at, hapus, retensi, tombstone, invitation_purge, checkout_key, checkout_intent, payment_settled, outbox, BACKEND_PAYMENT, coupons, order_coupons, list_amount, kupon, G-053
-> UPDATED: 2026-11-10 (s40: migrasi 0029 (coupons, order_coupons, orders.list_amount) G-053 / D-066, drift none, diuji 0028 → 0029 dengan baris dan rollback kode G-050; migrasi 0028 (receipts, receipt_counters) dibuat dengan drizzle-kit, drift none, diuji 0027 → 0028 dengan baris; s39: orders.checkout_key / checkout_intent + index unik parsial (user_id, invitation_id, checkout_key) migrasi 0027, kunci checkout B-039 / D-064, diuji 0026 → 0027 dengan baris; jobs `payment_settled` = outbox entitlement setelah settlement, kedua penulis `BACKEND_PAYMENT`; s38: invitations.deleted_at / purge_after / purged_at migrasi 0026, hapus + retensi B-031 / D-063, diuji 0025 → 0026 dengan baris; s36: gift_logs.family_side migrasi 0025, pihak keluarga kado I-04 / D-059; buku ucapan membaca guest_messages VISIBLE, I-22 / D-060; s35: seating_tables + guest_logs + gift_logs migrasi 0024, catatan hari acara pemilik G-045 / D-058; invitation_members migrasi 0023, tim undangan G-044 / D-057; s33: invitations.creation_key + index unik parsial (user_id, creation_key) migrasi 0021, pembuatan draf lewat fasad `BACKEND_CONTENT`, B-037 / D-055; s32 turn 3: dua ruang id template_id vs config.theme.templateId, ganti tema B-036 / D-054; s32: index invitation_versions (invitation_id, version_no) migrasi 0020, cek versi simpan editor `BACKEND_CONTENT`, B-035 / D-053; s31: guests import_batch_id + guest_registration_links + guest_registrations migrasi 0019, penulis roster `BACKEND_ROSTER`, B-033 / D-052; s28: guest_messages reviewed_at / host_reply / replied_at + index ucapan VISIBLE migrasi 0017, R-04 / D-044; api_rate_limits + api_idempotency_keys migrasi 0016, ditulis hanya oleh services/api, R-03 / D-043; s20/s21: guests invited_event_ids migrasi 0015, events[].inviteOnly, D-037; showPhoto foto anak, D-038; s19: guests rsvp_event_answers migrasi 0014; id acara tetap di invitations.config.events migrasi data 0013, D-036; guests rsvp_answers, migrasi 0012; earlier: analytics_events view-dedupe index, guests attending_count, link_token)
+> GREP: schema, drizzle, tabel, users, invitations, guests, orders, versions, version_no, guest_registrations, guest_registration_links, import_batch_id, template_id, templateId, creation_key, invitation_members, co-host, usher, team, seating_tables, guest_logs, gift_logs, host logs, meja, suvenir, kado, family_side, pihak keluarga, deleted_at, purge_after, purged_at, hapus, retensi, tombstone, invitation_purge, checkout_key, checkout_intent, payment_settled, outbox, BACKEND_PAYMENT, coupons, order_coupons, list_amount, kupon, G-053, workspaces, workspace_members, workspace_credit_entries, workspace_id, client_label, credit ledger, G-052
+> UPDATED: 2026-11-10 (s42: migration 0030 (workspaces, workspace_members, workspace_credit_entries, invitations.workspace_id / client_label) G-052 / D-067, drift none, rehearsed 0029 → 0030 with stored rows and a G-053 code rollback; s40: migrasi 0029 (coupons, order_coupons, orders.list_amount) G-053 / D-066, drift none, diuji 0028 → 0029 dengan baris dan rollback kode G-050; migrasi 0028 (receipts, receipt_counters) dibuat dengan drizzle-kit, drift none, diuji 0027 → 0028 dengan baris; s39: orders.checkout_key / checkout_intent + index unik parsial (user_id, invitation_id, checkout_key) migrasi 0027, kunci checkout B-039 / D-064, diuji 0026 → 0027 dengan baris; jobs `payment_settled` = outbox entitlement setelah settlement, kedua penulis `BACKEND_PAYMENT`; s38: invitations.deleted_at / purge_after / purged_at migrasi 0026, hapus + retensi B-031 / D-063, diuji 0025 → 0026 dengan baris; s36: gift_logs.family_side migrasi 0025, pihak keluarga kado I-04 / D-059; buku ucapan membaca guest_messages VISIBLE, I-22 / D-060; s35: seating_tables + guest_logs + gift_logs migrasi 0024, catatan hari acara pemilik G-045 / D-058; invitation_members migrasi 0023, tim undangan G-044 / D-057; s33: invitations.creation_key + index unik parsial (user_id, creation_key) migrasi 0021, pembuatan draf lewat fasad `BACKEND_CONTENT`, B-037 / D-055; s32 turn 3: dua ruang id template_id vs config.theme.templateId, ganti tema B-036 / D-054; s32: index invitation_versions (invitation_id, version_no) migrasi 0020, cek versi simpan editor `BACKEND_CONTENT`, B-035 / D-053; s31: guests import_batch_id + guest_registration_links + guest_registrations migrasi 0019, penulis roster `BACKEND_ROSTER`, B-033 / D-052; s28: guest_messages reviewed_at / host_reply / replied_at + index ucapan VISIBLE migrasi 0017, R-04 / D-044; api_rate_limits + api_idempotency_keys migrasi 0016, ditulis hanya oleh services/api, R-03 / D-043; s20/s21: guests invited_event_ids migrasi 0015, events[].inviteOnly, D-037; showPhoto foto anak, D-038; s19: guests rsvp_event_answers migrasi 0014; id acara tetap di invitations.config.events migrasi data 0013, D-036; guests rsvp_answers, migrasi 0012; earlier: analytics_events view-dedupe index, guests attending_count, link_token)
 > ORM DECISION (whyme 2026-07-15): pakai **Drizzle** (bukan Prisma) — ikut fondasi nextjs/saas-starter biar backend cepat jalan. Schema di bawah = kanonik, diimplementasi sbg Drizzle schema (lib/db/schema.ts).
 
 ## Prinsip
@@ -48,6 +48,10 @@ invitations
     (retry, ketuk dua kali, kirim ulang) mendapat draf yang sama. Ditulis hanya saat pembuatan, oleh fasad pembuatan
     (`lib/invitation/creation.ts`, `BACKEND_CONTENT`: `create-next.ts` atau `POST /v1/invitations`). Baris lama: NULL.
     `template_id` dan versi 1 ditulis di transaksi yang sama; sejak B-037 `create.ts` hanya pembungkus untuk skrip.
+  workspace_id→workspaces (nullable), client_label (varchar 80, nullable)
+  ← G-052 (migration 0030, D-067): set only by the owner of both the invitation and the workspace ("client invitation");
+    NULL = personal (every row that existed before 0030). Partial index invitations_workspace_idx (workspace_id) WHERE
+    workspace_id IS NOT NULL. Ownership never moves: `user_id` stays the owner. The purge clears `client_label`.
   deleted_at, purge_after, purged_at (timestamp, nullable)
   ← B-031 (migrasi 0026, D-063): hapus oleh pemilik + retensi. `deleted_at` dan `purge_after` selalu terisi bersama,
     `purge_after >= deleted_at` (CHECK invitations_deletion_window_check); `purged_at` hanya setelah `deleted_at`
@@ -210,6 +214,29 @@ receipts                       ← G-050 (0028): satu per order lunas; ditulis H
 
 receipt_counters               ← G-050: satu baris scope='receipt', last_number (dibuat oleh increment pertama)
 ```
+
+### WORKSPACES (migration 0030, G-052, D-067)
+```
+workspaces                     ← a reseller's workspace; written only by lib/workspace/workspace-db.ts (Next.js)
+  id, name(varchar 80), owner_user_id→users (UNIQUE: one workspace per account),
+  credit_balance(int, default 0, CHECK >= 0)   ← always equals the ledger below (same transaction, row lock)
+  created_at, disabled_at(nullable)            ← disabled: staff hold nothing; no console yet (a database statement)
+
+workspace_members              ← staff links and grants, kept as G-044 keeps invitation_members
+  id, workspace_id→workspaces (ON DELETE CASCADE), role('manager' | 'desk', CHECK), label(varchar 60),
+  token_hash(varchar 64, UNIQUE)               ← SHA-256 of the one-time secret; the secret itself is never stored
+  expires_at, user_id→users(nullable), accepted_at, revoked_at, created_at
+  UNIQUE(workspace_id, user_id) WHERE user_id IS NOT NULL AND revoked_at IS NULL   ← one live grant per account
+  INDEX(user_id) WHERE revoked_at IS NULL; INDEX(workspace_id, created_at)
+
+workspace_credit_entries       ← append-only credit ledger, mechanics only (lib/workspace/credits.ts; no product caller)
+  id, workspace_id→workspaces, operation_key(varchar 80), kind('grant' delta > 0 | 'debit' delta < 0, CHECK),
+  delta, balance_after(CHECK >= 0), invitation_id→invitations(nullable), actor_user_id→users(nullable),
+  note(varchar 200), created_at
+  UNIQUE(workspace_id, operation_key)          ← a retried operation replays its entry; another payload conflicts
+                                               ← kept by the purge, pointing at the tombstone (like orders)
+```
+`FLAG_WORKSPACES` off keeps every row of these tables and the invitations' assignments as they are.
 
 ### AI / MESSAGING
 ```

@@ -66,14 +66,14 @@ test('S23r-P1: Lontar keeps the greeting after the photo on weddings, and in its
 
 test('S23r-P1: Gapura\u2019s corporate gate takes the desktop top space and a tighter window rhythm on phones only', () => {
   const page = renderGuestPage({ config: withFamily(corp(), 'gapura'), invitation: corporate, guest: fixtureGuest() });
-  const headerClass = classOf(page, /<header class="([^"]*)"/).split(' ');
+  const headerClass = classOf(page, /<header\b[^>]*\bclass="([^"]*)"/).split(' ');
   assert.ok(headerClass.includes('pt-10') && !headerClass.includes('pt-14') && headerClass.includes('sm:pt-10'), headerClass.join(' '));
   assert.match(page, /rounded-t-full border [^"]*pb-10 sm:pb-12/, 'window bottom space: 40 px on phones, 48 px from 640 px');
   assert.match(page, /<div class="flex flex-col items-center px-6 pt-6 sm:pt-8">/, 'photo to logo: 24 px on phones, 32 px from 640 px');
   assert.match(page, /<p class="inv-rise mt-6 sm:mt-8 text-sm tracking-wide/, 'organiser to date: 24 px on phones, 32 px from 640 px');
 
   const weddingPage = renderGuestPage({ config: withFamily(wedding, 'gapura'), guest: fixtureGuest() });
-  assert.equal(classOf(weddingPage, /<header class="([^"]*)"/), 'flex flex-col items-center justify-center px-5 pt-14 text-center sm:min-h-[90vh] sm:pb-14 sm:pt-10');
+  assert.equal(classOf(weddingPage, /<header\b[^>]*\bclass="([^"]*)"/), 'flex flex-col items-center justify-center px-5 pt-14 text-center sm:min-h-[90vh] sm:pb-14 sm:pt-10');
   assert.match(weddingPage, /<div class="flex flex-col items-center px-6 pt-8">/);
   assert.match(weddingPage, /<p class="inv-rise mt-8 text-sm tracking-wide/);
 });

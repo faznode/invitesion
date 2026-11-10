@@ -1,6 +1,7 @@
 import { writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { runLighthouse, takeSnapshots } from './browser';
+import { checkFamilyManifests } from './families';
 import { formatCheck, runChecks } from './gates';
 import { runProofs } from './proofs';
 import { defaultOutDir, writePreview } from './render';
@@ -17,6 +18,8 @@ import { scaffoldTemplate } from './scaffold';
  *   prove <dir>               deliberate-failure proofs (each must be caught)
  *   report <dir>              all of the above → <dir>/GENERATION-REPORT.md; exit 0 PASS, 3 INCOMPLETE (browser
  *                             checks missing or invalid), 1 FAIL
+ *   families                  B-030: validate every product family's manifest (sections, order rules, motion tier,
+ *                             event types, budget); exit 1 on any problem
  */
 function option(args: string[], name: string, fallback?: string) {
   const index = args.indexOf(`--${name}`);
@@ -25,6 +28,11 @@ function option(args: string[], name: string, fallback?: string) {
 
 async function main() {
   const [command, target, ...rest] = process.argv.slice(2);
+  if (command === 'families') {
+    const result = checkFamilyManifests();
+    console.log(result.lines.join('\n'));
+    process.exit(result.ok ? 0 : 1);
+  }
   if (!command || !target) {
     console.log('usage: pnpm harness <new|check|preview|snapshot|bench|prove|report> <dir> [options]');
     process.exit(2);

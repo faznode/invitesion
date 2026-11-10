@@ -21,12 +21,14 @@
  *  4. the role matrix with FLAG_TEAM_ACCESS off: a manager works as a co-host and a desk as an usher on client
  *     invitations at the pages, the actions, the export and through each writer; nothing on the owner's personal
  *     invitations, another workspace's, a forged one or the editor; an administrator holding a grant gets nothing;
+ *     another invitation's guest or wish named under a client invitation's id changes nothing in either writer (s42);
+ *     the workspace page in English with the dashboard's locale (s42);
  *  5. revocation, a disabled workspace, a taken-back or deleted invitation: refused at the next request in each writer
  *     with nothing written, while the owner keeps every surface;
  *  6. FLAG_WORKSPACES off with FLAG_TEAM_ACCESS on: staff hold nothing and a narrower team grant stays narrow in each
  *     writer; every workspace row is kept and switching the flag on again restores access;
  *  7. the credit ledger: one operation key per entry (replay, conflict), refusal on an insufficient balance with nothing
- *     written, concurrent debits that cannot overdraw or double-debit, a failed operation taking its debit back, a
+ *     written, concurrent debits that cannot overdraw or double-debit, a grant racing debits (s42), a failed operation taking its debit back, a
  *     replayed debit not running its operation twice, a disabled workspace and malformed requests refused, the
  *     database's own constraints, and the balance equal to the sum of the ledger throughout.
  */
@@ -430,7 +432,7 @@ async function main() {
       const [managerLink] = await sql`select id, user_id, accepted_at from workspace_members where token_hash = ${joinTokenHash(token)}`;
       managerRow = managerLink?.id as number;
       check('after sign-in, terima shows the role again and the manager accepts from the cookie (a POST): the grant is theirs, the cookie is cleared, the workspace page welcomes them',
-        confirm.kind === 'returned' && treeJson(confirm.value).includes('Terima peran ini?') && accepted.kind === 'redirect' && accepted.url === `${PAGE}?bergabung=${W}`
+        confirm.kind === 'returned' && treeJson(confirm.value).includes('Terima peran ini?') && accepted.kind === 'redirect' && accepted.url === `${PAGE}?joined=${W}`
           && managerLink?.user_id === manager.id && managerLink.accepted_at !== null && cleared?.name === 'inv_ws_join' && cleared.options.maxAge === 0 && !jar.has('inv_ws_join'),
         JSON.stringify({ confirm: describe(confirm), accepted: describe(accepted), cleared }));
 
@@ -446,7 +448,7 @@ async function main() {
       const memberTry = second.kind === 'created' ? await act(manager, 'next', () => staffJoin.acceptStaffJoin(form({ token: second.token }))) : null;
       const [{ n: managerGrants }] = await sql`select count(*)::int as n from workspace_members where workspace_id = ${W} and user_id = ${manager.id} and revoked_at is null`;
       check('a second tap by the same account lands as joined; another account is told the link is invalid; the owner and an administrator cannot join; a member cannot take a second role',
-        k(againTap) === `${PAGE}?bergabung=${W}` && k(stranger) === '/gabung/ruang/terima?status=invalid' && k(ownerTry) === '/gabung/ruang/terima?status=owner'
+        k(againTap) === `${PAGE}?joined=${W}` && k(stranger) === '/gabung/ruang/terima?status=invalid' && k(ownerTry) === '/gabung/ruang/terima?status=owner'
           && k(adminTry) === '/gabung/ruang/terima?status=admin' && adminCleared && memberTry !== null && k(memberTry) === '/gabung/ruang/terima?status=member' && managerGrants === 1,
         JSON.stringify({ again: describe(againTap), stranger: describe(stranger), owner: describe(ownerTry), admin: describe(adminTry), member: memberTry && describe(memberTry) }));
 
@@ -611,6 +613,16 @@ async function main() {
           && !deskTree.includes(`/dashboard/invitations/${PERSONAL}/`) && !deskTree.includes(`/dashboard/invitations/${FOREIGN}/`),
         JSON.stringify({ owner: describe(ownerPage), desk: describe(deskPage) }));
 
+      // s42: the page follows the dashboard's locale (the `locale` cookie when no middleware header is present).
+      jar.set('locale', 'en');
+      const deskPageEn = await workspacePage(desk);
+      jar.delete('locale');
+      const deskTreeEn = deskPageEn.kind === 'returned' ? treeJson(deskPageEn.value) : '';
+      check('the workspace page in English: the desk sees the English headings, action and role name and no Indonesian heading; Indonesian stays the default',
+        deskTreeEn.includes('Workspaces you staff') && deskTreeEn.includes('Open the check-in desk') && deskTreeEn.includes('Guest desk staff')
+          && !deskTreeEn.includes('Ruang kerja tempat Anda bertugas') && deskTree.includes('Ruang kerja tempat Anda bertugas') && deskTree.includes('Staf meja tamu'),
+        deskTreeEn.slice(0, 300));
+
       const csv = { manager: await exportCsv(manager, CLIENT), desk: await exportCsv(desk, CLIENT), outsider: await exportCsv(outsider, CLIENT), personal: await exportCsv(manager, PERSONAL), admin: await exportCsv(admin, CLIENT) };
       check('the guest export: a manager gets the CSV; a desk, an outsider and the personal invitation are 404; an administrator is 403',
         csv.manager.status === 200 && (csv.manager.type ?? '').startsWith('text/csv') && csv.manager.text.includes('Budi Hartono')
@@ -659,6 +671,24 @@ async function main() {
         check(`${backend}: the desk: a desk and a manager check guests in by hand; an outsider, the personal and the forged invitation are refused with no arrival recorded`,
           same(desks, { desk: true, manager: true, outsider: false, personal: false, forged: false }) && same(arrived.map((r) => r.id), [g, g2].sort((a, b) => a - b)),
           JSON.stringify({ desks, arrived }));
+
+        // s42: forged row ids. Staff who may act on the client invitation name another invitation's guest or wish under
+        // the client invitation's id: the access check passes on the invitation, so only each writer's row scope (the
+        // guest's and the wish's `invitation_id` under their row locks) stands between the request and the other rows.
+        const crossRows = {
+          checkinPersonal: await checkInAs(desk, backend, CLIENT, personalGuest),
+          checkinForeign: await checkInAs(manager, backend, CLIENT, foreignGuest),
+          sentPersonal: await act(manager, backend, () => guestActions.updateGuestOperation(form({ invitationId: CLIENT, guestId: personalGuest, operation: 'sent' }))),
+          hideForeign: await act(manager, backend, () => wishActions.moderateWish(form({ invitationId: CLIENT, wishId: foreignWish, action: 'hide' }))),
+          replyForeign: await act(manager, backend, () => wishActions.replyToWish(form({ invitationId: CLIENT, wishId: foreignWish, reply: 'Palsu' }))),
+        };
+        const crossGuests = await sql`select id, checked_in_at, sent_at from guests where id in ${sql([personalGuest, foreignGuest])}`;
+        const [crossWish] = await sql`select is_hidden, host_reply from guest_messages where id = ${foreignWish}`;
+        check(`${backend}: forged row ids: a client invitation's staff naming another invitation's guest or wish under the client invitation's id change nothing (check-in, mark sent, hide, reply)`,
+          crossRows.checkinPersonal === false && crossRows.checkinForeign === false
+            && crossGuests.length === 2 && crossGuests.every((row) => row.checked_in_at === null && row.sent_at === null)
+            && crossWish.is_hidden === false && crossWish.host_reply === null,
+          JSON.stringify({ checkinPersonal: crossRows.checkinPersonal, checkinForeign: crossRows.checkinForeign, sent: describe(crossRows.sentPersonal), hide: describe(crossRows.hideForeign), reply: describe(crossRows.replyForeign), crossGuests, crossWish }));
       }
     }
 
@@ -861,6 +891,21 @@ async function main() {
         negative !== 'resolved' && wrongSign !== 'resolved' && duplicate !== 'resolved' && !otherWorkspaceSameKey.replayed && otherWorkspaceSameKey.entry.workspaceId === RW
           && same(await balance(), { balance: 0, ledgerSum: 0, entries: 7 }) && same(await credits.creditBalance(RW), { balance: 1, ledgerSum: 1, entries: 1 }),
         JSON.stringify({ negative, wrongSign, duplicate }));
+
+      // s42: a grant racing debits on an empty balance. Whatever order the row lock imposes, each debit is either written
+      // after the grant or refused as insufficient before it; the balance never goes negative and always equals the ledger.
+      const mixed = await Promise.allSettled([
+        credits.recordCredit({ workspaceId: W, operationKey: key('mixed-grant'), kind: 'grant', amount: 2 }),
+        ...Array.from({ length: 3 }, (_, i) => credits.recordCredit({ workspaceId: W, operationKey: key(`mixed-debit-${i}`), kind: 'debit', amount: 1 })),
+      ]);
+      const [grantResult, ...debitResults] = mixed;
+      const debitsWritten = debitResults.filter((r) => r.status === 'fulfilled').length;
+      const debitsRefused = debitResults.flatMap((r) => (r.status === 'rejected' ? [(r.reason as Error).name] : []));
+      const afterMixed = await balance();
+      check('a grant of 2 racing three debits of 1 on an empty balance: the grant is written; each debit is written or refused as insufficient (at most two written); the balance equals the ledger and is never negative',
+        grantResult.status === 'fulfilled' && debitsWritten <= 2 && debitsRefused.every((name) => name === 'InsufficientCreditsError')
+          && debitsWritten + debitsRefused.length === 3 && same(afterMixed, { balance: 2 - debitsWritten, ledgerSum: 2 - debitsWritten, entries: 8 + debitsWritten }),
+        JSON.stringify({ debitsWritten, debitsRefused, afterMixed }));
     }
   } finally {
     for (const [name, value] of Object.entries(saved)) {

@@ -19,20 +19,20 @@ export default async function MarketingFooter() {
         </div>
         <nav className={styles.footerLinks} aria-label="Footer">
           <div>
-            <h4>{copy.footProduct}</h4>
+            <h2>{copy.footProduct}</h2>
             <Link href="/features">{copy.linkAllFeatures}</Link>
             <Link href="/event-types">{copy.linkAllEvents}</Link>
             <Link href="/pricing">{copy.linkPricing}</Link>
             <a href="/#cara-kerja">{copy.linkHow}</a>
           </div>
           <div>
-            <h4>{copy.footHelp}</h4>
+            <h2>{copy.footHelp}</h2>
             <Link href="/resources/help-center">{copy.linkHelp}</Link>
             <Link href="/resources/faq">{copy.linkFaq}</Link>
             <a href="mailto:hello@invitesion.id">{copy.linkContact}</a>
           </div>
           <div>
-            <h4>{copy.footAccount}</h4>
+            <h2>{copy.footAccount}</h2>
             <Link href="/sign-in">{copy.linkSignIn}</Link>
             <Link href="/sign-up">{copy.linkSignUp}</Link>
             <Link href="/resources/privacy-and-security">{copy.linkPrivacy}</Link>

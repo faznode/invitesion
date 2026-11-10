@@ -15,6 +15,7 @@ import {
   type WorkspaceRole,
 } from '@/lib/invitation/members';
 import { getPublicOrigin } from '@/lib/invitation/public-url';
+import { getLocale, t } from '@/lib/locale-server';
 import { whatsAppShareLink } from '@/lib/invitation/whatsapp';
 import {
   assignClientInvitation,
@@ -61,14 +62,26 @@ export type StaffLinkState =
 /** A staff link for one role. The secret travels back in this answer only; the row stores its SHA-256. */
 export async function createStaffLinkAction(_previous: StaffLinkState, formData: FormData): Promise<StaffLinkState> {
   const user = await signedInCustomer();
+  const locale = await getLocale();
   const role = formData.get('role');
-  if (!isWorkspaceRole(role)) return { status: 'error', message: 'Pilih peran untuk tautan ini.' };
+  if (!isWorkspaceRole(role)) return { status: 'error', message: t(locale, 'Pilih peran untuk tautan ini.', 'Choose a role for this link.') };
   const label = normalizeLabel(formData.get('label'));
-  if (!label) return { status: 'error', message: 'Tulis untuk siapa tautan ini, paling banyak 60 karakter.' };
+  if (!label) {
+    return { status: 'error', message: t(locale, 'Tulis untuk siapa tautan ini, paling banyak 60 karakter.', 'Write who this link is for, at most 60 characters.') };
+  }
   const outcome = await createStaffLink(user.id, { role, label });
-  if (outcome.kind === 'notfound') return { status: 'error', message: 'Ruang kerja tidak ditemukan atau sedang dinonaktifkan.' };
+  if (outcome.kind === 'notfound') {
+    return { status: 'error', message: t(locale, 'Ruang kerja tidak ditemukan atau sedang dinonaktifkan.', 'The workspace was not found or is disabled.') };
+  }
   if (outcome.kind === 'full') {
-    return { status: 'error', message: `Ruang kerja sudah berisi ${MAX_WORKSPACE_ROWS} staf dan tautan aktif. Cabut yang tidak dipakai lebih dulu.` };
+    return {
+      status: 'error',
+      message: t(
+        locale,
+        `Ruang kerja sudah berisi ${MAX_WORKSPACE_ROWS} staf dan tautan aktif. Cabut yang tidak dipakai lebih dulu.`,
+        `The workspace already holds ${MAX_WORKSPACE_ROWS} staff and active links. Revoke unused ones first.`,
+      ),
+    };
   }
   const workspace = await ownedWorkspace(user.id);
   const url = `${await getPublicOrigin()}/gabung/ruang/${outcome.token}`;

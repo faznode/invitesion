@@ -118,7 +118,6 @@ export const marketingCopy = {
       'Check-in QR tamu',
       'Undangan dwibahasa untuk tamu',
       'Workspace & kredit untuk reseller',
-      'Pusat bantuan & tutorial',
     ],
 
     // ── CTA ────────────────────────────────────────────────────────────────
@@ -255,7 +254,6 @@ export const marketingCopy = {
       'Guest QR check-in',
       'Bilingual invitations for guests',
       'Reseller workspace & credits',
-      'Help centre & tutorials',
     ],
     ctaTitle: 'Your special moment deserves to be celebrated beautifully.',
     ctaBody: 'Start with a free draft. Pay once when your invitation is ready to share.',
@@ -301,7 +299,7 @@ export const marketingClaimNeeds = {
   pricingIncluded: [['invitationPage', 'draftPreview'], ['rsvp', 'guestList'], ['eventDetails', 'mapLink', 'gallery'], ['draftPreview']],
   tierStandardItems: [['invitationPage'], ['themeCatalog', 'themeSwitch'], ['music'], ['gallery', 'videoEmbeds'], ['wishes', 'giftAccounts'], ['loveStory', 'eventDetails']],
   tierPremiumItems: [['invitationPage'], ['themeCatalog'], ['themeSwitch'], ['supportEmail']],
-  roadmapItems: [['whatsappAutomation'], ['seatingLog', 'giftLog'], ['guestPass', 'checkInScanner'], ['guestPageBilingual'], ['resellerWorkspace'], ['helpArticles']],
+  roadmapItems: [['whatsappAutomation'], ['seatingLog', 'giftLog'], ['guestPass', 'checkInScanner'], ['guestPageBilingual'], ['resellerWorkspace', 'workspaceCredits']],
 } as const satisfies Record<string, readonly (readonly CapabilityId[])[]>;
 
 /** Copy for one locale; tier prices come from `lib/pricing.ts` so they always equal what checkout charges (B-002). */

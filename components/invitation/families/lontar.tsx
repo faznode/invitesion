@@ -27,6 +27,8 @@ import {
 } from '@/components/invitation/guest-blocks';
 import type { GuestPageProps, GuestView } from '@/components/invitation/guest-view';
 import { GalleryBody } from '@/components/invitation/gallery';
+import { composeSections, sharedSections, type SectionRenderers } from '@/components/invitation/family-sections';
+import { FAMILY_MANIFESTS, type SectionId } from '@/lib/invitation/family-manifest';
 import { IMAGE_SIZES } from '@/lib/media/variants';
 
 type Tone = GuestView['tone'];
@@ -35,8 +37,8 @@ type Tone = GuestView['tone'];
  * Lontar (B-030, brief `templates/_briefs/lontar.md`): a programme-led page for formal and corporate events. The cover
  * reads like a letter (event, who invites, addressee, opening words) around one palm-leaf band, two punched holes on a
  * binding cord drawn in CSS, that carries the date, time and venue. The programme follows the cover before any other
- * section; the events with address and map come after it. Left-aligned, motion level 0, no translucent surfaces, and a
- * cover photo is framed beside the band, never under text.
+ * section; the events with address and map come after it (the order is the manifest's, `FAMILY_MANIFESTS.lontar`).
+ * Left-aligned, motion tier 0, no translucent surfaces, and a cover photo is framed beside the band, never under text.
  */
 export function LontarLayout({ props, view }: { props: GuestPageProps; view: GuestView }) {
   const { invitation, config, guest, readOnly } = props;
@@ -63,9 +65,9 @@ export function LontarLayout({ props, view }: { props: GuestPageProps; view: Gue
     </div>
   );
 
-  return (
-    <main className={`min-h-screen ${tone.bg} ${tone.ink}`} style={tone.style}>
-      <header className="mx-auto w-full max-w-2xl px-5 pb-4 pt-12 sm:pt-20">
+  const sections: SectionRenderers = {
+    cover: () => (
+      <header data-section="cover" className="mx-auto w-full max-w-2xl px-5 pb-4 pt-12 sm:pt-20">
         {mark ? (
           // S22-K2 (s23r): the logo alone, then the category and the cover headline on one eyebrow line.
           <>
@@ -132,6 +134,7 @@ export function LontarLayout({ props, view }: { props: GuestPageProps; view: Gue
         )}
 
         {!greetBeforePhoto && greeting}
+        {/* The opening words are part of the letter (the manifest's `coverIncludes: ['greeting']`). */}
         {config.greetings?.enabled !== false && (config.greetings?.prayer || config.settings?.openingCopy) && (
           <div className="mt-6 max-w-prose">
             {config.greetings?.prayer && <p className={`font-serif text-lg leading-relaxed text-pretty ${tone.accent}`}>{config.greetings.prayer}</p>}
@@ -139,30 +142,39 @@ export function LontarLayout({ props, view }: { props: GuestPageProps; view: Gue
           </div>
         )}
       </header>
+    ),
 
-      {readOnly && <ReadOnlyNotice className="mx-auto max-w-2xl px-5 pt-6" />}
-      <SwitchedOffNotices props={props} view={view} className="mx-auto max-w-2xl px-5 pt-6" />
+    notices: () => (
+      <>
+        {readOnly && <ReadOnlyNotice className="mx-auto max-w-2xl px-5 pt-6" />}
+        <SwitchedOffNotices props={props} view={view} className="mx-auto max-w-2xl px-5 pt-6" />
+      </>
+    ),
 
-      {view.profiles && (
-        <LeafSection tone={tone} title={view.profiles.heading}>
+    profiles: () =>
+      view.profiles && (
+        <LeafSection section="profiles" tone={tone} title={view.profiles.heading}>
           <PortraitsBody view={view} section={view.profiles} frame="leaf" align="start" />
         </LeafSection>
-      )}
+      ),
 
-      {view.ceremonyProfile && (
-        <LeafSection tone={tone} title={view.ceremonyProfile.heading}>
+    ceremony: () =>
+      view.ceremonyProfile && (
+        <LeafSection section="ceremony" tone={tone} title={view.ceremonyProfile.heading}>
           <CeremonyProfileBody view={view} cardClassName={card} frame="leaf" align="start" />
         </LeafSection>
-      )}
+      ),
 
-      {programmeSections(view).map((id) => (
-        <LeafSection key={id} tone={tone} title={PROGRAMME_HEADINGS[id]}>
+    programme: () =>
+      programmeSections(view).map((id) => (
+        <LeafSection key={id} section="programme" tone={tone} title={PROGRAMME_HEADINGS[id]}>
           <ProgrammeBody id={id} view={view} cardClassName={card} />
         </LeafSection>
-      ))}
+      )),
 
-      {events.length > 0 && (
-        <LeafSection tone={tone} title="Waktu & Tempat">
+    events: () =>
+      events.length > 0 && (
+        <LeafSection section="events" tone={tone} title="Waktu & Tempat">
           {showCountdown && primaryEvent && (
             <Countdown target={primaryStartMs} initialNow={renderedAt} eventTitle={primaryEvent.title} boxClassName={card} labelClassName={tone.muted} />
           )}
@@ -180,10 +192,12 @@ export function LontarLayout({ props, view }: { props: GuestPageProps; view: Gue
           </div>
           <CalendarLinks view={view} slug={invitation.slug} className="mt-8 flex flex-col items-start gap-3 sm:flex-row" />
         </LeafSection>
-      )}
+      ),
 
-      {config.quote?.enabled && config.quote.text && (
-        <LeafSection tone={tone}>
+    quote: () =>
+      config.quote?.enabled &&
+      config.quote.text && (
+        <LeafSection section="quote" tone={tone}>
           <figure className="flex gap-4">
             <InvitationIcon name="quote" className={`h-6 w-6 shrink-0 ${tone.accent}`} />
             <div>
@@ -192,10 +206,11 @@ export function LontarLayout({ props, view }: { props: GuestPageProps; view: Gue
             </div>
           </figure>
         </LeafSection>
-      )}
+      ),
 
-      {config.story?.enabled && config.story.items?.length ? (
-        <LeafSection tone={tone} title="Cerita">
+    story: () =>
+      config.story?.enabled && config.story.items?.length ? (
+        <LeafSection section="story" tone={tone} title="Cerita">
           <ol className="mt-8 flex flex-col gap-6">
             {config.story.items.map((item, index) => (
               <li key={index} className="sm:grid sm:grid-cols-[7rem_1fr] sm:gap-4">
@@ -208,10 +223,11 @@ export function LontarLayout({ props, view }: { props: GuestPageProps; view: Gue
             ))}
           </ol>
         </LeafSection>
-      ) : null}
+      ) : null,
 
-      {(gallery.length > 0 || view.galleryVideos.length > 0) && (
-        <LeafSection tone={tone} title="Galeri">
+    gallery: () =>
+      (gallery.length > 0 || view.galleryVideos.length > 0) && (
+        <LeafSection section="gallery" tone={tone} title="Galeri">
           <GalleryBody
             view={view}
             frame={{
@@ -226,10 +242,12 @@ export function LontarLayout({ props, view }: { props: GuestPageProps; view: Gue
             }}
           />
         </LeafSection>
-      )}
+      ),
 
-      {config.streaming?.enabled && config.streaming.url && (
-        <LeafSection tone={tone} title="Siaran Langsung">
+    streaming: () =>
+      config.streaming?.enabled &&
+      config.streaming.url && (
+        <LeafSection section="streaming" tone={tone} title="Siaran Langsung">
           <a
             href={config.streaming.url}
             target="_blank"
@@ -240,16 +258,18 @@ export function LontarLayout({ props, view }: { props: GuestPageProps; view: Gue
             Tonton siaran
           </a>
         </LeafSection>
-      )}
+      ),
 
-      {view.share && (
-        <LeafSection tone={tone} title={SHARE_HEADING}>
+    share: () =>
+      view.share && (
+        <LeafSection section="share" tone={tone} title={SHARE_HEADING}>
           <ShareBody view={view} align="start" />
         </LeafSection>
-      )}
+      ),
 
-      {view.gift ? (
-        <LeafSection tone={tone} title="Hadiah">
+    gift: () =>
+      view.gift ? (
+        <LeafSection section="gift" tone={tone} title="Hadiah">
           {view.gift.accounts.length > 0 && (
             <div className="mt-8 grid gap-4 sm:grid-cols-2">
               {view.gift.accounts.map((account, index) => (
@@ -275,11 +295,12 @@ export function LontarLayout({ props, view }: { props: GuestPageProps; view: Gue
           <GiftQris view={view} align="start" />
           <GiftWithheldNotice view={view} align="start" />
         </LeafSection>
-      ) : null}
+      ) : null,
 
-      {/* RSVP — only a recognised guest can respond, and only while the invitation is active. */}
-      {view.rsvpShown && (
-        <LeafSection tone={tone} title="Konfirmasi Kehadiran">
+    // RSVP — only a recognised guest can respond, and only while the invitation is active.
+    rsvp: () =>
+      view.rsvpShown && (
+        <LeafSection section="rsvp" tone={tone} title="Konfirmasi Kehadiran">
           <RsvpBlock
             props={props}
             view={view}
@@ -287,26 +308,34 @@ export function LontarLayout({ props, view }: { props: GuestPageProps; view: Gue
             fallbackClassName={`mt-8 ${card} p-6 text-sm ${tone.muted}`}
           />
         </LeafSection>
-      )}
+      ),
 
-      {view.guestbookShown && (
-        <LeafSection tone={tone} title={config.guestbook?.heading || 'Ucapan & Doa'}>
+    guestbook: () =>
+      view.guestbookShown && (
+        <LeafSection section="guestbook" tone={tone} title={config.guestbook?.heading || 'Ucapan & Doa'}>
           {config.guestbook?.prompt && <p className={`mt-2 text-sm ${tone.muted}`}>{config.guestbook.prompt}</p>}
           <GuestbookBlock props={props} view={view} formClassName={`mt-8 space-y-4 ${card} p-6`} messageClassName={`${card} p-5`} />
         </LeafSection>
-      )}
+      ),
 
-      <footer className={`mx-auto max-w-2xl px-5 pb-12 pt-4 text-xs ${tone.muted}`}>
+    footer: () => (
+      <footer data-section="footer" className={`mx-auto max-w-2xl px-5 pb-12 pt-4 text-xs ${tone.muted}`}>
         <p>Undangan digital oleh Invitesion</p>
       </footer>
+    ),
+  };
+
+  return (
+    <main className={`min-h-screen ${tone.bg} ${tone.ink}`} style={tone.style}>
+      {composeSections(FAMILY_MANIFESTS.lontar, sections, sharedSections(props, view))}
     </main>
   );
 }
 
 /** Each section opens like the next leaf of a bundle: a hairline across the column, then the title. */
-function LeafSection({ tone, title, children }: { tone: Tone; title?: string; children: React.ReactNode }) {
+function LeafSection({ section, tone, title, children }: { section: SectionId; tone: Tone; title?: string; children: React.ReactNode }) {
   return (
-    <section className="mx-auto w-full max-w-2xl px-5 py-8 sm:py-12">
+    <section data-section={section} className="mx-auto w-full max-w-2xl px-5 py-8 sm:py-12">
       <div className={`border-t ${tone.line} pt-8`}>
         {title && <h2 className="font-serif text-3xl text-balance">{title}</h2>}
         {children}

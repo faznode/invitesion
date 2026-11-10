@@ -4,7 +4,9 @@ import { getMarketingPage, marketingPageMetadata, marketingPages } from '../../m
 import { MarketingDetailPage } from '../../marketing-public-page';
 
 export const dynamicParams = false;
-export function generateStaticParams() { return marketingPages['resources'].map(({ slug }) => ({ slug })); }
+/** `help-center` has its own route (G-061, `app/resources/help-center`), which takes precedence over this segment. */
+const OWN_ROUTES = new Set(['help-center']);
+export function generateStaticParams() { return marketingPages['resources'].filter(({ slug }) => !OWN_ROUTES.has(slug)).map(({ slug }) => ({ slug })); }
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const page = getMarketingPage('resources', (await params).slug);
   return page ? marketingPageMetadata(page) : {};

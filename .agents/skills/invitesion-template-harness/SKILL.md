@@ -38,9 +38,15 @@ Precedence: `AGENTS.md` > this skill > third-party skills. Third-party design sk
 | 8 Document taste | Only principles that survived step 6 on more than one family go into "Emerging taste" below | this file |
 
 ## Family contract (enforced by tests unless marked)
-- Register the id in `FAMILY_IDS` / `FAMILIES` (`lib/invitation/families.ts`) and the layout in `FAMILY_LAYOUTS`
+- Register the id in `FAMILY_IDS` / `FAMILIES` (`lib/invitation/families.ts`), its manifest in `FAMILY_MANIFESTS`
+  (`lib/invitation/family-manifest.ts`: sections and order rules, event types, photo slots, logo frame, motion tier,
+  music, palettes, byte budget, provenance; B-030) and the layout in `FAMILY_LAYOUTS`
   (`components/invitation/public-renderer.tsx`). A missing or retired id renders the legacy layout byte-identically.
-  Changing which family a new invitation starts on is `defaultFamilyFor` (same file; F-02, D-048), never the renderer.
+  Changing which family a new invitation starts on is `defaultFamilyFor` (same file; F-02, D-048) and the manifest's
+  `startsNewFor`, never the renderer. `pnpm harness families` validates every manifest.
+- Draw sections as renderers keyed by `SectionId` and return `composeSections(FAMILY_MANIFESTS.<id>, renderers,
+  sharedSections(props, view))` (`components/invitation/family-sections.tsx`): the manifest decides the order, a section
+  the family does not draw falls back to the shared block, and each section root carries `data-section="<id>"`.
 - Take every derived value from `buildGuestView()` (`guest-view.ts`): dates and times in the event zone, countdown and
   calendar rules, `canRespond`, `coverText()`. Never call `isFlagOn`, `calendarEventsFromConfig` or read
   `invitation.status` in a layout.
@@ -49,7 +55,9 @@ Precedence: `AGENTS.md` > this skill > third-party skills. Third-party design sk
 - Colour only through palette tokens (`tone.*`); opacity only on images; text never straight over a photo except
   names in ink, and small text over a photo goes through `coverText()` (bounded by `worstContrastOverImage()`).
 - Host-typed names: `dir="auto"` or `<bdi>`, and `[overflow-wrap:anywhere]`.
-- Declare `motionLevel`; level 1 uses `inv-rise` only (off under `prefers-reduced-motion`), never on the names.
+- Declare the manifest's `motionTier` and take the entrance class from `motionClasses(tier).rise(…)`, never typed into
+  the layout; tier 1 is `inv-rise` only (off under `prefers-reduced-motion`), never on the names or a control. No
+  higher tier exists until it has a byte budget, a reduced-motion fallback and a written review.
 - Two self-hosted fonts only (`font-serif`, `font-sans`). Touch targets ≥ 44 px (`min-h-11`). (review)
 
 ## Commands

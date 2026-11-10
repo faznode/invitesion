@@ -111,6 +111,32 @@ test('the staff link message names the person, the role, the workspace, the link
   assert.notEqual(WORKSPACE_ROLE_COPY.manager.name, WORKSPACE_ROLE_COPY.desk.name);
 });
 
+test('the English role copy mirrors the Indonesian line for line, and the locale picks between them (s42)', () => {
+  const { WORKSPACE_ROLE_COPY, WORKSPACE_ROLE_COPY_EN, WORKSPACE_ROLES, workspaceRoleCopy } = rules();
+  for (const role of WORKSPACE_ROLES) {
+    const id = WORKSPACE_ROLE_COPY[role];
+    const en = WORKSPACE_ROLE_COPY_EN[role];
+    assert.equal(en.can.length, id.can.length, `${role} can`);
+    assert.equal(en.cannot.length, id.cannot.length, `${role} cannot`);
+    for (const line of [en.name, en.summary, ...en.can, ...en.cannot]) assert.ok(line.trim().length > 0 && !id.can.includes(line), line);
+    assert.notEqual(en.name, id.name);
+  }
+  assert.equal(workspaceRoleCopy('en'), WORKSPACE_ROLE_COPY_EN);
+  assert.equal(workspaceRoleCopy('id'), WORKSPACE_ROLE_COPY);
+});
+
+test('the workspace page and its staff form carry both locales with the same keys (s42)', () => {
+  const page = readFileSync(join(process.cwd(), 'app/(customer)/dashboard/workspace/page.tsx'), 'utf8');
+  const form = readFileSync(join(process.cwd(), 'app/(customer)/dashboard/workspace/staff-link-form.tsx'), 'utf8');
+  for (const source of [page, form]) {
+    assert.match(source, /const COPY = \{\s*id: \{/);
+    assert.match(source, /\n  en: \{/);
+  }
+  assert.match(page, /getLocale\(\)/);
+  assert.match(page, /'joined'/, 'the joined notice key is English');
+  assert.doesNotMatch(page, /'bergabung'/);
+});
+
 test('the staff join cookie: HttpOnly, SameSite=Lax, scoped to /gabung/ruang, one hour, Secure over HTTPS, and cleared', async () => {
   const { STAFF_JOIN_COOKIE, STAFF_JOIN_COOKIE_PATH, SIGN_IN_TO_JOIN_WORKSPACE, writeStaffJoinToken, readStaffJoinToken, clearStaffJoinToken } = staffSession();
   const token = 'B'.repeat(43);

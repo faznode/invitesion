@@ -99,6 +99,12 @@ export function renderGuestPage({
   );
 }
 
+/**
+ * B-030: a family page without its `data-section` markers (the manifest's section ids on each section's root). The
+ * markers are the section contract's only markup change, so digests pinned before B-030 compare the page without them.
+ */
+export const withoutSectionMarkers = (html: string) => html.replace(/ data-section="[a-z]+"/g, '');
+
 const unescapeAttribute = (value: string) => value.replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#x27;/g, "'");
 
 /** Values of the hidden inputs with this name, in document order (what every form on the page posts). */

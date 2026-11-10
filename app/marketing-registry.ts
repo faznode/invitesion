@@ -503,15 +503,17 @@ const handWritten: Record<MarketingCategory, Record<string, PageCopy>> = {
       summaryNeeds: ['supportEmail'],
       highlights: [
         contactHighlight,
-        { title: 'Workspace reseller', text: 'Workspace dan kredit untuk reseller sedang direncanakan.', needs: ['resellerWorkspace'] },
+        { title: 'Ruang kerja reseller', text: 'Kelola undangan klien bersama staf: pengelola klien dan staf meja tamu, dengan akses yang bisa dicabut.', needs: ['resellerWorkspace'] },
+        { title: 'Kredit reseller', text: 'Kredit dan paket untuk reseller sedang direncanakan.', needs: ['workspaceCredits'] },
       ],
     },
+    // G-061: /resources/help-center is its own route (app/resources/help-center); this entry feeds the resources index card.
     'help-center': {
-      summary: 'Pusat bantuan sedang disusun. Sementara itu, jawaban singkat ada di FAQ dan tim kami bisa dihubungi lewat email.',
-      summaryNeeds: ['supportEmail'],
+      summary: 'Panduan langkah demi langkah untuk fitur yang sudah tersedia: membuat undangan, mengelola tamu dan ucapan. Tim kami juga bisa dihubungi lewat email.',
+      summaryNeeds: ['helpArticles', 'supportEmail'],
       highlights: [
         contactHighlight,
-        { title: 'Artikel panduan per fitur', text: 'Tutorial dan artikel per fitur sedang disiapkan.', needs: ['helpArticles'] },
+        { title: 'Panduan per tugas', text: 'Setiap panduan hanya terbit bila fitur yang dijelaskannya sudah tersedia untuk semua pengguna.', needs: ['helpArticles'] },
       ],
     },
     'community-forum': notPublished('Belum ada forum komunitas.'),

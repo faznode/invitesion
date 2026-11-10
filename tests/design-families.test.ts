@@ -7,6 +7,7 @@ import { normalizeStoredConfig } from '../lib/invitation/content-read';
 import { detailConfigSchema } from '../lib/invitation/detail-config';
 import { eventDateParts, formatEventDate } from '../lib/invitation/event-time';
 import { FAMILIES, FAMILY_IDS, familyOf } from '../lib/invitation/families';
+import { FAMILY_MANIFESTS } from '../lib/invitation/family-manifest';
 import type { DetailConfig } from '../lib/invitation/detail-config';
 import { fixtureGuest, fixtureInvitation, LAYOUTS, renderGuestPage, withFamily } from './support/render-guest-page';
 
@@ -113,15 +114,17 @@ test('B-030: names typed by hosts are isolated for bidirectional text and wrap i
   }
 });
 
-test('B-030: declared motion level matches the markup, and reduced motion switches the entrance off', () => {
+test('B-030: declared motion tier matches the markup, and reduced motion switches the entrance off', () => {
   assert.match(source('app/globals.css'), /@media \(prefers-reduced-motion: reduce\)\s*\{\s*\.inv-rise\s*\{\s*animation: none;/);
   for (const id of FAMILY_IDS) {
-    assert.equal(source(`components/invitation/families/${id}.tsx`).includes('inv-rise'), FAMILIES[id].motionLevel > 0, id);
+    // The entrance class comes only from the manifest's tier (`motionClasses`), never typed into a layout's code.
+    const code = source(`components/invitation/families/${id}.tsx`).replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '');
+    assert.equal(code.includes('inv-rise'), false, `${id}: no hard-coded entrance class`);
   }
   const config: DetailConfig = { couple, theme: { cover: { headline: 'The Wedding of' } }, events: [{ title: 'Resepsi', startAt: '2099-12-27T19:00:00+08:00' }] };
   for (const { label, familyId } of LAYOUTS) {
     const page = renderGuestPage({ config: withFamily(config, familyId), guest: fixtureGuest() });
-    assert.equal(page.includes('inv-rise'), familyId ? FAMILIES[familyId].motionLevel > 0 : false, `${label}: rendered motion matches the declared level`);
+    assert.equal(page.includes('inv-rise'), familyId ? FAMILY_MANIFESTS[familyId].motionTier > 0 : false, `${label}: rendered motion matches the declared tier`);
     assert.doesNotMatch(page, /<h1[^>]*\binv-rise\b/, `${label}: the names paint without an entrance animation`);
   }
 });
@@ -134,7 +137,7 @@ test('B-030: date tiles use the event zone, not the server zone', () => {
 
 test('S16-X2 (s17): Gapura\'s cover is full-height only from 640 px, so on a phone the first section follows its content', () => {
   const page = renderGuestPage({ config: withFamily({ couple, settings: { openingCopy: 'Pembuka' } }, 'gapura'), guest: fixtureGuest() });
-  const header = /<header class="([^"]*)"/.exec(page)?.[1] ?? '';
+  const header = /<header\b[^>]*\bclass="([^"]*)"/.exec(page)?.[1] ?? '';
   const classes = header.split(/\s+/);
   assert.ok(classes.includes('sm:min-h-[90vh]') && classes.includes('sm:pb-14'), header);
   assert.equal(classes.some((name) => /^(?:min-h-|pb-|py-)/.test(name)), false, `no phone-width minimum height or bottom padding: ${header}`);

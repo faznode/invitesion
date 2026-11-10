@@ -171,6 +171,29 @@ export const WORKSPACE_ROLE_COPY: Readonly<Record<WorkspaceRole, { name: string;
   },
 };
 
+/**
+ * The workspace roles in English, for the bilingual workspace page (s42). The join pages and the WhatsApp text keep the
+ * Indonesian copy above: the join frame is Indonesian whatever the visitor's locale (D-057).
+ */
+export const WORKSPACE_ROLE_COPY_EN: typeof WORKSPACE_ROLE_COPY = {
+  manager: {
+    name: 'Client manager',
+    summary: 'Manages guests on every client invitation of this workspace.',
+    can: ['Guest list, including phone numbers, RSVPs and imports', 'Check-in desk', 'Wish moderation and replies', 'Insights and guest-list exports'],
+    cannot: ['Invitation content, theme and settings', 'Payment and publishing', 'Managing workspace staff'],
+  },
+  desk: {
+    name: 'Guest desk staff',
+    summary: 'Only the check-in desk on every client invitation of this workspace.',
+    can: ["Scanning guests' QR passes", 'Searching guest names for manual check-in'],
+    cannot: ['Phone numbers, RSVPs and wishes', 'Changing the guest list', 'All invitation and workspace settings'],
+  },
+};
+
+export function workspaceRoleCopy(locale: 'id' | 'en'): typeof WORKSPACE_ROLE_COPY {
+  return locale === 'en' ? WORKSPACE_ROLE_COPY_EN : WORKSPACE_ROLE_COPY;
+}
+
 /** The WhatsApp text a workspace owner sends with a staff link (no recipient number: the owner picks the chat). */
 export function staffLinkMessage(input: { label: string; role: WorkspaceRole; workspaceName: string; url: string }): string {
   return [

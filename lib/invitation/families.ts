@@ -23,8 +23,6 @@ export type FamilyMeta = {
   name: string;
   /** What the composition is designed around; every family still renders every event type. */
   intendedFor: IntendedFor;
-  /** Manifest motion level: 0 none, 1 entrance fades (switched off under prefers-reduced-motion). */
-  motionLevel: 0 | 1;
   summary: Label;
 };
 
@@ -33,7 +31,6 @@ export const FAMILIES: Record<FamilyId, FamilyMeta> = {
     id: 'gapura',
     name: 'Gapura',
     intendedFor: 'wedding',
-    motionLevel: 1,
     summary: {
       id: 'Simetris dan khidmat: sampul, kartu acara, dan formulir berada di dalam lengkung gapura.',
       en: 'Symmetric and ceremonial: the cover, event cards and forms sit inside gate arches.',
@@ -43,7 +40,6 @@ export const FAMILIES: Record<FamilyId, FamilyMeta> = {
     id: 'kartu',
     name: 'Kartu',
     intendedFor: 'wedding',
-    motionLevel: 0,
     summary: {
       id: 'Tumpukan kartu cetak yang asimetris; setiap acara tampil sebagai tiket berperforasi.',
       en: 'An asymmetric stack of printed cards; each event appears as a perforated ticket.',
@@ -53,7 +49,6 @@ export const FAMILIES: Record<FamilyId, FamilyMeta> = {
     id: 'riang',
     name: 'Riang',
     intendedFor: 'celebration',
-    motionLevel: 1,
     summary: {
       id: 'Pita warna selebar layar, tanggal bergaya kalender, dan umbul-umbul untuk ulang tahun, syukuran, dan acara kantor.',
       en: 'Full-width tinted bands, calendar-tile dates and bunting for birthdays, thanksgivings and company events.',
@@ -63,7 +58,6 @@ export const FAMILIES: Record<FamilyId, FamilyMeta> = {
     id: 'lontar',
     name: 'Lontar',
     intendedFor: 'formal',
-    motionLevel: 0,
     summary: {
       id: 'Berpusat pada susunan acara: selembar daun lontar membawa tanggal, jam, dan tempat, lalu jadwal tampil sebagai baris waktu yang mudah dipindai.',
       en: 'Programme-led: a palm-leaf band carries the date, time and venue, then the schedule reads as rows of times that are easy to scan.',

@@ -28,6 +28,8 @@ import {
 } from '@/components/invitation/guest-blocks';
 import type { GuestPageProps, GuestView } from '@/components/invitation/guest-view';
 import { GalleryBody, type GalleryFrame } from '@/components/invitation/gallery';
+import { composeSections, sharedSections, type SectionRenderers } from '@/components/invitation/family-sections';
+import { FAMILY_MANIFESTS, type SectionId } from '@/lib/invitation/family-manifest';
 import { IMAGE_SIZES } from '@/lib/media/variants';
 
 /** B-025: Kartu's grid opens with one wide photo across both columns; its rounded cards keep that shape in every layout. */
@@ -52,7 +54,8 @@ const PROGRAMME_LABELS: Record<ProgrammeSectionId, string> = { about: 'Sekilas',
 
 /**
  * Kartu (B-030): an asymmetric stack of printed cards. The cover is a card on an offset backing card with a dashed date
- * stamp; each event is a ticket whose date stub is torn off along a perforation. Left-aligned throughout. Motion level 0.
+ * stamp; each event is a ticket whose date stub is torn off along a perforation. Left-aligned throughout. Motion tier 0
+ * (`FAMILY_MANIFESTS.kartu`, which also holds the section order).
  */
 export function KartuLayout({ props, view }: { props: GuestPageProps; view: GuestView }) {
   const { invitation, config, guest, readOnly } = props;
@@ -71,9 +74,9 @@ export function KartuLayout({ props, view }: { props: GuestPageProps; view: Gues
     </p>
   );
 
-  return (
-    <main className={`min-h-screen ${tone.bg} ${tone.ink}`} style={tone.style}>
-      <header className="px-5 pb-12 pt-10 sm:pt-16">
+  const sections: SectionRenderers = {
+    cover: () => (
+      <header data-section="cover" className="px-5 pb-12 pt-10 sm:pt-16">
         <div className="relative mx-auto max-w-md">
           <div aria-hidden className={`absolute inset-0 translate-x-3 translate-y-3 rounded-2xl ${tone.soft}`} />
           <div className={`relative ${card} p-6 sm:p-8`}>
@@ -151,21 +154,30 @@ export function KartuLayout({ props, view }: { props: GuestPageProps; view: Gues
           </div>
         </div>
       </header>
+    ),
 
-      {readOnly && <ReadOnlyNotice className="mx-auto max-w-xl px-5" />}
-      <SwitchedOffNotices props={props} view={view} className="mx-auto max-w-xl px-5" />
+    notices: () => (
+      <>
+        {readOnly && <ReadOnlyNotice className="mx-auto max-w-xl px-5" />}
+        <SwitchedOffNotices props={props} view={view} className="mx-auto max-w-xl px-5" />
+      </>
+    ),
 
-      {config.greetings?.enabled !== false && (config.greetings?.prayer || config.settings?.openingCopy) && (
-        <CardSection tone={tone}>
+    greeting: () =>
+      config.greetings?.enabled !== false &&
+      (config.greetings?.prayer || config.settings?.openingCopy) && (
+        <CardSection section="greeting" tone={tone}>
           <div className={`${card} p-6`}>
             {config.greetings?.prayer && <p className={`font-serif text-xl leading-relaxed text-pretty ${tone.accent}`}>{config.greetings.prayer}</p>}
             {config.settings?.openingCopy && <p className="mt-3 text-sm leading-7 text-pretty">{config.settings.openingCopy}</p>}
           </div>
         </CardSection>
-      )}
+      ),
 
-      {config.quote?.enabled && config.quote.text && (
-        <CardSection tone={tone}>
+    quote: () =>
+      config.quote?.enabled &&
+      config.quote.text && (
+        <CardSection section="quote" tone={tone}>
           <figure className="flex gap-4">
             <InvitationIcon name="quote" className={`h-8 w-8 shrink-0 ${tone.accent}`} />
             <div>
@@ -174,16 +186,18 @@ export function KartuLayout({ props, view }: { props: GuestPageProps; view: Gues
             </div>
           </figure>
         </CardSection>
-      )}
+      ),
 
-      {view.profiles && (
-        <CardSection tone={tone} title={view.profiles.heading}>
+    profiles: () =>
+      view.profiles && (
+        <CardSection section="profiles" tone={tone} title={view.profiles.heading}>
           <PortraitsBody view={view} section={view.profiles} frame="card" align="start" />
         </CardSection>
-      )}
+      ),
 
-      {events.length > 0 && (
-        <CardSection tone={tone} label="Waktu & tempat" title="Rangkaian Acara">
+    events: () =>
+      events.length > 0 && (
+        <CardSection section="events" tone={tone} label="Waktu & tempat" title="Rangkaian Acara">
           {showCountdown && primaryEvent && (
             <Countdown
               target={primaryStartMs}
@@ -220,22 +234,25 @@ export function KartuLayout({ props, view }: { props: GuestPageProps; view: Gues
           </div>
           <CalendarLinks view={view} slug={invitation.slug} className="mt-8 flex flex-col items-start gap-3 sm:flex-row" />
         </CardSection>
-      )}
+      ),
 
-      {view.ceremonyProfile && (
-        <CardSection tone={tone} label="Profil" title={view.ceremonyProfile.heading}>
+    ceremony: () =>
+      view.ceremonyProfile && (
+        <CardSection section="ceremony" tone={tone} label="Profil" title={view.ceremonyProfile.heading}>
           <CeremonyProfileBody view={view} cardClassName={card} frame="card" align="start" />
         </CardSection>
-      )}
+      ),
 
-      {programmeSections(view).map((id) => (
-        <CardSection key={id} tone={tone} label={PROGRAMME_LABELS[id]} title={PROGRAMME_HEADINGS[id]}>
+    programme: () =>
+      programmeSections(view).map((id) => (
+        <CardSection key={id} section="programme" tone={tone} label={PROGRAMME_LABELS[id]} title={PROGRAMME_HEADINGS[id]}>
           <ProgrammeBody id={id} view={view} cardClassName={card} />
         </CardSection>
-      ))}
+      )),
 
-      {config.story?.enabled && config.story.items?.length ? (
-        <CardSection tone={tone} label="Perjalanan" title="Cerita Kami">
+    story: () =>
+      config.story?.enabled && config.story.items?.length ? (
+        <CardSection section="story" tone={tone} label="Perjalanan" title="Cerita Kami">
           <ol className="mt-8 flex flex-col gap-6">
             {config.story.items.map((item, index) => (
               <li key={index} className={`relative ${card} p-5 pt-7`}>
@@ -248,16 +265,19 @@ export function KartuLayout({ props, view }: { props: GuestPageProps; view: Gues
             ))}
           </ol>
         </CardSection>
-      ) : null}
+      ) : null,
 
-      {(gallery.length > 0 || view.galleryVideos.length > 0) && (
-        <CardSection tone={tone} label="Momen" title="Galeri">
+    gallery: () =>
+      (gallery.length > 0 || view.galleryVideos.length > 0) && (
+        <CardSection section="gallery" tone={tone} label="Momen" title="Galeri">
           <GalleryBody view={view} frame={KARTU_GALLERY} />
         </CardSection>
-      )}
+      ),
 
-      {config.streaming?.enabled && config.streaming.url && (
-        <CardSection tone={tone} label="Dari jauh" title="Siaran Langsung">
+    streaming: () =>
+      config.streaming?.enabled &&
+      config.streaming.url && (
+        <CardSection section="streaming" tone={tone} label="Dari jauh" title="Siaran Langsung">
           <a
             href={config.streaming.url}
             target="_blank"
@@ -268,16 +288,18 @@ export function KartuLayout({ props, view }: { props: GuestPageProps; view: Gues
             Tonton siaran
           </a>
         </CardSection>
-      )}
+      ),
 
-      {view.share && (
-        <CardSection tone={tone} label="Media sosial" title={SHARE_HEADING}>
+    share: () =>
+      view.share && (
+        <CardSection section="share" tone={tone} label="Media sosial" title={SHARE_HEADING}>
           <ShareBody view={view} align="start" />
         </CardSection>
-      )}
+      ),
 
-      {view.gift ? (
-        <CardSection tone={tone} label="Tanda kasih" title="Hadiah">
+    gift: () =>
+      view.gift ? (
+        <CardSection section="gift" tone={tone} label="Tanda kasih" title="Hadiah">
           {view.gift.accounts.length > 0 && (
             <div className="mt-8 grid gap-4 sm:grid-cols-2">
               {view.gift.accounts.map((account, index) => (
@@ -303,11 +325,12 @@ export function KartuLayout({ props, view }: { props: GuestPageProps; view: Gues
           <GiftQris view={view} align="start" />
           <GiftWithheldNotice view={view} align="start" />
         </CardSection>
-      ) : null}
+      ) : null,
 
-      {/* RSVP — only a recognised guest can respond, and only while the invitation is active. */}
-      {view.rsvpShown && (
-        <CardSection tone={tone} label="RSVP" title="Konfirmasi Kehadiran">
+    // RSVP — only a recognised guest can respond, and only while the invitation is active.
+    rsvp: () =>
+      view.rsvpShown && (
+        <CardSection section="rsvp" tone={tone} label="RSVP" title="Konfirmasi Kehadiran">
           <RsvpBlock
             props={props}
             view={view}
@@ -315,25 +338,33 @@ export function KartuLayout({ props, view }: { props: GuestPageProps; view: Gues
             fallbackClassName={`mt-8 rounded-2xl border-2 border-dashed ${tone.line} ${tone.card} p-6 text-sm ${tone.muted}`}
           />
         </CardSection>
-      )}
+      ),
 
-      {view.guestbookShown && (
-        <CardSection tone={tone} label="Buku tamu" title={config.guestbook?.heading || 'Ucapan & Doa'}>
+    guestbook: () =>
+      view.guestbookShown && (
+        <CardSection section="guestbook" tone={tone} label="Buku tamu" title={config.guestbook?.heading || 'Ucapan & Doa'}>
           {config.guestbook?.prompt && <p className={`mt-2 text-sm ${tone.muted}`}>{config.guestbook.prompt}</p>}
           <GuestbookBlock props={props} view={view} formClassName={`mt-8 space-y-4 ${card} p-6`} messageClassName={`${card} p-5`} />
         </CardSection>
-      )}
+      ),
 
-      <footer className={`mx-auto max-w-xl px-5 pb-12 pt-4 text-xs ${tone.muted}`}>
+    footer: () => (
+      <footer data-section="footer" className={`mx-auto max-w-xl px-5 pb-12 pt-4 text-xs ${tone.muted}`}>
         <p>Undangan digital oleh Invitesion</p>
       </footer>
+    ),
+  };
+
+  return (
+    <main className={`min-h-screen ${tone.bg} ${tone.ink}`} style={tone.style}>
+      {composeSections(FAMILY_MANIFESTS.kartu, sections, sharedSections(props, view))}
     </main>
   );
 }
 
-function CardSection({ tone, label, title, children }: { tone: Tone; label?: string; title?: string; children: React.ReactNode }) {
+function CardSection({ section, tone, label, title, children }: { section: SectionId; tone: Tone; label?: string; title?: string; children: React.ReactNode }) {
   return (
-    <section className="mx-auto w-full max-w-xl px-5 py-10 sm:py-14">
+    <section data-section={section} className="mx-auto w-full max-w-xl px-5 py-10 sm:py-14">
       {label && <p className={`text-xs uppercase tracking-[0.25em] ${tone.muted}`}>{label}</p>}
       {title && <h2 className="mt-1 font-serif text-3xl text-balance">{title}</h2>}
       {children}

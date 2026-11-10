@@ -117,6 +117,8 @@ Limits: one lab run each on the harness's static server (no CDN, no compression)
 **State at s25 (B-030 PARTIAL):**
 - **Step 2 happened in a different form:** layout components per design family, behind `theme.familyId`, over the shared blocks and the strict `DetailConfig`. A retired family id falls back to the legacy layout (`.catch`).
 - **Step 1 has not started:** there are no manifests for the 64 registry entries, and the palettes still live in `lib/invitation/palettes.ts`.
+
+**State at s42 (B-030 DONE in the sandbox for the families, E-087):** the §8 family manifest exists for the four design families (`lib/invitation/family-manifest.ts`, validated by `validateFamilyManifest` and `pnpm harness families`). It is the source of each family's section order (`composeSections` in `components/invitation/family-sections.tsx`), of the shared fallback for a section a family does not draw (`sharedSections`) and of the motion tier (`motionClasses`: tier 0 still, tier 1 `inv-rise` entrance only). Each section root carries `data-section`, which `tests/b030-family-manifest.test.ts` reads on every review page. The 64 catalog entries still have no manifest (step 1 above, now with G-041 / G-062).
 - **Step 3 has not started:** there is no CI. The product-page gates of §4a run by hand.
 - **Rollback stays per family:** an invitation without `theme.familyId` renders the classic layout.
 

@@ -4,8 +4,8 @@
 > STATUS: LIVE (design)
 > OWNER: Operator
 > DEPS: DATABASE_SCHEMA.md (guests, guest_messages, analytics_events, guest_registrations, guest_registration_links), services/api/README.md (jobs runner)
-> GREP: guest, tamu, slug, url, rsvp, csv, import, impor, pendaftaran, daftar, self-registration, BACKEND_ROSTER, roster, tracking, collision, token, link_token, attending_count, calendar, og, analitik, tindak lanjut, follow-up, insights, digest, guest pass, QR pass, check-in, pemindai, scanner, GUEST_PASS, pass_id, tim, team, co-host, usher, penerima tamu, invitation_members, FLAG_TEAM_ACCESS, pihak keluarga, family_side, buku ucapan, wishes book, PDF, FLAG_WISHES_BOOK, hapus undangan, pulihkan, retensi, deleted_at, purge, FLAG_INVITATION_DELETION
-> UPDATED: 2026-11-10 (s38: hapus & retensi undangan, pulihkan, sapuan setelah kedaluwarsa, B-031 / D-063 / E-081; s36: pihak keluarga kado khusus pernikahan, I-04 / D-059 / E-077; buku ucapan PDF khusus pemilik, I-22 / D-060 / E-078; s35: meja, suvenir & kado khusus pemilik + ekspor, G-045 / D-058 / E-076; tim undangan, co-host & penerima tamu, G-044 / D-057 / E-075; s34: QR pass tamu + meja check-in + antrean tanpa sinyal, B-024 / D-056 / ADR-A3 / E-074; koreksi: kedua penulis menulis RSVP / GUESTBOOK / CHECKIN ke analytics_events; s31: impor tamu + pendaftaran mandiri + penulis roster `BACKEND_ROSTER` Next.js / API Rust, B-033 / D-052 / E-070; analitik & tindak lanjut host, daftar belum membuka / belum menjawab, ringkasan harian, B-034 / E-069; hanya VIEW yang ditulis ke analytics_events; s29: detail hadiah hanya di link pribadi, QRIS statis host, tombol salin, B-026 / D-047 / E-063; s28: musik latar + sampul "Buka Undangan", B-009 / D-045 / E-061; moderasi / balasan / visibilitas buku tamu dan penulis ucapan `BACKEND_WISHES`, R-04 / D-044 / E-060; penulis RSVP `BACKEND_RSVP` Next.js / API Rust, kunci idempotensi, batas per link / alamat, kontrak proxy tepercaya, R-03 / D-043 / E-059; s23r: akses file foto anak D-040 / E-047; s20, dicatat s21: acara khusus undangan + override RSVP host D-037, foto mempelai / anak D-038; s19: id acara tetap, konfirmasi per acara, ringkasan jawaban host, D-036; s18: pertanyaan custom host + editor, D-034/D-035, ringkasan RSVP dashboard E-033; s17: B-027 MAYBE status, headcount hint; s09: B-007 attending_count, B-011 opt-in token + 404, B-008/B-010 side routes)
+> GREP: guest, tamu, slug, url, rsvp, csv, import, impor, pendaftaran, daftar, self-registration, BACKEND_ROSTER, roster, tracking, collision, token, link_token, attending_count, calendar, og, analitik, tindak lanjut, follow-up, insights, digest, guest pass, QR pass, check-in, pemindai, scanner, GUEST_PASS, pass_id, tim, team, co-host, usher, penerima tamu, invitation_members, FLAG_TEAM_ACCESS, pihak keluarga, family_side, buku ucapan, wishes book, PDF, FLAG_WISHES_BOOK, hapus undangan, pulihkan, retensi, deleted_at, purge, FLAG_INVITATION_DELETION, workspace, ruang kerja, reseller, client invitation, workspace_members, manager, desk, credit ledger, FLAG_WORKSPACES
+> UPDATED: 2026-11-10 (s42: reseller workspaces, client invitations, manager and desk staff links, the credit ledger's mechanics, G-052 / D-067 / E-085; s38: hapus & retensi undangan, pulihkan, sapuan setelah kedaluwarsa, B-031 / D-063 / E-081; s36: pihak keluarga kado khusus pernikahan, I-04 / D-059 / E-077; buku ucapan PDF khusus pemilik, I-22 / D-060 / E-078; s35: meja, suvenir & kado khusus pemilik + ekspor, G-045 / D-058 / E-076; tim undangan, co-host & penerima tamu, G-044 / D-057 / E-075; s34: QR pass tamu + meja check-in + antrean tanpa sinyal, B-024 / D-056 / ADR-A3 / E-074; koreksi: kedua penulis menulis RSVP / GUESTBOOK / CHECKIN ke analytics_events; s31: impor tamu + pendaftaran mandiri + penulis roster `BACKEND_ROSTER` Next.js / API Rust, B-033 / D-052 / E-070; analitik & tindak lanjut host, daftar belum membuka / belum menjawab, ringkasan harian, B-034 / E-069; hanya VIEW yang ditulis ke analytics_events; s29: detail hadiah hanya di link pribadi, QRIS statis host, tombol salin, B-026 / D-047 / E-063; s28: musik latar + sampul "Buka Undangan", B-009 / D-045 / E-061; moderasi / balasan / visibilitas buku tamu dan penulis ucapan `BACKEND_WISHES`, R-04 / D-044 / E-060; penulis RSVP `BACKEND_RSVP` Next.js / API Rust, kunci idempotensi, batas per link / alamat, kontrak proxy tepercaya, R-03 / D-043 / E-059; s23r: akses file foto anak D-040 / E-047; s20, dicatat s21: acara khusus undangan + override RSVP host D-037, foto mempelai / anak D-038; s19: id acara tetap, konfirmasi per acara, ringkasan jawaban host, D-036; s18: pertanyaan custom host + editor, D-034/D-035, ringkasan RSVP dashboard E-033; s17: B-027 MAYBE status, headcount hint; s09: B-007 attending_count, B-011 opt-in token + 404, B-008/B-010 side routes)
 
 ## URL unik per-tamu (differentiator utama)
 Format: `/i/:invitationSlug/:guestSlug` → `invitation.com/i/wedding-andi/budi-santoso`
@@ -123,6 +123,37 @@ center). Hanya baca; kode `lib/invitation/host-analytics.ts` (aturan murni) dan 
 - **Bukti:** `tests/g044-team-access.test.ts`, `contracts/vectors/member-roles.json` (+ `services/api/tests/member_roles_vectors.rs`),
   `scripts/verify-team-access-api.ts` (job `rust`, kedua penulis terhadap binary), browser 43 / 43 di salinan scratch
   dengan Clerk tiruan (E-075). Sesi Clerk asli = DA-01 butir 8 (NOT RUN).
+
+## Reseller workspaces: client invitations and workspace staff (G-052 / I-25, D-067, E-085; code s41, closed s42)
+- **Who:** a customer account owns at most one workspace (`/dashboard/workspace`), names it and makes its own live
+  invitations client invitations (`invitations.workspace_id`, `client_label`); "Jadikan pribadi" takes one back. The
+  owner stays the invitation's owner: content, theme, payment, publishing, the team page and the workspace's staff are
+  theirs alone. Administrators can neither own nor join a workspace.
+- **Staff roles** reuse the team's capabilities (`contracts/vectors/member-roles.json`): `manager` = the co-host's
+  (guests with phones, RSVPs and imports, the desk, wish moderation and replies, insights and exports), `desk` = the
+  usher's (the check-in desk only: display name, pass key and arrival; no phone, RSVP or wish). A grant covers every live
+  client invitation of its workspace and nothing else; staff land on `/dashboard/workspace`, which lists each client
+  invitation with the link its role allows (the desk by a full page load, D-056).
+- **Staff links:** one-time, shown once to the owner with a WhatsApp share, stored as SHA-256, 7 days, one account, at
+  most 50 live rows per workspace. `/gabung/ruang/<secret>` shows the workspace and role (Indonesian frame, `lang="id"`,
+  no referrer, noindex) and accepts only on a POST; signed out, the secret waits in the `inv_ws_join` cookie (HttpOnly,
+  SameSite=Lax, Secure over HTTPS, `Path=/gabung/ruang`, one hour) through sign-in to `/gabung/ruang/terima`, and is
+  cleared on acceptance. Used, expired, revoked, unknown and malformed links all read "invalid".
+- **Checks on every request:** `invitationAccess` and both writers' membership clause (`lib/invitation/roster-next.ts`,
+  `services/api/src/members.rs`, including `accessible_guest` and `lock_owned_wish`) join the workspace on the
+  invitation's owner and require a live grant, a workspace that is not disabled and a live invitation, under the row lock
+  the write takes. A revoked grant, a disabled workspace, an unassigned or deleted invitation and a forged
+  `workspace_id` or row id give nothing at the next request. With G-044 (`FLAG_TEAM_ACCESS`) also on, an account holding
+  both kinds of grant on one invitation gets the broader role.
+- **Credits:** `lib/workspace/credits.ts` keeps an append-only ledger with the balance under the workspace's row lock,
+  an operation key per workspace (a retry replays, another payload conflicts) and `debitWith` for a debit inside its
+  operation's transaction. No product path calls it until credit prices and packs exist (B-040, EXT).
+- **Flag off (`FLAG_WORKSPACES`, default):** the workspace and join pages answer 404, staff hold nothing at any entry
+  and the dashboard drops the entry; workspaces, memberships, assignments and ledger entries are kept and work again
+  when it is switched on.
+- **Evidence:** `tests/g052-workspaces.test.ts`, `scripts/verify-workspaces.ts` (database job, and the rust job with
+  both writers against the binary), `services/api/tests/workspace_access_database.rs`, browser 34 / 34 on a scratch copy
+  with a Clerk stub (E-085). A real Clerk session = DA-01 item 13 (NOT RUN).
 
 ## Meja, suvenir & kado: catatan hari acara pemilik (G-045, D-058, E-076; s35)
 - **Hanya pemilik.** Halaman `/dashboard/invitations/<id>/logs` (kartu "Seating, souvenirs & gifts" di control center saat

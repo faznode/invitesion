@@ -841,7 +841,7 @@
 .footerBrand p { margin: 0; color: var(--mut); font-size: 14px; line-height: 1.7; max-width: 34ch; }
 .footerLinks { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
 .footerLinks > div { display: grid; gap: 9px; justify-items: start; align-content: start; }
-.footerLinks h4 { margin: 0 0 4px; font-size: 10px; letter-spacing: 0.16em; font-weight: 800; color: var(--mut); }
+.footerLinks h2 { margin: 0 0 4px; font-size: 10px; letter-spacing: 0.16em; font-weight: 800; color: var(--mut); }
 .footerLinks a { color: var(--ink); font-size: 13.5px; font-weight: 600; text-decoration: none; }
 .footerLinks a:hover { color: var(--pink); }
 .footerBottom {

@@ -34,6 +34,6 @@ export async function acceptStaffJoin(formData: FormData) {
   if (!token) redirect('/gabung/ruang/terima');
   const outcome = await acceptStaffLink(user.id, token);
   await clearStaffJoinToken();
-  if (outcome.kind === 'joined' || outcome.kind === 'already') redirect(`/dashboard/workspace?bergabung=${outcome.workspaceId}`);
+  if (outcome.kind === 'joined' || outcome.kind === 'already') redirect(`/dashboard/workspace?joined=${outcome.workspaceId}`);
   redirect(`/gabung/ruang/terima?status=${outcome.kind}`);
 }
