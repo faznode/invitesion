@@ -4,16 +4,24 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { getUser } from '@/lib/db/queries';
 import { assertAuthorizedAdmin, getPrivateAdminPath } from '@/lib/auth/admin-access';
-import { AmountMismatchError, OrderNotFoundError, confirmManually } from '@/lib/payment/service';
+import {
+  AmountMismatchError,
+  OrderNotFoundError,
+  RailMismatchError,
+  SettlementUnconfirmedError,
+  confirmManually,
+} from '@/lib/payment/service';
 
 /**
  * Marks a QRIS order paid after an operator has seen the money arrive.
  *
  * This exists because QRIS without an acquirer has no settlement callback (see
- * `lib/payment/qris-provider.ts`). It routes through the same `applySettlement`
- * as a real webhook, so an operator confirmation and a provider callback cannot
- * produce different state — and the synthetic event id makes pressing the button
- * twice a no-op rather than a double activation.
+ * `lib/payment/qris-provider.ts`). It routes through the same settlement as a real
+ * webhook (`settle`, whichever writer `BACKEND_PAYMENT` selects), so an operator
+ * confirmation and a provider callback cannot produce different state — and the
+ * synthetic event id makes pressing the button twice a no-op rather than a double
+ * activation. The notice says whether the invitation went live: a deleted one, one
+ * already live or one on another theme than the order bought stays as it is.
  *
  * Authorisation is re-checked here, not inherited from the page: a server action
  * is its own entry point and reaching it does not require having rendered the
@@ -38,10 +46,12 @@ export async function confirmOrderPaid(formData: FormData): Promise<void> {
     revalidatePath(adminPath);
 
     if (!outcome.applied) redirect(`${ordersPath}?notice=${outcome.reason}`);
-    redirect(`${ordersPath}?confirmed=${reference}`);
+    redirect(`${ordersPath}?confirmed=${encodeURIComponent(reference)}${outcome.invitationActivated ? '' : '&activated=0'}`);
   } catch (error) {
     if (error instanceof OrderNotFoundError) redirect(`${ordersPath}?error=notfound`);
     if (error instanceof AmountMismatchError) redirect(`${ordersPath}?error=amount`);
+    if (error instanceof RailMismatchError) redirect(`${ordersPath}?error=rail`);
+    if (error instanceof SettlementUnconfirmedError) redirect(`${ordersPath}?error=unconfirmed`);
     throw error;
   }
 }

@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { Wordmark } from '@/components/brand/wordmark';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { FileText, LayoutDashboard, LogOut, Mail, Menu, Palette, UserRound, Users, X } from 'lucide-react';
+import { FileText, LayoutDashboard, LogOut, Mail, Menu, Palette, ReceiptText, UserRound, Users, X, type LucideIcon } from 'lucide-react';
 import { useClerk } from '@clerk/nextjs';
 import type { Locale } from '@/lib/i18n';
 
@@ -13,21 +13,24 @@ type CustomerShellProps = {
   children: React.ReactNode;
   locale: Locale;
   user: { name: string | null; email: string; avatarUrl: string | null } | null;
+  /** G-050: `FLAG_RECEIPTS`, read on the server by the layout. */
+  receiptsEnabled?: boolean;
 };
 
-export function CustomerShell({ children, locale, user }: CustomerShellProps) {
+export function CustomerShell({ children, locale, user, receiptsEnabled = false }: CustomerShellProps) {
   const path = usePathname();
   const router = useRouter();
   const clerk = useClerk();
   const en = locale === 'en';
   const [open, setOpen] = useState(false);
 
-  const items = [
+  const items: ReadonlyArray<readonly [string, LucideIcon, string]> = [
     ['/dashboard', LayoutDashboard, en ? 'Overview' : 'Ringkasan'],
     ['/dashboard/invitations', FileText, en ? 'My invitations' : 'Undangan saya'],
     ['/dashboard/guests', Users, en ? 'Guests & RSVP' : 'Tamu & RSVP'],
     ['/dashboard/templates', Palette, en ? 'Choose a theme' : 'Pilih tema'],
-  ] as const;
+    ...(receiptsEnabled ? [['/dashboard/receipts', ReceiptText, en ? 'Receipts' : 'Kuitansi'] as const] : []),
+  ];
   const displayName = user?.name?.trim() || user?.email || (en ? 'Your account' : 'Akun kamu');
   const initials = displayName.slice(0, 1).toUpperCase();
   const profileActive = path === '/dashboard/profile';
@@ -103,9 +106,9 @@ export function CustomerShell({ children, locale, user }: CustomerShellProps) {
   );
 
   return (
-    <div data-app-shell="customer" className="min-h-dvh bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 lg:grid lg:grid-cols-[16rem_minmax(0,1fr)]">
+    <div data-app-shell="customer" className="min-h-dvh bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 lg:grid lg:grid-cols-[16rem_minmax(0,1fr)] print:block print:min-h-0 print:bg-white">
       {/* Mobile top bar with burger */}
-      <header className="sticky top-0 z-30 flex items-center justify-between gap-2 border-b border-slate-200 bg-white/95 px-3 py-2.5 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 lg:hidden">
+      <header className="sticky top-0 z-30 flex items-center justify-between gap-2 border-b border-slate-200 bg-white/95 px-3 py-2.5 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 lg:hidden print:hidden">
         <button
           type="button"
           onClick={() => setOpen(true)}
@@ -122,7 +125,7 @@ export function CustomerShell({ children, locale, user }: CustomerShellProps) {
       </header>
 
       {/* Desktop sidebar */}
-      <aside className="hidden min-h-dvh flex-col border-r border-slate-200 bg-white px-4 py-5 dark:border-slate-800 dark:bg-slate-950 lg:flex">
+      <aside className="hidden min-h-dvh flex-col border-r border-slate-200 bg-white px-4 py-5 dark:border-slate-800 dark:bg-slate-950 lg:flex print:hidden">
         <div className="mb-8">{brand}</div>
         {nav}
         <div className="mt-auto border-t border-slate-100 pt-4 dark:border-slate-800">{account}</div>
@@ -130,7 +133,7 @@ export function CustomerShell({ children, locale, user }: CustomerShellProps) {
 
       {/* Mobile drawer */}
       {/* Closed, the drawer is inert: aria-hidden alone left its links in the tab order (axe aria-hidden-focus, s34). */}
-      <div className={`fixed inset-0 z-40 lg:hidden ${open ? '' : 'pointer-events-none'}`} aria-hidden={!open} inert={!open}>
+      <div className={`fixed inset-0 z-40 lg:hidden print:hidden ${open ? '' : 'pointer-events-none'}`} aria-hidden={!open} inert={!open}>
         <div
           onClick={() => setOpen(false)}
           className={`absolute inset-0 bg-slate-900/40 transition-opacity duration-200 ${open ? 'opacity-100' : 'opacity-0'}`}

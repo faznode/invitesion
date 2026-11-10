@@ -275,7 +275,12 @@ test('B-034: hostile names stay text, an impossible number shows the hint, a mis
 test('B-034: the page, the export and the loader are owner-scoped and reuse the B-018 builder', () => {
   const loader = source('lib/invitation/host-analytics-query.ts');
   assert.match(loader, /^import 'server-only';/);
-  assert.match(loader, /\.where\(and\(eq\(invitations\.id, owner\.invitationId\), eq\(invitations\.userId, owner\.userId\)\)\)/, 'ownership is part of the invitation query');
+  // B-031 (D-063) added the live-row guard to this query; the pin requires it beside the ownership (s39).
+  assert.match(
+    loader,
+    /\.where\(and\(eq\(invitations\.id, owner\.invitationId\), eq\(invitations\.userId, owner\.userId\), isNull\(invitations\.deletedAt\)\)\)/,
+    'ownership and the B-031 live-row guard are part of the invitation query',
+  );
   assert.match(loader, /if \(!invitation\) return null;/);
   assert.equal((loader.match(/invitation\.id\)/g) ?? []).length, 2, 'guests and VIEW events keyed by the owned invitation only');
   assert.match(loader, /eq\(analyticsEvents\.eventType, 'VIEW'\)/);

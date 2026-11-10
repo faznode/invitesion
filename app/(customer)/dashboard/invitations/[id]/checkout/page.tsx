@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { and, desc, eq } from 'drizzle-orm';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
@@ -7,7 +8,10 @@ import { db } from '@/lib/db/drizzle';
 import { getUser } from '@/lib/db/queries';
 import { getPrivateAdminPath } from '@/lib/auth/admin-access';
 import { orders } from '@/lib/db/schema';
+import { isFlagOn } from '@/lib/flags';
 import { getLocale } from '@/lib/locale-server';
+import { formatReceiptNumber } from '@/lib/payment/receipt-format';
+import { ownerReceiptNumberForOrder } from '@/lib/payment/receipts';
 import { OwnershipError, requireOwnedInvitation } from '@/lib/invitation/service';
 import { formatMoney, isCurrency, money } from '@/lib/payment/money';
 import { getProvider, railStatus } from '@/lib/payment/registry';
@@ -68,6 +72,15 @@ export default async function CheckoutPage({ params, searchParams }: Params) {
   const currency = order && isCurrency(order.currency) ? order.currency : 'IDR';
   const amount = order ? formatMoney(money(order.amount, currency), en ? 'en' : 'id') : null;
 
+  // B-039: every render carries a fresh checkout key, so a double tap or a resubmitted page reaches one order. A failed
+  // or expired attempt is over: the page offers a new one under a new key.
+  const checkoutKey = randomUUID();
+  const attemptOver = order?.status === 'FAILED' || order?.status === 'EXPIRED';
+
+  // G-050: a paid order links to its receipt once the jobs runner has issued it.
+  const receiptsEnabled = isFlagOn('RECEIPTS');
+  const receiptNumber = receiptsEnabled && order?.status === 'PAID' ? await ownerReceiptNumberForOrder(user.id, order.id) : null;
+
   // Rendered server-side into an SVG: no client-side QR library, and the raw
   // payload never has to reach the browser as data.
   let qrSvg: string | null = null;
@@ -113,6 +126,22 @@ export default async function CheckoutPage({ params, searchParams }: Params) {
           </p>
         )}
 
+        {query.error === 'changed' && (
+          <p role="alert" className="mt-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            {en
+              ? 'The price or theme changed since this page was opened. Nothing was charged; check the amount below and continue.'
+              : 'Harga atau tema berubah sejak halaman ini dibuka. Belum ada tagihan; periksa nominal di bawah lalu lanjutkan.'}
+          </p>
+        )}
+
+        {query.error === 'closed' && (
+          <p role="alert" className="mt-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            {en
+              ? 'That payment attempt has ended. Start a new one below.'
+              : 'Percobaan pembayaran itu sudah berakhir. Mulai yang baru di bawah.'}
+          </p>
+        )}
+
         {invitation.status === 'PUBLISHED' ? (
           <div className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 p-5">
             <p className="flex items-center gap-2 text-sm font-semibold text-emerald-800">
@@ -120,9 +149,15 @@ export default async function CheckoutPage({ params, searchParams }: Params) {
               {en ? 'This invitation is already live.' : 'Undangan ini sudah tayang.'}
             </p>
           </div>
-        ) : !order ? (
+        ) : !order || attemptOver ? (
           <form action={startCheckout} className="mt-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <input type="hidden" name="invitationId" value={invitationId} />
+            <input type="hidden" name="checkoutKey" value={checkoutKey} />
+            {attemptOver && (
+              <p className="mb-3 text-sm font-medium text-slate-800">
+                {en ? 'Your previous payment attempt ended without a payment.' : 'Percobaan pembayaran sebelumnya berakhir tanpa pembayaran.'}
+              </p>
+            )}
             <p className="text-sm text-slate-600">
               {en
                 ? 'One-time payment. The invitation goes live for 12 months once payment is confirmed.'
@@ -159,9 +194,19 @@ export default async function CheckoutPage({ params, searchParams }: Params) {
             </div>
 
             {order.status === 'PAID' ? (
-              <p className="rounded-xl border border-emerald-200 bg-emerald-50 p-5 text-sm text-emerald-800">
-                {en ? 'Payment confirmed. Your invitation is live.' : 'Pembayaran terkonfirmasi. Undangan kamu sudah tayang.'}
-              </p>
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-5 text-sm text-emerald-800">
+                <p>{en ? 'Payment confirmed. Your invitation is live.' : 'Pembayaran terkonfirmasi. Undangan kamu sudah tayang.'}</p>
+                {receiptsEnabled && (
+                  <Link
+                    href={receiptNumber !== null ? `/dashboard/receipts/${receiptNumber}` : '/dashboard/receipts'}
+                    className="mt-3 inline-flex font-semibold text-emerald-900 underline underline-offset-2 hover:text-emerald-950"
+                  >
+                    {receiptNumber !== null
+                      ? `${en ? 'View receipt' : 'Lihat kuitansi'} ${formatReceiptNumber(receiptNumber)}`
+                      : en ? 'Receipt being prepared: see your receipts' : 'Kuitansi sedang disiapkan: lihat daftar kuitansi'}
+                  </Link>
+                )}
+              </div>
             ) : qrSvg ? (
               <div className="rounded-xl border border-slate-200 bg-white p-5 text-center shadow-sm">
                 <p className="flex items-center justify-center gap-2 text-sm font-semibold text-slate-900">
@@ -184,6 +229,23 @@ export default async function CheckoutPage({ params, searchParams }: Params) {
                   </p>
                 )}
               </div>
+            ) : order.rail === 'stripe' && order.status === 'PENDING' ? (
+              // Resumes the same order under its own key: Stripe returns the session it already opened for this reference.
+              <form action={startCheckout} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                <input type="hidden" name="invitationId" value={invitationId} />
+                <input type="hidden" name="checkoutKey" value={order.checkoutKey ?? checkoutKey} />
+                <p className="text-sm text-slate-600">
+                  {en
+                    ? 'Complete the payment on Stripe. This page updates once the payment is confirmed.'
+                    : 'Selesaikan pembayaran di Stripe. Halaman ini akan berubah setelah pembayaran terkonfirmasi.'}
+                </p>
+                <button
+                  type="submit"
+                  className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-brand-600 px-4 text-sm font-semibold text-white transition hover:bg-brand-700"
+                >
+                  {en ? 'Continue to Stripe' : 'Lanjut ke Stripe'}
+                </button>
+              </form>
             ) : order.rail === 'stripe' ? (
               <p className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-600">
                 {en

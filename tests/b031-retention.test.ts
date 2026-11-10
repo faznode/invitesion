@@ -155,11 +155,19 @@ test('B-031 payments: a settlement after the deletion records the money and neve
   const service = read('lib/payment/service.ts');
   const settle = service.slice(service.indexOf('export async function applySettlement'), service.indexOf('async function activateInvitation'));
   const activate = service.slice(service.indexOf('async function activateInvitation'), service.indexOf('export async function confirmManually'));
-  assert.ok(settle.indexOf("status: 'PAID'") < settle.indexOf('tx.insert(payments)') && settle.indexOf('tx.insert(payments)') < settle.indexOf('activateInvitation('),
+  // `.insert(payments)` without its receiver: B-039 wraps the call (`tx\n.insert(payments)`); the order is what is pinned.
+  const paymentInsert = settle.indexOf('.insert(payments)');
+  assert.ok(paymentInsert > 0, 'the settlement writes the payment row');
+  assert.ok(settle.indexOf("status: 'PAID'") < paymentInsert && paymentInsert < settle.indexOf('activateInvitation('),
     'the order and the payment are written before, and whatever, the activation decides');
   assert.match(activate, /\.where\(and\(eq\(invitations\.id, invitationId\), isNull\(invitations\.deletedAt\)\)\)\s*\.limit\(1\)\s*\.for\('update'\)/,
     'the activation reads only a live row, under the lock the deletion takes');
-  assert.match(activate, /if \(!invitation \|\| invitation\.status === 'PUBLISHED'\) return false;/, 'a deleted (unfound) row is left as it is');
+  // B-039 (s39): the shared decision (contracts/vectors/payment-settlement.json) reads an unfound row as not live.
+  assert.match(activate, /const activation = decideActivation\(order, invitation \?\? null, paidAt\);\s*if \(activation\.kind !== 'activated'\) return activation;/,
+    'a deleted (unfound) row is left as it is');
+  assert.match(activate, /\.where\(and\(eq\(invitations\.id, invitationId\), isNull\(invitations\.deletedAt\), ne\(invitations\.status, 'PUBLISHED'\)\)\)/,
+    'the activation writes only the live, unpublished row it locked');
+  assert.ok(settle.indexOf('activateInvitation(') < settle.indexOf('.insert(jobs)'), 'the entitlement outbox row is written in the same transaction');
 });
 
 /** Rust statements on `invitations` that deliberately see deleted rows. */

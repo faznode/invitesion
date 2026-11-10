@@ -1,26 +1,42 @@
 import 'server-only';
 
 import { randomBytes } from 'node:crypto';
-import { and, eq, isNull, sql } from 'drizzle-orm';
+import { and, eq, isNull, ne, sql } from 'drizzle-orm';
+import { backendFor } from '@/lib/backend';
 import { db } from '@/lib/db/drizzle';
-import { orders, paymentEvents, payments } from '@/lib/db/schema';
-import { ACTIVE_PERIOD_MONTHS, addMonths } from '@/lib/invitation/publish-rules';
-import { invitations } from '@/lib/db/schema';
-import { isCurrency, money, sameMoney, type Currency, type Money } from './money';
+import { invitations, jobs, orders, paymentEvents, payments } from '@/lib/db/schema';
+import { checkoutIntentHash, resolveExistingCheckout } from './checkout-key';
+import { AmountMismatchError, OrderNotFoundError, RailMismatchError } from './errors';
+import { money, type Money } from './money';
 import { getProvider } from './registry';
+import {
+  PAYMENT_SETTLED_JOB,
+  PAYMENT_SETTLED_MAX_ATTEMPTS,
+  decideActivation,
+  decideSettlement,
+  orderMoney,
+  paymentSettledDedupeKey,
+  type Activation,
+  type PaymentSettledPayload,
+} from './settlement-decision';
+import { settleThroughApi } from './settlement-api';
 import { railForCurrency, type ChargeHandle, type SettlementEvent } from './types';
 
-export class OrderNotFoundError extends Error {
-  constructor(reference: string) {
-    super(`No order for reference ${reference}`);
-    this.name = 'OrderNotFoundError';
+export { AmountMismatchError, OrderNotFoundError, RailMismatchError, SettlementUnconfirmedError } from './errors';
+
+/** The checkout key was used for another intent (B-039): nothing is written, a fresh page shows the new price. */
+export class CheckoutConflictError extends Error {
+  constructor() {
+    super('This checkout key was used for another price or theme');
+    this.name = 'CheckoutConflictError';
   }
 }
 
-export class AmountMismatchError extends Error {
-  constructor(expected: Money, actual: Money) {
-    super(`Provider reported ${actual.amount} ${actual.currency}, order expects ${expected.amount} ${expected.currency}`);
-    this.name = 'AmountMismatchError';
+/** The checkout key's order failed or expired (B-039): that attempt is over, a fresh page starts a new one. */
+export class CheckoutClosedError extends Error {
+  constructor() {
+    super("This checkout key's order is no longer payable");
+    this.name = 'CheckoutClosedError';
   }
 }
 
@@ -35,6 +51,10 @@ export function newReference(): string {
   return `vne_${randomBytes(12).toString('hex')}`;
 }
 
+export type CheckoutStart =
+  | { kind: 'charge'; orderId: number; reference: string; handle: ChargeHandle; resumed: boolean }
+  | { kind: 'paid'; orderId: number; reference: string };
+
 /**
  * Creates a PENDING order and asks the rail for something to pay with.
  *
@@ -47,6 +67,12 @@ export function newReference(): string {
  * (invitation, template), so the theme must be captured at the moment of sale —
  * reading it later from the invitation would inherit any theme switch that
  * happened in between.
+ *
+ * B-039: with a `checkoutKey` the insert is idempotent per (customer, invitation, key) and bound to the intent computed
+ * here (`lib/payment/checkout-key.ts`). Concurrent submits under one key meet on the unique index, so exactly one order
+ * is written; a submit that finds its key resumes that order's charge under the same reference, reports it paid, or
+ * refuses a changed intent (`CheckoutConflictError`) or a closed attempt (`CheckoutClosedError`). The provider is called
+ * outside any transaction, and its handle is stored only while the order is still PENDING.
  */
 export async function createOrder({
   userId,
@@ -58,6 +84,7 @@ export async function createOrder({
   customerEmail,
   successUrl,
   cancelUrl,
+  checkoutKey = null,
 }: {
   userId: number;
   invitationId: number | null;
@@ -68,11 +95,14 @@ export async function createOrder({
   customerEmail: string;
   successUrl: string;
   cancelUrl: string;
-}): Promise<{ orderId: number; reference: string; handle: ChargeHandle }> {
+  checkoutKey?: string | null;
+}): Promise<CheckoutStart> {
   const rail = railForCurrency(price.currency);
-  const reference = newReference();
+  const intent = checkoutKey
+    ? checkoutIntentHash({ invitationId, templateId, tier, amount: price.amount, currency: price.currency, rail })
+    : null;
 
-  const [order] = await db
+  const inserted = await db
     .insert(orders)
     .values({
       userId,
@@ -82,14 +112,44 @@ export async function createOrder({
       amount: price.amount,
       currency: price.currency,
       rail,
-      reference,
+      reference: newReference(),
       status: 'PENDING',
+      checkoutKey,
+      checkoutIntent: intent,
     })
-    .returning();
+    .onConflictDoNothing({
+      target: [orders.userId, orders.invitationId, orders.checkoutKey],
+      where: sql`${orders.checkoutKey} is not null`,
+    })
+    .returning({ id: orders.id, reference: orders.reference });
+
+  let order = inserted[0];
+  let resumed = false;
+  if (!order) {
+    // Only a keyed insert can conflict, and the conflicting row has committed by now (the insert waited for it).
+    if (!checkoutKey || invitationId === null || !intent) throw new Error('an unkeyed order insert conflicted');
+    const [existing] = await db
+      .select({ id: orders.id, reference: orders.reference, status: orders.status, checkoutIntent: orders.checkoutIntent })
+      .from(orders)
+      .where(and(eq(orders.userId, userId), eq(orders.invitationId, invitationId), eq(orders.checkoutKey, checkoutKey)))
+      .limit(1);
+    if (!existing) throw new Error('the conflicting checkout order is gone');
+    switch (resolveExistingCheckout(existing, intent)) {
+      case 'conflict':
+        throw new CheckoutConflictError();
+      case 'closed':
+        throw new CheckoutClosedError();
+      case 'paid':
+        return { kind: 'paid', orderId: existing.id, reference: existing.reference };
+      case 'resume':
+        order = { id: existing.id, reference: existing.reference };
+        resumed = true;
+    }
+  }
 
   const provider = getProvider(rail);
   const handle = await provider.createCharge({
-    reference,
+    reference: order.reference,
     price,
     description,
     customerEmail,
@@ -101,10 +161,10 @@ export async function createOrder({
     await db
       .update(orders)
       .set({ providerPaymentId: handle.providerPaymentId, expiresAt: handle.expiresAt })
-      .where(eq(orders.id, order.id));
+      .where(and(eq(orders.id, order.id), eq(orders.status, 'PENDING')));
   }
 
-  return { orderId: order.id, reference, handle };
+  return { kind: 'charge', orderId: order.id, reference: order.reference, handle, resumed };
 }
 
 export type SettleOutcome =
@@ -112,21 +172,25 @@ export type SettleOutcome =
   | { applied: false; reason: 'duplicate' | 'already-final' | 'ignored' };
 
 /**
- * Applies a settlement event exactly once.
+ * The Next.js settlement writer (`BACKEND_PAYMENT=next`, the default): applies a settlement event exactly once. Callers
+ * go through `settle`, which selects this writer or the Rust one (`lib/payment/settlement-api.ts`).
  *
  * Idempotency has two layers, and both are needed:
  *
  *  1. `payment_events` UNIQUE(rail, event_id) — a retried *delivery* conflicts
  *     and is skipped. This is what stops a provider's retry storm from doing the
  *     work twice.
- *  2. The order's own status, re-read `FOR UPDATE` inside the transaction — this
- *     is what stops two *different* events (say a webhook and an operator
+ *  2. The order's own status, re-read `FOR UPDATE` inside the transaction and
+ *     moved only by a conditional update (`where status = 'PENDING'`) — this is
+ *     what stops two *different* events (say a webhook and an operator
  *     confirmation) racing to pay the same order.
  *
  * Everything happens in one transaction: recording the event, moving the order,
- * writing the payment row, and activating the invitation. A partial application
- * here is the one outcome with no safe recovery — a customer charged with nothing
- * to show for it.
+ * writing the payment row, activating the invitation and writing the entitlement
+ * outbox row. A partial application here is the one outcome with no safe
+ * recovery — a customer charged with nothing to show for it. What each event does
+ * is `decideSettlement` (lib/payment/settlement-decision.ts), shared with the Rust
+ * writer through `contracts/vectors/payment-settlement.json`.
  */
 export async function applySettlement(event: SettlementEvent): Promise<SettleOutcome> {
   return db.transaction(async (tx) => {
@@ -151,51 +215,88 @@ export async function applySettlement(event: SettlementEvent): Promise<SettleOut
 
     await tx.update(paymentEvents).set({ orderId: order.id }).where(eq(paymentEvents.id, recorded[0].id));
 
-    if (order.status !== 'PENDING') return { applied: false, reason: 'already-final' };
-
-    if (event.status !== 'PAID') {
-      await tx.update(orders).set({ status: event.status }).where(eq(orders.id, order.id));
-      return { applied: true, orderId: order.id, invitationActivated: false };
-    }
-
-    // Never trust the reported amount without checking it. A provider webhook is
-    // authenticated, but authentication says who sent it — not that it agrees
-    // with what we asked for.
-    if (event.paid) {
-      const currency: Currency = isCurrency(order.currency) ? order.currency : 'IDR';
-      const expected = money(order.amount, currency);
-      if (!sameMoney(expected, event.paid)) throw new AmountMismatchError(expected, event.paid);
-    }
-
+    // Decided without the invitation first: only a payment reads (and locks) it. A provider webhook is
+    // authenticated, but authentication says who sent it — not that it agrees with what we asked for, so the
+    // rail and the amount are checked against the order before anything moves.
     const paidAt = new Date();
-    await tx
+    const decision = decideSettlement({ recorded: true, event, order, invitation: null, paidAt });
+    switch (decision.outcome) {
+      case 'duplicate':
+      case 'unknown_order':
+        throw new Error(`unreachable settlement decision ${decision.outcome}`);
+      case 'rail_mismatch':
+        throw new RailMismatchError(event.rail, order.rail);
+      case 'amount_unverifiable':
+      case 'amount_mismatch':
+        throw new AmountMismatchError(orderMoney(order), event.paid);
+      case 'already_final':
+        return { applied: false, reason: 'already-final' };
+      case 'closed': {
+        const closed = await tx
+          .update(orders)
+          .set({ status: decision.status })
+          .where(and(eq(orders.id, order.id), eq(orders.status, 'PENDING')))
+          .returning({ id: orders.id });
+        if (closed.length !== 1) throw new Error('the locked order was not pending');
+        return { applied: true, orderId: order.id, invitationActivated: false };
+      }
+      case 'paid':
+        break;
+    }
+
+    const moved = await tx
       .update(orders)
       .set({
         status: 'PAID',
         paidAt,
         providerPaymentId: event.providerPaymentId ?? order.providerPaymentId,
       })
-      .where(eq(orders.id, order.id));
+      .where(and(eq(orders.id, order.id), eq(orders.status, 'PENDING')))
+      .returning({ id: orders.id });
+    if (moved.length !== 1) throw new Error('the locked order was not pending');
 
-    await tx.insert(payments).values({
+    const [payment] = await tx
+      .insert(payments)
+      .values({
+        orderId: order.id,
+        provider: event.rail,
+        transactionId: event.providerPaymentId,
+        status: 'PAID',
+        rawPayload: event.raw as object,
+      })
+      .returning({ id: payments.id });
+
+    const activation = await activateInvitation(tx, order, paidAt);
+
+    // The entitlement outbox row (09 §8.6), one per order, in this transaction (services/api/src/payment/outbox.rs).
+    const payload: PaymentSettledPayload = {
       orderId: order.id,
-      provider: event.rail,
-      transactionId: event.providerPaymentId,
-      status: 'PAID',
-      rawPayload: event.raw as object,
-    });
+      paymentId: payment.id,
+      invitationId: order.invitationId,
+      templateId: order.templateId,
+      activation: activation.kind,
+    };
+    await tx
+      .insert(jobs)
+      .values({
+        kind: PAYMENT_SETTLED_JOB,
+        payload,
+        dedupeKey: paymentSettledDedupeKey(order.id),
+        runAt: paidAt,
+        maxAttempts: PAYMENT_SETTLED_MAX_ATTEMPTS,
+      })
+      .onConflictDoNothing({ target: [jobs.kind, jobs.dedupeKey] });
 
-    const invitationActivated = await activateInvitation(tx, order.invitationId, order.templateId, paidAt);
-    return { applied: true, orderId: order.id, invitationActivated };
+    return { applied: true, orderId: order.id, invitationActivated: activation.kind === 'activated' };
   });
 }
 
 /**
  * Payment is what makes an invitation live.
  *
- * Only ever moves a DRAFT forward, and never resets an existing window — a
- * customer who pays for a second thing on an already-published invitation must
- * not have their remaining active period restarted or shortened.
+ * Only ever moves an unpublished invitation forward, and never resets an existing
+ * window — a customer who pays for a second thing on an already-published invitation
+ * must not have their remaining active period restarted or shortened.
  *
  * The payment buys the theme recorded on the order. If the invitation switched
  * to a different theme while the charge was in flight, settling the old order
@@ -213,11 +314,11 @@ export async function applySettlement(event: SettlementEvent): Promise<SettleOut
  */
 async function activateInvitation(
   tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
-  invitationId: number | null,
-  orderTemplateId: number | null,
+  order: { invitationId: number | null; templateId: number | null },
   paidAt: Date,
-): Promise<boolean> {
-  if (!invitationId) return false;
+): Promise<Activation> {
+  const invitationId = order.invitationId;
+  if (invitationId === null) return decideActivation(order, null, paidAt);
 
   const [invitation] = await tx
     .select({ id: invitations.id, status: invitations.status, templateId: invitations.templateId, publishedAt: invitations.publishedAt, expiresAt: invitations.expiresAt })
@@ -226,32 +327,27 @@ async function activateInvitation(
     .limit(1)
     .for('update');
 
-  if (!invitation || invitation.status === 'PUBLISHED') return false;
+  // A deleted (unfound) row reads as not live and is left as it is.
+  const activation = decideActivation(order, invitation ?? null, paidAt);
+  if (activation.kind !== 'activated') return activation;
 
-  if (orderTemplateId !== null && invitation.templateId !== null && invitation.templateId !== orderTemplateId) {
-    return false;
-  }
-
-  const publishedAt = invitation.publishedAt ?? paidAt;
-  await tx
+  const activated = await tx
     .update(invitations)
-    .set({
-      status: 'PUBLISHED',
-      publishedAt,
-      expiresAt: invitation.expiresAt ?? addMonths(publishedAt, ACTIVE_PERIOD_MONTHS),
-    })
-    .where(eq(invitations.id, invitation.id));
-
-  return true;
+    .set({ status: 'PUBLISHED', publishedAt: activation.publishedAt, expiresAt: activation.expiresAt })
+    .where(and(eq(invitations.id, invitationId), isNull(invitations.deletedAt), ne(invitations.status, 'PUBLISHED')))
+    .returning({ id: invitations.id });
+  if (activated.length !== 1) throw new Error('the locked invitation changed');
+  return activation;
 }
 
 /**
  * Operator confirmation for rails that cannot deliver a callback.
  *
- * Routed through the same `applySettlement` as a webhook so the two paths cannot
- * diverge — an admin confirming a QRIS transfer and Stripe reporting a charge
- * must produce identical state. The synthetic event id makes the confirmation
- * itself idempotent: pressing the button twice conflicts on the second press.
+ * Routed through the same settlement as a webhook (`settle`, whichever writer
+ * `BACKEND_PAYMENT` selects) so the two paths cannot diverge — an admin confirming
+ * a QRIS transfer and Stripe reporting a charge must produce identical state. The
+ * synthetic event id makes the confirmation itself idempotent: pressing the button
+ * twice conflicts on the second press. The caller has authorized the administrator.
  */
 export async function confirmManually({
   reference,
@@ -265,17 +361,25 @@ export async function confirmManually({
   const [order] = await db.select().from(orders).where(eq(orders.reference, reference)).limit(1);
   if (!order) throw new OrderNotFoundError(reference);
 
-  const currency: Currency = isCurrency(order.currency) ? order.currency : 'IDR';
-
-  return applySettlement({
+  const due = orderMoney(order);
+  return settle({
     rail: order.rail === 'stripe' ? 'stripe' : 'qris',
     eventId: `manual:${reference}`,
     reference,
     providerPaymentId: order.providerPaymentId ?? null,
     status: 'PAID',
-    paid: money(order.amount, currency),
+    paid: money(due.amount, due.currency),
     raw: { source: 'manual-confirmation', adminUserId, note: note ?? null, at: new Date().toISOString() },
   });
+}
+
+/**
+ * B-039: the one settlement entry point (the webhook route, the administrator's confirmation). Exactly one writer per
+ * call, selected by `BACKEND_PAYMENT` (`lib/backend.ts`, default `next`), and never a fallback to the other: after an
+ * unknown outcome the Rust writer retries once under its key and then reports `SettlementUnconfirmedError`.
+ */
+export async function settle(event: SettlementEvent, env: Record<string, string | undefined> = process.env): Promise<SettleOutcome> {
+  return backendFor('PAYMENT', env) === 'rust' ? settleThroughApi(event, env) : applySettlement(event);
 }
 
 /**

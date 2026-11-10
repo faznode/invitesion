@@ -3,8 +3,9 @@
 # migration owner. The service crate (R-01) must be formatted and lint-clean, build from its committed query metadata
 # alone, keep its contract artifacts current, and serve its slices end to end through the Next.js call sites: views
 # (R-02), RSVP (R-03) and wishes (R-04), with host idempotency keys bound to their owner (s29, D-046); the jobs binary
-# carries B-031's purge, dry run and retention sweep across both languages. The s26 feasibility experiment is frozen
-# research and only has to keep passing.
+# carries B-031's purge, dry run and retention sweep across both languages, and delivers B-039's entitlement outbox after
+# settlement through both writers, issuing G-050's receipts. The s26 feasibility experiment is frozen research and only
+# has to keep passing.
 #   POSTGRES_URL=postgres://…/scratch bash scripts/ci/rust.sh        # locally: bash scripts/ci/local.sh rust
 set -euo pipefail
 cd "$(dirname "$0")/../.."
@@ -153,6 +154,38 @@ retention_end_to_end() {
   fi
 }
 
+# B-039 (09 §8.6): settlement through both writers against the binary, one writer per call (`BACKEND_PAYMENT`): every
+# scenario's rows compared across writers (duplicates, refusals that keep nothing, closing, deleted and purged
+# invitations, themes, running windows, concurrent events, a deletion racing the settlement, the administrator's
+# confirmation, the signed Stripe webhook), the Rust key's replay and lost answer, rollback across writers, then the
+# entitlement outbox delivered by `invitesion-jobs`. A missing binary or a skipped section fails the step.
+payment_end_to_end() {
+  local log="$CI_OUT/verify-payment-api.log" code=0
+  API_BASE_URL="http://127.0.0.1:$API_PORT" INTERNAL_API_SECRET=$API_SECRET REQUIRE_JOBS_BIN=1 JOBS_BIN=$JOBS_BIN \
+    npx tsx scripts/verify-payment-api.ts > "$log" 2>&1 || code=$?
+  cat "$log"
+  if [ "$code" != 0 ]; then return "$code"; fi
+  if grep -q '^SKIP' "$log"; then
+    echo "verify-payment-api skipped a section" >&2
+    return 1
+  fi
+}
+
+# G-050: receipts issued by `invitesion-jobs` from the outbox after settlements through both writers: one per paid order
+# copied from its payment record, gapless numbers under two concurrent runners, no number taken by a redelivery, owner-only
+# reads, earlier payments on request. The script refuses to start without the binary.
+receipts_end_to_end() {
+  local log="$CI_OUT/verify-receipts.log" code=0
+  API_BASE_URL="http://127.0.0.1:$API_PORT" INTERNAL_API_SECRET=$API_SECRET JOBS_BIN=$JOBS_BIN \
+    npx tsx scripts/verify-receipts.ts > "$log" 2>&1 || code=$?
+  cat "$log"
+  if [ "$code" != 0 ]; then return "$code"; fi
+  if grep -q '^SKIP' "$log"; then
+    echo "verify-receipts skipped a section" >&2
+    return 1
+  fi
+}
+
 step "migrate (drizzle-kit)" pnpm db:migrate
 step "toolchain" cargo --version
 if [ -f "$SERVICE/Cargo.toml" ]; then
@@ -173,5 +206,7 @@ if [ -f "$SERVICE/Cargo.toml" ]; then
   step "host replay isolation (owner, invitation, resource)" host_replay_isolation
   step "jobs binary (invitesion-jobs, offline metadata, locked)" jobs_binary
   step "retention end to end (B-031: Next.js deletion, Rust plan, purge and sweep)" retention_end_to_end
+  step "payment end to end (B-039, BACKEND_PAYMENT, both writers, outbox)" payment_end_to_end
+  step "receipts end to end (G-050, outbox delivery, gapless numbers, owner reads)" receipts_end_to_end
 fi
 step "test ($EXPERIMENT)" cargo test --manifest-path "$EXPERIMENT/Cargo.toml" --locked

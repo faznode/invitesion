@@ -37,7 +37,7 @@ type CatalogTheme = { id: number; isPremium: boolean; catalogId: number; palette
 async function main() {
   const { and, count, eq, inArray } = await import('drizzle-orm');
   const { db, client } = await import('@/lib/db/drizzle');
-  const { invitations, invitationVersions, orders, paymentEvents, payments, templates, users } = await import('@/lib/db/schema');
+  const { invitations, invitationVersions, orders, paymentEvents, payments, receipts, templates, users } = await import('@/lib/db/schema');
   const { createInvitation } = await import('@/lib/invitation/create');
   const { ThemeEntitlementError, updateDetailConfig } = await import('@/lib/invitation/service');
   const { catalogThemeTier, paletteTier } = await import('@/lib/invitation/theme-entitlement');
@@ -185,6 +185,7 @@ async function main() {
   } finally {
     if (createdOrders.length) {
       await db.delete(paymentEvents).where(inArray(paymentEvents.orderId, createdOrders));
+      await db.delete(receipts).where(inArray(receipts.orderId, createdOrders));
       await db.delete(payments).where(inArray(payments.orderId, createdOrders));
       await db.delete(orders).where(inArray(orders.id, createdOrders));
     }

@@ -99,6 +99,12 @@ const DEFAULTS = {
    * stay gone, keep their restore, and their jobs run.
    */
   INVITATION_DELETION: false,
+  /**
+   * G-050: the owner's receipts, `/dashboard/receipts` and one printable page per receipt, plus the link from a paid
+   * checkout. The jobs runner issues a receipt for every new payment whatever this says; earlier payments get theirs on
+   * the owner's request. Off: the pages and the request answer 404 and no link shows; issued receipts are kept.
+   */
+  RECEIPTS: false,
 } as const;
 
 export type FlagName = keyof typeof DEFAULTS;

@@ -103,7 +103,7 @@ test('a switch writes the config only: neither writer touches invitations.templa
   assert.match(next, /\.update\(invitations\)\.set\(\{ config: input\.config \}\)/);
   assert.equal((next.match(/\.update\(invitations\)/g) ?? []).length, 1);
   const rust = source('services/api/src/content/http.rs');
-  assert.match(rust, /"update invitations set config = \$1 where id = \$2"/);
+  assert.match(rust, /"update invitations set config = \$1 where id = \$2 and deleted_at is null"/);
   assert.ok(!/template_id\s*=\s*\$/.test(rust), 'the Rust writer never assigns template_id');
   assert.match(source('lib/invitation/publish.ts'), /hasPaidOrder\(invitation\.id, invitation\.templateId\)/);
   assert.match(source('app/(customer)/dashboard/invitations/[id]/checkout/actions.ts'), /hasPaidOrder\(invitationId, invitation\.templateId\)/);

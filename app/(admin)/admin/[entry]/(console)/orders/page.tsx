@@ -10,7 +10,7 @@ import { confirmOrderPaid } from './actions';
 
 export const dynamic = 'force-dynamic';
 
-type Search = { confirmed?: string; notice?: string; error?: string };
+type Search = { confirmed?: string; activated?: string; notice?: string; error?: string };
 
 export default async function OrdersPage({ searchParams }: { searchParams: Promise<Search> }) {
   assertAuthorizedAdmin(await getUser());
@@ -135,7 +135,24 @@ function Feedback({ feedback }: { feedback: Search }) {
   if (feedback.confirmed) {
     return (
       <p className="mt-6 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-        Order {feedback.confirmed} ditandai lunas. Undangan terkait diterbitkan.
+        Order {feedback.confirmed} ditandai lunas.{' '}
+        {feedback.activated === '0'
+          ? 'Undangan terkait tidak diterbitkan otomatis (sudah tayang, dihapus, atau temanya berbeda); pemilik bisa menerbitkannya.'
+          : 'Undangan terkait diterbitkan.'}
+      </p>
+    );
+  }
+  if (feedback.error === 'unconfirmed') {
+    return (
+      <p className="mt-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        Hasilnya belum terkonfirmasi. Muat ulang daftar ini; kalau order masih tertunda, konfirmasi sekali lagi (aman, tidak tercatat ganda).
+      </p>
+    );
+  }
+  if (feedback.error === 'rail') {
+    return (
+      <p className="mt-6 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+        Jalur pembayaran tidak cocok dengan order. Tidak ditandai lunas — periksa manual.
       </p>
     );
   }

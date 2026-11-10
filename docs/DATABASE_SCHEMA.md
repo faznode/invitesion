@@ -4,8 +4,8 @@
 > STATUS: LIVE (MVP scope)
 > OWNER: Architect
 > DEPS: PROJECT_OVERVIEW.md
-> GREP: schema, drizzle, tabel, users, invitations, guests, orders, versions, version_no, guest_registrations, guest_registration_links, import_batch_id, template_id, templateId, creation_key, invitation_members, co-host, usher, team, seating_tables, guest_logs, gift_logs, host logs, meja, suvenir, kado, family_side, pihak keluarga, deleted_at, purge_after, purged_at, hapus, retensi, tombstone, invitation_purge
-> UPDATED: 2026-11-10 (s38: invitations.deleted_at / purge_after / purged_at migrasi 0026, hapus + retensi B-031 / D-063, diuji 0025 → 0026 dengan baris; s36: gift_logs.family_side migrasi 0025, pihak keluarga kado I-04 / D-059; buku ucapan membaca guest_messages VISIBLE, I-22 / D-060; s35: seating_tables + guest_logs + gift_logs migrasi 0024, catatan hari acara pemilik G-045 / D-058; invitation_members migrasi 0023, tim undangan G-044 / D-057; s33: invitations.creation_key + index unik parsial (user_id, creation_key) migrasi 0021, pembuatan draf lewat fasad `BACKEND_CONTENT`, B-037 / D-055; s32 turn 3: dua ruang id template_id vs config.theme.templateId, ganti tema B-036 / D-054; s32: index invitation_versions (invitation_id, version_no) migrasi 0020, cek versi simpan editor `BACKEND_CONTENT`, B-035 / D-053; s31: guests import_batch_id + guest_registration_links + guest_registrations migrasi 0019, penulis roster `BACKEND_ROSTER`, B-033 / D-052; s28: guest_messages reviewed_at / host_reply / replied_at + index ucapan VISIBLE migrasi 0017, R-04 / D-044; api_rate_limits + api_idempotency_keys migrasi 0016, ditulis hanya oleh services/api, R-03 / D-043; s20/s21: guests invited_event_ids migrasi 0015, events[].inviteOnly, D-037; showPhoto foto anak, D-038; s19: guests rsvp_event_answers migrasi 0014; id acara tetap di invitations.config.events migrasi data 0013, D-036; guests rsvp_answers, migrasi 0012; earlier: analytics_events view-dedupe index, guests attending_count, link_token)
+> GREP: schema, drizzle, tabel, users, invitations, guests, orders, versions, version_no, guest_registrations, guest_registration_links, import_batch_id, template_id, templateId, creation_key, invitation_members, co-host, usher, team, seating_tables, guest_logs, gift_logs, host logs, meja, suvenir, kado, family_side, pihak keluarga, deleted_at, purge_after, purged_at, hapus, retensi, tombstone, invitation_purge, checkout_key, checkout_intent, payment_settled, outbox, BACKEND_PAYMENT
+> UPDATED: 2026-11-10 (s39: orders.checkout_key / checkout_intent + index unik parsial (user_id, invitation_id, checkout_key) migrasi 0027, kunci checkout B-039 / D-064, diuji 0026 → 0027 dengan baris; jobs `payment_settled` = outbox entitlement setelah settlement, kedua penulis `BACKEND_PAYMENT`; s38: invitations.deleted_at / purge_after / purged_at migrasi 0026, hapus + retensi B-031 / D-063, diuji 0025 → 0026 dengan baris; s36: gift_logs.family_side migrasi 0025, pihak keluarga kado I-04 / D-059; buku ucapan membaca guest_messages VISIBLE, I-22 / D-060; s35: seating_tables + guest_logs + gift_logs migrasi 0024, catatan hari acara pemilik G-045 / D-058; invitation_members migrasi 0023, tim undangan G-044 / D-057; s33: invitations.creation_key + index unik parsial (user_id, creation_key) migrasi 0021, pembuatan draf lewat fasad `BACKEND_CONTENT`, B-037 / D-055; s32 turn 3: dua ruang id template_id vs config.theme.templateId, ganti tema B-036 / D-054; s32: index invitation_versions (invitation_id, version_no) migrasi 0020, cek versi simpan editor `BACKEND_CONTENT`, B-035 / D-053; s31: guests import_batch_id + guest_registration_links + guest_registrations migrasi 0019, penulis roster `BACKEND_ROSTER`, B-033 / D-052; s28: guest_messages reviewed_at / host_reply / replied_at + index ucapan VISIBLE migrasi 0017, R-04 / D-044; api_rate_limits + api_idempotency_keys migrasi 0016, ditulis hanya oleh services/api, R-03 / D-043; s20/s21: guests invited_event_ids migrasi 0015, events[].inviteOnly, D-037; showPhoto foto anak, D-038; s19: guests rsvp_event_answers migrasi 0014; id acara tetap di invitations.config.events migrasi data 0013, D-036; guests rsvp_answers, migrasi 0012; earlier: analytics_events view-dedupe index, guests attending_count, link_token)
 > ORM DECISION (whyme 2026-07-15): pakai **Drizzle** (bukan Prisma) — ikut fondasi nextjs/saas-starter biar backend cepat jalan. Schema di bawah = kanonik, diimplementasi sbg Drizzle schema (lib/db/schema.ts).
 
 ## Prinsip
@@ -172,7 +172,11 @@ orders
   reference(UNIQUE),           ← punya kita; anchor idempotency di kedua sisi
   provider_payment_id,         ← punya provider; untuk rekonsiliasi
   paid_at, expires_at,         ← expires_at = jendela pembayaran, BUKAN masa aktif undangan
-  created_at
+  created_at,
+  template_id→templates(nullable), ← tema yang dibeli (B-041); NULL = order lama, berlaku untuk tema apa pun
+  checkout_key varchar(64) NULL,   ← B-039 (0027): kunci form checkout; UNIQUE parsial
+  checkout_intent varchar(64) NULL ←   (user_id, invitation_id, checkout_key) WHERE checkout_key IS NOT NULL;
+                                   ←   intent = SHA-256 dari intent yang dihitung server (lib/payment/checkout-key.ts)
 
 payments
   id, order_id→orders, provider, transaction_id,
@@ -182,6 +186,15 @@ payment_events                 ← log delivery webhook; ini yang bikin settleme
   id, rail, event_id, order_id→orders(nullable),
   status, raw_payload(json), created_at
   UNIQUE(rail, event_id)       ← retry provider konflik di sini lalu dilewati
+
+receipts                       ← G-050 (0028): satu per order lunas; ditulis HANYA oleh invitesion-jobs
+  id, number(UNIQUE),          ←   nomor dari receipt_counters di bawah kunci barisnya: urut commit, tanpa celah
+  order_id→orders(UNIQUE), payment_id→payments(UNIQUE), user_id→users,
+  reference, tier, amount, currency, rail, transaction_id,   ← disalin dari order + pembayaran saat terbit
+  paid_at, issued_at
+  INDEX(user_id, number)       ← daftar kuitansi pemilik
+
+receipt_counters               ← G-050: satu baris scope='receipt', last_number (dibuat oleh increment pertama)
 ```
 
 ### AI / MESSAGING

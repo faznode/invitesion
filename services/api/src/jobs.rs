@@ -9,6 +9,7 @@ use sqlx::PgPool;
 use time::{Duration, PrimitiveDateTime};
 
 use crate::media;
+use crate::payment;
 use crate::retention;
 use crate::storage::Storage;
 
@@ -126,6 +127,7 @@ async fn handle(pool: &PgPool, storage: &Storage, job: &Job, now: PrimitiveDateT
     match job.kind.as_str() {
         media::IMAGE_VARIANTS_JOB => media::run_image_variants(pool, storage, &job.payload, now).await,
         retention::PURGE_JOB_KIND => retention::run_invitation_purge(pool, storage, job, now).await,
+        payment::outbox::PAYMENT_SETTLED_JOB => payment::outbox::run_payment_settled(pool, job).await,
         _ => Outcome::GiveUp("unknown job kind".into()),
     }
 }

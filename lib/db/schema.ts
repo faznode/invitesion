@@ -413,7 +413,15 @@ export const orders = pgTable('orders', {
   paidAt: timestamp('paid_at'),
   expiresAt: timestamp('expires_at'), // payment window, not invitation lifetime
   createdAt: timestamp('created_at').notNull().defaultNow(),
-});
+  // B-039 (migration 0027): the checkout form's key, one order per (customer, invitation, key), and the SHA-256 of the
+  // server-computed intent it was bound to (lib/payment/checkout-key.ts). NULL on older orders and on keyless submits.
+  checkoutKey: varchar('checkout_key', { length: 64 }),
+  checkoutIntent: varchar('checkout_intent', { length: 64 }),
+}, (t) => ({
+  checkoutKeyIdx: uniqueIndex('orders_user_checkout_key_idx')
+    .on(t.userId, t.invitationId, t.checkoutKey)
+    .where(sql`${t.checkoutKey} is not null`),
+}));
 
 export const payments = pgTable('payments', {
   id: serial('id').primaryKey(),
@@ -450,6 +458,51 @@ export const paymentEvents = pgTable(
   },
   (table) => [unique('payment_events_rail_event_unique').on(table.rail, table.eventId)],
 );
+
+/**
+ * G-050 (migration 0028): one receipt per paid order, written only by the Rust jobs runner when it delivers the order's
+ * `payment_settled` outbox row (`services/api/src/payment/receipt.rs`). Next.js reads receipts for their owner and, on
+ * the owner's request for an earlier payment, re-arms that order's outbox row (`lib/payment/receipts.ts`). Every column
+ * is copied from the order and its payment when the receipt is issued, so it carries only the payment record's data and
+ * never changes afterwards. Orders, payments and receipts are all kept by B-031's purge.
+ */
+export const receipts = pgTable(
+  'receipts',
+  {
+    id: serial('id').primaryKey(),
+    // Taken from `receipt_counters` under its row lock, in the issuing transaction: increasing in commit order, no gaps.
+    number: integer('number').notNull(),
+    orderId: integer('order_id')
+      .notNull()
+      .references(() => orders.id),
+    paymentId: integer('payment_id')
+      .notNull()
+      .references(() => payments.id),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id),
+    reference: varchar('reference', { length: 120 }).notNull(),
+    tier: varchar('tier', { length: 50 }),
+    amount: integer('amount').notNull(),
+    currency: varchar('currency', { length: 3 }).notNull(),
+    rail: varchar('rail', { length: 20 }).notNull(),
+    transactionId: varchar('transaction_id', { length: 200 }),
+    paidAt: timestamp('paid_at').notNull(),
+    issuedAt: timestamp('issued_at').notNull().defaultNow(),
+  },
+  (table) => [
+    unique('receipts_number_unique').on(table.number),
+    unique('receipts_order_unique').on(table.orderId),
+    unique('receipts_payment_unique').on(table.paymentId),
+    index('receipts_user_number_idx').on(table.userId, table.number),
+  ],
+);
+
+/** G-050: the numbering's one counter row (`scope = 'receipt'`), created by its first increment. */
+export const receiptCounters = pgTable('receipt_counters', {
+  scope: varchar('scope', { length: 20 }).primaryKey(),
+  lastNumber: integer('last_number').notNull(),
+});
 
 // ─────────────────────────────────────────────
 // AI / MESSAGING

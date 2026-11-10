@@ -158,8 +158,13 @@ test('the writer inventory: the version table is written by creation and the con
     }
   }
   const rust = filesUnder('services/api/src', /\.rs$/).filter((path) => /(?:update invitations set config|insert into invitation_versions|update invitation_versions)/i.test(source(path)));
-  // B-037 (D-055): the Rust creation writer (`POST /v1/invitations`) writes version 1 beside the editor's saves.
-  assert.deepEqual(rust.sort(), ['services/api/src/content/create.rs', 'services/api/src/content/http.rs']);
+  // B-037 (D-055): the Rust creation writer (`POST /v1/invitations`) writes version 1 beside the editor's saves. B-031
+  // (D-063): the purge clears a purged invitation's config and nothing else of its content (s39 added it here).
+  assert.deepEqual(rust.sort(), ['services/api/src/content/create.rs', 'services/api/src/content/http.rs', 'services/api/src/retention.rs']);
+  const purge = source('services/api/src/retention.rs');
+  assert.match(purge, /"update invitations set config = null, creation_key = null, purged_at = \$2 where id = \$1"/);
+  assert.equal(purge.match(/update invitations set config/g)?.length, 1, 'the purge is the only config write in retention.rs');
+  assert.doesNotMatch(purge, /(?:insert into|update) invitation_versions/i, 'the purge never writes a version');
 });
 
 /** Each needle after the previous one, from `start`; -1 marks the first one missing in that order. */
@@ -212,7 +217,11 @@ test('the editor loads config and version from one statement and saves with the 
   const version = /\(select max\("version_no"\) from "invitation_versions" where "invitation_id" = \$(\d+)\), 0\)/.exec(sql);
   assert.ok(version, sql);
   assert.equal(params[Number(version[1]) - 1], 41, 'the subquery reads the requested invitation');
-  assert.match(sql, /from "invitations" where \("invitations"\."id" = \$\d+ and "invitations"\."user_id" = \$\d+\)/, 'owner-scoped');
+  assert.match(
+    sql,
+    /from "invitations" where \("invitations"\."id" = \$\d+ and "invitations"\."user_id" = \$\d+ and "invitations"\."deleted_at" is null\)/,
+    'owner-scoped, live rows only (B-031)',
+  );
   const page = source('app/(customer)/dashboard/invitations/[id]/edit/page.tsx');
   assert.match(page, /const invitation = await loadContentState\(id, user\.id\);/);
   assert.match(page, /initialVersion=\{invitation\.version\}/);

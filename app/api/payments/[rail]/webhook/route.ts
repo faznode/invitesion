@@ -1,5 +1,11 @@
 import { getProvider } from '@/lib/payment/registry';
-import { applySettlement, AmountMismatchError, OrderNotFoundError } from '@/lib/payment/service';
+import {
+  AmountMismatchError,
+  OrderNotFoundError,
+  RailMismatchError,
+  SettlementUnconfirmedError,
+  settle,
+} from '@/lib/payment/service';
 import { ProviderError, WebhookVerificationError, type PaymentRail } from '@/lib/payment/types';
 
 export const dynamic = 'force-dynamic';
@@ -69,10 +75,21 @@ export async function POST(request: Request, { params }: Ctx) {
   // Authentic, but not an event we act on. 200 so it is not retried forever.
   if (!event) return json({ received: true, applied: false, reason: 'ignored' }, 200);
 
+  // B-039: the verified event goes to exactly one writer (`BACKEND_PAYMENT`), never to both.
   try {
-    const outcome = await applySettlement(event);
+    const outcome = await settle(event);
     return json({ received: true, ...outcome }, 200);
   } catch (error) {
+    if (error instanceof RailMismatchError) {
+      // Authenticated by one rail's adapter, but naming another rail's order. Never applied; this needs a person.
+      console.error(`[payments] ${rail} event named an order of another rail: ${event.reference}`);
+      return json({ error: 'Rail mismatch' }, 409);
+    }
+    if (error instanceof SettlementUnconfirmedError) {
+      // The selected writer's outcome is unknown. 500 invites the provider's retry, which the event's unique id makes safe.
+      console.error(`[payments] ${rail} settlement unconfirmed for ${event.reference}: ${error.message}`);
+      return json({ error: 'Settlement unconfirmed' }, 500);
+    }
     if (error instanceof OrderNotFoundError) {
       // A signed event for a reference we do not have. Retrying will not create
       // the order, so acknowledge and record it for a human to look at.

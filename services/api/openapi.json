@@ -2170,6 +2170,105 @@
         ]
       }
     },
+    "/v1/payments/settlements": {
+      "post": {
+        "tags": [
+          "payments"
+        ],
+        "operationId": "settle",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "1–255 visible ASCII characters; a retry with the same key and body replays the committed answer for 24 hours",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SettlementRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Applied, a duplicate delivery (`reason: duplicate`) or an order already final (`reason: already-final`); replayed with `Idempotent-Replayed: true`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettlementResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed body, rail (`payment.invalid_rail`), event (`payment.invalid_event`) or idempotency key",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid service signature",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No order for the reference (`payment.order_not_found`); nothing was kept",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The event disagrees with its order: another rail (`payment.rail_mismatch`), a PAID event without an amount (`payment.amount_unverifiable`) or with another amount or currency (`payment.amount_mismatch`); nothing was kept and the order is unchanged",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`idempotency.key_reused`",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "serviceSignature": []
+          }
+        ]
+      }
+    },
     "/v1/registration-links/{token}/registrations": {
       "post": {
         "tags": [
@@ -2366,6 +2465,16 @@
   },
   "components": {
     "schemas": {
+      "ActivationKind": {
+        "type": "string",
+        "enum": [
+          "activated",
+          "no_invitation",
+          "not_live",
+          "already_published",
+          "theme_mismatch"
+        ]
+      },
       "CategoryInvitationRequest": {
         "type": "object",
         "required": [
@@ -2555,6 +2664,14 @@
           }
         },
         "additionalProperties": false
+      },
+      "EventStatus": {
+        "type": "string",
+        "enum": [
+          "PAID",
+          "FAILED",
+          "EXPIRED"
+        ]
       },
       "GuestAddRequest": {
         "type": "object",
@@ -2984,6 +3101,24 @@
           "DELETED"
         ]
       },
+      "Paid": {
+        "type": "object",
+        "description": "What a provider says it collected, in our minor units.",
+        "required": [
+          "amount",
+          "currency"
+        ],
+        "properties": {
+          "amount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "currency": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "PassCheckinRequest": {
         "type": "object",
         "required": [
@@ -3411,6 +3546,107 @@
         },
         "additionalProperties": false
       },
+      "SettlementRequest": {
+        "type": "object",
+        "description": "A settlement event the rail adapter verified and normalised (`SettlementEvent` in `lib/payment/types.ts`).",
+        "required": [
+          "rail",
+          "eventId",
+          "reference",
+          "status"
+        ],
+        "properties": {
+          "rail": {
+            "type": "string",
+            "description": "`qris` or `stripe`: the rail whose adapter verified the event."
+          },
+          "eventId": {
+            "type": "string",
+            "description": "The provider's id for this delivery, unique per rail (1 to 200 characters)."
+          },
+          "reference": {
+            "type": "string",
+            "description": "Our order reference as the provider echoed it (1 to 120 characters)."
+          },
+          "providerPaymentId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "$ref": "#/components/schemas/EventStatus"
+          },
+          "paid": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Paid",
+                "description": "What the provider says it collected, in our minor units; a PAID event without it is refused."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "raw": {
+            "description": "The verified event as the adapter normalised it, stored with the event row and the payment row."
+          }
+        },
+        "additionalProperties": false
+      },
+      "SettlementResult": {
+        "type": "object",
+        "required": [
+          "applied"
+        ],
+        "properties": {
+          "applied": {
+            "type": "boolean",
+            "description": "True when this call moved the order (paid, failed or expired)."
+          },
+          "orderId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "invitationActivated": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "activation": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ActivationKind",
+                "description": "What a payment did to the order's invitation."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reason": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SettlementSkip"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "SettlementSkip": {
+        "type": "string",
+        "enum": [
+          "duplicate",
+          "already-final"
+        ]
+      },
       "VerdictStatus": {
         "type": "string",
         "enum": [
@@ -3569,6 +3805,10 @@
     {
       "name": "content",
       "description": "The editor's content writes with the version check (B-035) and draft creation with version 1 (B-037)"
+    },
+    {
+      "name": "payments",
+      "description": "Settlement of verified payment events with the entitlement outbox (B-039)"
     }
   ]
 }

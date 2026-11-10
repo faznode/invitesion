@@ -422,7 +422,7 @@ async function main() {
     page = await ListPage({ searchParams: Promise.resolve({}) });
     check('the tombstone is off the owner\u2019s list', !elementsOf(page, 'DeletedCard').some((c) => c.id === racing.id) && !elementsOf(page, 'PublishControl').some((c) => c.id === racing.id));
 
-    // ── 7. Cross-language: the Rust runner consumes the jobs Next.js wrote, and Next.js reads what the Rust sweep wrote.
+    // ��─ 7. Cross-language: the Rust runner consumes the jobs Next.js wrote, and Next.js reads what the Rust sweep wrote.
     const jobsBin = env.JOBS_BIN?.trim() ?? '';
     const rustRequired = env.REQUIRE_JOBS_BIN === '1';
     if (!jobsBin || !isExecutableFile(jobsBin)) {
@@ -594,6 +594,8 @@ async function main() {
       await sql`delete from jobs where kind = ${PURGE_JOB_KIND} and (payload->>'invitationId')::int in ${ids}`;
       await sql`delete from analytics_events where invitation_id in ${ids}`;
       await sql`delete from payment_events where order_id in (select id from orders where invitation_id in ${ids})`;
+      // G-050: a runner pass issues the receipt of a settled fixture order (section 4b); it references the order.
+      await sql`delete from receipts where order_id in (select id from orders where invitation_id in ${ids})`;
       await sql`delete from payments where order_id in (select id from orders where invitation_id in ${ids})`;
       await sql`delete from orders where invitation_id in ${ids}`;
       await sql`delete from guest_messages where invitation_id in ${ids}`;

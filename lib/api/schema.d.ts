@@ -310,6 +310,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/payments/settlements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["settle"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/registration-links/{token}/registrations": {
         parameters: {
             query?: never;
@@ -346,6 +362,8 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** @enum {string} */
+        ActivationKind: "activated" | "no_invitation" | "not_live" | "already_published" | "theme_mismatch";
         CategoryInvitationRequest: {
             eventId: string;
             /** @description Matched exactly after trimming; empty = guests without a category. */
@@ -428,6 +446,8 @@ export interface components {
             status?: string;
             guestCount?: string | null;
         };
+        /** @enum {string} */
+        EventStatus: "PAID" | "FAILED" | "EXPIRED";
         GuestAddRequest: {
             guest: components["schemas"]["GuestFields"];
             /** @description Invite-only events ticked in the form; only this invitation's current invite-only events are kept. */
@@ -560,6 +580,12 @@ export interface components {
         };
         /** @enum {string} */
         ModeratedState: "VISIBLE" | "HIDDEN" | "DELETED";
+        /** @description What a provider says it collected, in our minor units. */
+        Paid: {
+            /** Format: int64 */
+            amount: number;
+            currency: string;
+        };
         PassCheckinRequest: {
             /** @description 1–50 scans, answered in this order. */
             scans: components["schemas"]["PassScan"][];
@@ -707,6 +733,31 @@ export interface components {
                 [key: string]: string[];
             };
         };
+        /** @description A settlement event the rail adapter verified and normalised (`SettlementEvent` in `lib/payment/types.ts`). */
+        SettlementRequest: {
+            /** @description `qris` or `stripe`: the rail whose adapter verified the event. */
+            rail: string;
+            /** @description The provider's id for this delivery, unique per rail (1 to 200 characters). */
+            eventId: string;
+            /** @description Our order reference as the provider echoed it (1 to 120 characters). */
+            reference: string;
+            providerPaymentId?: string | null;
+            status: components["schemas"]["EventStatus"];
+            paid?: components["schemas"]["Paid"] | null;
+            /** @description The verified event as the adapter normalised it, stored with the event row and the payment row. */
+            raw?: unknown;
+        };
+        SettlementResult: {
+            /** @description True when this call moved the order (paid, failed or expired). */
+            applied: boolean;
+            /** Format: int32 */
+            orderId?: number | null;
+            invitationActivated?: boolean | null;
+            activation?: components["schemas"]["ActivationKind"] | null;
+            reason?: components["schemas"]["SettlementSkip"] | null;
+        };
+        /** @enum {string} */
+        SettlementSkip: "duplicate" | "already-final";
         /** @enum {string} */
         VerdictStatus: "ok" | "invalid" | "duplicate";
         ViewRecorded: {
@@ -2233,6 +2284,78 @@ export interface operations {
             };
             /** @description Owner tokens are not configured or the signing keys are unreachable */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    settle: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description 1–255 visible ASCII characters; a retry with the same key and body replays the committed answer for 24 hours */
+                "Idempotency-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SettlementRequest"];
+            };
+        };
+        responses: {
+            /** @description Applied, a duplicate delivery (`reason: duplicate`) or an order already final (`reason: already-final`); replayed with `Idempotent-Replayed: true` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettlementResult"];
+                };
+            };
+            /** @description Malformed body, rail (`payment.invalid_rail`), event (`payment.invalid_event`) or idempotency key */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Missing or invalid service signature */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description No order for the reference (`payment.order_not_found`); nothing was kept */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The event disagrees with its order: another rail (`payment.rail_mismatch`), a PAID event without an amount (`payment.amount_unverifiable`) or with another amount or currency (`payment.amount_mismatch`); nothing was kept and the order is unchanged */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description `idempotency.key_reused` */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

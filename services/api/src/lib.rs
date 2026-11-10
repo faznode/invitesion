@@ -16,6 +16,7 @@ pub mod media;
 pub mod members;
 pub mod openapi;
 pub mod owner_auth;
+pub mod payment;
 pub mod problem;
 pub mod retention;
 pub mod roster;

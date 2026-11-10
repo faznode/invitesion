@@ -196,7 +196,11 @@ test('privacy: only the owner\u2019s logs read these rows; no guest page, public
   const tables = /\b(?:seatingTables|guestLogs|giftLogs)\b|\b(?:seating_tables|guest_logs|gift_logs)\b/;
   const code = [...filesUnder('app', /\.tsx?$/), ...filesUnder('components', /\.tsx?$/), ...filesUnder('lib', /\.tsx?$/), ...filesUnder('services/api/src', /\.rs$/)];
   const readers = code.filter((file) => tables.test(source(file)));
-  assert.deepEqual(readers.sort(), ['lib/db/schema.ts', 'lib/invitation/host-logs-db.ts']);
+  // B-031 (D-063): the purge's table list (`PURGED_TABLES`) and the Rust purge name these tables to empty them; neither
+  // reads a row (s39 added both here).
+  assert.deepEqual(readers.sort(), ['lib/db/schema.ts', 'lib/invitation/host-logs-db.ts', 'lib/invitation/retention.ts', 'services/api/src/retention.rs']);
+  assert.doesNotMatch(source('lib/invitation/retention.ts'), /\.from\((?:seatingTables|guestLogs|giftLogs)\)|from (?:seating_tables|guest_logs|gift_logs)\b/);
+  assert.doesNotMatch(source('services/api/src/retention.rs'), /select[^;"]*from (?:seating_tables|guest_logs|gift_logs)\b/i);
 
   const importers = code.filter((file) => /host-logs-db'/.test(source(file)));
   assert.deepEqual(importers.sort(), [`${LOGS}/actions.ts`, `${LOGS}/export/route.ts`, `${LOGS}/page.tsx`].sort());

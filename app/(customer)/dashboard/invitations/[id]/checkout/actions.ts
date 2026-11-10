@@ -1,5 +1,6 @@
 'use server';
 
+import { randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { redirect } from 'next/navigation';
 import { db } from '@/lib/db/drizzle';
@@ -9,7 +10,8 @@ import { getLocale } from '@/lib/locale-server';
 import { OwnershipError, requireOwnedInvitation } from '@/lib/invitation/service';
 import { getPublicOrigin } from '@/lib/invitation/public-url';
 import { activationPrice, currencyForLocale, tierFor } from '@/lib/pricing';
-import { createOrder, hasPaidOrder } from '@/lib/payment/service';
+import { normalizeCheckoutKey } from '@/lib/payment/checkout-key';
+import { CheckoutClosedError, CheckoutConflictError, createOrder, hasPaidOrder } from '@/lib/payment/service';
 import { ProviderError } from '@/lib/payment/types';
 
 /**
@@ -22,6 +24,12 @@ import { ProviderError } from '@/lib/payment/types';
  * The rail follows from the currency (IDR → QRIS, otherwise Stripe), so a
  * customer can never be quoted in one currency and charged on a rail that
  * settles in another.
+ *
+ * B-039: the form carries the checkout key its page rendered, so a double tap or a
+ * resubmitted page reaches the same order (`createOrder`). A form without a valid
+ * key (a page rendered before keys existed) gets a fresh one: that submit is
+ * accepted, without the double-submit protection. A rail that hosts its own page
+ * (Stripe) receives the customer there; a QRIS order is shown on the checkout page.
  */
 export async function startCheckout(formData: FormData): Promise<void> {
   const user = await getUser();
@@ -67,8 +75,11 @@ export async function startCheckout(formData: FormData): Promise<void> {
   const price = activationPrice(isPremium, currency);
   const origin = await getPublicOrigin();
 
+  const checkoutKey = normalizeCheckoutKey(formData.get('checkoutKey')) ?? randomUUID();
+
+  let start;
   try {
-    const { reference } = await createOrder({
+    start = await createOrder({
       userId: user.id,
       invitationId,
       templateId: invitation.templateId ?? null,
@@ -78,9 +89,11 @@ export async function startCheckout(formData: FormData): Promise<void> {
       customerEmail: user.email,
       successUrl: `${origin}${checkoutPath}?paid=1`,
       cancelUrl: `${origin}${checkoutPath}?cancelled=1`,
+      checkoutKey,
     });
-    redirect(`${checkoutPath}?ref=${reference}`);
   } catch (error) {
+    if (error instanceof CheckoutConflictError) redirect(`${checkoutPath}?error=changed`);
+    if (error instanceof CheckoutClosedError) redirect(`${checkoutPath}?error=closed`);
     if (error instanceof ProviderError) {
       // A rail that is not configured is an operator problem, not the customer's.
       // Say so plainly instead of showing a generic failure.
@@ -89,4 +102,9 @@ export async function startCheckout(formData: FormData): Promise<void> {
     }
     throw error;
   }
+
+  if (start.kind === 'paid') redirect(`${checkoutPath}?paid=1`);
+  // A rail with its own payment page (Stripe Checkout): the customer pays there, and only the webhook settles the order.
+  if (start.handle.redirectUrl && new URL(start.handle.redirectUrl).protocol === 'https:') redirect(start.handle.redirectUrl);
+  redirect(`${checkoutPath}?ref=${start.reference}`);
 }

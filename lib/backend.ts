@@ -32,6 +32,13 @@ const DEFAULTS = {
    * `published_at`, `expires_at`) and stay where they are until U6.
    */
   CONTENT: 'next',
+  /**
+   * B-039 (U6): settlement, one verified event at a time (`payment_events`; `orders`' `status`, `paid_at` and the provider
+   * id a settlement reports; `payments`; the activation of the order's invitation, guarded by B-031; the entitlement
+   * outbox row in `jobs`), from the webhook route and the administrator's confirmation alike. Checkout creation (the
+   * order row and the provider's handle) and publishing stay in Next.js.
+   */
+  PAYMENT: 'next',
 } as const satisfies Record<string, Backend>;
 
 export type Backend = 'next' | 'rust';
