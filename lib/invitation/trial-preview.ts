@@ -32,6 +32,8 @@ export function trialPreviewInvitation(eventType: string, config: DetailConfig, 
     deletedAt: null,
     purgeAfter: null,
     purgedAt: null,
+    workspaceId: null,
+    clientLabel: null,
     ...overrides,
   };
 }

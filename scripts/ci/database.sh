@@ -31,6 +31,8 @@ step "seed the demo invitations (Budi & Sari)" npx tsx invitation-research/_tool
 step "verify-payment (QRIS / Stripe vectors)" npx tsx scripts/verify-payment.ts
 step "verify-checkout-key (B-039: one order per key, conflicts, scope)" npx tsx scripts/verify-checkout-key.ts
 step "verify-coupons (G-053: server-side discounts, caps under concurrency, stacking)" npx tsx scripts/verify-coupons.ts
+# G-052 (D-067): reseller workspaces through the Next.js writer (the rust job runs the same script for both writers).
+step "verify-workspaces (G-052: isolation, roles, revocation, flag off, credit ledger)" npx tsx scripts/verify-workspaces.ts
 step "verify-view-dedupe (B-017a)" npx tsx scripts/verify-view-dedupe.ts
 step "verify-theme-entitlement (B-041, B-036)" npx tsx scripts/verify-theme-entitlement.ts
 step "verify-host-analytics (B-034)" npx tsx scripts/verify-host-analytics.ts

@@ -97,10 +97,16 @@ export const invitations = pgTable(
     deletedAt: timestamp('deleted_at'),
     purgeAfter: timestamp('purge_after'),
     purgedAt: timestamp('purged_at'),
+    // G-052 (D-067): the reseller workspace this is a client invitation of, and the client's name as the workspace lists
+    // it. Null for a personal invitation. `user_id` stays the owner of record (content, checkout, publishing, the team,
+    // deletion); the workspace's staff get the co-host's or the desk's capabilities through their membership.
+    workspaceId: integer('workspace_id').references(() => workspaces.id),
+    clientLabel: varchar('client_label', { length: 80 }),
   },
   // Unique per owner, and only where a key exists: rows created before B-037 (all null) never collide.
   (t) => ({
     creationKeyIdx: uniqueIndex('invitations_user_creation_key_idx').on(t.userId, t.creationKey).where(sql`${t.creationKey} is not null`),
+    workspaceIdx: index('invitations_workspace_idx').on(t.workspaceId).where(sql`${t.workspaceId} is not null`),
     purgeDueIdx: index('invitations_purge_due_idx').on(t.purgeAfter).where(sql`${t.deletedAt} is not null and ${t.purgedAt} is null`),
     deletionWindowCheck: check(
       'invitations_deletion_window_check',
@@ -273,6 +279,95 @@ export const invitationMembers = pgTable(
     userIdx: index('invitation_members_user_idx').on(t.userId).where(sql`${t.revokedAt} is null`),
     invitationIdx: index('invitation_members_invitation_idx').on(t.invitationId, t.createdAt),
     roleCheck: check('invitation_members_role_check', sql`${t.role} in ('cohost', 'usher')`),
+  }),
+);
+
+/**
+ * G-052 (D-067): a reseller's workspace, one per customer account (its owner), who assigns their own invitations to it
+ * as client invitations. `credit_balance` is the running total of `workspace_credit_entries`, changed only in the same
+ * transaction as an entry and under this row's lock. A workspace is never deleted: `disabled_at` stops every membership
+ * at the next request.
+ */
+export const workspaces = pgTable(
+  'workspaces',
+  {
+    id: serial('id').primaryKey(),
+    name: varchar('name', { length: 80 }).notNull(),
+    ownerUserId: integer('owner_user_id')
+      .notNull()
+      .references(() => users.id),
+    creditBalance: integer('credit_balance').notNull().default(0),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    disabledAt: timestamp('disabled_at'),
+  },
+  (t) => ({
+    ownerUnique: uniqueIndex('workspaces_owner_unique').on(t.ownerUserId),
+    balanceCheck: check('workspaces_credit_balance_check', sql`${t.creditBalance} >= 0`),
+  }),
+);
+
+/**
+ * G-052 (D-067): a workspace's staff, kept as G-044 keeps a team: a join link for one role (`manager` or `desk`) stored as
+ * the SHA-256 of its secret, a grant once a customer accepts it, `revoked_at` when the owner revokes it or the member
+ * leaves. Rows are never deleted; every access check reads this table live.
+ */
+export const workspaceMembers = pgTable(
+  'workspace_members',
+  {
+    id: serial('id').primaryKey(),
+    workspaceId: integer('workspace_id')
+      .notNull()
+      .references(() => workspaces.id, { onDelete: 'cascade' }),
+    role: varchar('role', { length: 16 }).notNull(), // manager | desk
+    label: varchar('label', { length: 60 }).notNull(),
+    tokenHash: varchar('token_hash', { length: 64 }).notNull(),
+    expiresAt: timestamp('expires_at').notNull(),
+    userId: integer('user_id').references(() => users.id),
+    acceptedAt: timestamp('accepted_at'),
+    revokedAt: timestamp('revoked_at'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (t) => ({
+    tokenUnique: uniqueIndex('workspace_members_token_unique').on(t.tokenHash),
+    liveGrantUnique: uniqueIndex('workspace_members_live_grant_unique')
+      .on(t.workspaceId, t.userId)
+      .where(sql`${t.userId} is not null and ${t.revokedAt} is null`),
+    userIdx: index('workspace_members_user_idx').on(t.userId).where(sql`${t.revokedAt} is null`),
+    workspaceIdx: index('workspace_members_workspace_idx').on(t.workspaceId, t.createdAt),
+    roleCheck: check('workspace_members_role_check', sql`${t.role} in ('manager', 'desk')`),
+  }),
+);
+
+/**
+ * G-052 (D-067): a workspace's credit ledger, append-only. Each entry carries an operation key unique per workspace (a
+ * replay returns the first entry; another payload under the same key is a conflict) and the balance after it, written
+ * with `workspaces.credit_balance` in one transaction under the workspace's row lock. A debit that would overdraw is
+ * refused. What a credit buys, its price, packs and top-ups are owner decisions (B-040, G-049): no product path writes
+ * this table yet.
+ */
+export const workspaceCreditEntries = pgTable(
+  'workspace_credit_entries',
+  {
+    id: serial('id').primaryKey(),
+    workspaceId: integer('workspace_id')
+      .notNull()
+      .references(() => workspaces.id),
+    operationKey: varchar('operation_key', { length: 80 }).notNull(),
+    kind: varchar('kind', { length: 12 }).notNull(), // grant | debit
+    delta: integer('delta').notNull(),
+    balanceAfter: integer('balance_after').notNull(),
+    invitationId: integer('invitation_id').references(() => invitations.id),
+    actorUserId: integer('actor_user_id').references(() => users.id),
+    note: varchar('note', { length: 200 }),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (t) => ({
+    operationUnique: uniqueIndex('workspace_credit_entries_operation_unique').on(t.workspaceId, t.operationKey),
+    kindCheck: check(
+      'workspace_credit_entries_kind_check',
+      sql`(${t.kind} = 'debit' and ${t.delta} < 0) or (${t.kind} = 'grant' and ${t.delta} > 0)`,
+    ),
+    balanceCheck: check('workspace_credit_entries_balance_check', sql`${t.balanceAfter} >= 0`),
   }),
 );
 

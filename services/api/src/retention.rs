@@ -63,8 +63,9 @@ purged_tables!(
     "guests",
 );
 
-/// Kept on purpose and only counted: accounting records (their retention is the owner's and counsel's decision) and the
-/// customer's own conversations. All keep pointing at the tombstone.
+/// Kept on purpose and only counted: accounting records (their retention is the owner's and counsel's decision), the
+/// customer's own conversations and a workspace's append-only credit ledger (G-052, D-067). All keep pointing at the
+/// tombstone.
 pub const RETAINED_TABLES: &[(&str, &str)] = &[
     ("orders", "select count(*) from orders where invitation_id = $1"),
     ("payments", "select count(*) from payments p join orders o on o.id = p.order_id where o.invitation_id = $1"),
@@ -78,6 +79,7 @@ pub const RETAINED_TABLES: &[(&str, &str)] = &[
         "select count(*) from messages m join conversations c on c.id = m.conversation_id where c.invitation_id = $1",
     ),
     ("customer_session_summary", "select count(*) from customer_session_summary where invitation_id = $1"),
+    ("workspace_credit_entries", "select count(*) from workspace_credit_entries where invitation_id = $1"),
 ];
 
 /// Replay records of the invitation: its guests' RSVP and wish scopes (`rsvp:guest:<id>`, `wish:guest:<id>`) and every
@@ -443,7 +445,7 @@ async fn purge_rows(
     .execute(&mut *tx)
     .await?;
     sqlx::query!(
-        "update invitations set config = null, creation_key = null, purged_at = $2 where id = $1",
+        "update invitations set config = null, creation_key = null, client_label = null, purged_at = $2 where id = $1",
         invitation_id,
         now
     )

@@ -11,6 +11,9 @@ use sqlx::{Postgres, Transaction};
 /// holds the capability: `callerMay` in `roster-next.ts`), else `None`. Every host writer asks this inside its own
 /// transaction before it reads a stored answer for an idempotency key or changes a row, so a revoked member, another
 /// account or another invitation never replays a cached answer or learns that its key exists.
+///
+/// G-052 (D-067): or the invitation is a client invitation of a workspace its owner owns, not disabled, where the caller
+/// holds a live membership whose workspace role carries the capability (`workspaceRolesFor` in `members.ts`).
 pub async fn caller_may(
     tx: &mut Transaction<'_, Postgres>,
     user_id: i32,
@@ -18,13 +21,17 @@ pub async fn caller_may(
     capability: Capability,
 ) -> Result<Option<Value>, sqlx::Error> {
     let roles = capability.member_role_args();
+    let workspace_roles = capability.workspace_role_args();
     let row = sqlx::query!(
         "select i.config from invitations i where i.id = $1 and i.deleted_at is null and (i.user_id = $2 or exists \
          (select 1 from invitation_members m where m.invitation_id = i.id and m.user_id = $2 and m.revoked_at is null \
-         and m.role = any($3)))",
+         and m.role = any($3)) or exists (select 1 from workspace_members wm join workspaces w on w.id = wm.workspace_id \
+         where w.id = i.workspace_id and w.owner_user_id = i.user_id and w.disabled_at is null and wm.user_id = $2 \
+         and wm.revoked_at is null and wm.role = any($4)))",
         invitation_id,
         user_id,
-        &roles[..]
+        &roles[..],
+        &workspace_roles[..]
     )
     .fetch_optional(&mut **tx)
     .await?;
@@ -67,6 +74,21 @@ impl Capability {
     pub fn member_role_args(self) -> Vec<String> {
         self.member_roles().iter().map(|role| (*role).to_owned()).collect()
     }
+
+    /// G-052 (D-067): the workspace roles allowed this capability. `manager` carries the co-host's capabilities and
+    /// `desk` the usher's, so a workspace grant never reaches further than a team grant.
+    pub fn workspace_roles(self) -> &'static [&'static str] {
+        match self {
+            Capability::Checkin => &["manager", "desk"],
+            Capability::Guests => &["manager"],
+            Capability::Wishes => &["manager"],
+        }
+    }
+
+    /// The workspace roles as the statement's `text[]` argument (`wm.role = any($n)`).
+    pub fn workspace_role_args(self) -> Vec<String> {
+        self.workspace_roles().iter().map(|role| (*role).to_owned()).collect()
+    }
 }
 
 #[cfg(test)]
@@ -81,5 +103,16 @@ mod tests {
             assert!(capability.member_roles().contains(&"cohost"), "{}", capability.name());
         }
         assert_eq!(Capability::Guests.member_role_args(), vec!["cohost".to_owned()]);
+    }
+
+    #[test]
+    fn a_workspace_manager_mirrors_the_cohost_and_the_desk_mirrors_the_usher() {
+        for capability in Capability::ALL {
+            let members = capability.member_roles();
+            let workspace = capability.workspace_roles();
+            assert_eq!(workspace.contains(&"manager"), members.contains(&"cohost"), "{}", capability.name());
+            assert_eq!(workspace.contains(&"desk"), members.contains(&"usher"), "{}", capability.name());
+        }
+        assert_eq!(Capability::Wishes.workspace_role_args(), vec!["manager".to_owned()]);
     }
 }

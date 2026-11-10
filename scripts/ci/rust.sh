@@ -192,6 +192,14 @@ coupons_end_to_end() {
   API_BASE_URL="http://127.0.0.1:$API_PORT" INTERNAL_API_SECRET=$API_SECRET REQUIRE_RUST=1 npx tsx scripts/verify-coupons.ts
 }
 
+# G-052 (D-067): reseller workspace staff through both writers against the binary: a manager as a co-host and a desk as an
+# usher on client invitations only, refused after revocation, while the workspace is disabled, once an invitation is taken
+# back or deleted, and with FLAG_WORKSPACES off; plus the credit ledger. The database job runs it for Next.js alone.
+workspaces_end_to_end() {
+  API_BASE_URL="http://127.0.0.1:$API_PORT" INTERNAL_API_SECRET=$API_SECRET OWNER_TOKEN_JWKS_PORT=$JWKS_PORT \
+    OWNER_TOKEN_ISSUER=$OWNER_ISSUER OWNER_TOKEN_AUTHORIZED_PARTIES=$OWNER_PARTY REQUIRE_RUST=1 npx tsx scripts/verify-workspaces.ts
+}
+
 step "migrate (drizzle-kit)" pnpm db:migrate
 step "toolchain" cargo --version
 if [ -f "$SERVICE/Cargo.toml" ]; then
@@ -207,6 +215,7 @@ if [ -f "$SERVICE/Cargo.toml" ]; then
   step "roster end to end (BACKEND_ROSTER, both writers)" roster_end_to_end
   step "guest passes end to end (B-024, BACKEND_ROSTER, both writers)" guest_pass_end_to_end
   step "team access end to end (G-044, FLAG_TEAM_ACCESS, both writers)" team_access_end_to_end
+  step "workspaces end to end (G-052, FLAG_WORKSPACES, both writers, credit ledger)" workspaces_end_to_end
   step "content end to end (BACKEND_CONTENT, both writers)" content_end_to_end
   step "creation end to end (wizard, BACKEND_CONTENT, both writers)" creation_end_to_end
   step "host replay isolation (owner, invitation, resource)" host_replay_isolation

@@ -42,6 +42,8 @@ export function fixtureInvitation(overrides: Partial<Invitation> = {}): Invitati
     deletedAt: null,
     purgeAfter: null,
     purgedAt: null,
+    workspaceId: null,
+    clientLabel: null,
     ...overrides,
   };
 }

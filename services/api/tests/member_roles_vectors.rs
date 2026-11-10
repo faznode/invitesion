@@ -49,6 +49,22 @@ fn every_role_gets_the_typescript_verdict_for_every_writer_capability() {
 }
 
 #[test]
+fn the_workspace_clause_allows_exactly_the_typescript_workspace_roles() {
+    let v = vectors();
+    let writers = v["workspace"]["writers"].as_array().expect("workspace writers");
+    assert_eq!(writers.len(), Capability::ALL.len());
+    for writer in writers {
+        let capability = capability_named(writer["capability"].as_str().expect("name"));
+        let roles: Vec<&str> =
+            writer["workspaceRoles"].as_array().expect("roles").iter().map(|r| r.as_str().expect("role")).collect();
+        assert_eq!(capability.workspace_roles(), roles.as_slice(), "{}", capability.name());
+        assert_eq!(capability.workspace_role_args(), roles.iter().map(|r| (*r).to_owned()).collect::<Vec<_>>());
+    }
+    assert_eq!(v["workspace"]["asMember"]["manager"], "cohost");
+    assert_eq!(v["workspace"]["asMember"]["desk"], "usher");
+}
+
+#[test]
 fn every_guest_operation_needs_the_typescript_capability() {
     let v = vectors();
     let operations = v["operations"].as_array().expect("operations");

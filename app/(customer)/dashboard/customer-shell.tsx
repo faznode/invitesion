@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { Wordmark } from '@/components/brand/wordmark';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { FileText, LayoutDashboard, LogOut, Mail, Menu, Palette, ReceiptText, UserRound, Users, X, type LucideIcon } from 'lucide-react';
+import { Briefcase, FileText, LayoutDashboard, LogOut, Mail, Menu, Palette, ReceiptText, UserRound, Users, X, type LucideIcon } from 'lucide-react';
 import { useClerk } from '@clerk/nextjs';
 import type { Locale } from '@/lib/i18n';
 
@@ -15,9 +15,11 @@ type CustomerShellProps = {
   user: { name: string | null; email: string; avatarUrl: string | null } | null;
   /** G-050: `FLAG_RECEIPTS`, read on the server by the layout. */
   receiptsEnabled?: boolean;
+  /** G-052: `FLAG_WORKSPACES`, read on the server by the layout. */
+  workspacesEnabled?: boolean;
 };
 
-export function CustomerShell({ children, locale, user, receiptsEnabled = false }: CustomerShellProps) {
+export function CustomerShell({ children, locale, user, receiptsEnabled = false, workspacesEnabled = false }: CustomerShellProps) {
   const path = usePathname();
   const router = useRouter();
   const clerk = useClerk();
@@ -30,6 +32,7 @@ export function CustomerShell({ children, locale, user, receiptsEnabled = false 
     ['/dashboard/guests', Users, en ? 'Guests & RSVP' : 'Tamu & RSVP'],
     ['/dashboard/templates', Palette, en ? 'Choose a theme' : 'Pilih tema'],
     ...(receiptsEnabled ? [['/dashboard/receipts', ReceiptText, en ? 'Receipts' : 'Kuitansi'] as const] : []),
+    ...(workspacesEnabled ? [['/dashboard/workspace', Briefcase, en ? 'Workspace' : 'Ruang kerja'] as const] : []),
   ];
   const displayName = user?.name?.trim() || user?.email || (en ? 'Your account' : 'Akun kamu');
   const initials = displayName.slice(0, 1).toUpperCase();

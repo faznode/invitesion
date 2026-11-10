@@ -248,24 +248,22 @@ async fn authorized_replay(
 }
 
 /// Locks the wish for this transaction: `invitation_or_wish.not_found` unless the caller may moderate its invitation
-/// (G-044, D-057: the owner, or a member whose role holds the wishes: a co-host) and the wish belongs to it.
+/// and the wish belongs to it. Access is `members::caller_may`, the one check (the owner, a co-host's grant under G-044,
+/// a workspace manager under G-052): a copy of the grant predicate here once missed the workspace staff (s41).
 async fn lock_owned_wish(
     tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
     owner: &Owner,
     invitation_id: i32,
     wish_id: i32,
 ) -> Result<(), ApiError> {
-    let roles = Capability::Wishes.member_role_args();
+    members::caller_may(tx, owner.user_id, invitation_id, Capability::Wishes)
+        .await
+        .map_err(db("wish_access"))?
+        .ok_or(ApiError::NotFound(NOT_FOUND))?;
     sqlx::query_scalar!(
-        "select w.id from guest_messages w join invitations i on i.id = w.invitation_id \
-         where w.id = $1 and w.invitation_id = $2 and i.deleted_at is null \
-         and (i.user_id = $3 or exists (select 1 from invitation_members m \
-         where m.invitation_id = i.id and m.user_id = $3 and m.revoked_at is null and m.role = any($4))) \
-         for update of w",
+        "select w.id from guest_messages w where w.id = $1 and w.invitation_id = $2 for update",
         wish_id,
-        invitation_id,
-        owner.user_id,
-        &roles[..]
+        invitation_id
     )
     .fetch_optional(&mut **tx)
     .await

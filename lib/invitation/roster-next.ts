@@ -10,7 +10,7 @@ import { normalizeStoredConfig } from './content-read';
 import { invitedIdsFromTicked, inviteOnlyEvents } from './event-eligibility';
 import { GUEST_LINK_TOKEN_PATTERN, newGuestLinkToken } from './guest-link';
 import { checkInTime, normalizedPassScans, passCheckInEnabled, passCheckinHash, passCheckinScope, readGuestPass } from './guest-pass';
-import { memberRolesFor, operationCapability, type Capability } from './members';
+import { memberRolesFor, operationCapability, workspaceRolesFor, type Capability } from './members';
 import type {
   AddOutcome,
   CategoryMode,
@@ -67,6 +67,10 @@ async function lockRoster(tx: Tx, invitationId: number) {
  * capability (`members.ts`). The Rust writer applies the same rule (`members::caller_may`). A refusal is `notfound`,
  * exactly as for another owner's invitation, so a member learns nothing about what lies outside their role. B-031
  * (D-063): a deleted invitation is refused to everyone, its owner included, until it is restored.
+ *
+ * G-052 (D-067): or the invitation is a client invitation of a workspace its owner owns, not disabled, where the caller
+ * holds a live membership whose workspace role carries the capability (`workspaceRolesFor`). Like a team grant, the
+ * flag is the boundary's (`invitationAccess`); the Rust writer applies the same clause.
  */
 function callerMay(userId: number, capability: Capability) {
   const roles = memberRolesFor(capability);
@@ -75,7 +79,14 @@ function callerMay(userId: number, capability: Capability) {
     roles.map((role) => sql`${role}`),
     sql`, `,
   );
-  return sql`(i.deleted_at is null and (i.user_id = ${userId} or exists (select 1 from invitation_members m where m.invitation_id = i.id and m.user_id = ${userId} and m.revoked_at is null and m.role in (${allowed}))))`;
+  const workspaceRoles = workspaceRolesFor(capability);
+  const viaWorkspace = workspaceRoles.length
+    ? sql` or exists (select 1 from workspace_members wm join workspaces w on w.id = wm.workspace_id where w.id = i.workspace_id and w.owner_user_id = i.user_id and w.disabled_at is null and wm.user_id = ${userId} and wm.revoked_at is null and wm.role in (${sql.join(
+        workspaceRoles.map((role) => sql`${role}`),
+        sql`, `,
+      )}))`
+    : sql``;
+  return sql`(i.deleted_at is null and (i.user_id = ${userId} or exists (select 1 from invitation_members m where m.invitation_id = i.id and m.user_id = ${userId} and m.revoked_at is null and m.role in (${allowed}))${viaWorkspace}))`;
 }
 
 async function accessibleInvitation(tx: Tx, invitationId: number, userId: number, capability: Capability) {

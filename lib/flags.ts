@@ -112,6 +112,14 @@ const DEFAULTS = {
    * keep their discounted amount and stay payable; coupons and their redemptions are kept.
    */
   COUPONS: false,
+  /**
+   * G-052 (D-067): reseller workspaces. A customer creates one workspace, assigns their own invitations to it as client
+   * invitations and invites staff by one-time links: `manager` (the co-host's desk, guests, wishes and insights) or
+   * `desk` (check-in only), on every live client invitation of that workspace, never content, payment or the team. Off:
+   * `/dashboard/workspace` and `/gabung/ruang/*` answer 404 and staff hold nothing at any entry; workspaces, memberships,
+   * assignments and the credit ledger are kept.
+   */
+  WORKSPACES: false,
 } as const;
 
 export type FlagName = keyof typeof DEFAULTS;

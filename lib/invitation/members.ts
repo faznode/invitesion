@@ -116,6 +116,70 @@ export const ROLE_COPY: Readonly<Record<MemberRole, { name: string; summary: str
   },
 };
 
+// ── G-052 (D-067): a reseller workspace's staff ──────────────────────────────────────────────────────────────────────
+
+export const WORKSPACE_ROLES = ['manager', 'desk'] as const;
+export type WorkspaceRole = (typeof WORKSPACE_ROLES)[number];
+
+/**
+ * Each workspace role carries exactly one team role's capabilities on every live client invitation of its workspace,
+ * so a workspace grant can never reach further than a G-044 grant: `manager` is the co-host, `desk` the usher. Neither
+ * holds `manage` (content, theme, settings, checkout, publishing and the team stay with the invitation's owner).
+ */
+export const WORKSPACE_ROLE_AS_MEMBER: Readonly<Record<WorkspaceRole, MemberRole>> = { manager: 'cohost', desk: 'usher' };
+
+export function isWorkspaceRole(value: unknown): value is WorkspaceRole {
+  return typeof value === 'string' && (WORKSPACE_ROLES as readonly string[]).includes(value);
+}
+
+/** The workspace roles allowed a capability, derived from the team table (the writers' `wm.role in (…)`). */
+export function workspaceRolesFor(capability: Capability): readonly WorkspaceRole[] {
+  return WORKSPACE_ROLES.filter((role) => MEMBER_CAPABILITIES[capability].includes(WORKSPACE_ROLE_AS_MEMBER[role]));
+}
+
+/** The broader of two team roles an account holds on one invitation (a direct grant and a workspace grant). */
+export function broaderMemberRole(a: MemberRole | null, b: MemberRole | null): MemberRole | null {
+  if (a === 'cohost' || b === 'cohost') return 'cohost';
+  return a ?? b;
+}
+
+/** Live staff rows per workspace (grants plus open links): a technical ceiling until B-040's plan limits. */
+export const MAX_WORKSPACE_ROWS = 50;
+export const WORKSPACE_NAME_MAX_CHARS = 80;
+export const CLIENT_LABEL_MAX_CHARS = 80;
+
+/** A workspace name or a client's name: control characters dropped, spaces collapsed, 2 to `max` characters, else null. */
+export function normalizeWorkspaceText(raw: unknown, max: number): string | null {
+  if (typeof raw !== 'string') return null;
+  const text = raw.replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim();
+  const length = [...text].length;
+  return length >= 2 && length <= max ? text : null;
+}
+
+export const WORKSPACE_ROLE_COPY: Readonly<Record<WorkspaceRole, { name: string; summary: string; can: readonly string[]; cannot: readonly string[] }>> = {
+  manager: {
+    name: 'Pengelola klien',
+    summary: 'Mengelola tamu di semua undangan klien ruang kerja ini.',
+    can: ['Daftar tamu, termasuk nomor telepon, RSVP dan impor', 'Meja check-in', 'Moderasi dan balasan ucapan', 'Statistik dan ekspor daftar tamu'],
+    cannot: ['Isi, tema dan pengaturan undangan', 'Pembayaran dan publikasi', 'Mengatur staf ruang kerja'],
+  },
+  desk: {
+    name: 'Staf meja tamu',
+    summary: 'Hanya meja check-in di semua undangan klien ruang kerja ini.',
+    can: ['Memindai QR pass tamu', 'Mencari nama tamu untuk check-in manual'],
+    cannot: ['Nomor telepon, RSVP dan ucapan', 'Mengubah daftar tamu', 'Semua pengaturan undangan dan ruang kerja'],
+  },
+};
+
+/** The WhatsApp text a workspace owner sends with a staff link (no recipient number: the owner picks the chat). */
+export function staffLinkMessage(input: { label: string; role: WorkspaceRole; workspaceName: string; url: string }): string {
+  return [
+    `Halo ${input.label}, Anda diajak menjadi ${WORKSPACE_ROLE_COPY[input.role].name} di ruang kerja ${input.workspaceName}.`,
+    `Buka tautan ini dan masuk dengan akun Invitesion Anda: ${input.url}`,
+    `Tautan berlaku ${JOIN_LINK_TTL_DAYS} hari dan hanya untuk satu akun.`,
+  ].join('\n\n');
+}
+
 /** The WhatsApp text the owner sends with a join link (no recipient number: the owner picks the chat). */
 export function joinLinkMessage(input: { label: string; role: MemberRole; title: string; url: string }): string {
   return [

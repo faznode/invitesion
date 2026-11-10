@@ -2,13 +2,16 @@ import 'server-only';
 
 import { and, asc, eq, gt, isNotNull, isNull, ne, or, sql } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
-import { invitationMembers, invitations, users, type Invitation } from '@/lib/db/schema';
+import { invitationMembers, invitations, users, workspaceMembers, workspaces, type Invitation } from '@/lib/db/schema';
 import { isFlagOn } from '@/lib/flags';
 import { joinTokenHash, newJoinToken } from './join-token';
 import {
+  broaderMemberRole,
   can,
   decideJoin,
   isMemberRole,
+  isWorkspaceRole,
+  WORKSPACE_ROLE_AS_MEMBER,
   JOIN_TOKEN_PATTERN,
   joinLinkExpiry,
   MAX_TEAM_ROWS,
@@ -27,7 +30,8 @@ import {
 
 type Env = Record<string, string | undefined>;
 
-export type InvitationAccess = { role: AccessRole; invitation: Invitation };
+/** `via` says where a member's role comes from: the invitation's own team (G-044) or its workspace (G-052). */
+export type InvitationAccess = { role: AccessRole; invitation: Invitation; via?: 'team' | 'workspace' };
 
 /**
  * May this signed-in customer work on this invitation, and as what? The owner always. A member only while
@@ -36,6 +40,11 @@ export type InvitationAccess = { role: AccessRole; invitation: Invitation };
  * administrator, or deleted, holds none. Every page, action and route that can serve a member asks this first, since
  * the writers check the grant but not the flag. B-031 (D-063): a deleted invitation grants nothing to anyone; its owner
  * gets it back only through the restore on the invitations list.
+ *
+ * G-052 (D-067): a client invitation (`workspace_id` set) is also reachable through a live membership of its workspace
+ * while `FLAG_WORKSPACES` is on and the workspace is not disabled, on the same account conditions, with the team role its
+ * workspace role carries (`WORKSPACE_ROLE_AS_MEMBER`). An account holding both a direct grant and a workspace grant
+ * works with the broader of the two. The workspace must belong to the invitation's owner, whatever wrote the column.
  */
 export async function invitationAccess(userId: number, invitationId: number, env: Env = process.env): Promise<InvitationAccess | null> {
   if (!Number.isInteger(invitationId) || invitationId <= 0) return null;
@@ -46,7 +55,18 @@ export async function invitationAccess(userId: number, invitationId: number, env
     .limit(1);
   if (!invitation) return null;
   if (invitation.userId === userId) return { role: 'owner', invitation };
-  if (!isFlagOn('TEAM_ACCESS', env)) return null;
+  const teamOn = isFlagOn('TEAM_ACCESS', env);
+  const workspaceId = invitation.workspaceId;
+  const workspaceOn = workspaceId !== null && isFlagOn('WORKSPACES', env);
+  if (!teamOn && !workspaceOn) return null;
+  const direct = teamOn ? await directGrantRole(userId, invitationId) : null;
+  const viaWorkspace = workspaceOn ? await workspaceGrantRole(userId, workspaceId, invitation.userId) : null;
+  const role = broaderMemberRole(direct, viaWorkspace);
+  if (!role) return null;
+  return { role, invitation, via: role === direct ? 'team' : 'workspace' };
+}
+
+async function directGrantRole(userId: number, invitationId: number): Promise<MemberRole | null> {
   const [grant] = await db
     .select({ role: invitationMembers.role })
     .from(invitationMembers)
@@ -61,7 +81,29 @@ export async function invitationAccess(userId: number, invitationId: number, env
       ),
     )
     .limit(1);
-  return grant && isMemberRole(grant.role) ? { role: grant.role, invitation } : null;
+  return grant && isMemberRole(grant.role) ? grant.role : null;
+}
+
+/** The team role a live workspace membership carries on the invitations of the workspace `ownerId` owns, if any. */
+async function workspaceGrantRole(userId: number, workspaceId: number, ownerId: number): Promise<MemberRole | null> {
+  const [grant] = await db
+    .select({ role: workspaceMembers.role })
+    .from(workspaceMembers)
+    .innerJoin(workspaces, eq(workspaces.id, workspaceMembers.workspaceId))
+    .innerJoin(users, eq(users.id, workspaceMembers.userId))
+    .where(
+      and(
+        eq(workspaceMembers.workspaceId, workspaceId),
+        eq(workspaceMembers.userId, userId),
+        isNull(workspaceMembers.revokedAt),
+        eq(workspaces.ownerUserId, ownerId),
+        isNull(workspaces.disabledAt),
+        ne(users.role, 'ADMIN'),
+        isNull(users.deletedAt),
+      ),
+    )
+    .limit(1);
+  return grant && isWorkspaceRole(grant.role) ? WORKSPACE_ROLE_AS_MEMBER[grant.role] : null;
 }
 
 /** `invitationAccess` narrowed to one capability: null unless the caller's role holds it. */
@@ -72,22 +114,37 @@ export async function accessFor(userId: number, invitationId: number, capability
 
 export type SharedInvitation = { invitationId: number; role: MemberRole; slug: string; eventType: string; status: string };
 
-/** The invitations this customer works on as a member, for the dashboard (none while the flag is off). */
+/**
+ * The invitations this customer works on as a member, for the dashboard: their team grants while `FLAG_TEAM_ACCESS` is
+ * on, and the client invitations of the workspaces they staff while `FLAG_WORKSPACES` is on (G-052), one row per
+ * invitation with the broader role.
+ */
 export async function sharedInvitations(userId: number, env: Env = process.env): Promise<SharedInvitation[]> {
-  if (!isFlagOn('TEAM_ACCESS', env)) return [];
-  const rows = await db
-    .select({
-      invitationId: invitations.id,
-      role: invitationMembers.role,
-      slug: invitations.slug,
-      eventType: invitations.eventType,
-      status: invitations.status,
-    })
-    .from(invitationMembers)
-    .innerJoin(invitations, eq(invitations.id, invitationMembers.invitationId))
-    .where(and(eq(invitationMembers.userId, userId), isNull(invitationMembers.revokedAt), isNull(invitations.deletedAt)))
-    .orderBy(asc(invitations.slug));
-  return rows.flatMap((row) => (isMemberRole(row.role) ? [{ ...row, role: row.role }] : []));
+  const columns = { invitationId: invitations.id, slug: invitations.slug, eventType: invitations.eventType, status: invitations.status };
+  const teamRows = isFlagOn('TEAM_ACCESS', env)
+    ? await db
+        .select({ ...columns, role: invitationMembers.role })
+        .from(invitationMembers)
+        .innerJoin(invitations, eq(invitations.id, invitationMembers.invitationId))
+        .where(and(eq(invitationMembers.userId, userId), isNull(invitationMembers.revokedAt), isNull(invitations.deletedAt)))
+    : [];
+  const workspaceRows = isFlagOn('WORKSPACES', env)
+    ? await db
+        .select({ ...columns, role: workspaceMembers.role })
+        .from(workspaceMembers)
+        .innerJoin(workspaces, eq(workspaces.id, workspaceMembers.workspaceId))
+        .innerJoin(invitations, and(eq(invitations.workspaceId, workspaces.id), eq(invitations.userId, workspaces.ownerUserId)))
+        .where(and(eq(workspaceMembers.userId, userId), isNull(workspaceMembers.revokedAt), isNull(workspaces.disabledAt), isNull(invitations.deletedAt)))
+    : [];
+  const byInvitation = new Map<number, SharedInvitation>();
+  const add = (row: Omit<SharedInvitation, 'role'>, role: MemberRole | null) => {
+    if (!role) return;
+    const held = byInvitation.get(row.invitationId);
+    byInvitation.set(row.invitationId, { ...row, role: broaderMemberRole(held?.role ?? null, role) as MemberRole });
+  };
+  for (const { role, ...row } of teamRows) add(row, isMemberRole(role) ? role : null);
+  for (const { role, ...row } of workspaceRows) add(row, isWorkspaceRole(role) ? WORKSPACE_ROLE_AS_MEMBER[role] : null);
+  return [...byInvitation.values()].sort((a, b) => a.slug.localeCompare(b.slug));
 }
 
 export type TeamRow = {

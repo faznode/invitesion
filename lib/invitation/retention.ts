@@ -110,6 +110,8 @@ export const PURGED_TABLES = [
 /**
  * Kept on purpose. `orders`, `payments` and `payment_events` are accounting records (their retention is an owner and
  * counsel decision); `conversations`, `messages` and `customer_session_summary` belong to the customer's account, not to
- * the invitation. All keep pointing at the tombstone.
+ * the invitation; `workspace_credit_entries` is a workspace's append-only ledger (G-052, D-067), whose balance must keep
+ * equalling its entries. All keep pointing at the tombstone; the purge clears the tombstone's `client_label` (a client's
+ * name) with its content.
  */
-export const RETAINED_TABLES = ['orders', 'payments', 'payment_events', 'conversations', 'messages', 'customer_session_summary'] as const;
+export const RETAINED_TABLES = ['orders', 'payments', 'payment_events', 'conversations', 'messages', 'customer_session_summary', 'workspace_credit_entries'] as const;

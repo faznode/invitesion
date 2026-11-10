@@ -5,7 +5,7 @@
 > OWNER: Oracle (research agent)
 > DEPS: _evidence-index.md, _open-questions.md, _rea-playbook.md
 > GREP: progress, checkpoint, phase, resume, next
-> UPDATED: 2026-11-10 (s40: D-066 G-053 coupons; D-065 registered with its evidence and rollout order; s39: D-064; s38: D-061, D-062, D-063)
+> UPDATED: 2026-11-10 (s41: G-053 records reconciled and its combined tree gated, worksheet `_handoff/sessions/session-41-20261110-0817.md`; s40: D-066 G-053 coupons; D-065 registered with its evidence and rollout order; s39: D-064; s38: D-061, D-062, D-063)
 
 ## How to resume
 0. **Start at `_handoff/LATEST.md`** (session entry point: status, NEXT ACTIONS, environment rebuild via `_tools/ops/bootstrap-sandbox.sh`). Steps 2–4 below describe the session 01–02 sandbox, which no longer exists; they are kept for the Postgres/audit-build recipe.

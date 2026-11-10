@@ -254,11 +254,17 @@ impl Fixture {
             "delete from customer_session_summary where invitation_id = any($1)",
             "delete from messages where conversation_id in (select id from conversations where invitation_id = any($1))",
             "delete from conversations where invitation_id = any($1)",
+            "delete from workspace_credit_entries where invitation_id = any($1)",
             "delete from jobs where kind = 'invitation_purge' and (payload->>'invitationId')::int = any($1)",
             "delete from invitations where id = any($1)",
         ] {
             sqlx::query(sql).bind(ids).execute(&self.pool).await.unwrap_or_else(|e| panic!("{sql}: {e}"));
         }
+        sqlx::query("delete from workspaces where owner_user_id = any($1)")
+            .bind(&self.users)
+            .execute(&self.pool)
+            .await
+            .unwrap();
         sqlx::query("delete from api_idempotency_keys where key like $1")
             .bind(format!("b031-{}%", self.tag))
             .execute(&self.pool)
@@ -275,6 +281,12 @@ async fn the_purge_and_the_sweep_on_a_real_database() {
     let mut f = Fixture::create().await;
     let owner = f.user("owner").await;
     let doomed = f.invitation(owner, "doomed", None).await;
+    // G-052 (D-067): a client's name on the invitation is cleared with its content.
+    sqlx::query("update invitations set client_label = 'Klien Fiktif' where id = $1")
+        .bind(doomed)
+        .execute(&f.pool)
+        .await
+        .unwrap();
     let sharing = f.invitation(owner, "sharing", None).await;
     let bystander_owner = f.user("bystander").await;
     let bystander = f.invitation(bystander_owner, "bystander", None).await;
@@ -433,6 +445,24 @@ async fn the_purge_and_the_sweep_on_a_real_database() {
         &[o, d],
     )
     .await;
+    // G-052 (D-067): a workspace's credit entry for this invitation is a ledger row, kept like the orders.
+    let workspace: i32 = sqlx::query_scalar(
+        "insert into workspaces (name, owner_user_id, credit_balance) values ('Ruang B-031', $1, 1) returning id",
+    )
+    .bind(owner)
+    .fetch_one(&f.pool)
+    .await
+    .unwrap();
+    sqlx::query(
+        "insert into workspace_credit_entries (workspace_id, operation_key, kind, delta, balance_after, invitation_id) \
+         values ($1, $2, 'grant', 1, 1, $3)",
+    )
+    .bind(workspace)
+    .bind(format!("b031-{}", f.tag))
+    .bind(doomed)
+    .execute(&f.pool)
+    .await
+    .unwrap();
 
     let before = f.counts(doomed).await;
     assert!(before.values().all(|n| *n >= 1), "every purged table holds a fixture row: {before:?}");
@@ -548,6 +578,12 @@ async fn the_purge_and_the_sweep_on_a_real_database() {
             .unwrap();
     assert_eq!(slug, format!("b031-doomed-{}", f.tag), "the tombstone keeps the slug reserved");
     assert_eq!((stored, deleted, purged), (None, Some(third_at), Some(due)));
+    let client_label: Option<String> = sqlx::query_scalar("select client_label from invitations where id = $1")
+        .bind(doomed)
+        .fetch_one(&f.pool)
+        .await
+        .unwrap();
+    assert_eq!(client_label, None, "the purge clears the client's name with the content");
     let job = f.job(third).await;
     assert_eq!(job.payload["objects"], json!(doomed_objects));
     assert_eq!(job.payload["keptShared"], json!([shared]));
@@ -567,6 +603,7 @@ async fn the_purge_and_the_sweep_on_a_real_database() {
             "select count(*) from messages m join conversations c on c.id = m.conversation_id where c.invitation_id = $1",
         ),
         ("customer_session_summary", "select count(*) from customer_session_summary where invitation_id = $1"),
+        ("workspace_credit_entries", "select count(*) from workspace_credit_entries where invitation_id = $1"),
     ] {
         assert_eq!(f.scalar(sql, doomed).await, 1, "{table} is kept");
     }

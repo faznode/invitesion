@@ -162,7 +162,8 @@ test('the writer inventory: the version table is written by creation and the con
   // (D-063): the purge clears a purged invitation's config and nothing else of its content (s39 added it here).
   assert.deepEqual(rust.sort(), ['services/api/src/content/create.rs', 'services/api/src/content/http.rs', 'services/api/src/retention.rs']);
   const purge = source('services/api/src/retention.rs');
-  assert.match(purge, /"update invitations set config = null, creation_key = null, purged_at = \$2 where id = \$1"/);
+  // G-052 (D-067): the purge also clears the tombstone's `client_label` (a client's name), never anything else.
+  assert.match(purge, /"update invitations set config = null, creation_key = null, client_label = null, purged_at = \$2 where id = \$1"/);
   assert.equal(purge.match(/update invitations set config/g)?.length, 1, 'the purge is the only config write in retention.rs');
   assert.doesNotMatch(purge, /(?:insert into|update) invitation_versions/i, 'the purge never writes a version');
 });

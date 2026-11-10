@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "update invitations set config = null, creation_key = null, client_label = null, purged_at = $2 where id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Timestamp"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "d3375abcc9a1f9e4b5f182953b8fd480dce1d88f42b0a8d961f00e956fc53bc7"
+}

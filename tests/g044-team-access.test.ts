@@ -122,7 +122,11 @@ test('guards: every entry that writes for a member asks the flag-aware guard fir
   for (const file of guarded) assert.match(source(file), /role\s*===\s*'ADMIN'/, `${file} must refuse administrators`);
 
   const guard = source('lib/invitation/members-db.ts');
-  assert.match(guard, /if \(!isFlagOn\('TEAM_ACCESS', env\)\) return null;/, 'members only while the flag is on');
+  // G-052 (D-067) restructured the guard: a team grant is read only while FLAG_TEAM_ACCESS is on, a workspace grant only
+  // while FLAG_WORKSPACES is on, and with both off a member holds nothing.
+  assert.match(guard, /const teamOn = isFlagOn\('TEAM_ACCESS', env\);/, 'team grants only while the flag is on');
+  assert.match(guard, /const direct = teamOn \? await directGrantRole\(/, 'the team grant is not read with the flag off');
+  assert.match(guard, /if \(!teamOn && !workspaceOn\) return null;/, 'members only while a flag is on');
   assert.match(guard, /ne\(users\.role, 'ADMIN'\)/, 'a grant counts only for a customer account');
   assert.match(guard, /isNull\(users\.deletedAt\)/, 'and only for a live one');
 });

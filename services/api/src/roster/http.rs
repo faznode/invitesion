@@ -349,8 +349,9 @@ async fn accessible_invitation(
         .ok_or(ApiError::NotFound(NOT_FOUND))
 }
 
-/// Locks the guest for this transaction when the caller may use `capability` on its invitation (as
-/// `accessible_invitation`), with its stored invitations and the invitation's config.
+/// Locks the guest for this transaction when the caller may use `capability` on its invitation, with its stored
+/// invitations and the invitation's config. Access is `accessible_invitation`, the one check: a copy of the grant
+/// predicate here once missed G-052's workspace staff (s41), so this lock only adds that the guest is the invitation's.
 async fn accessible_guest(
     tx: &mut Transaction<'_, Postgres>,
     owner: &Owner,
@@ -358,23 +359,17 @@ async fn accessible_guest(
     guest_id: i32,
     capability: Capability,
 ) -> Result<(Option<Value>, Value), ApiError> {
-    let roles = capability.member_role_args();
-    let row = sqlx::query!(
-        "select g.invited_event_ids, i.config from guests g join invitations i on i.id = g.invitation_id \
-         where g.id = $1 and g.invitation_id = $2 and i.deleted_at is null \
-         and (i.user_id = $3 or exists (select 1 from invitation_members m \
-         where m.invitation_id = i.id and m.user_id = $3 and m.revoked_at is null and m.role = any($4))) \
-         for update of g",
+    let config = accessible_invitation(tx, owner, invitation_id, capability).await?;
+    let invited_event_ids = sqlx::query_scalar!(
+        "select g.invited_event_ids from guests g where g.id = $1 and g.invitation_id = $2 for update",
         guest_id,
-        invitation_id,
-        owner.user_id,
-        &roles[..]
+        invitation_id
     )
     .fetch_optional(&mut **tx)
     .await
     .map_err(db("roster_guest"))?
     .ok_or(ApiError::NotFound(NOT_FOUND))?;
-    Ok((row.invited_event_ids, row.config.unwrap_or(Value::Null)))
+    Ok((invited_event_ids, config))
 }
 
 async fn lock_roster(tx: &mut Transaction<'_, Postgres>, invitation_id: i32) -> Result<(), ApiError> {
