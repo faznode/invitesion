@@ -115,6 +115,113 @@ impl S3Storage {
         }
         Ok(())
     }
+
+    /// B-031: single-object DELETE. S3 answers 204 whether or not the key existed; a compatible store's 404 for a
+    /// missing key counts as deleted too.
+    pub async fn delete(&self, key: &str) -> Result<(), StorageError> {
+        let url = self.endpoint_for(key)?;
+        let mut request = self.client.delete(&url);
+        for (name, value) in self.sign("DELETE", &url, EMPTY_SHA256, &[])? {
+            if name != "host" {
+                request = request.header(name, value);
+            }
+        }
+        let response = request.send().await.map_err(|e| StorageError::Http(format!("DELETE: {e}")))?;
+        if response.status().is_success() || response.status() == reqwest::StatusCode::NOT_FOUND {
+            return Ok(());
+        }
+        Err(StorageError::Http(format!("DELETE {}", response.status().as_u16())))
+    }
+
+    /// The bucket's root URL under the same addressing rule as `endpoint_for`.
+    fn bucket_url(&self) -> Result<Url, StorageError> {
+        let base = match &self.config.endpoint {
+            Some(endpoint) => endpoint.trim_end_matches('/').to_string(),
+            None => format!("https://s3.{}.amazonaws.com", self.config.region),
+        };
+        let mut url = Url::parse(&base).map_err(|e| StorageError::Http(format!("endpoint: {e}")))?;
+        if self.config.force_path_style {
+            url.set_path(&format!("/{}/", self.config.bucket));
+        } else {
+            let host = url.host_str().ok_or_else(|| StorageError::Http("endpoint has no host".into()))?.to_string();
+            url.set_host(Some(&format!("{}.{host}", self.config.bucket)))
+                .map_err(|e| StorageError::Http(format!("endpoint: {e}")))?;
+            url.set_path("/");
+        }
+        Ok(url)
+    }
+
+    /// B-031: ListObjectsV2 under `prefix` (which must end in `/`), following continuation tokens. Only keys inside
+    /// the prefix that `assert_safe_key` accepts are returned, sorted. Needs `s3:ListBucket` on the bucket.
+    pub async fn list(&self, prefix: &str) -> Result<Vec<String>, StorageError> {
+        if !prefix.ends_with('/') {
+            return Err(StorageError::InvalidKey);
+        }
+        assert_safe_key(prefix.trim_end_matches('/'))?;
+        let mut keys = Vec::new();
+        let mut token: Option<String> = None;
+        for _page in 0..10_000 {
+            let mut url = self.bucket_url()?;
+            {
+                let mut query = url.query_pairs_mut();
+                query.append_pair("list-type", "2").append_pair("prefix", prefix);
+                if let Some(token) = &token {
+                    query.append_pair("continuation-token", token);
+                }
+            }
+            let url = url.to_string();
+            let mut request = self.client.get(&url);
+            for (name, value) in self.sign("GET", &url, EMPTY_SHA256, &[])? {
+                if name != "host" {
+                    request = request.header(name, value);
+                }
+            }
+            let response = request.send().await.map_err(|e| StorageError::Http(format!("LIST: {e}")))?;
+            if !response.status().is_success() {
+                return Err(StorageError::Http(format!("LIST {}", response.status().as_u16())));
+            }
+            let body = response.text().await.map_err(|e| StorageError::Http(format!("LIST body: {e}")))?;
+            keys.extend(
+                xml_values(&body, "Key")
+                    .into_iter()
+                    .filter(|key| key.starts_with(prefix) && assert_safe_key(key).is_ok()),
+            );
+            if xml_values(&body, "IsTruncated").first().map(String::as_str) != Some("true") {
+                keys.sort();
+                keys.dedup();
+                return Ok(keys);
+            }
+            token = Some(
+                xml_values(&body, "NextContinuationToken")
+                    .into_iter()
+                    .next()
+                    .ok_or_else(|| StorageError::Http("LIST truncated without a continuation token".into()))?,
+            );
+        }
+        Err(StorageError::Http("LIST did not finish".into()))
+    }
+}
+
+/// The text of every `<tag>…</tag>` element in a ListObjectsV2 response, entity-decoded. The response is flat enough
+/// for this (no nesting of the tags read here), which keeps an XML parser out of the dependency tree.
+pub fn xml_values(body: &str, tag: &str) -> Vec<String> {
+    let (open, close) = (format!("<{tag}>"), format!("</{tag}>"));
+    let mut values = Vec::new();
+    let mut rest = body;
+    while let Some(start) = rest.find(&open) {
+        let after = &rest[start + open.len()..];
+        let Some(end) = after.find(&close) else { break };
+        values.push(
+            after[..end]
+                .replace("&lt;", "<")
+                .replace("&gt;", ">")
+                .replace("&quot;", "\"")
+                .replace("&apos;", "'")
+                .replace("&amp;", "&"),
+        );
+        rest = &after[end + close.len()..];
+    }
+    values
 }
 
 #[cfg(test)]
@@ -151,5 +258,27 @@ mod tests {
             format!("https://invitesion-media.account.r2.cloudflarestorage.com/{key}")
         );
         assert!(storage(None, false).endpoint_for("../x").is_err());
+    }
+
+    #[test]
+    fn listings_address_the_bucket_root_like_objects() {
+        assert_eq!(
+            storage(None, false).bucket_url().unwrap().as_str(),
+            "https://invitesion-media.s3.ap-southeast-1.amazonaws.com/"
+        );
+        assert_eq!(
+            storage(Some("http://127.0.0.1:9000/"), true).bucket_url().unwrap().as_str(),
+            "http://127.0.0.1:9000/invitesion-media/"
+        );
+    }
+
+    #[test]
+    fn listing_values_are_read_and_entity_decoded() {
+        let body = "<ListBucketResult><IsTruncated>true</IsTruncated><NextContinuationToken>a&amp;b&lt;c</NextContinuationToken>\
+                    <Contents><Key>12/a.jpg</Key></Contents><Contents><Key>12/b.jpg</Key></Contents></ListBucketResult>";
+        assert_eq!(xml_values(body, "Key"), ["12/a.jpg", "12/b.jpg"]);
+        assert_eq!(xml_values(body, "NextContinuationToken"), ["a&b<c"]);
+        assert_eq!(xml_values(body, "IsTruncated"), ["true"]);
+        assert!(xml_values("<Key>unterminated", "Key").is_empty());
     }
 }

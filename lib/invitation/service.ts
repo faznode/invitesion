@@ -1,5 +1,5 @@
 import 'server-only';
-import { and, asc, eq } from 'drizzle-orm';
+import { and, asc, eq, isNull } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '@/lib/db/drizzle';
 import { invitations, mediaAssets } from '@/lib/db/schema';
@@ -20,12 +20,15 @@ export class OwnershipError extends Error {
   }
 }
 
-/** Resolve an invitation only if it belongs to the given user. */
+/**
+ * Resolve an invitation only if it belongs to the given user and is not deleted (B-031): publishing, checkout, media,
+ * the detail API and the owner's protected photos all stop at a deletion until the owner restores the invitation.
+ */
 export async function requireOwnedInvitation(invitationId: number, userId: number) {
   const [row] = await db
     .select()
     .from(invitations)
-    .where(and(eq(invitations.id, invitationId), eq(invitations.userId, userId)))
+    .where(and(eq(invitations.id, invitationId), eq(invitations.userId, userId), isNull(invitations.deletedAt)))
     .limit(1);
   if (!row) throw new OwnershipError();
   return row;

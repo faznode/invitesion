@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 import { backendFor } from '@/lib/backend';
 import { db } from '@/lib/db/drizzle';
 import { invitations, invitationVersions } from '@/lib/db/schema';
@@ -47,7 +47,7 @@ export function contentStateQuery(invitationId: number, userId: number) {
       version: sql<number>`coalesce((select max(${invitationVersions.versionNo}) from ${invitationVersions} where ${invitationVersions.invitationId} = ${invitationId}), 0)`.mapWith(Number),
     })
     .from(invitations)
-    .where(and(eq(invitations.id, invitationId), eq(invitations.userId, userId)))
+    .where(and(eq(invitations.id, invitationId), eq(invitations.userId, userId), isNull(invitations.deletedAt)))
     .limit(1);
 }
 
@@ -72,7 +72,7 @@ export async function loadThemeTier(invitationId: number, userId: number): Promi
   const [row] = await db
     .select({ templateId: invitations.templateId })
     .from(invitations)
-    .where(and(eq(invitations.id, invitationId), eq(invitations.userId, userId)))
+    .where(and(eq(invitations.id, invitationId), eq(invitations.userId, userId), isNull(invitations.deletedAt)))
     .limit(1);
   return row ? next.themeTierOf(db, invitationId, row.templateId) : null;
 }

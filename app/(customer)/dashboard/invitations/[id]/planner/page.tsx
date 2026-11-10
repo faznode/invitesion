@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { redirect, notFound } from 'next/navigation';
 import { getUser } from '@/lib/db/queries';
 import { getPrivateAdminPath } from '@/lib/auth/admin-access';
@@ -25,7 +25,7 @@ export default async function PlannerDetailPage({
   const [invitation] = await db
     .select()
     .from(invitations)
-    .where(and(eq(invitations.id, id), eq(invitations.userId, user.id)))
+    .where(and(eq(invitations.id, id), eq(invitations.userId, user.id), isNull(invitations.deletedAt)))
     .limit(1);
   if (!invitation) notFound();
 

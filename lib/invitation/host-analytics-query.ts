@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { analyticsEvents, guests, invitations, type Guest } from '@/lib/db/schema';
 import type * as schema from '@/lib/db/schema';
@@ -59,7 +59,7 @@ export async function loadHostAnalytics(
   const [invitation] = await database
     .select({ id: invitations.id, slug: invitations.slug, config: invitations.config })
     .from(invitations)
-    .where(and(eq(invitations.id, owner.invitationId), eq(invitations.userId, owner.userId)))
+    .where(and(eq(invitations.id, owner.invitationId), eq(invitations.userId, owner.userId), isNull(invitations.deletedAt)))
     .limit(1);
   if (!invitation) return null;
 

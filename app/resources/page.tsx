@@ -1,30 +1,21 @@
-import Link from 'next/link';
-import MarketingHeader from '../marketing-header';
-import MarketingFooter from '../marketing-footer';
-import { marketingPages, marketingHref } from '../marketing-registry';
-import styles from '../home.module.css';
+import type { Metadata } from 'next';
+import { marketingPages } from '../marketing-registry';
+import { MarketingIndexPage } from '../marketing-public-page';
+
+export const metadata: Metadata = {
+  title: 'Resource — Invitesion',
+  description: 'FAQ, privasi dan keamanan, serta cara menghubungi tim Invitesion.',
+};
 
 export default function ResourcesPage() {
   return (
-    <main className={styles.site}>
-      <MarketingHeader />
-      <section className={styles.simplePageHero}>
-        <small className={styles.eyebrow}>INVITESION RESOURCE</small>
-        <h1>Rencanakan acara dengan lebih tenang.</h1>
-        <p>Panduan, dukungan, dan informasi perusahaan untuk membantu setiap detail acara berjalan rapi.</p>
-        <div className={styles.resourceCards}>
-          {marketingPages.resources.map(page => (
-            <article key={page.slug}>
-              <h2>{page.title}</h2>
-              <p>{page.summary}</p>
-              <Link href={marketingHref('resources', page.title)}>Buka halaman <span aria-hidden="true">→</span></Link>
-            </article>
-          ))}
-        </div>
-      </section>
-      <div className={styles.frame}>
-        <MarketingFooter />
-      </div>
-    </main>
+    <MarketingIndexPage
+      category="resources"
+      eyebrow="INVITESION RESOURCE"
+      title="Rencanakan acara dengan lebih tenang."
+      intro="FAQ, privasi dan keamanan, serta kontak tim. Halaman yang isinya belum dipublikasikan diberi label."
+      linkLabel="Buka halaman"
+      pages={marketingPages.resources}
+    />
   );
 }

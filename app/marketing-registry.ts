@@ -1,312 +1,538 @@
+import type { Metadata } from 'next';
+import { claimStatus, type CapabilityId, type ClaimStatus } from '@/lib/marketing/capabilities';
+
 export type MarketingCategory = 'event-types' | 'features' | 'resources';
-export type MarketingHighlight = { title: string; text: string };
+/** What a page is about: something shipped, something planned, or something Invitesion does not do. */
+export type PageAvailability = 'available' | 'roadmap' | 'unsupported';
+export type HighlightCopy = { title: string; text: string; needs: readonly CapabilityId[] };
+export type MarketingHighlight = HighlightCopy & { status: ClaimStatus };
+type PageCopy = {
+  availability?: PageAvailability;
+  summary: string;
+  /** Capabilities the summary claims. An unavailable page's summary describes the absence and claims nothing. */
+  summaryNeeds: readonly CapabilityId[];
+  highlights: readonly HighlightCopy[];
+};
 export type MarketingPage = {
   title: string;
   slug: string;
+  category: MarketingCategory;
   eyebrow: string;
   summary: string;
+  summaryNeeds: readonly CapabilityId[];
+  availability: PageAvailability;
+  /** available, conditional (its summary needs a flag that is off here), roadmap or unsupported. */
+  status: ClaimStatus;
   highlights: readonly MarketingHighlight[];
 };
 
+const EYEBROWS: Record<MarketingCategory, string> = {
+  'event-types': 'JENIS ACARA',
+  features: 'FITUR INVITESION',
+  resources: 'RESOURCE & COMPANY',
+};
+
+const NOT_PLANNED = 'Belum tersedia dan belum direncanakan.';
+const contactHighlight: HighlightCopy = { title: 'Hubungi tim', text: 'Kirim pertanyaanmu ke hello@invitesion.id.', needs: ['supportEmail'] };
+const csvHighlight = (text: string): HighlightCopy => ({ title: 'Ekspor CSV', text, needs: ['guestCsvExport'] });
+const notPublished = (summary: string): PageCopy => ({ availability: 'unsupported', summary, summaryNeeds: [], highlights: [contactHighlight] });
+
 /**
- * Category-level fallbacks. Only the long-tail pages that have no hand-written
- * copy below use these; every page reachable from the navbar has its own copy.
+ * Long-tail event types without hand-written copy. Every line is a shipped capability (B-022), so the generic pages
+ * stay true whatever the event.
  */
-const fallbacks: Record<MarketingCategory, { eyebrow: string; summary: string; highlights: readonly MarketingHighlight[] }> = {
-  'event-types': {
-    eyebrow: 'JENIS ACARA',
-    summary: 'Rancang alur undangan, registrasi, komunikasi, dan pengalaman tamu yang sesuai dengan karakter acara ini.',
-    highlights: [
-      { title: 'Registrasi yang fleksibel', text: 'Bentuk formulir RSVP mengikuti kebutuhan acara — kehadiran, pendamping, hingga pertanyaan khusus.' },
-      { title: 'Komunikasi tamu terarah', text: 'Sebar tautan personal via WhatsApp atau email sehingga setiap tamu menerima informasi yang relevan.' },
-      { title: 'Insight kehadiran real-time', text: 'Pantau siapa yang sudah membuka undangan dan mengonfirmasi kehadiran langsung dari dashboard.' },
-    ],
-  },
-  features: {
-    eyebrow: 'FITUR INVITESION',
-    summary: 'Satukan pekerjaan tim dan perjalanan tamu dalam satu workspace acara yang rapi dan mudah digunakan.',
-    highlights: [
-      { title: 'Konfigurasi sesuai kebutuhan', text: 'Aktifkan hanya bagian yang acara kamu perlukan, tanpa fitur yang mengganggu.' },
-      { title: 'Data acara terpusat', text: 'Tamu, konfirmasi, dan komunikasi tersimpan dalam satu tempat, bukan tersebar di banyak aplikasi.' },
-      { title: 'Pengalaman tamu konsisten', text: 'Dari undangan sampai hari-H, tamu merasakan alur yang mulus dan profesional.' },
-    ],
-  },
-  resources: {
-    eyebrow: 'RESOURCE & COMPANY',
-    summary: 'Temukan panduan, dukungan, kepercayaan, dan informasi perusahaan untuk menjalankan acara dengan tenang.',
-    highlights: [
-      { title: 'Panduan praktis', text: 'Langkah-langkah jelas untuk memaksimalkan setiap fitur Invitesion.' },
-      { title: 'Dukungan yang mudah dijangkau', text: 'Tim kami siap membantu lewat email dan WhatsApp saat kamu membutuhkannya.' },
-      { title: 'Informasi transparan', text: 'Kebijakan, harga, dan keamanan data dijelaskan terbuka tanpa jargon.' },
-    ],
-  },
+const eventTypeFallback: PageCopy = {
+  summary: 'Susun halaman undangan, tautan personal, dan konfirmasi kehadiran yang sesuai dengan karakter acara ini.',
+  summaryNeeds: ['invitationPage', 'personalLinks', 'rsvp'],
+  highlights: [
+    { title: 'Form RSVP yang fleksibel', text: 'Tanyakan kehadiran, jumlah pendamping, hingga pertanyaan khusus sesuai kebutuhan acara.', needs: ['rsvp', 'rsvpQuestions'] },
+    { title: 'Tautan personal untuk tiap tamu', text: 'Kirim tautan personal lewat WhatsApp satu per satu, atau salin tautannya ke kanal lain.', needs: ['personalLinks', 'whatsappLinks'] },
+    { title: 'Pantauan kehadiran real-time', text: 'Lihat siapa yang sudah membuka undangan dan mengonfirmasi kehadiran langsung dari dashboard.', needs: ['openTracking', 'rsvp', 'insights'] },
+  ],
 };
 
 /**
- * Hand-written copy per slug. Every page linked from the navbar and footer
- * must have an entry here so no two categories read the same.
+ * Hand-written copy per category and slug. Every feature and resource has an entry (the cross-check test enforces it),
+ * so no generic text can make an integration or a policy look real; event types fall back to `eventTypeFallback`.
  */
-const handWritten: Record<string, { summary: string; highlights: readonly MarketingHighlight[] }> = {
-  // ── Event types ──────────────────────────────────────────────────────────────────
-  weddings: {
-    summary: 'Undangan pernikahan digital yang elegan: love story, galeri prewedding, detail akad dan resepsi, RSVP plus-one, sampai amplop digital — semua dalam satu tautan personal.',
-    highlights: [
-      { title: 'Love story & galeri prewedding', text: 'Ceritakan perjalanan kalian lewat timeline, foto, dan video yang tampil mengikuti tema premium pilihan.' },
-      { title: 'RSVP dengan plus-one', text: 'Tamu mengonfirmasi kehadiran dan jumlah pendamping lewat tautan pribadinya, hasilnya langsung masuk dashboard.' },
-      { title: 'Amplop digital & ucapan', text: 'Terima doa, ucapan, dan hadiah cashless langsung dari halaman undangan tanpa repot mencatat manual.' },
-    ],
-  },
-  'wedding-anniversaries': {
-    summary: 'Rayakan tahun-tahun kebersamaan dengan undangan yang hangat — galeri kenangan, agenda syukuran, dan konfirmasi kehadiran keluarga serta sahabat.',
-    highlights: [
-      { title: 'Galeri kenangan', text: 'Tampilkan foto perjalanan pernikahan dari tahun ke tahun sebagai cerita pembuka undangan.' },
-      { title: 'Acara intim, daftar tamu rapi', text: 'Undang keluarga dan sahabat terdekat dengan tautan personal dan daftar tamu yang terkontrol.' },
-      { title: 'Konfirmasi tanpa ribet', text: 'Cukup satu klik bagi tamu untuk memberi kabar hadir, hasilnya terlihat real-time.' },
-    ],
-  },
-  'bridal-showers': {
-    summary: 'Kejutan manis sebelum hari-H: undangan bridal shower dengan tema playful, privasi terjaga, dan koordinasi panitia yang gampang.',
-    highlights: [
-      { title: 'Tema playful & feminin', text: 'Pilih tampilan ceria yang cocok untuk pesta lajang, lengkap dengan hitung mundur menuju acara.' },
-      { title: 'Privasi terjaga', text: 'Halaman hanya bisa diakses lewat tautan undangan — aman untuk acara kejutan.' },
-      { title: 'Koordinasi panitia mudah', text: 'Pantau siapa yang sudah konfirmasi supaya games dan konsumsi bisa disiapkan pas.' },
-    ],
-  },
-  birthdays: {
-    summary: 'Dari ulang tahun anak sampai pesta dewasa — undangan digital dengan hitung mundur, lokasi, dan RSVP yang gampang diisi siapa pun.',
-    highlights: [
-      { title: 'Tema untuk segala usia', text: 'Koleksi tema ceria untuk anak hingga elegan untuk perayaan dewasa.' },
-      { title: 'Hitung mundur hari-H', text: 'Bangun antusiasme tamu dengan countdown otomatis di halaman undangan.' },
-      { title: 'RSVP super sederhana', text: 'Orang tua atau teman cukup membuka tautan dan menekan satu tombol untuk konfirmasi.' },
-    ],
-  },
-  'aqiqah-and-khitanan': {
-    summary: 'Sampaikan kabar bahagia keluarga dengan undangan bernuansa islami — informasi acara, doa, dan konfirmasi kehadiran keluarga besar dalam satu halaman.',
-    highlights: [
-      { title: 'Nuansa islami yang khidmat', text: 'Tema dengan kaligrafi dan ornamen yang sesuai untuk momen aqiqah dan khitanan.' },
-      { title: 'Informasi lengkap untuk keluarga', text: 'Cantumkan waktu, lokasi, dan susunan acara agar keluarga besar tidak salah jadwal.' },
-      { title: 'Konfirmasi lintas generasi', text: 'Tautan cukup dibuka dari WhatsApp — mudah bahkan untuk anggota keluarga yang jarang pakai aplikasi.' },
-    ],
-  },
-  'baby-showers': {
-    summary: 'Umumkan kedatangan si kecil dengan halaman yang menggemaskan — cerita singkat, galeri, dan RSVP untuk orang-orang terdekat.',
-    highlights: [
-      { title: 'Pengumuman yang personal', text: 'Tulis cerita menanti si kecil dan tampilkan foto maternity dengan tema lembut.' },
-      { title: 'Daftar tamu terdekat', text: 'Acara kecil tetap butuh kepastian — lihat siapa saja yang datang sebelum hari-H.' },
-      { title: 'Bagikan sekali klik', text: 'Kirim tautan lewat WhatsApp ke grup keluarga dan sahabat tanpa cetak apa pun.' },
-    ],
-  },
-  'gender-reveals': {
-    summary: 'Bikin momen pengumuman si kecil makin seru — halaman penuh teka-teki pink atau biru, hitung mundur menuju reveal, dan RSVP orang-orang terdekat.',
-    highlights: [
-      { title: 'Misteri tetap terjaga', text: 'Tema netral dengan sentuhan pink dan biru menjaga kejutan sampai detik pengumuman.' },
-      { title: 'Ajak tamu ikut menebak', text: 'Tambahkan pertanyaan tebakan “cowok atau cewek?” di form RSVP dan lihat rekap tebakannya di dashboard.' },
-      { title: 'Countdown menuju reveal', text: 'Hitung mundur otomatis membangun antisipasi sebelum momen puncak.' },
-    ],
-  },
-  syukuran: {
-    summary: 'Syukuran rumah baru, kelahiran, jabatan, atau nazar — sampaikan rasa syukur lewat undangan hangat dengan doa, agenda, dan konfirmasi keluarga besar.',
-    highlights: [
-      { title: 'Pembuka penuh makna', text: 'Awali undangan dengan ayat, doa, atau kata pengantar yang bisa kamu tulis sendiri.' },
-      { title: 'Fleksibel untuk segala syukuran', text: 'Satu format untuk syukuran rumah, kelahiran, promosi, hingga keberangkatan haji.' },
-      { title: 'Kepastian jumlah tamu', text: 'Konfirmasi kehadiran masuk real-time supaya konsumsi dan tempat bisa disiapkan pas.' },
-    ],
-  },
-  'celebrations-of-life': {
-    summary: 'Undangan tahlilan, haul, dan doa bersama yang khidmat — kabar tersampaikan dengan hormat tanpa harus menghubungi kerabat satu per satu.',
-    highlights: [
-      { title: 'Nuansa tenang & hormat', text: 'Tema yang teduh dan sederhana, sesuai untuk momen mengenang dan mendoakan.' },
-      { title: 'Informasi jelas untuk kerabat', text: 'Waktu, lokasi, dan rangkaian tahlilan hari ke-7 hingga haul tersusun rapi di satu halaman.' },
-      { title: 'Sebar cepat lewat WhatsApp', text: 'Satu tautan untuk seluruh keluarga besar dan jamaah, tanpa perlu broadcast berulang.' },
-    ],
-  },
-  reunions: {
-    summary: 'Kumpulkan kembali teman lama: sebar satu tautan ke grup alumni, data kehadiran lintas kota terkumpul sendiri, lengkap dengan iuran acara.',
-    highlights: [
-      { title: 'Satu tautan untuk semua alumni', text: 'Bagikan ke grup WhatsApp angkatan dan biarkan setiap orang mengisi kehadirannya sendiri.' },
-      { title: 'Data hadir lintas kota', text: 'Lihat siapa datang dari mana untuk mengatur rundown dan konsumsi dengan tepat.' },
-      { title: 'Iuran & pembayaran', text: 'Kumpulkan kontribusi acara langsung dari halaman undangan, tercatat otomatis.' },
-    ],
-  },
-  graduations: {
-    summary: 'Rayakan kelulusan dengan halaman yang membanggakan — momen perjalanan studi, detail seremoni, dan undangan untuk keluarga serta sahabat.',
-    highlights: [
-      { title: 'Cerita perjalanan studi', text: 'Tampilkan galeri dari hari pertama sampai sidang sebagai pembuka undangan wisuda.' },
-      { title: 'Detail acara yang jelas', text: 'Waktu seremoni, lokasi, dan dress code tersampaikan rapi ke semua tamu.' },
-      { title: 'Undang tanpa batas jarak', text: 'Keluarga di luar kota tetap bisa memberi ucapan langsung dari halaman.' },
-    ],
-  },
-  'holiday-gatherings': {
-    summary: 'Halal bihalal, natal keluarga, atau kumpul akhir tahun — satu halaman untuk agenda, lokasi, dan konfirmasi cepat seluruh keluarga.',
-    highlights: [
-      { title: 'Cocok untuk semua perayaan', text: 'Tema hangat untuk halal bihalal, natal, tahun baru, hingga arisan keluarga.' },
-      { title: 'Agenda & lokasi jelas', text: 'Peta dan susunan acara tersedia di satu tempat, tidak tenggelam di chat grup.' },
-      { title: 'Konfirmasi kilat', text: 'Anggota keluarga cukup sekali klik untuk memberi kabar hadir atau berhalangan.' },
-    ],
-  },
-  'product-launches': {
-    summary: 'Perkenalkan produk, brand, atau gerai baru dengan halaman peluncuran yang berkesan — countdown, agenda, dan registrasi untuk media, mitra, dan tamu VIP.',
-    highlights: [
-      { title: 'Kesan pertama yang kuat', text: 'Halaman bergaya premium dengan hitung mundur menuju momen peluncuran atau grand opening.' },
-      { title: 'Registrasi undangan terkurasi', text: 'Kirim tautan personal ke media, mitra, dan pelanggan setia — daftar hadir terkontrol penuh.' },
-      { title: 'Detail acara satu pintu', text: 'Rundown, lokasi, dan dress code tersampaikan rapi tanpa perlu balas pesan satu-satu.' },
-    ],
-  },
-  conferences: {
-    summary: 'Konferensi dan seminar butuh registrasi yang rapi — satu tautan untuk agenda multi-sesi, data peserta terpusat, dan check-in QR di lokasi.',
-    highlights: [
-      { title: 'Agenda multi-sesi', text: 'Susun jadwal pembicara dan sesi dalam satu halaman yang mudah dipindai peserta.' },
-      { title: 'Data peserta terpusat', text: 'Nama, instansi, dan kebutuhan khusus peserta terkumpul otomatis di dashboard.' },
-      { title: 'Check-in QR di lokasi', text: 'Setiap peserta membawa QR unik — antrean registrasi ulang jadi hitungan detik.' },
-    ],
-  },
-  'workshops-and-classes': {
-    summary: 'Buka pendaftaran workshop, kelas, atau pelatihan dalam hitungan menit — informasi materi, kuota peserta, dan pengingat menjelang hari-H.',
-    highlights: [
-      { title: 'Halaman info yang meyakinkan', text: 'Materi, pemateri, dan benefit kelas tersaji rapi sehingga calon peserta yakin mendaftar.' },
-      { title: 'Kuota terpantau', text: 'Lihat jumlah pendaftar real-time dan tutup registrasi saat kelas penuh.' },
-      { title: 'Pengingat otomatis', text: 'Peserta menerima pengingat menjelang jadwal sehingga tingkat kehadiran tetap tinggi.' },
-    ],
-  },
-  'networking-events': {
-    summary: 'Undang komunitas profesional untuk saling terhubung — halaman acara yang kredibel, registrasi cepat, dan daftar peserta yang terkontrol.',
-    highlights: [
-      { title: 'Tampil profesional', text: 'Halaman bergaya bersih dan modern yang pantas dibagikan ke jejaring bisnis.' },
-      { title: 'Registrasi tanpa friksi', text: 'Peserta cukup membuka tautan dan mengisi form singkat — tanpa membuat akun.' },
-      { title: 'Kenali siapa yang datang', text: 'Data peserta dan instansinya terkumpul rapi untuk membantu sesi perkenalan.' },
-    ],
-  },
-  'galas-and-benefit-dinners': {
-    summary: 'Gala dinner, malam penghargaan, dan galang dana menuntut kesan mewah — undangan elegan, RSVP VIP, dan pengelolaan tamu yang presisi.',
-    highlights: [
-      { title: 'Undangan bernuansa mewah', text: 'Tema gelap-emas dan marmer yang selaras dengan dekorasi ballroom dan black-tie.' },
-      { title: 'Perlakuan khusus tamu VIP', text: 'Tautan personal atas nama tiap tamu membuat undangan terasa eksklusif, bukan broadcast.' },
-      { title: 'Donasi & kontribusi', text: 'Untuk acara galang dana, tamu bisa berkontribusi langsung dari halaman undangan.' },
-    ],
-  },
-  'retirement-parties': {
-    summary: 'Lepas masa purnabakti dengan penghormatan yang layak — perjalanan karier, ucapan rekan kerja, dan undangan acara perpisahan dalam satu halaman.',
-    highlights: [
-      { title: 'Kilas balik perjalanan karier', text: 'Tampilkan galeri dan cerita pengabdian dari tahun pertama hingga purnatugas.' },
-      { title: 'Ucapan dari rekan kerja', text: 'Kolega lintas kota bisa menitipkan pesan dan doa langsung dari halaman undangan.' },
-      { title: 'Formal namun hangat', text: 'Tema elegan yang cocok untuk acara instansi, BUMN, maupun perusahaan swasta.' },
-    ],
-  },
-  'client-and-vip-events': {
-    summary: 'Apresiasi klien, pelanggan setia, dan tamu VIP dengan undangan personal atas nama masing-masing — eksklusif, rapi, dan mudah dikonfirmasi.',
-    highlights: [
-      { title: 'Personal, bukan broadcast', text: 'Setiap undangan menyapa nama tamu — detail kecil yang menunjukkan penghargaan besar.' },
-      { title: 'Daftar tamu terkurasi', text: 'Kelompokkan tamu per segmen atau tingkat prioritas dan pantau konfirmasinya.' },
-      { title: 'Citra brand terjaga', text: 'Halaman undangan yang halus dan profesional memperkuat kesan perusahaan kamu.' },
-    ],
-  },
-  'team-building-and-offsites': {
-    summary: 'Ajak tim keluar kantor tanpa drama koordinasi — agenda kegiatan, lokasi, dan konfirmasi kehadiran karyawan terkumpul dalam satu tautan.',
-    highlights: [
-      { title: 'Rundown kegiatan jelas', text: 'Jadwal, titik kumpul, dan barang bawaan tersampaikan sekali — tidak tenggelam di grup chat.' },
-      { title: 'Konfirmasi per divisi', text: 'Lihat siapa yang ikut dari tiap tim untuk mengatur transportasi dan kamar.' },
-      { title: 'Kebutuhan khusus tercatat', text: 'Preferensi makanan dan kondisi kesehatan peserta terkumpul lewat form registrasi.' },
-    ],
-  },
-
-  // ── Features ─────────────────────────────────────────────────────────────────
-  'online-invitations': {
-    summary: 'Buat undangan digital yang bisa dibuka di perangkat mana pun — pilih tema, isi detail acara, dan sebar dalam hitungan menit.',
-    highlights: [
-      { title: 'Tema premium siap pakai', text: 'Puluhan desain untuk pernikahan hingga acara komunitas, tinggal ganti isi.' },
-      { title: 'Musik & animasi pembuka', text: 'Beri kesan pertama yang berkesan dengan animasi masuk dan musik latar.' },
-      { title: 'Tautan personal per tamu', text: 'Setiap tamu menerima tautan dengan namanya sendiri — terasa diundang, bukan di-broadcast.' },
-    ],
-  },
-  'event-website-builder': {
-    summary: 'Susun halaman acara lengkap tanpa koding — agenda, lokasi, galeri, countdown, dan FAQ dalam satu situs kecil yang rapi.',
-    highlights: [
-      { title: 'Blok konten fleksibel', text: 'Aktifkan hanya bagian yang acara kamu butuhkan, dari love story sampai dress code.' },
-      { title: 'Tampil sempurna di ponsel', text: 'Mayoritas tamu membuka lewat WhatsApp — semua tema dioptimalkan untuk layar kecil.' },
-      { title: 'Perubahan langsung tayang', text: 'Ubah jam atau lokasi kapan saja, semua tamu otomatis melihat versi terbaru.' },
-    ],
-  },
-  'multi-language': {
-    summary: 'Tamu dari mana saja tetap paham — halaman undangan dan antarmuka tersedia dalam Bahasa Indonesia dan Inggris.',
-    highlights: [
-      { title: 'Deteksi bahasa otomatis', text: 'Halaman menyesuaikan bahasa perangkat tamu, tanpa perlu memilih manual.' },
-      { title: 'Kontrol penuh di tangan kamu', text: 'Kunci salah satu bahasa bila ingin seluruh tamu melihat versi yang sama.' },
-      { title: 'Konsisten di seluruh halaman', text: 'Dari undangan sampai form RSVP, tidak ada campuran dua bahasa di satu layar.' },
-    ],
-  },
-  'online-rsvps': {
-    summary: 'Kumpulkan kepastian hadir tanpa menagih satu-satu — tamu konfirmasi lewat tautannya, hasilnya masuk dashboard detik itu juga.',
-    highlights: [
-      { title: 'Form yang bisa diatur', text: 'Tanya jumlah pendamping, preferensi makanan, atau pertanyaan khusus lainnya.' },
-      { title: 'Pengingat otomatis', text: 'Tamu yang belum menjawab bisa diingatkan tanpa membuat canggung.' },
-      { title: 'Rekap real-time', text: 'Angka hadir, ragu, dan berhalangan selalu terkini untuk keputusan katering dan kursi.' },
-    ],
-  },
-  'guest-list-management': {
-    summary: 'Semua tamu dalam satu daftar yang hidup — status undangan, konfirmasi, dan catatan khusus tanpa spreadsheet berantakan.',
-    highlights: [
-      { title: 'Impor & kelompokkan tamu', text: 'Susun tamu per rombongan keluarga, kantor, atau komunitas agar mudah dipantau.' },
-      { title: 'Status per tamu', text: 'Lihat siapa yang sudah membuka undangan, membalas, atau perlu di-follow-up.' },
-      { title: 'Catatan & tag khusus', text: 'Tandai VIP, alergi makanan, atau kebutuhan khusus langsung di profil tamu.' },
-    ],
-  },
-  'qr-code-rsvps': {
-    summary: 'Setiap tamu mendapat QR unik untuk check-in di lokasi — antrean masuk cepat dan data kehadiran akurat.',
-    highlights: [
-      { title: 'QR unik per tamu', text: 'Kode dibuat otomatis dari daftar tamu dan tidak bisa dipakai dua kali.' },
-      { title: 'Check-in hitungan detik', text: 'Pindai dari ponsel panitia mana pun, tanpa alat khusus.' },
-      { title: 'Data hadir aktual', text: 'Bandingkan konfirmasi dengan kehadiran nyata untuk laporan pasca-acara.' },
-    ],
-  },
-  'email-communications': {
-    summary: 'Kirim pengumuman, pengingat, dan ucapan terima kasih yang selaras dengan tema undangan — langsung dari Invitesion.',
-    highlights: [
-      { title: 'Template selaras tema', text: 'Email mengikuti identitas visual undangan sehingga terasa satu rangkaian.' },
-      { title: 'Kirim ke segmen tertentu', text: 'Sasar hanya tamu yang belum RSVP atau rombongan tertentu.' },
-      { title: 'Terukur', text: 'Lihat email mana yang dibuka agar follow-up tepat sasaran.' },
-    ],
-  },
-  'payment-processing': {
-    summary: 'Terima pembayaran dan hadiah langsung dari halaman acara — amplop digital, iuran reuni, atau kontribusi lainnya.',
-    highlights: [
-      { title: 'Amplop digital', text: 'Tamu mengirim hadiah cashless dengan ucapan, tercatat otomatis atas nama pengirim.' },
-      { title: 'Metode pembayaran lokal', text: 'Transfer bank dan e-wallet populer di Indonesia didukung.' },
-      { title: 'Rekap dana transparan', text: 'Semua transaksi terkumpul dalam satu laporan yang mudah diunduh.' },
-    ],
-  },
-  'analytics-and-reporting': {
-    summary: 'Pahami perjalanan tamu dari undangan dibuka sampai hadir di lokasi — semua angka penting dalam satu dashboard.',
-    highlights: [
-      { title: 'Statistik pembukaan', text: 'Ketahui berapa tamu yang sudah melihat undangan dan kapan.' },
-      { title: 'Funnel RSVP', text: 'Lihat di titik mana tamu berhenti agar bisa di-follow-up.' },
-      { title: 'Ekspor sekali klik', text: 'Unduh data tamu dan kehadiran untuk laporan panitia.' },
-    ],
+const handWritten: Record<MarketingCategory, Record<string, PageCopy>> = {
+  'event-types': {
+    weddings: {
+      summary: 'Undangan pernikahan digital yang elegan: love story, galeri prewedding, detail akad dan resepsi, RSVP dengan jumlah pendamping, sampai ucapan dan info hadiah — semua dalam satu tautan personal.',
+      summaryNeeds: ['loveStory', 'gallery', 'eventDetails', 'rsvp', 'wishes', 'giftAccounts', 'personalLinks'],
+      highlights: [
+        { title: 'Love story & galeri prewedding', text: 'Ceritakan perjalanan kalian lewat timeline, foto, dan video yang tampil mengikuti tema pilihan.', needs: ['loveStory', 'gallery', 'videoEmbeds'] },
+        { title: 'RSVP dengan plus-one', text: 'Tamu mengonfirmasi kehadiran dan jumlah pendamping lewat tautan pribadinya, hasilnya langsung masuk dashboard.', needs: ['rsvp', 'personalLinks', 'guestList'] },
+        { title: 'Ucapan & info hadiah', text: 'Tamu menitipkan doa dan ucapan di halaman undangan. Nomor rekening atau QRIS kalian bisa ditampilkan untuk tamu yang ingin memberi hadiah; transfernya langsung ke kalian, tidak melalui Invitesion.', needs: ['wishes', 'giftAccounts'] },
+      ],
+    },
+    'wedding-anniversaries': {
+      summary: 'Rayakan tahun-tahun kebersamaan dengan undangan yang hangat — galeri kenangan, agenda syukuran, dan konfirmasi kehadiran keluarga serta sahabat.',
+      summaryNeeds: ['gallery', 'eventDetails', 'rsvp'],
+      highlights: [
+        { title: 'Galeri kenangan', text: 'Tampilkan foto perjalanan pernikahan dari tahun ke tahun sebagai cerita pembuka undangan.', needs: ['gallery'] },
+        { title: 'Acara intim, daftar tamu rapi', text: 'Undang keluarga dan sahabat terdekat dengan tautan personal dan daftar tamu yang terkontrol.', needs: ['personalLinks', 'guestList'] },
+        { title: 'Konfirmasi tanpa ribet', text: 'Cukup satu ketuk bagi tamu untuk memberi kabar hadir, hasilnya terlihat real-time di dashboard.', needs: ['rsvp', 'insights'] },
+      ],
+    },
+    'bridal-showers': {
+      summary: 'Kejutan manis sebelum hari-H: undangan bridal shower dengan hitung mundur, halaman yang tidak diindeks mesin pencari, dan rekap konfirmasi yang gampang dipantau.',
+      summaryNeeds: ['countdownCalendar', 'unlistedPages', 'rsvp', 'insights'],
+      highlights: [
+        { title: 'Tema ceria & hitung mundur', text: 'Pilih tampilan yang cocok untuk pesta lajang, lengkap dengan hitung mundur menuju acara.', needs: ['themeCatalog', 'countdownCalendar'] },
+        { title: 'Tidak muncul di mesin pencari', text: 'Halaman undangan tidak diindeks mesin pencari, jadi hanya orang yang menerima tautannya yang bisa membukanya. Siapa pun yang memegang tautan tetap bisa meneruskannya.', needs: ['unlistedPages'] },
+        { title: 'Koordinasi panitia mudah', text: 'Pantau siapa yang sudah konfirmasi supaya games dan konsumsi bisa disiapkan pas.', needs: ['rsvp', 'insights'] },
+      ],
+    },
+    birthdays: {
+      summary: 'Dari ulang tahun anak sampai pesta dewasa — undangan digital dengan hitung mundur, lokasi, dan RSVP yang gampang diisi siapa pun.',
+      summaryNeeds: ['countdownCalendar', 'eventDetails', 'mapLink', 'rsvp'],
+      highlights: [
+        { title: 'Tema untuk segala usia', text: 'Pilih dari puluhan tema di katalog, dari yang ceria sampai yang elegan.', needs: ['themeCatalog'] },
+        { title: 'Hitung mundur hari-H', text: 'Bangun antusiasme tamu dengan countdown di halaman undangan dan tombol simpan ke kalender.', needs: ['countdownCalendar'] },
+        { title: 'RSVP super sederhana', text: 'Orang tua atau teman cukup membuka tautan personalnya dan menekan satu tombol untuk konfirmasi.', needs: ['rsvp', 'personalLinks'] },
+      ],
+    },
+    'aqiqah-and-khitanan': {
+      summary: 'Sampaikan kabar bahagia keluarga — profil sang anak, doa, informasi acara, dan konfirmasi kehadiran keluarga besar dalam satu halaman.',
+      summaryNeeds: ['ceremonyProfiles', 'openingWords', 'eventDetails', 'rsvp'],
+      highlights: [
+        { title: 'Profil sang anak', text: 'Nama, orang tua, tanggal lahir, dan makna nama tampil rapi. Foto anak hanya muncul bila kalian mengizinkannya, dan hanya di tautan personal.', needs: ['ceremonyProfiles'] },
+        { title: 'Informasi lengkap untuk keluarga', text: 'Cantumkan waktu, lokasi, dan susunan acara agar keluarga besar tidak salah jadwal.', needs: ['eventDetails', 'mapLink'] },
+        { title: 'Konfirmasi lintas generasi', text: 'Tautan cukup dibuka dari WhatsApp — mudah bahkan untuk anggota keluarga yang jarang pakai aplikasi.', needs: ['personalLinks', 'whatsappLinks', 'rsvp'] },
+      ],
+    },
+    'baby-showers': {
+      summary: 'Umumkan kedatangan si kecil dengan halaman yang menggemaskan — cerita singkat, galeri, dan RSVP untuk orang-orang terdekat.',
+      summaryNeeds: ['loveStory', 'gallery', 'rsvp'],
+      highlights: [
+        { title: 'Pengumuman yang personal', text: 'Tulis cerita menanti si kecil dan tampilkan foto maternity di galeri.', needs: ['loveStory', 'gallery'] },
+        { title: 'Daftar tamu terdekat', text: 'Acara kecil tetap butuh kepastian — lihat siapa saja yang datang sebelum hari-H.', needs: ['rsvp', 'guestList'] },
+        { title: 'Bagikan ke grup keluarga', text: 'Kirim tautan undangan ke grup WhatsApp keluarga dan sahabat tanpa cetak apa pun.', needs: ['invitationPage'] },
+      ],
+    },
+    'gender-reveals': {
+      summary: 'Bikin momen pengumuman si kecil makin seru — hitung mundur menuju reveal, pertanyaan tebakan di form RSVP, dan konfirmasi orang-orang terdekat.',
+      summaryNeeds: ['countdownCalendar', 'rsvpQuestions', 'rsvp'],
+      highlights: [
+        { title: 'Tema sesuai suasana', text: 'Pilih tema dan palet warna dari katalog yang cocok dengan suasana acara.', needs: ['themeCatalog'] },
+        { title: 'Ajak tamu ikut menebak', text: 'Tambahkan pertanyaan tebakan “cowok atau cewek?” di form RSVP dan lihat rekap jawabannya di dashboard.', needs: ['rsvpQuestions', 'answerSummary'] },
+        { title: 'Countdown menuju reveal', text: 'Hitung mundur di halaman undangan membangun antisipasi sebelum momen puncak.', needs: ['countdownCalendar'] },
+      ],
+    },
+    syukuran: {
+      summary: 'Syukuran rumah baru, kelahiran, jabatan, atau nazar — sampaikan rasa syukur lewat undangan hangat dengan doa, agenda, dan konfirmasi keluarga besar.',
+      summaryNeeds: ['openingWords', 'eventDetails', 'rsvp'],
+      highlights: [
+        { title: 'Pembuka penuh makna', text: 'Awali undangan dengan doa, kutipan, atau kata pengantar yang kamu tulis sendiri.', needs: ['openingWords'] },
+        { title: 'Fleksibel untuk segala syukuran', text: 'Satu format untuk syukuran rumah, kelahiran, promosi, hingga keberangkatan haji.', needs: ['ceremonyProfiles'] },
+        { title: 'Kepastian jumlah tamu', text: 'Konfirmasi kehadiran masuk real-time supaya konsumsi dan tempat bisa disiapkan pas.', needs: ['rsvp', 'insights'] },
+      ],
+    },
+    'celebrations-of-life': {
+      summary: 'Undangan tahlilan, haul, dan doa bersama yang khidmat — kabar tersampaikan dengan hormat tanpa harus menghubungi kerabat satu per satu.',
+      summaryNeeds: ['invitationPage', 'eventDetails'],
+      highlights: [
+        { title: 'Nuansa tenang & hormat', text: 'Pilih tema yang teduh dan sederhana, sesuai untuk momen mengenang dan mendoakan.', needs: ['themeCatalog'] },
+        { title: 'Informasi jelas untuk kerabat', text: 'Waktu, lokasi, dan rangkaian tahlilan hari ke-7 hingga haul tersusun sebagai beberapa acara di satu halaman.', needs: ['eventDetails', 'mapLink'] },
+        { title: 'Satu tautan untuk semua', text: 'Bagikan satu tautan undangan ke keluarga besar dan jamaah lewat WhatsApp, tanpa perlu broadcast berulang.', needs: ['invitationPage'] },
+      ],
+    },
+    reunions: {
+      summary: 'Kumpulkan kembali teman lama: halaman reuni dengan agenda dan lokasi, tautan personal untuk tiap alumni, dan rekap kehadiran yang terkumpul sendiri.',
+      summaryNeeds: ['eventDetails', 'personalLinks', 'rsvp', 'insights'],
+      highlights: [
+        { title: 'Tautan personal untuk tiap alumni', text: 'Impor daftar angkatan dari spreadsheet, lalu kirim tautan personal tiap orang lewat WhatsApp — satu ketuk per alumni.', needs: ['guestImport', 'personalLinks', 'whatsappLinks'] },
+        { title: 'Pendaftaran lewat satu tautan', text: 'Satu tautan pendaftaran untuk grup angkatan; panitia meninjau permintaan yang masuk sebelum tautan personal dibuat.', needs: ['selfRegistration'] },
+        { title: 'Info iuran dari panitia', text: 'Tampilkan rekening atau QRIS panitia di halaman reuni. Pembayaran langsung ke panitia; Invitesion tidak menerima, memproses, atau mencocokkan dana.', needs: ['giftAccounts'] },
+        { title: 'Data hadir lintas kota', text: 'Tambahkan pertanyaan asal kota di form RSVP untuk mengatur rundown dan konsumsi.', needs: ['rsvpQuestions', 'answerSummary'] },
+      ],
+    },
+    graduations: {
+      summary: 'Rayakan kelulusan dengan halaman yang membanggakan — momen perjalanan studi, detail seremoni, dan undangan untuk keluarga serta sahabat.',
+      summaryNeeds: ['gallery', 'eventDetails', 'personalLinks'],
+      highlights: [
+        { title: 'Cerita perjalanan studi', text: 'Tampilkan galeri dan cerita dari hari pertama sampai sidang sebagai pembuka undangan wisuda.', needs: ['gallery', 'loveStory'] },
+        { title: 'Detail acara yang jelas', text: 'Waktu seremoni, lokasi, dan catatan seperti dress code tersampaikan rapi ke semua tamu.', needs: ['eventDetails', 'mapLink'] },
+        { title: 'Ucapan dari jauh', text: 'Keluarga di luar kota tetap bisa memberi ucapan langsung dari halaman undangan.', needs: ['wishes'] },
+      ],
+    },
+    'holiday-gatherings': {
+      summary: 'Halal bihalal, natal keluarga, atau kumpul akhir tahun — satu halaman untuk agenda, lokasi, dan konfirmasi cepat seluruh keluarga.',
+      summaryNeeds: ['eventDetails', 'mapLink', 'rsvp'],
+      highlights: [
+        { title: 'Cocok untuk semua perayaan', text: 'Pilih tema hangat dari katalog untuk halal bihalal, natal, tahun baru, hingga arisan keluarga.', needs: ['themeCatalog'] },
+        { title: 'Agenda & lokasi jelas', text: 'Susunan acara dan tautan peta lokasi ada di satu tempat, tidak tenggelam di chat grup.', needs: ['eventDetails', 'mapLink'] },
+        { title: 'Konfirmasi kilat', text: 'Anggota keluarga cukup sekali ketuk di tautan personalnya untuk memberi kabar hadir atau berhalangan.', needs: ['rsvp', 'personalLinks'] },
+      ],
+    },
+    'product-launches': {
+      summary: 'Perkenalkan produk, brand, atau gerai baru dengan halaman peluncuran yang berkesan — countdown, agenda, dan undangan personal untuk media, mitra, dan tamu VIP.',
+      summaryNeeds: ['countdownCalendar', 'corporateProgramme', 'personalLinks'],
+      highlights: [
+        { title: 'Kesan pertama yang kuat', text: 'Halaman bergaya premium dengan hitung mundur menuju momen peluncuran atau grand opening.', needs: ['themeCatalog', 'countdownCalendar'] },
+        { title: 'Undangan terkurasi', text: 'Kirim tautan personal ke media, mitra, dan pelanggan setia — daftar hadir terkontrol penuh.', needs: ['personalLinks', 'guestList'] },
+        { title: 'Detail acara satu pintu', text: 'Rundown, lokasi, dan dress code tersampaikan rapi tanpa perlu balas pesan satu-satu.', needs: ['corporateProgramme', 'eventDetails'] },
+      ],
+    },
+    conferences: {
+      summary: 'Konferensi dan seminar butuh informasi yang rapi — agenda dan pembicara di satu halaman, tautan personal untuk peserta terdaftar, dan data peserta terpusat.',
+      summaryNeeds: ['corporateProgramme', 'personalLinks', 'guestList'],
+      highlights: [
+        { title: 'Agenda & pembicara', text: 'Susun agenda, daftar pembicara, dan kontak panitia dalam satu halaman yang mudah dipindai peserta.', needs: ['corporateProgramme'] },
+        { title: 'Data peserta terpusat', text: 'Tanyakan instansi dan kebutuhan khusus lewat pertanyaan RSVP; jawabannya terkumpul di dashboard dan bisa diekspor ke CSV.', needs: ['rsvpQuestions', 'answerSummary', 'guestCsvExport'] },
+        { title: 'Check-in QR di lokasi', text: 'Setiap peserta membawa QR unik di tautan personalnya untuk dipindai panitia di pintu masuk.', needs: ['guestPass', 'checkInScanner'] },
+      ],
+    },
+    'workshops-and-classes': {
+      summary: 'Undang peserta workshop, kelas, atau pelatihan dengan halaman info yang meyakinkan, batas waktu konfirmasi, dan pengingat lewat WhatsApp.',
+      summaryNeeds: ['corporateProgramme', 'rsvpDeadline', 'followUpLists', 'whatsappLinks'],
+      highlights: [
+        { title: 'Halaman info yang meyakinkan', text: 'Materi, pemateri, dan benefit kelas tersaji rapi sehingga calon peserta yakin hadir.', needs: ['corporateProgramme'] },
+        { title: 'Batas waktu konfirmasi', text: 'Tentukan tenggat RSVP; setelah lewat, form konfirmasi tertutup dengan sendirinya.', needs: ['rsvpDeadline'] },
+        { title: 'Pengingat lewat WhatsApp', text: 'Dashboard menyusun daftar peserta yang belum menjawab beserta tautan WhatsApp berisi pesan pengingat, untuk dikirim panitia satu per satu.', needs: ['followUpLists', 'whatsappLinks'] },
+      ],
+    },
+    'networking-events': {
+      summary: 'Undang komunitas profesional untuk saling terhubung — halaman acara yang kredibel, konfirmasi tanpa akun, dan daftar peserta yang terkontrol.',
+      summaryNeeds: ['themeCatalog', 'rsvp', 'guestList'],
+      highlights: [
+        { title: 'Tampil profesional', text: 'Halaman bergaya bersih dan modern yang pantas dibagikan ke jejaring bisnis.', needs: ['themeCatalog'] },
+        { title: 'Konfirmasi tanpa akun', text: 'Peserta cukup membuka tautan personalnya dan menjawab — tanpa membuat akun.', needs: ['personalLinks', 'rsvp'] },
+        { title: 'Kenali siapa yang datang', text: 'Tanyakan instansi atau jabatan di form RSVP agar sesi perkenalan lebih mudah disiapkan.', needs: ['rsvpQuestions', 'answerSummary'] },
+      ],
+    },
+    'galas-and-benefit-dinners': {
+      summary: 'Gala dinner, malam penghargaan, dan galang dana menuntut kesan mewah — undangan elegan, tautan personal atas nama tiap tamu, dan pengelolaan konfirmasi yang presisi.',
+      summaryNeeds: ['themeCatalog', 'personalLinks', 'rsvp'],
+      highlights: [
+        { title: 'Undangan bernuansa mewah', text: 'Pilih tema elegan dari katalog yang selaras dengan acara black-tie.', needs: ['themeCatalog'] },
+        { title: 'Perlakuan khusus tamu VIP', text: 'Tautan personal atas nama tiap tamu membuat undangan terasa eksklusif, bukan broadcast.', needs: ['personalLinks'] },
+        { title: 'Info donasi', text: 'Tampilkan rekening atau QRIS penyelenggara untuk tamu yang ingin berdonasi. Transfer langsung ke penyelenggara; Invitesion tidak memproses atau mencatat dana.', needs: ['giftAccounts'] },
+      ],
+    },
+    'retirement-parties': {
+      summary: 'Lepas masa purnabakti dengan penghormatan yang layak — perjalanan karier, ucapan rekan kerja, dan undangan acara perpisahan dalam satu halaman.',
+      summaryNeeds: ['gallery', 'wishes', 'eventDetails'],
+      highlights: [
+        { title: 'Kilas balik perjalanan karier', text: 'Tampilkan galeri dan cerita pengabdian dari tahun pertama hingga purnatugas.', needs: ['gallery', 'loveStory'] },
+        { title: 'Ucapan dari rekan kerja', text: 'Kolega lintas kota bisa menitipkan pesan dan doa langsung dari halaman undangan.', needs: ['wishes'] },
+        { title: 'Formal namun hangat', text: 'Pilih tema elegan yang cocok untuk acara instansi, BUMN, maupun perusahaan swasta.', needs: ['themeCatalog'] },
+      ],
+    },
+    'client-and-vip-events': {
+      summary: 'Apresiasi klien, pelanggan setia, dan tamu VIP dengan undangan personal atas nama masing-masing — eksklusif, rapi, dan mudah dikonfirmasi.',
+      summaryNeeds: ['personalLinks', 'rsvp'],
+      highlights: [
+        { title: 'Personal, bukan broadcast', text: 'Setiap undangan menyapa nama tamu — detail kecil yang menunjukkan penghargaan besar.', needs: ['personalLinks'] },
+        { title: 'Daftar tamu terkurasi', text: 'Kelompokkan tamu per segmen dengan kategori dan pantau konfirmasinya per kelompok.', needs: ['guestCategory', 'insights'] },
+        { title: 'Citra brand terjaga', text: 'Halaman undangan dengan logo dan tema yang halus memperkuat kesan perusahaan kamu.', needs: ['themeCatalog', 'corporateProgramme'] },
+      ],
+    },
+    'team-building-and-offsites': {
+      summary: 'Ajak tim keluar kantor tanpa drama koordinasi — agenda kegiatan, lokasi, dan konfirmasi kehadiran karyawan terkumpul dalam satu tempat.',
+      summaryNeeds: ['corporateProgramme', 'eventDetails', 'rsvp'],
+      highlights: [
+        { title: 'Rundown kegiatan jelas', text: 'Jadwal, titik kumpul, dan barang bawaan tersampaikan sekali — tidak tenggelam di grup chat.', needs: ['corporateProgramme', 'eventDetails'] },
+        { title: 'Konfirmasi per divisi', text: 'Beri kategori per divisi untuk melihat siapa yang ikut dari tiap tim.', needs: ['guestCategory', 'insights'] },
+        { title: 'Kebutuhan khusus tercatat', text: 'Tanyakan preferensi makanan dan kebutuhan khusus lewat pertanyaan RSVP.', needs: ['rsvpQuestions'] },
+      ],
+    },
   },
 
-  // ── Resources ────────────────────────────────────────────────────────────────
-  'help-center': {
-    summary: 'Panduan langkah demi langkah untuk setiap fitur Invitesion — dari membuat undangan pertama sampai rekap pasca-acara.',
-    highlights: [
-      { title: 'Panduan memulai', text: 'Ikuti tutorial singkat untuk menerbitkan undangan pertamamu dalam hitungan menit.' },
-      { title: 'Artikel per fitur', text: 'Penjelasan mendalam untuk RSVP, daftar tamu, pembayaran, dan lainnya.' },
-      { title: 'Tim yang bisa dihubungi', text: 'Buntu? Tim kami siap membantu lewat email dan WhatsApp.' },
-    ],
+  features: {
+    'event-registration': {
+      summary: 'Kumpulkan konfirmasi peserta lewat tautan personal: hadir atau tidak, jumlah pendamping, dan jawaban atas pertanyaan khusus — semuanya masuk ke dashboard.',
+      summaryNeeds: ['personalLinks', 'rsvp', 'rsvpQuestions', 'guestList'],
+      highlights: [
+        { title: 'Tautan personal per peserta', text: 'Tambahkan peserta satu per satu atau impor dari spreadsheet; tiap orang menerima tautan dengan namanya sendiri.', needs: ['guestImport', 'personalLinks'] },
+        { title: 'Pertanyaan pendaftaran', text: 'Tambahkan pertanyaan pilihan atau isian, wajib atau opsional, bahkan yang muncul sesuai jawaban sebelumnya.', needs: ['rsvpQuestions'] },
+        { title: 'Pendaftaran terbuka', text: 'Satu tautan pendaftaran untuk disebar luas, dengan antrean permintaan yang ditinjau penyelenggara.', needs: ['selfRegistration'] },
+      ],
+    },
+    'online-rsvps': {
+      summary: 'Kumpulkan kepastian hadir tanpa menagih satu-satu — tamu konfirmasi lewat tautan personalnya, hasilnya masuk dashboard saat itu juga.',
+      summaryNeeds: ['rsvp', 'personalLinks', 'insights'],
+      highlights: [
+        { title: 'Form yang bisa diatur', text: 'Tanya jumlah pendamping, preferensi makanan, atau pertanyaan khusus lainnya.', needs: ['rsvp', 'rsvpQuestions'] },
+        { title: 'Ingatkan yang belum menjawab', text: 'Daftar tamu yang belum menjawab tersedia lengkap dengan tautan WhatsApp berisi pesan pengingat, untuk dikirim satu per satu.', needs: ['followUpLists', 'whatsappLinks'] },
+        { title: 'Rekap real-time', text: 'Angka hadir, mungkin, dan berhalangan selalu terkini untuk keputusan katering.', needs: ['rsvp', 'rsvpMaybe', 'insights'] },
+      ],
+    },
+    'form-builder': {
+      summary: 'Tambahkan pertanyaan sendiri ke form RSVP — pilihan atau isian, wajib atau opsional — dan lihat rekap jawabannya di dashboard.',
+      summaryNeeds: ['rsvpQuestions', 'answerSummary'],
+      highlights: [
+        { title: 'Jenis pertanyaan', text: 'Pertanyaan pilihan atau isian teks, masing-masing bisa dijadikan wajib.', needs: ['rsvpQuestions'] },
+        { title: 'Pertanyaan bersyarat', text: 'Tampilkan pertanyaan hanya bila jawaban sebelumnya cocok, supaya form tetap singkat.', needs: ['rsvpQuestions'] },
+        { title: 'Rekap & ekspor', text: 'Ringkasan jawaban tampil di daftar tamu dan ikut terunduh di ekspor CSV.', needs: ['answerSummary', 'guestCsvExport'] },
+      ],
+    },
+    'embeddable-forms': {
+      availability: 'unsupported',
+      summary: 'Form Invitesion belum bisa disematkan di situs lain: halaman Invitesion menolak dibingkai situs lain demi keamanan. Tamu menjawab RSVP langsung di tautan personalnya.',
+      summaryNeeds: [],
+      highlights: [
+        { title: 'Menyematkan form', text: NOT_PLANNED, needs: ['embeddableForms'] },
+        { title: 'Yang tersedia sekarang', text: 'Form RSVP di halaman undangan, dibuka lewat tautan personal tiap tamu.', needs: ['rsvp', 'personalLinks'] },
+      ],
+    },
+    'event-ticketing': {
+      availability: 'unsupported',
+      summary: 'Invitesion tidak menjual tiket dan tidak memproses pembayaran dari tamu. Undangan bersifat personal dan konfirmasinya tanpa biaya bagi tamu.',
+      summaryNeeds: [],
+      highlights: [
+        { title: 'Penjualan tiket', text: NOT_PLANNED, needs: ['ticketing'] },
+        { title: 'Yang tersedia sekarang', text: 'Kirim tautan personal ke daftar tamu yang sudah kamu tentukan, lalu pantau konfirmasinya.', needs: ['personalLinks', 'rsvp'] },
+      ],
+    },
+    donations: {
+      availability: 'unsupported',
+      summary: 'Invitesion tidak menerima atau memproses donasi. Penyelenggara bisa menampilkan rekening atau QRIS sendiri di halaman acara; transfer langsung ke penyelenggara.',
+      summaryNeeds: [],
+      highlights: [
+        { title: 'Pemrosesan & rekap donasi', text: 'Belum tersedia: Invitesion tidak menerima dana, tidak mengirim tanda terima, dan tidak mencocokkan transfer.', needs: ['cashlessCollection'] },
+        { title: 'Info rekening & QRIS', text: 'Tampilkan nomor rekening atau gambar QRIS penyelenggara, bisa hanya untuk tamu dengan tautan personal.', needs: ['giftAccounts'] },
+      ],
+    },
+    'appointment-scheduling': {
+      availability: 'unsupported',
+      summary: 'Invitesion tidak menyediakan penjadwalan janji temu. Setiap undangan memuat acara dengan waktu yang ditentukan penyelenggara.',
+      summaryNeeds: [],
+      highlights: [
+        { title: 'Pemesanan slot waktu', text: NOT_PLANNED, needs: ['appointmentScheduling'] },
+        { title: 'Jadwal acara', text: 'Satu undangan bisa memuat beberapa acara dengan waktu, lokasi, dan catatan masing-masing.', needs: ['eventDetails'] },
+      ],
+    },
+    'payment-processing': {
+      availability: 'unsupported',
+      summary: 'Invitesion tidak memproses pembayaran dari tamu. Hadiah dan iuran ditransfer tamu langsung ke rekening atau QRIS yang kamu tampilkan.',
+      summaryNeeds: [],
+      highlights: [
+        { title: 'Amplop digital & rekap otomatis', text: 'Belum tersedia: tidak ada pembayaran tamu yang diproses dan tidak ada pencocokan transfer otomatis.', needs: ['cashlessCollection'] },
+        { title: 'Info rekening & QRIS', text: 'Tampilkan rekening bank, e-wallet, atau gambar QRIS di halaman undangan.', needs: ['giftAccounts'] },
+        { title: 'Catatan hadiah manual', text: 'Penyelenggara bisa mencatat sendiri hadiah yang diterima di log hari-H.', needs: ['giftLog'] },
+      ],
+    },
+    'guest-list-management': {
+      summary: 'Semua tamu dalam satu daftar yang hidup — status undangan, konfirmasi, dan kategori tanpa spreadsheet berantakan.',
+      summaryNeeds: ['guestList', 'openTracking', 'rsvp', 'guestCategory'],
+      highlights: [
+        { title: 'Impor & kelompokkan tamu', text: 'Tempel dari spreadsheet atau unggah CSV, pratinjau dulu, lalu kelompokkan dengan kategori keluarga, kantor, atau komunitas.', needs: ['guestImport', 'guestCategory'] },
+        { title: 'Status per tamu', text: 'Lihat siapa yang sudah membuka undangan, membalas, atau perlu di-follow-up.', needs: ['openTracking', 'rsvp', 'followUpLists'] },
+        { title: 'Kategori & jawaban khusus', text: 'Tandai VIP atau keluarga lewat kategori; alergi dan kebutuhan khusus ditanyakan di form RSVP.', needs: ['guestCategory', 'rsvpQuestions'] },
+      ],
+    },
+    'seating-charts': {
+      summary: 'Catat meja dan kursi tiap tamu, serta suvenir yang sudah diberikan, di log hari-H milik penyelenggara.',
+      summaryNeeds: ['seatingLog'],
+      highlights: [
+        { title: 'Meja & kursi per tamu', text: 'Buat daftar meja, lalu tetapkan meja dan kursi tiap tamu; bisa diekspor ke CSV.', needs: ['seatingLog'] },
+        { title: 'Suvenir terdata', text: 'Tandai tamu yang sudah menerima suvenir di hari-H.', needs: ['seatingLog'] },
+        { title: 'Denah drag-and-drop', text: NOT_PLANNED, needs: ['seatingChartEditor'] },
+      ],
+    },
+    'menu-and-dietary': {
+      summary: 'Tanyakan pilihan menu dan pantangan makanan lewat pertanyaan RSVP, lalu lihat rekapnya untuk katering.',
+      summaryNeeds: ['rsvpQuestions', 'answerSummary'],
+      highlights: [
+        { title: 'Pertanyaan menu', text: 'Tambahkan pertanyaan pilihan menu atau alergi ke form RSVP.', needs: ['rsvpQuestions'] },
+        { title: 'Rekap untuk katering', text: 'Hitungan jawaban tampil di daftar tamu dan ikut di ekspor CSV.', needs: ['answerSummary', 'guestCsvExport'] },
+      ],
+    },
+    'contact-tagging': {
+      summary: 'Beri setiap tamu satu kategori — keluarga, kantor, VIP — untuk memfilter daftar dan membaca konfirmasi per kelompok.',
+      summaryNeeds: ['guestCategory', 'insights'],
+      highlights: [
+        { title: 'Kategori per tamu', text: 'Satu kategori per tamu, bisa diisi saat menambah atau mengimpor tamu.', needs: ['guestCategory', 'guestImport'] },
+        { title: 'Rekap per kelompok', text: 'Halaman insight menghitung kehadiran per kategori dan per acara.', needs: ['insights'] },
+      ],
+    },
+    'email-communications': {
+      availability: 'unsupported',
+      summary: 'Invitesion belum mengirim email. Tautan personal dibagikan lewat WhatsApp atau disalin ke kanal lain, termasuk email pribadimu.',
+      summaryNeeds: [],
+      highlights: [
+        { title: 'Pengiriman email dari Invitesion', text: NOT_PLANNED, needs: ['emailSending'] },
+        { title: 'Yang tersedia sekarang', text: 'Tautan WhatsApp per tamu berisi pesanmu, dan tautan personal yang bisa disalin ke kanal mana pun.', needs: ['whatsappLinks', 'personalLinks'] },
+      ],
+    },
+    'event-website-builder': {
+      summary: 'Susun halaman acara lengkap tanpa koding — agenda, lokasi, galeri, countdown, love story, dan ucapan dalam satu halaman yang rapi.',
+      summaryNeeds: ['eventDetails', 'mapLink', 'gallery', 'countdownCalendar', 'loveStory', 'wishes'],
+      highlights: [
+        { title: 'Bagian yang bisa diatur', text: 'Aktifkan hanya bagian yang acara kamu butuhkan, dari love story sampai catatan dress code.', needs: ['loveStory', 'eventDetails'] },
+        { title: 'Tampil baik di ponsel', text: 'Mayoritas tamu membuka lewat WhatsApp — tema dirancang untuk layar kecil.', needs: ['themeCatalog', 'invitationPage'] },
+        { title: 'Perubahan langsung tayang', text: 'Ubah jam atau lokasi kapan saja; tamu melihat versi terbaru saat membuka tautannya.', needs: ['liveEdits'] },
+      ],
+    },
+    'online-invitations': {
+      summary: 'Buat undangan digital yang bisa dibuka di perangkat mana pun — pilih tema, isi detail acara, dan sebar dalam hitungan menit.',
+      summaryNeeds: ['themeCatalog', 'eventDetails', 'personalLinks'],
+      highlights: [
+        { title: 'Puluhan tema siap pakai', text: 'Desain untuk pernikahan hingga acara komunitas, tinggal ganti isi.', needs: ['themeCatalog'] },
+        { title: 'Musik & sampul pembuka', text: 'Beri kesan pertama dengan sampul “Buka Undangan” yang memutar musik latar pilihanmu.', needs: ['music'] },
+        { title: 'Tautan personal per tamu', text: 'Setiap tamu menerima tautan dengan namanya sendiri — terasa diundang, bukan di-broadcast.', needs: ['personalLinks'] },
+      ],
+    },
+    'qr-code-rsvps': {
+      summary: 'Setiap tamu mendapat QR unik di tautan personalnya untuk check-in di lokasi — antrean masuk cepat dan data kehadiran akurat.',
+      summaryNeeds: ['guestPass', 'checkInScanner'],
+      highlights: [
+        { title: 'QR unik per tamu', text: 'Kode dibuat dari tautan personal tiap tamu dan ditandatangani, sehingga tidak bisa dipalsukan.', needs: ['guestPass'] },
+        { title: 'Check-in hitungan detik', text: 'Pindai dengan kamera ponsel panitia atau pemindai genggam; tetap berjalan saat sinyal putus dan punya cara manual.', needs: ['checkInScanner'] },
+        { title: 'Data hadir aktual', text: 'Bandingkan konfirmasi dengan kehadiran nyata untuk laporan pasca-acara.', needs: ['checkInScanner', 'insights'] },
+      ],
+    },
+    'guest-list-app': {
+      summary: 'Kelola daftar tamu dari browser ponsel — tanpa memasang aplikasi. Tambah tamu, kirim tautan, dan pantau konfirmasi di mana saja.',
+      summaryNeeds: ['guestList', 'whatsappLinks', 'insights'],
+      highlights: [
+        { title: 'Tanpa aplikasi', text: 'Dashboard berjalan di browser ponsel maupun laptop.', needs: ['guestList'] },
+        { title: 'Kirim dari ponsel', text: 'Ketuk tombol WhatsApp di tiap tamu untuk mengirim tautan personalnya.', needs: ['whatsappLinks'] },
+        { title: 'Bersama tim', text: 'Ajak co-host ikut mengelola daftar tamu dan check-in.', needs: ['teamAccess', 'checkInScanner'] },
+      ],
+    },
+    'multi-language': {
+      summary: 'Dashboard dan situs Invitesion tersedia dalam Bahasa Indonesia dan Inggris. Halaman undangan untuk tamu saat ini berbahasa Indonesia.',
+      summaryNeeds: ['interfaceBilingual'],
+      highlights: [
+        { title: 'Bahasa sesuai pengunjung', text: 'Bahasa situs dan dashboard dipilih otomatis dari negara dan pengaturan browser, dan bisa diganti kapan saja.', needs: ['interfaceBilingual'] },
+        { title: 'Undangan dwibahasa untuk tamu', text: 'Pilihan bahasa Inggris di halaman undangan sedang direncanakan.', needs: ['guestPageBilingual'] },
+      ],
+    },
+    'event-check-in-app': {
+      summary: 'Pemindai check-in di browser ponsel panitia: pindai QR tamu, sambut dengan namanya, dan catat kehadiran — tanpa aplikasi tambahan.',
+      summaryNeeds: ['checkInScanner'],
+      highlights: [
+        { title: 'Kamera atau pemindai genggam', text: 'Gunakan kamera ponsel atau pemindai genggam di meja penerima tamu.', needs: ['checkInScanner'] },
+        { title: 'Tahan sinyal putus', text: 'Pindaian disimpan dulu saat koneksi hilang dan dikirim begitu tersambung lagi.', needs: ['checkInScanner'] },
+        { title: 'Petugas penerima tamu', text: 'Ajak petugas dengan akses khusus meja check-in.', needs: ['teamAccess', 'checkInScanner'] },
+      ],
+    },
+    'badge-printing': {
+      availability: 'unsupported',
+      summary: 'Invitesion tidak mencetak name tag atau badge. QR tamu ada di tautan personal untuk dipindai saat check-in.',
+      summaryNeeds: [],
+      highlights: [
+        { title: 'Cetak badge', text: NOT_PLANNED, needs: ['badgePrinting'] },
+        { title: 'QR di tautan personal', text: 'Tamu menunjukkan QR dari ponselnya untuk check-in.', needs: ['guestPass'] },
+      ],
+    },
+    'live-attendance': {
+      summary: 'Lihat tamu yang sudah check-in selama acara berlangsung, langsung dari pemindai panitia.',
+      summaryNeeds: ['checkInScanner'],
+      highlights: [
+        { title: 'Kehadiran tercatat seketika', text: 'Setiap pindaian langsung tercatat sebagai kehadiran tamu.', needs: ['checkInScanner'] },
+        { title: 'Konfirmasi vs kehadiran', text: 'Bandingkan konfirmasi RSVP dengan kehadiran nyata setelah acara.', needs: ['checkInScanner', 'insights'] },
+      ],
+    },
+    'analytics-and-reporting': {
+      summary: 'Pahami perjalanan tamu dari undangan dibuka sampai menjawab RSVP — angka penting dalam satu dashboard, lengkap dengan ekspor CSV.',
+      summaryNeeds: ['insights', 'openTracking', 'guestCsvExport'],
+      highlights: [
+        { title: 'Statistik pembukaan', text: 'Ketahui berapa tamu yang sudah membuka undangan, dan lihat pembukaan 14 hari terakhir.', needs: ['openTracking', 'insights'] },
+        { title: 'Daftar follow-up', text: 'Daftar “belum membuka” dan “belum menjawab” siap ditindaklanjuti lewat WhatsApp.', needs: ['followUpLists', 'whatsappLinks', 'openTracking'] },
+        csvHighlight('Unduh data tamu, jawaban RSVP, dan jawaban pertanyaan khusus untuk laporan panitia.'),
+      ],
+    },
+    salesforce: {
+      availability: 'unsupported',
+      summary: 'Invitesion tidak terhubung ke Salesforce. Data tamu bisa diunduh sebagai CSV lalu diimpor ke CRM pilihanmu.',
+      summaryNeeds: [],
+      highlights: [{ title: 'Integrasi Salesforce', text: NOT_PLANNED, needs: ['crmIntegrations'] }, csvHighlight('Unduh daftar tamu dan jawaban RSVP sebagai CSV.')],
+    },
+    hubspot: {
+      availability: 'unsupported',
+      summary: 'Invitesion tidak terhubung ke HubSpot. Data tamu bisa diunduh sebagai CSV lalu diimpor ke CRM pilihanmu.',
+      summaryNeeds: [],
+      highlights: [{ title: 'Integrasi HubSpot', text: NOT_PLANNED, needs: ['crmIntegrations'] }, csvHighlight('Unduh daftar tamu dan jawaban RSVP sebagai CSV.')],
+    },
+    stripe: {
+      availability: 'unsupported',
+      summary: 'Invitesion tidak memproses pembayaran tamu, baik lewat Stripe maupun penyedia lain. Rekening atau QRIS milikmu bisa ditampilkan di halaman undangan.',
+      summaryNeeds: [],
+      highlights: [
+        { title: 'Pembayaran tamu lewat Stripe', text: NOT_PLANNED, needs: ['cashlessCollection'] },
+        { title: 'Info rekening & QRIS', text: 'Tampilkan rekening atau gambar QRIS untuk hadiah.', needs: ['giftAccounts'] },
+      ],
+    },
+    'google-analytics': {
+      availability: 'unsupported',
+      summary: 'Halaman undangan tidak memasang Google Analytics. Pembukaan undangan dihitung oleh Invitesion sendiri dan tampil di dashboard.',
+      summaryNeeds: [],
+      highlights: [
+        { title: 'Integrasi Google Analytics', text: NOT_PLANNED, needs: ['thirdPartyAnalytics'] },
+        { title: 'Statistik bawaan', text: 'Jumlah tamu yang sudah membuka undangan dan yang sudah menjawab tampil di halaman insight.', needs: ['openTracking', 'insights'] },
+      ],
+    },
+    zapier: {
+      availability: 'unsupported',
+      summary: 'Invitesion belum punya integrasi Zapier atau webhook keluar. Data tamu bisa diunduh sebagai CSV untuk diolah di alat lain.',
+      summaryNeeds: [],
+      highlights: [{ title: 'Integrasi Zapier', text: NOT_PLANNED, needs: ['automationIntegrations'] }, csvHighlight('Unduh data tamu untuk diolah di alat lain.')],
+    },
+    'api-and-export': {
+      summary: 'Unduh data tamu dan jawaban RSVP sebagai CSV kapan saja. API publik belum tersedia.',
+      summaryNeeds: ['guestCsvExport'],
+      highlights: [
+        csvHighlight('Daftar tamu, status, jumlah pendamping, dan jawaban pertanyaan khusus dalam satu berkas.'),
+        { title: 'Ekspor log hari-H', text: 'Unduh data meja, suvenir, dan catatan hadiah dari log hari-H.', needs: ['seatingLog', 'giftLog'] },
+        { title: 'API publik', text: NOT_PLANNED, needs: ['publicApi'] },
+      ],
+    },
   },
-  faq: {
-    summary: 'Jawaban cepat untuk pertanyaan yang paling sering diajukan tentang harga, masa aktif, tema, dan pembayaran.',
-    highlights: [
-      { title: 'Harga & masa aktif', text: 'Sekali bayar per undangan dan aktif 12 bulan penuh — detailnya dijawab di sini.' },
-      { title: 'Tema & kustomisasi', text: 'Apa saja yang bisa diubah di tiap paket, dijelaskan tanpa jargon.' },
-      { title: 'Pembayaran & refund', text: 'Metode yang didukung dan kebijakan pengembalian dana.' },
-    ],
-  },
-  'privacy-and-security': {
-    summary: 'Data acara dan tamu adalah milikmu — pelajari cara Invitesion menyimpan, melindungi, dan tidak pernah menjual data.',
-    highlights: [
-      { title: 'Data terenkripsi', text: 'Komunikasi dan penyimpanan data dilindungi enkripsi standar industri.' },
-      { title: 'Akses terkontrol', text: 'Halaman undangan hanya dapat dibuka melalui tautan yang kamu sebarkan.' },
-      { title: 'Tanpa jual data', text: 'Data tamu tidak pernah dibagikan atau dijual ke pihak ketiga.' },
-    ],
+
+  resources: {
+    'case-studies': notPublished('Belum ada studi kasus yang dipublikasikan.'),
+    'event-spotlights': notPublished('Belum ada sorotan acara yang dipublikasikan.'),
+    reviews: notPublished('Belum ada ulasan pelanggan yang dipublikasikan di halaman ini.'),
+    'privacy-and-security': {
+      summary: 'Data acara dan tamu adalah milikmu — begini Invitesion menjaga halaman undangan dan data tamu saat ini.',
+      summaryNeeds: ['unlistedPages', 'personalLinks'],
+      highlights: [
+        { title: 'Koneksi HTTPS', text: 'Halaman Invitesion dilayani lewat koneksi HTTPS yang terenkripsi.', needs: ['invitationPage'] },
+        { title: 'Tidak diindeks mesin pencari', text: 'Halaman undangan dan tautan personal tidak diindeks mesin pencari; hanya yang menerima tautannya yang bisa membukanya.', needs: ['unlistedPages', 'personalLinks'] },
+        { title: 'Detail hadiah bisa dibatasi', text: 'Nomor rekening dan QRIS bisa ditampilkan hanya di tautan personal, tidak di tautan umum.', needs: ['giftAccounts'] },
+        { title: 'Pembukaan dihitung sendiri', text: 'Invitesion mencatat kapan tautan personal dibuka untuk dashboard penyelenggara, tanpa layanan analitik pihak ketiga.', needs: ['openTracking'] },
+      ],
+    },
+    'event-roi-calculator': notPublished('Kalkulator ROI acara belum tersedia.'),
+    sales: {
+      summary: 'Untuk kebutuhan acara khusus atau pembelian dalam jumlah banyak, hubungi tim Invitesion lewat email.',
+      summaryNeeds: ['supportEmail'],
+      highlights: [
+        contactHighlight,
+        { title: 'Workspace reseller', text: 'Workspace dan kredit untuk reseller sedang direncanakan.', needs: ['resellerWorkspace'] },
+      ],
+    },
+    'help-center': {
+      summary: 'Pusat bantuan sedang disusun. Sementara itu, jawaban singkat ada di FAQ dan tim kami bisa dihubungi lewat email.',
+      summaryNeeds: ['supportEmail'],
+      highlights: [
+        contactHighlight,
+        { title: 'Artikel panduan per fitur', text: 'Tutorial dan artikel per fitur sedang disiapkan.', needs: ['helpArticles'] },
+      ],
+    },
+    'community-forum': notPublished('Belum ada forum komunitas.'),
+    'press-and-blog': notPublished('Belum ada artikel atau siaran pers yang dipublikasikan.'),
+    faq: {
+      summary: 'Jawaban singkat untuk pertanyaan yang paling sering diajukan tentang harga, masa aktif, tema, dan tamu.',
+      summaryNeeds: ['draftPreview', 'themeCatalog'],
+      highlights: [
+        { title: 'Berapa lama undangan aktif?', text: 'Sekali bayar per undangan, aktif 12 bulan. Draf dan pratinjau bisa dibuat tanpa biaya.', needs: ['draftPreview'] },
+        { title: 'Apakah tamu perlu akun?', text: 'Tidak. Tamu cukup membuka tautan personalnya untuk melihat undangan dan menjawab RSVP.', needs: ['personalLinks', 'rsvp'] },
+        { title: 'Bisakah ganti tema?', text: 'Bisa. Paket Standard berganti antar tema Standard; Premium membuka semua tema premium.', needs: ['themeSwitch'] },
+      ],
+    },
+    contact: {
+      summary: 'Hubungi tim Invitesion lewat email di hello@invitesion.id.',
+      summaryNeeds: ['supportEmail'],
+      highlights: [contactHighlight],
+    },
+    'app-status': notPublished('Halaman status layanan belum tersedia.'),
+    careers: notPublished('Belum ada lowongan yang dipublikasikan.'),
+    affiliates: notPublished('Program afiliasi belum tersedia.'),
   },
 };
 
@@ -411,8 +637,10 @@ const resourcesTitles = [
   'Affiliates',
 ] as const;
 
-const titleRegistry: Record<MarketingCategory, readonly string[]> = { 'event-types': eventTypesTitles, features: featuresTitles, resources: resourcesTitles };
+export const marketingTitles: Record<MarketingCategory, readonly string[]> = { 'event-types': eventTypesTitles, features: featuresTitles, resources: resourcesTitles };
 export const marketingIndexPaths: Record<MarketingCategory, string> = { 'event-types': '/event-types', features: '/features', resources: '/resources' };
+/** Hand-written copy by category and slug, for the B-022 cross-check. */
+export const marketingPageCopy: Readonly<Record<MarketingCategory, Readonly<Record<string, PageCopy>>>> = handWritten;
 
 export function slugifyMarketingTitle(title: string) {
   return title.toLowerCase().replace(/–/g, '-').replace(/&/g, ' and ').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -421,21 +649,42 @@ export function marketingHref(category: MarketingCategory, title: string) {
   if (category === 'resources' && title === 'Contact') return 'mailto:hello@invitesion.id';
   return `${marketingIndexPaths[category]}/${slugifyMarketingTitle(title)}`;
 }
-const makePages = (category: MarketingCategory) =>
-  titleRegistry[category].map((title) => {
-    const slug = slugifyMarketingTitle(title);
-    const detail = handWritten[slug];
-    return {
-      title,
-      slug,
-      eyebrow: fallbacks[category].eyebrow,
-      summary: detail?.summary ?? fallbacks[category].summary,
-      highlights: detail?.highlights ?? fallbacks[category].highlights,
-    };
-  });
-export const marketingPages: Record<MarketingCategory, readonly MarketingPage[]> = {
-  'event-types': makePages('event-types'),
-  features: makePages('features'),
-  resources: makePages('resources'),
-};
+
+function resolvePage(category: MarketingCategory, title: string, env: Record<string, string | undefined>): MarketingPage {
+  const slug = slugifyMarketingTitle(title);
+  const copy = handWritten[category][slug] ?? (category === 'event-types' ? eventTypeFallback : undefined);
+  if (!copy) throw new Error(`B-022: ${category}/${slug} has no hand-written copy`);
+  const availability = copy.availability ?? 'available';
+  return {
+    title,
+    slug,
+    category,
+    eyebrow: EYEBROWS[category],
+    summary: copy.summary,
+    summaryNeeds: copy.summaryNeeds,
+    availability,
+    status: availability === 'available' ? claimStatus(copy.summaryNeeds, env) : availability,
+    highlights: copy.highlights.map((highlight) => ({ ...highlight, status: claimStatus(highlight.needs, env) })),
+  };
+}
+
+/** Every marketing page with its claims resolved against the flags in `env` (the build's environment by default). */
+export function buildMarketingPages(env: Record<string, string | undefined> = process.env): Record<MarketingCategory, readonly MarketingPage[]> {
+  return {
+    'event-types': eventTypesTitles.map((title) => resolvePage('event-types', title, env)),
+    features: featuresTitles.map((title) => resolvePage('features', title, env)),
+    resources: resourcesTitles.map((title) => resolvePage('resources', title, env)),
+  };
+}
+
+export const marketingPages = buildMarketingPages();
 export function getMarketingPage(category: MarketingCategory, slug: string) { return marketingPages[category].find(page => page.slug === slug); }
+
+/** B-022: the page's title and summary as metadata; only pages whose claims are available are offered to search engines. */
+export function marketingPageMetadata(page: MarketingPage): Metadata {
+  return {
+    title: `${page.title} — Invitesion`,
+    description: page.summary,
+    robots: page.status === 'available' ? undefined : { index: false, follow: true },
+  };
+}

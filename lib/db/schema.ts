@@ -90,10 +90,23 @@ export const invitations = pgTable(
     // B-037 (D-055): the key a creation carried (the wizard's draft key). A retry of the same creation by the same owner
     // finds its row instead of making a second draft, through either content writer. Null for rows made without one.
     creationKey: varchar('creation_key', { length: 255 }),
+    // B-031 (D-063): the owner's deletion. `deleted_at` opens the soft-delete window: every guest surface and every writer
+    // treats the invitation as gone and only its owner may restore it. The purge job (`services/api/src/retention.rs`)
+    // runs from `purge_after`, removes the guests, wishes, analytics, versions and media, clears the content and sets
+    // `purged_at`; the row stays as a tombstone so orders keep their reference and the slug is never handed out again.
+    deletedAt: timestamp('deleted_at'),
+    purgeAfter: timestamp('purge_after'),
+    purgedAt: timestamp('purged_at'),
   },
   // Unique per owner, and only where a key exists: rows created before B-037 (all null) never collide.
   (t) => ({
     creationKeyIdx: uniqueIndex('invitations_user_creation_key_idx').on(t.userId, t.creationKey).where(sql`${t.creationKey} is not null`),
+    purgeDueIdx: index('invitations_purge_due_idx').on(t.purgeAfter).where(sql`${t.deletedAt} is not null and ${t.purgedAt} is null`),
+    deletionWindowCheck: check(
+      'invitations_deletion_window_check',
+      sql`(${t.deletedAt} is null) = (${t.purgeAfter} is null) and (${t.purgeAfter} is null or ${t.purgeAfter} >= ${t.deletedAt})`,
+    ),
+    purgedCheck: check('invitations_purged_check', sql`${t.purgedAt} is null or ${t.deletedAt} is not null`),
   }),
 );
 

@@ -4,13 +4,19 @@ import styles from './home.module.css';
 import MarketingHeader from './marketing-header';
 import MarketingFooter from './marketing-footer';
 import HeroRotator from './hero-rotator';
-import { getMarketingCopy } from './marketing-copy';
+import { getMarketingCopy, marketingClaimNeeds } from './marketing-copy';
 import { getLocale } from '@/lib/locale-server';
+import { claimStatus, STATUS_LABEL } from '@/lib/marketing/capabilities';
 
 export default async function HomePage() {
   const locale = await getLocale();
   const copy = getMarketingCopy(locale);
   const cardStyles = [styles.fPink, styles.fPaper, styles.fPeach, styles.fInk];
+  // B-022: each roadmap item says whether it is in limited trial or still planned; one that has shipped drops out.
+  const roadmap = copy.roadmapItems.flatMap((item, index) => {
+    const status = claimStatus(marketingClaimNeeds.roadmapItems[index]);
+    return status === 'available' ? [] : [{ item, status }];
+  });
 
   return (
     <main className={styles.site}>
@@ -128,8 +134,8 @@ export default async function HomePage() {
             <p>{copy.roadmapBody}</p>
           </div>
           <div className={styles.roadmapGrid}>
-            {copy.roadmapItems.map((item) => (
-              <div key={item}><span>{copy.roadmapSoon}</span><b>{item}</b></div>
+            {roadmap.map(({ item, status }) => (
+              <div key={item}><span>{STATUS_LABEL[status][locale]}</span><b>{item}</b></div>
             ))}
           </div>
         </section>

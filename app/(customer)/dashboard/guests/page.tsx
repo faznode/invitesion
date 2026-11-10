@@ -1,4 +1,4 @@
-import { desc, eq } from 'drizzle-orm';
+import { and, desc, eq, isNull } from 'drizzle-orm';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getUser } from '@/lib/db/queries';
@@ -34,7 +34,12 @@ export default async function CustomerGuests({ searchParams }: { searchParams: P
   if (user.role === 'ADMIN') redirect(getPrivateAdminPath() ?? '/sign-in');
   const en = (await getLocale()) === 'en';
   const query = await searchParams;
-  const invites = await db.select().from(invitations).where(eq(invitations.userId, user.id)).orderBy(desc(invitations.createdAt));
+  // B-031: a deleted invitation's guest list is gone with it (restore it from the invitations page first).
+  const invites = await db
+    .select()
+    .from(invitations)
+    .where(and(eq(invitations.userId, user.id), isNull(invitations.deletedAt)))
+    .orderBy(desc(invitations.createdAt));
   // Explicit context: which invitation is being managed comes from the URL
   // (?invitation=<id>), never implicitly from "the newest one". Picking
   // invites[0] silently attached guests to whichever invitation happened to be

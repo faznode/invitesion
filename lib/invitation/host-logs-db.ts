@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { and, asc, count, desc, eq, ne, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, isNull, ne, sql } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
 import { giftLogs, guestLogs, guests, invitations, seatingTables } from '@/lib/db/schema';
 import {
@@ -30,7 +30,7 @@ async function lockOwned(tx: Tx, ownerId: number, invitationId: number): Promise
   const [row] = await tx
     .select({ eventType: invitations.eventType })
     .from(invitations)
-    .where(and(eq(invitations.id, invitationId), eq(invitations.userId, ownerId)))
+    .where(and(eq(invitations.id, invitationId), eq(invitations.userId, ownerId), isNull(invitations.deletedAt)))
     .for('update');
   return row ?? null;
 }

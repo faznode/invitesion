@@ -1,10 +1,21 @@
 {
   "db_name": "PostgreSQL",
-  "query": "select status, expires_at, config from invitations where id = $1",
+  "query": "select id, status, expires_at from invitations where slug = $1 and deleted_at is null",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "invitations",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
         "name": "status",
         "type_info": "Varchar",
         "origin": {
@@ -15,7 +26,7 @@
         }
       },
       {
-        "ordinal": 1,
+        "ordinal": 2,
         "name": "expires_at",
         "type_info": "Timestamp",
         "origin": {
@@ -24,29 +35,18 @@
             "name": "expires_at"
           }
         }
-      },
-      {
-        "ordinal": 2,
-        "name": "config",
-        "type_info": "Jsonb",
-        "origin": {
-          "Table": {
-            "table": "invitations",
-            "name": "config"
-          }
-        }
       }
     ],
     "parameters": {
       "Left": [
-        "Int4"
+        "Text"
       ]
     },
     "nullable": [
       false,
-      true,
+      false,
       true
     ]
   },
-  "hash": "6b75f0506209e9f6f83e8377049975f6b8e7968062ec4ff877f6e6af492f6294"
+  "hash": "509b49f04670bf7c7fb02e5a75ed36e59b2c9e1394f44b1af1de2222ab7508b3"
 }

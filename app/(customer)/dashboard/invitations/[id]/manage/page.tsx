@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { notFound, redirect } from 'next/navigation';
 import { getPrivateAdminPath } from '@/lib/auth/admin-access';
 import { db } from '@/lib/db/drizzle';
@@ -27,7 +27,7 @@ export default async function InvitationManagePage({
   const [invitation] = await db
     .select({ id: invitations.id, slug: invitations.slug, config: invitations.config })
     .from(invitations)
-    .where(and(eq(invitations.id, id), eq(invitations.userId, user.id)))
+    .where(and(eq(invitations.id, id), eq(invitations.userId, user.id), isNull(invitations.deletedAt)))
     .limit(1);
   if (!invitation) notFound();
 

@@ -34,11 +34,16 @@ export type InvitationAccess = { role: AccessRole; invitation: Invitation };
  * `FLAG_TEAM_ACCESS` is on and their grant is live, read on every call, so a revoked grant or the flag switched off
  * stops a member at their next request. A grant counts only for a live customer account: an account later made an
  * administrator, or deleted, holds none. Every page, action and route that can serve a member asks this first, since
- * the writers check the grant but not the flag.
+ * the writers check the grant but not the flag. B-031 (D-063): a deleted invitation grants nothing to anyone; its owner
+ * gets it back only through the restore on the invitations list.
  */
 export async function invitationAccess(userId: number, invitationId: number, env: Env = process.env): Promise<InvitationAccess | null> {
   if (!Number.isInteger(invitationId) || invitationId <= 0) return null;
-  const [invitation] = await db.select().from(invitations).where(eq(invitations.id, invitationId)).limit(1);
+  const [invitation] = await db
+    .select()
+    .from(invitations)
+    .where(and(eq(invitations.id, invitationId), isNull(invitations.deletedAt)))
+    .limit(1);
   if (!invitation) return null;
   if (invitation.userId === userId) return { role: 'owner', invitation };
   if (!isFlagOn('TEAM_ACCESS', env)) return null;
@@ -80,7 +85,7 @@ export async function sharedInvitations(userId: number, env: Env = process.env):
     })
     .from(invitationMembers)
     .innerJoin(invitations, eq(invitations.id, invitationMembers.invitationId))
-    .where(and(eq(invitationMembers.userId, userId), isNull(invitationMembers.revokedAt)))
+    .where(and(eq(invitationMembers.userId, userId), isNull(invitationMembers.revokedAt), isNull(invitations.deletedAt)))
     .orderBy(asc(invitations.slug));
   return rows.flatMap((row) => (isMemberRole(row.role) ? [{ ...row, role: row.role }] : []));
 }
@@ -146,7 +151,7 @@ export async function createJoinLink(
     const [owned] = await tx
       .select({ id: invitations.id })
       .from(invitations)
-      .where(and(eq(invitations.id, invitationId), eq(invitations.userId, ownerId)))
+      .where(and(eq(invitations.id, invitationId), eq(invitations.userId, ownerId), isNull(invitations.deletedAt)))
       .for('update');
     if (!owned) return { kind: 'notfound' };
     const [{ live }] = await tx
@@ -219,7 +224,7 @@ export async function joinPreview(token: string, userId: number | null, now: Dat
     })
     .from(invitationMembers)
     .innerJoin(invitations, eq(invitations.id, invitationMembers.invitationId))
-    .where(eq(invitationMembers.tokenHash, joinTokenHash(token)))
+    .where(and(eq(invitationMembers.tokenHash, joinTokenHash(token)), isNull(invitations.deletedAt)))
     .limit(1);
   if (!row || row.revokedAt || !isMemberRole(row.role)) return { state: 'invalid' };
   if (row.userId !== null) {
@@ -255,7 +260,7 @@ export async function acceptJoinLink(userId: number, token: string, now: Date = 
         })
         .from(invitationMembers)
         .innerJoin(invitations, eq(invitations.id, invitationMembers.invitationId))
-        .where(eq(invitationMembers.tokenHash, joinTokenHash(token)))
+        .where(and(eq(invitationMembers.tokenHash, joinTokenHash(token)), isNull(invitations.deletedAt)))
         .for('update', { of: invitationMembers });
       if (!row || !isMemberRole(row.role)) return { kind: 'invalid' };
       const live =

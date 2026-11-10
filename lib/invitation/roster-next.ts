@@ -65,16 +65,17 @@ async function lockRoster(tx: Tx, invitationId: number) {
 /**
  * G-044 (D-057): the invitation `i` is the caller's, or the caller holds a live grant on it whose role has the
  * capability (`members.ts`). The Rust writer applies the same rule (`members::caller_may`). A refusal is `notfound`,
- * exactly as for another owner's invitation, so a member learns nothing about what lies outside their role.
+ * exactly as for another owner's invitation, so a member learns nothing about what lies outside their role. B-031
+ * (D-063): a deleted invitation is refused to everyone, its owner included, until it is restored.
  */
 function callerMay(userId: number, capability: Capability) {
   const roles = memberRolesFor(capability);
-  if (!roles.length) return sql`i.user_id = ${userId}`;
+  if (!roles.length) return sql`(i.deleted_at is null and i.user_id = ${userId})`;
   const allowed = sql.join(
     roles.map((role) => sql`${role}`),
     sql`, `,
   );
-  return sql`(i.user_id = ${userId} or exists (select 1 from invitation_members m where m.invitation_id = i.id and m.user_id = ${userId} and m.revoked_at is null and m.role in (${allowed})))`;
+  return sql`(i.deleted_at is null and (i.user_id = ${userId} or exists (select 1 from invitation_members m where m.invitation_id = i.id and m.user_id = ${userId} and m.revoked_at is null and m.role in (${allowed}))))`;
 }
 
 async function accessibleInvitation(tx: Tx, invitationId: number, userId: number, capability: Capability) {
@@ -439,7 +440,7 @@ export async function registerNext(
     .select({ invitationId: guestRegistrationLinks.invitationId, status: invitations.status, expiresAt: invitations.expiresAt })
     .from(guestRegistrationLinks)
     .innerJoin(invitations, eq(invitations.id, guestRegistrationLinks.invitationId))
-    .where(eq(guestRegistrationLinks.token, input.token))
+    .where(and(eq(guestRegistrationLinks.token, input.token), isNull(invitations.deletedAt)))
     .limit(1);
   if (!link || !registrationOpen(link, now)) return { kind: 'closed' };
   const limits = registrationLimits(env);

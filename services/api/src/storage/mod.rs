@@ -80,6 +80,23 @@ impl Storage {
             Storage::S3(s3) => s3.put(key, bytes, content_type).await,
         }
     }
+
+    /// B-031: removes an object; deleting a missing object succeeds (idempotent, so a purge can be retried).
+    pub async fn delete(&self, key: &str) -> Result<(), StorageError> {
+        match self {
+            Storage::Local(local) => local.delete(key).await,
+            Storage::S3(s3) => s3.delete(key).await,
+        }
+    }
+
+    /// B-031: every key under `prefix` (ending in `/`), sorted. The purge lists an invitation's own prefixes, so an
+    /// upload no row refers to any more (a replaced photo) is found and removed with the rest.
+    pub async fn list(&self, prefix: &str) -> Result<Vec<String>, StorageError> {
+        match self {
+            Storage::Local(local) => local.list(prefix).await,
+            Storage::S3(s3) => s3.list(prefix).await,
+        }
+    }
 }
 
 /// Rejects anything that could escape the storage root or be reinterpreted by a filesystem: POSIX-style relative keys

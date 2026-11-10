@@ -1,6 +1,6 @@
-import { desc, eq } from 'drizzle-orm';
+import { and, desc, eq, isNull } from 'drizzle-orm';
 import Link from 'next/link';
-import { ClipboardList, ExternalLink, FileText } from 'lucide-react';
+import { ClipboardList, ExternalLink, FileText, RotateCcw, Trash2 } from 'lucide-react';
 import { redirect } from 'next/navigation';
 import { getUser } from '@/lib/db/queries';
 import { getPrivateAdminPath } from '@/lib/auth/admin-access';
@@ -8,14 +8,15 @@ import { db } from '@/lib/db/drizzle';
 import { invitations } from '@/lib/db/schema';
 import { getLocale } from '@/lib/locale-server';
 import { invitationStatusLabel } from '@/lib/i18n';
+import { deletionWindowDays } from '@/lib/invitation/deletion-db';
 import { invitationPath } from '@/lib/invitation/public-url';
 import { publishBlockers } from '@/lib/invitation/publish-rules';
 import { paidInvitationIds } from '@/lib/payment/service';
-import { publish, unpublish } from './actions';
+import { deleteInvitation, publish, restoreInvitation, unpublish } from './actions';
 
 export const dynamic = 'force-dynamic';
 
-type Search = { published?: string; unpublished?: string; error?: string; why?: string };
+type Search = { published?: string; unpublished?: string; deleted?: string; restored?: string; error?: string; why?: string };
 
 export default async function CustomerInvitations({
   searchParams,
@@ -30,11 +31,14 @@ export default async function CustomerInvitations({
   const en = locale === 'en';
   const feedback = await searchParams;
 
+  // B-031: a purged invitation is a tombstone with nothing left to show or restore, so it leaves the list; one in its
+  // deletion window stays, with its restore.
   const rows = await db
     .select()
     .from(invitations)
-    .where(eq(invitations.userId, user.id))
+    .where(and(eq(invitations.userId, user.id), isNull(invitations.purgedAt)))
     .orderBy(desc(invitations.createdAt));
+  const windowDays = deletionWindowDays();
 
   // Which invitations have been paid for, resolved in one query rather than one
   // per card. Publishing is the thing the customer buys, so this decides whether
@@ -71,6 +75,9 @@ export default async function CustomerInvitations({
 
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {cards.map(({ row: r, paid }) => {
+            if (r.deletedAt && r.purgeAfter) {
+              return <DeletedCard key={r.id} id={r.id} slug={r.slug} eventType={r.eventType} purgeAfter={r.purgeAfter} en={en} />;
+            }
             const isPublished = r.status === 'PUBLISHED';
             // Evaluated before the customer clicks, so a disabled button always
             // explains itself instead of failing only on submit.
@@ -140,6 +147,8 @@ export default async function CustomerInvitations({
                     blockers={blockers}
                     en={en}
                   />
+
+                  {windowDays !== null && <DeleteControl id={r.id} windowDays={windowDays} en={en} />}
                 </div>
               </article>
             );
@@ -247,7 +256,129 @@ function PublishControl({
   );
 }
 
+/**
+ * B-031 (D-063): a deleted invitation in its window. Nothing else is offered (every other page answers 404 until the
+ * restore); the date is when the purge may run, so "on or after" stays true however long the job waits.
+ */
+function DeletedCard({
+  id,
+  slug,
+  eventType,
+  purgeAfter,
+  en,
+}: {
+  id: number;
+  slug: string;
+  eventType: string;
+  purgeAfter: Date;
+  en: boolean;
+}) {
+  const date = purgeAfter.toLocaleDateString(en ? 'en-GB' : 'id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+  return (
+    <article className="flex flex-col rounded-xl border border-dashed border-rose-200 bg-rose-50/40 p-5">
+      <div className="flex items-start justify-between gap-3">
+        <span className="inline-flex items-center gap-2 text-xs font-medium capitalize text-slate-500">
+          <Trash2 className="h-4 w-4 text-rose-600" aria-hidden="true" />
+          {eventType}
+        </span>
+        <span className="rounded-full bg-rose-100 px-2.5 py-1 text-[10px] font-semibold text-rose-700">
+          {en ? 'Deleted' : 'Dihapus'}
+        </span>
+      </div>
+
+      <h2 className="mt-5 truncate text-lg font-bold text-slate-500">/{slug}</h2>
+      <p className="mt-2 text-pretty text-xs leading-5 text-slate-600">
+        {en
+          ? `Guests can no longer open this invitation. It will be deleted permanently on or after ${date}; until then you can restore it.`
+          : `Tamu tidak bisa lagi membuka undangan ini. Undangan akan dihapus permanen pada atau setelah ${date}; sebelum itu Anda bisa memulihkannya.`}
+      </p>
+
+      <form action={restoreInvitation} className="mt-5">
+        <input type="hidden" name="invitationId" value={id} />
+        <button
+          type="submit"
+          className="inline-flex min-h-10 w-full items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+        >
+          <RotateCcw className="h-4 w-4" aria-hidden="true" />
+          {en ? 'Restore invitation' : 'Pulihkan undangan'}
+        </button>
+      </form>
+    </article>
+  );
+}
+
+/**
+ * B-031: deletion sits behind a disclosure and a required confirmation (checked again by the action), so it takes two
+ * deliberate steps and works without client JavaScript. Shown only while the flag is on and the window is set.
+ */
+function DeleteControl({ id, windowDays, en }: { id: number; windowDays: number; en: boolean }) {
+  const days = en ? `${windowDays} ${windowDays === 1 ? 'day' : 'days'}` : `${windowDays} hari`;
+  return (
+    <details className="mt-1 border-t border-slate-100 pt-3">
+      <summary className="inline-flex min-h-10 w-full cursor-pointer list-none items-center justify-center gap-1.5 rounded-lg px-3 text-xs font-semibold text-rose-700 transition hover:bg-rose-50 [&::-webkit-details-marker]:hidden">
+        <Trash2 className="h-4 w-4" aria-hidden="true" />
+        {en ? 'Delete invitation' : 'Hapus undangan'}
+      </summary>
+      <form action={deleteInvitation} className="mt-2 grid gap-3 rounded-lg border border-rose-200 bg-rose-50 p-3">
+        <input type="hidden" name="invitationId" value={id} />
+        <p className="text-pretty text-[11px] leading-5 text-rose-900">
+          {en
+            ? `Guests lose access at once: the invitation link, personal links, passes and photos stop working. You can restore it for ${days}; after that its guests, wishes, statistics, logs, version history and photos are deleted permanently. Payment records are kept.`
+            : `Tamu langsung kehilangan akses: tautan undangan, tautan pribadi, pass, dan foto berhenti berfungsi. Anda bisa memulihkannya selama ${days}; setelah itu tamu, ucapan, statistik, catatan, riwayat versi, dan fotonya dihapus permanen. Catatan pembayaran tetap disimpan.`}
+        </p>
+        <label className="flex items-start gap-2 text-[11px] font-medium leading-5 text-rose-900">
+          <input type="checkbox" name="confirm" value="yes" required className="mt-0.5 h-4 w-4 shrink-0 accent-rose-600" />
+          {en ? 'I understand that guests lose access now.' : 'Saya mengerti tamu langsung kehilangan akses.'}
+        </label>
+        <button
+          type="submit"
+          className="inline-flex min-h-10 items-center justify-center rounded-lg bg-rose-600 px-3 text-xs font-semibold text-white transition hover:bg-rose-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-600"
+        >
+          {en ? 'Delete' : 'Hapus'}
+        </button>
+      </form>
+    </details>
+  );
+}
+
 function Feedback({ feedback, en }: { feedback: Search; en: boolean }) {
+  if (feedback.deleted) {
+    return (
+      <p role="status" className="mt-4 rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
+        {en
+          ? 'Invitation deleted. Guests can no longer open it; you can restore it from its card until the date shown.'
+          : 'Undangan dihapus. Tamu tidak bisa lagi membukanya; Anda bisa memulihkannya dari kartunya sampai tanggal yang tertera.'}
+      </p>
+    );
+  }
+  if (feedback.restored) {
+    return (
+      <p role="status" className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+        {en ? 'Invitation restored. Its links work again as before.' : 'Undangan dipulihkan. Tautannya berfungsi lagi seperti sebelumnya.'}
+      </p>
+    );
+  }
+  if (feedback.error === 'purged') {
+    return (
+      <p className="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+        {en ? 'This invitation has already been deleted permanently.' : 'Undangan ini sudah dihapus permanen.'}
+      </p>
+    );
+  }
+  if (feedback.error === 'unconfirmed') {
+    return (
+      <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        {en ? 'Tick the confirmation box to delete the invitation.' : 'Centang kotak konfirmasi untuk menghapus undangan.'}
+      </p>
+    );
+  }
+  if (feedback.error === 'deletion-off') {
+    return (
+      <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        {en ? 'Deleting invitations is not available yet.' : 'Penghapusan undangan belum tersedia.'}
+      </p>
+    );
+  }
   if (feedback.published) {
     return (
       <p className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">

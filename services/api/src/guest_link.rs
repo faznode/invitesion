@@ -38,11 +38,13 @@ pub async fn resolve(
     now: PrimitiveDateTime,
     codes: LinkCodes,
 ) -> Result<(i32, i32), ApiError> {
-    let invitation = sqlx::query!("select id, status, expires_at from invitations where slug = $1", slug)
-        .fetch_optional(&state.pool)
-        .await
-        .map_err(|error| ApiError::internal("guest_link_invitation", error))?
-        .ok_or(ApiError::NotFound(codes.not_found))?;
+    // B-031 (D-063): a deleted invitation's links are unknown links, in its window and after the purge.
+    let invitation =
+        sqlx::query!("select id, status, expires_at from invitations where slug = $1 and deleted_at is null", slug)
+            .fetch_optional(&state.pool)
+            .await
+            .map_err(|error| ApiError::internal("guest_link_invitation", error))?
+            .ok_or(ApiError::NotFound(codes.not_found))?;
     check_open(&invitation.status, invitation.expires_at, now, codes)?;
     if segment.is_empty() {
         return Err(ApiError::NotFound(codes.not_found));

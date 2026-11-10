@@ -29,10 +29,26 @@ export function classifyMediaKey(segments: readonly string[]): MediaAccess {
   return { kind: 'public', key };
 }
 
+/**
+ * B-031 (D-063): the invitation a public upload belongs to (`<invitation>/…` or `variants/<invitation>/…`), or null for
+ * keys that belong to no invitation (avatars). Protected keys are classified by `classifyMediaKey`.
+ */
+export function publicKeyInvitationId(key: string): number | null {
+  const match = /^(?:variants\/)?(0|[1-9]\d{0,14})\//.exec(key);
+  return match ? Number(match[1]) : null;
+}
+
 export type ServeMediaDeps = {
   storage: Pick<StorageDriver, 'read'>;
   /** Whether the current request's signed-in user owns the invitation. May throw; a throw refuses. */
   ownerMayRead: (invitationId: number) => Promise<boolean>;
+  /**
+   * B-031: whether the invitation of a public upload has been deleted. A deleted invitation's photos stop at the origin
+   * for its whole window (the purge then removes the objects). May throw; a throw serves the object as before (fails
+   * open: these keys were public, and a database hiccup must not blank every live page). Copies already cached by
+   * browsers under the year-long public cache are outside this check.
+   */
+  invitationGone?: (invitationId: number) => Promise<boolean>;
   /** Reports a failed owner check by error name only (no personal data). */
   onAccessCheckError?: (error: unknown) => void;
 };
@@ -55,6 +71,17 @@ export async function serveMedia(segments: readonly string[], deps: ServeMediaDe
     }
     // 404, not 401 / 403: a refused request learns nothing about whether the object exists.
     if (!allowed) return notFound(PRIVATE_CACHE);
+  }
+
+  const owningInvitation = access.kind === 'public' ? publicKeyInvitationId(access.key) : null;
+  if (owningInvitation !== null && deps.invitationGone) {
+    let gone = false;
+    try {
+      gone = await deps.invitationGone(owningInvitation);
+    } catch (error) {
+      deps.onAccessCheckError?.(error);
+    }
+    if (gone) return notFound(PRIVATE_CACHE);
   }
 
   let object;

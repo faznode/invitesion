@@ -1,4 +1,4 @@
-import { desc, eq } from 'drizzle-orm';
+import { and, desc, eq, isNull } from 'drizzle-orm';
 import { ArrowRight, CalendarDays, CheckCircle2, FileText, ImageIcon, MessageCircleHeart, Plus, Users } from 'lucide-react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
@@ -20,7 +20,12 @@ export default async function CustomerDashboardPage({ searchParams }: { searchPa
   if (user.role === 'ADMIN') redirect(getPrivateAdminPath() ?? '/sign-in');
   const locale = await getLocale();
   const en = locale === 'en';
-  const items = await db.select().from(invitations).where(eq(invitations.userId, user.id)).orderBy(desc(invitations.createdAt));
+  // B-031: deleted invitations are listed (with their restore) on the invitations page only.
+  const items = await db
+    .select()
+    .from(invitations)
+    .where(and(eq(invitations.userId, user.id), isNull(invitations.deletedAt)))
+    .orderBy(desc(invitations.createdAt));
   // G-044 (D-057): invitations this customer works on as a member (none while FLAG_TEAM_ACCESS is off).
   const [shared, q] = await Promise.all([sharedInvitations(user.id), searchParams]);
   const team = (

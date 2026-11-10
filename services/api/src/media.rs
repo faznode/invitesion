@@ -248,6 +248,21 @@ pub async fn run_image_variants(pool: &PgPool, storage: &Storage, payload: &Valu
     let Some(invitation_id) = source_invitation(key) else {
         return Outcome::GiveUp(format!("not a public invitation upload: {key}"));
     };
+    // B-031: a deleted invitation's uploads are about to be purged; nothing to render for it.
+    match sqlx::query_scalar!(
+        r#"select deleted_at is not null as "deleted!" from invitations where id = $1"#,
+        invitation_id
+    )
+    .fetch_optional(pool)
+    .await
+    {
+        Ok(Some(true)) => {
+            tracing::info!(key, "invitation deleted; variants not made");
+            return Outcome::Done;
+        }
+        Ok(_) => {}
+        Err(error) => return Outcome::Retry(format!("invitation read failed: {key}: {error}")),
+    }
     let source = match storage.get(key).await {
         Ok(Some(bytes)) => bytes,
         Ok(None) => return Outcome::Retry(format!("source missing: {key}")),
@@ -288,7 +303,18 @@ pub async fn run_image_variants(pool: &PgPool, storage: &Storage, payload: &Valu
     }
 
     match record_variants(pool, invitation_id, key, &rows, now).await {
-        Ok(()) => Outcome::Done,
+        Ok(Recorded::Written) => Outcome::Done,
+        // B-031: deleted while this job rendered. The purge may already have listed the invitation's prefixes, so the
+        // objects written above are removed here rather than left behind.
+        Ok(Recorded::InvitationDeleted) => {
+            for (variant_key, ..) in &rows {
+                if let Err(error) = storage.delete(variant_key).await {
+                    return Outcome::Retry(format!("variant cleanup failed: {variant_key}: {error}"));
+                }
+            }
+            tracing::info!(key, "invitation deleted meanwhile; variants removed");
+            Outcome::Done
+        }
         // The invitation was deleted after the upload: nothing to serve the variants to.
         Err(error) if error.as_database_error().and_then(|e| e.code()).as_deref() == Some("23503") => {
             tracing::info!(key, "invitation gone; variants not recorded");
@@ -298,16 +324,32 @@ pub async fn run_image_variants(pool: &PgPool, storage: &Storage, payload: &Valu
     }
 }
 
+enum Recorded {
+    Written,
+    InvitationDeleted,
+}
+
 /// Upserts this run's variants and removes any row of the source this run did not write (a variant an earlier run made
 /// that the ceiling now leaves out), so the listed set is exactly the latest run's. Objects are never deleted here.
+/// B-031: the invitation row is share-locked first, so this either lands before the owner's deletion (whose purge then
+/// finds the rows and objects) or sees the deletion and writes nothing.
 async fn record_variants(
     pool: &PgPool,
     invitation_id: i32,
     source_key: &str,
     rows: &[(String, Tier, u32, u32, i32)],
     now: PrimitiveDateTime,
-) -> Result<(), sqlx::Error> {
+) -> Result<Recorded, sqlx::Error> {
     let mut tx = pool.begin().await?;
+    let deleted = sqlx::query_scalar!(
+        r#"select deleted_at is not null as "deleted!" from invitations where id = $1 for share"#,
+        invitation_id
+    )
+    .fetch_optional(&mut *tx)
+    .await?;
+    if deleted == Some(true) {
+        return Ok(Recorded::InvitationDeleted);
+    }
     let written: Vec<String> = rows.iter().map(|(variant_key, ..)| variant_key.clone()).collect();
     sqlx::query!(
         "delete from media_variants where source_key = $1 and not (variant_key = any($2::text[]))",
@@ -334,7 +376,8 @@ async fn record_variants(
         .execute(&mut *tx)
         .await?;
     }
-    tx.commit().await
+    tx.commit().await?;
+    Ok(Recorded::Written)
 }
 
 #[cfg(test)]

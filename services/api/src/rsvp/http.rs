@@ -147,10 +147,15 @@ pub async fn guest_rsvp(
         .await?;
 
     let mut tx = state.pool.begin().await.map_err(db("rsvp_begin"))?;
-    let invitation = sqlx::query!("select status, expires_at, config from invitations where id = $1", invitation_id)
-        .fetch_one(&mut *tx)
-        .await
-        .map_err(db("rsvp_invitation_tx"))?;
+    // B-031: re-read inside the transaction, so a deletion after the link resolved still refuses the write.
+    let invitation = sqlx::query!(
+        "select status, expires_at, config from invitations where id = $1 and deleted_at is null",
+        invitation_id
+    )
+    .fetch_optional(&mut *tx)
+    .await
+    .map_err(db("rsvp_invitation_tx"))?
+    .ok_or(ApiError::NotFound(RSVP_LINK.not_found))?;
     check_open(&invitation.status, invitation.expires_at, now, RSVP_LINK)?;
     let guest = sqlx::query!(
         "select guest_count, invited_event_ids, rsvp_event_answers from guests \

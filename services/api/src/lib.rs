@@ -17,6 +17,7 @@ pub mod members;
 pub mod openapi;
 pub mod owner_auth;
 pub mod problem;
+pub mod retention;
 pub mod roster;
 pub mod rsvp;
 pub mod service_auth;

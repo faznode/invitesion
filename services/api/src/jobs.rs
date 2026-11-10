@@ -9,6 +9,7 @@ use sqlx::PgPool;
 use time::{Duration, PrimitiveDateTime};
 
 use crate::media;
+use crate::retention;
 use crate::storage::Storage;
 
 /// How long a claim holds a job before another runner may take it again.
@@ -124,6 +125,7 @@ pub async fn give_up(pool: &PgPool, id: i64, error: &str) -> Result<(), sqlx::Er
 async fn handle(pool: &PgPool, storage: &Storage, job: &Job, now: PrimitiveDateTime) -> Outcome {
     match job.kind.as_str() {
         media::IMAGE_VARIANTS_JOB => media::run_image_variants(pool, storage, &job.payload, now).await,
+        retention::PURGE_JOB_KIND => retention::run_invitation_purge(pool, storage, job, now).await,
         _ => Outcome::GiveUp("unknown job kind".into()),
     }
 }

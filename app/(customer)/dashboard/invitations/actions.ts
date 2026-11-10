@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { getUser } from '@/lib/db/queries';
+import { restoreDeletedInvitation, scheduleInvitationDeletion } from '@/lib/invitation/deletion-db';
 import {
   NotPaidError,
   NotPublishableError,
@@ -49,6 +50,45 @@ export async function publish(formData: FormData): Promise<void> {
   revalidatePath(LIST_PATH);
   revalidatePath('/dashboard');
   redirect(`${LIST_PATH}?published=${id}`);
+}
+
+/**
+ * B-031 (D-063): the owner deletes an invitation. Ownership comes from the session (a co-host's grant never reaches
+ * this), and the post must carry the confirmation the card asks for, so a stray or forged post without it changes
+ * nothing. Unavailable (flag off or no window set) is refused before anything is read.
+ */
+export async function deleteInvitation(formData: FormData): Promise<void> {
+  const user = await getUser();
+  if (!user) redirect('/sign-in');
+
+  const id = parseInvitationId(formData);
+  if (!id) redirect(`${LIST_PATH}?error=invalid`);
+  if (formData.get('confirm') !== 'yes') redirect(`${LIST_PATH}?error=unconfirmed`);
+
+  const outcome = await scheduleInvitationDeletion(user.id, id);
+  if (outcome.kind === 'unavailable') redirect(`${LIST_PATH}?error=deletion-off`);
+  if (outcome.kind === 'notfound') redirect(`${LIST_PATH}?error=notfound`);
+
+  revalidatePath(LIST_PATH);
+  revalidatePath('/dashboard');
+  redirect(`${LIST_PATH}?deleted=${id}`);
+}
+
+/** B-031: the owner restores a deleted invitation before its purge; it returns exactly as it was. */
+export async function restoreInvitation(formData: FormData): Promise<void> {
+  const user = await getUser();
+  if (!user) redirect('/sign-in');
+
+  const id = parseInvitationId(formData);
+  if (!id) redirect(`${LIST_PATH}?error=invalid`);
+
+  const outcome = await restoreDeletedInvitation(user.id, id);
+  if (outcome.kind === 'purged') redirect(`${LIST_PATH}?error=purged`);
+  if (outcome.kind === 'notfound') redirect(`${LIST_PATH}?error=notfound`);
+
+  revalidatePath(LIST_PATH);
+  revalidatePath('/dashboard');
+  redirect(`${LIST_PATH}?restored=${id}`);
 }
 
 /** Returns an invitation to DRAFT without touching its paid active window. */

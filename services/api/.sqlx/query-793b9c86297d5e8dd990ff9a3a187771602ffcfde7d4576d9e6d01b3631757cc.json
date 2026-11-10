@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "select g.invited_event_ids, i.config from guests g join invitations i on i.id = g.invitation_id where g.id = $1 and g.invitation_id = $2 and (i.user_id = $3 or exists (select 1 from invitation_members m where m.invitation_id = i.id and m.user_id = $3 and m.revoked_at is null and m.role = any($4))) for update of g",
+  "query": "select g.invited_event_ids, i.config from guests g join invitations i on i.id = g.invitation_id where g.id = $1 and g.invitation_id = $2 and i.deleted_at is null and (i.user_id = $3 or exists (select 1 from invitation_members m where m.invitation_id = i.id and m.user_id = $3 and m.revoked_at is null and m.role = any($4))) for update of g",
   "describe": {
     "columns": [
       {
@@ -39,5 +39,5 @@
       true
     ]
   },
-  "hash": "0cb59be548ebbf94794f138aab46e6651ca0f869288c07071e6e24683d1e652f"
+  "hash": "793b9c86297d5e8dd990ff9a3a187771602ffcfde7d4576d9e6d01b3631757cc"
 }

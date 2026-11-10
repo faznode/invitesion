@@ -1,4 +1,5 @@
 import { getUser } from '@/lib/db/queries';
+import { invitationMediaGone } from '@/lib/invitation/deletion-db';
 import { OwnershipError, requireOwnedInvitation } from '@/lib/invitation/service';
 import { getStorage } from '@/lib/storage';
 import { serveMedia } from '@/lib/storage/serve-media';
@@ -19,7 +20,8 @@ export async function GET(_req: Request, { params }: Ctx) {
   return serveMedia(segments, {
     storage: getStorage(),
     ownerMayRead,
-    onAccessCheckError: (error) => console.error('[media] protected access check failed:', error instanceof Error ? error.name : 'unknown'),
+    invitationGone: invitationMediaGone,
+    onAccessCheckError: (error) => console.error('[media] access check failed:', error instanceof Error ? error.name : 'unknown'),
   });
 }
 

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "select event_type, template_id, config from invitations where id = $1 and user_id = $2 for update",
+  "query": "select event_type, template_id, config from invitations where id = $1 and user_id = $2 and deleted_at is null for update",
   "describe": {
     "columns": [
       {
@@ -49,5 +49,5 @@
       true
     ]
   },
-  "hash": "234ee9a45643e2e255c0fcb409002d2139ab28f4ae593b250f7e374d39229817"
+  "hash": "6b49f024b38cc1819d53f079d262fc753dfe3e8ec12835f9d8278fa67027ece8"
 }

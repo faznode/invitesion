@@ -2,11 +2,12 @@ import { randomUUID } from 'node:crypto';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
 import { guestRegistrationLinks, invitations } from '@/lib/db/schema';
 import { isFlagOn } from '@/lib/flags';
 import { normalizeStoredConfig } from '@/lib/invitation/content-read';
+import { liveInvitation } from '@/lib/invitation/deletion-db';
 import { GUEST_LINK_TOKEN_PATTERN } from '@/lib/invitation/guest-link';
 import { registrationOpen, ROSTER_LIMITS } from '@/lib/invitation/roster-rules';
 import { submitRegistration } from './actions';
@@ -54,7 +55,7 @@ export default async function RegistrationPage({ params, searchParams }: { param
     .select({ status: invitations.status, expiresAt: invitations.expiresAt, config: invitations.config })
     .from(guestRegistrationLinks)
     .innerJoin(invitations, eq(invitations.id, guestRegistrationLinks.invitationId))
-    .where(eq(guestRegistrationLinks.token, token))
+    .where(and(eq(guestRegistrationLinks.token, token), liveInvitation))
     .limit(1);
   if (!link || link.status === 'DRAFT') notFound();
   const title = normalizeStoredConfig(link.config ?? {}).config.settings?.title?.trim() || 'Undangan';

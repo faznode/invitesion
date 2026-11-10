@@ -29,6 +29,9 @@ export function trialPreviewInvitation(eventType: string, config: DetailConfig, 
     expiresAt: null,
     createdAt: new Date(0),
     creationKey: null,
+    deletedAt: null,
+    purgeAfter: null,
+    purgedAt: null,
     ...overrides,
   };
 }

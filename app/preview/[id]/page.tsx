@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { notFound, redirect } from 'next/navigation';
 import { PublicInvitationRenderer } from '@/components/invitation/public-renderer';
 import { db } from '@/lib/db/drizzle';
@@ -39,7 +39,7 @@ export default async function OwnerPreviewPage({
   const [owned] = await db
     .select({ slug: invitations.slug, status: invitations.status })
     .from(invitations)
-    .where(and(eq(invitations.id, id), eq(invitations.userId, user.id)))
+    .where(and(eq(invitations.id, id), eq(invitations.userId, user.id), isNull(invitations.deletedAt)))
     .limit(1);
   if (!owned) notFound();
 

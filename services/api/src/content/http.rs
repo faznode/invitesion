@@ -140,7 +140,8 @@ pub async fn write_content(
 
     let mut tx = state.pool.begin().await.map_err(db("content_begin"))?;
     let row = sqlx::query!(
-        "select event_type, template_id, config from invitations where id = $1 and user_id = $2 for update",
+        "select event_type, template_id, config from invitations where id = $1 and user_id = $2 \
+         and deleted_at is null for update",
         invitation_id,
         owner.user_id
     )
@@ -203,10 +204,15 @@ pub async fn write_content(
         drop(tx);
         return replay(&state.pool, &scope, key, &hash).await?.ok_or(ApiError::Internal);
     }
-    sqlx::query!("update invitations set config = $1 where id = $2", request.config, invitation_id)
-        .execute(&mut *tx)
-        .await
-        .map_err(db("content_update"))?;
+    // The row is locked above with the same condition; repeated here so every statement on invitations carries it.
+    sqlx::query!(
+        "update invitations set config = $1 where id = $2 and deleted_at is null",
+        request.config,
+        invitation_id
+    )
+    .execute(&mut *tx)
+    .await
+    .map_err(db("content_update"))?;
     // Only the live row changes: rows already off stay off.
     sqlx::query!("update invitation_versions set is_live = false where invitation_id = $1 and is_live", invitation_id)
         .execute(&mut *tx)

@@ -149,10 +149,15 @@ pub async fn guest_wish(
         .await?;
 
     let mut tx = state.pool.begin().await.map_err(db("wish_begin"))?;
-    let invitation = sqlx::query!("select status, expires_at, config from invitations where id = $1", invitation_id)
-        .fetch_one(&mut *tx)
-        .await
-        .map_err(db("wish_invitation_tx"))?;
+    // B-031: re-read inside the transaction, so a deletion after the link resolved still refuses the write.
+    let invitation = sqlx::query!(
+        "select status, expires_at, config from invitations where id = $1 and deleted_at is null",
+        invitation_id
+    )
+    .fetch_optional(&mut *tx)
+    .await
+    .map_err(db("wish_invitation_tx"))?
+    .ok_or(ApiError::NotFound(WISH_LINK.not_found))?;
     check_open(&invitation.status, invitation.expires_at, now, WISH_LINK)?;
     let guest = sqlx::query!("select name from guests where id = $1 and invitation_id = $2", guest_id, invitation_id)
         .fetch_optional(&mut *tx)
@@ -253,7 +258,8 @@ async fn lock_owned_wish(
     let roles = Capability::Wishes.member_role_args();
     sqlx::query_scalar!(
         "select w.id from guest_messages w join invitations i on i.id = w.invitation_id \
-         where w.id = $1 and w.invitation_id = $2 and (i.user_id = $3 or exists (select 1 from invitation_members m \
+         where w.id = $1 and w.invitation_id = $2 and i.deleted_at is null \
+         and (i.user_id = $3 or exists (select 1 from invitation_members m \
          where m.invitation_id = i.id and m.user_id = $3 and m.revoked_at is null and m.role = any($4))) \
          for update of w",
         wish_id,

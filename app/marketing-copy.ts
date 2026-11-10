@@ -1,4 +1,5 @@
 import type { Locale } from '@/lib/i18n';
+import type { CapabilityId } from '@/lib/marketing/capabilities';
 import { tierPriceLabel } from '@/lib/pricing';
 
 export type HeroSlideTheme = 'wedding' | 'rsvp' | 'whatsapp' | 'party';
@@ -11,7 +12,7 @@ export const marketingCopy = {
     heroSlides: [
       { theme: 'wedding', tag: 'PERNIKAHAN', q: 'Undangan nikah yang berkesan?', a: 'Bisa. Banget.' },
       { theme: 'rsvp', tag: 'RSVP', q: 'Ratusan tamu konfirmasi?', a: 'Kekontrol rapi.' },
-      { theme: 'whatsapp', tag: 'WHATSAPP', q: 'Sebar ke semua tamu?', a: 'Sekali klik.' },
+      { theme: 'whatsapp', tag: 'WHATSAPP', q: 'Sebar ke semua tamu?', a: 'Satu ketuk per tamu.' },
       { theme: 'party', tag: 'SEMUA ACARA', q: 'Ultah, aqiqah, reuni?', a: 'Semua jalan.' },
     ] as readonly HeroSlide[],
     heroStageAria: 'Pratinjau produk Invitesion',
@@ -89,9 +90,10 @@ export const marketingCopy = {
     tierStandardItems: [
       'Undangan aktif & bisa dibagikan 12 bulan',
       '1 tema Standard pilihan',
-      'Musik latar & animasi masuk',
+      'Musik latar & sampul pembuka',
       'Galeri foto & video',
-      'Amplop digital (ucapan & hadiah)',
+      'Ucapan tamu & info hadiah (rekening/QRIS)',
+      'Love story & beberapa sesi acara',
     ],
     tierPremiumLabel: 'PREMIUM',
     tierPremiumPer: 'per undangan · aktif 12 bulan',
@@ -99,8 +101,7 @@ export const marketingCopy = {
     tierPremiumItems: [
       'Semua fitur Standard',
       'Akses semua tema premium',
-      'Ganti tema kapan saja',
-      'Love story & sesi acara',
+      'Ganti ke tema premium mana pun, kapan saja',
       'Prioritas dukungan',
     ],
     tierCta: 'Mulai sekarang',
@@ -110,16 +111,15 @@ export const marketingCopy = {
     roadmapEyebrow: 'DAN TERUS BERKEMBANG',
     roadmapTitle: 'Semakin lengkap, tanpa kehilangan kesederhanaannya.',
     roadmapBody:
-      'Fitur berikutnya sedang disiapkan untuk membantu lebih banyak bagian dari hari istimewa kalian.',
+      'Sebagian sudah diuji terbatas, sebagian lagi masih direncanakan. Labelnya menunjukkan yang mana.',
     roadmapItems: [
-      'WhatsApp blast reminder',
-      'Seating chart drag-and-drop',
-      'QR check-in tamu',
-      'Analytics & export tamu',
-      'Multi-event workspace',
-      'Amplop & kado cashless',
+      'Pengingat & kirim massal lewat WhatsApp resmi',
+      'Log meja, suvenir & hadiah',
+      'Check-in QR tamu',
+      'Undangan dwibahasa untuk tamu',
+      'Workspace & kredit untuk reseller',
+      'Pusat bantuan & tutorial',
     ],
-    roadmapSoon: 'Segera hadir',
 
     // ── CTA ────────────────────────────────────────────────────────────────
     ctaTitle: 'Momen istimewa kalian layak dirayakan dengan indah.',
@@ -162,7 +162,7 @@ export const marketingCopy = {
     heroSlides: [
       { theme: 'wedding', tag: 'WEDDINGS', q: 'A wedding invitation to remember?', a: 'Absolutely.' },
       { theme: 'rsvp', tag: 'RSVP', q: 'Hundreds of guest confirmations?', a: 'Under control.' },
-      { theme: 'whatsapp', tag: 'WHATSAPP', q: 'Share it with every guest?', a: 'One click.' },
+      { theme: 'whatsapp', tag: 'WHATSAPP', q: 'Share it with every guest?', a: 'One tap per guest.' },
       { theme: 'party', tag: 'EVERY EVENT', q: 'Birthdays, aqiqah, reunions?', a: 'All covered.' },
     ] as readonly HeroSlide[],
     heroStageAria: 'Invitesion product preview',
@@ -230,9 +230,10 @@ export const marketingCopy = {
     tierStandardItems: [
       'Live, shareable invitation for 12 months',
       '1 Standard theme of your choice',
-      'Background music & entrance animation',
+      'Background music & opening cover',
       'Photo & video gallery',
-      'Digital envelope (wishes & gifts)',
+      'Guest wishes & gift details (bank/QRIS)',
+      'Love story & multiple event sessions',
     ],
     tierPremiumLabel: 'PREMIUM',
     tierPremiumPer: 'per invitation · active 12 months',
@@ -240,24 +241,22 @@ export const marketingCopy = {
     tierPremiumItems: [
       'All Standard features',
       'Access to all premium themes',
-      'Switch themes anytime',
-      'Love story & event sessions',
+      'Switch to any premium theme, anytime',
       'Priority support',
     ],
     tierCta: 'Get started',
     tierCtaFree: 'Start with a draft',
     roadmapEyebrow: 'AND STILL GROWING',
     roadmapTitle: 'More complete, without losing its simplicity.',
-    roadmapBody: 'The next features are on their way to help with even more of your special day.',
+    roadmapBody: 'Some are in limited trial, others are still planned. The labels say which.',
     roadmapItems: [
-      'WhatsApp blast reminders',
-      'Drag-and-drop seating chart',
+      'WhatsApp reminders & bulk sending (official API)',
+      'Table, souvenir & gift logs',
       'Guest QR check-in',
-      'Analytics & guest export',
-      'Multi-event workspace',
-      'Cashless envelope & gifts',
+      'Bilingual invitations for guests',
+      'Reseller workspace & credits',
+      'Help centre & tutorials',
     ],
-    roadmapSoon: 'Coming soon',
     ctaTitle: 'Your special moment deserves to be celebrated beautifully.',
     ctaBody: 'Start with a free draft. Pay once when your invitation is ready to share.',
     ctaButton: 'Start a free draft',
@@ -289,6 +288,21 @@ export const marketingCopy = {
     phoneSaved: 'RSVP saved',
   },
 } as const satisfies Record<Locale, unknown>;
+
+/**
+ * B-022: the capabilities behind each list item in `marketingCopy`, index for index and shared by both locales.
+ * `tests/b022-claims.test.ts` requires every item to be available, except roadmap items, which must not be yet; the
+ * homepage labels each roadmap item from its status and drops one that has shipped.
+ */
+export const marketingClaimNeeds = {
+  heroSlides: [['themeCatalog', 'invitationPage'], ['rsvp', 'insights'], ['whatsappLinks', 'personalLinks'], ['themeCatalog', 'eventDetails']],
+  features: [['themeCatalog', 'loveStory', 'eventDetails', 'mapLink', 'gallery', 'countdownCalendar'], ['rsvp', 'rsvpQuestions'], ['guestList', 'whatsappLinks', 'personalLinks'], ['themeCatalog']],
+  guestPoints: [['personalLinks'], ['rsvp', 'wishes'], ['whatsappLinks']],
+  pricingIncluded: [['invitationPage', 'draftPreview'], ['rsvp', 'guestList'], ['eventDetails', 'mapLink', 'gallery'], ['draftPreview']],
+  tierStandardItems: [['invitationPage'], ['themeCatalog', 'themeSwitch'], ['music'], ['gallery', 'videoEmbeds'], ['wishes', 'giftAccounts'], ['loveStory', 'eventDetails']],
+  tierPremiumItems: [['invitationPage'], ['themeCatalog'], ['themeSwitch'], ['supportEmail']],
+  roadmapItems: [['whatsappAutomation'], ['seatingLog', 'giftLog'], ['guestPass', 'checkInScanner'], ['guestPageBilingual'], ['resellerWorkspace'], ['helpArticles']],
+} as const satisfies Record<string, readonly (readonly CapabilityId[])[]>;
 
 /** Copy for one locale; tier prices come from `lib/pricing.ts` so they always equal what checkout charges (B-002). */
 export function getMarketingCopy(locale: Locale) {

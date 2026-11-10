@@ -91,6 +91,14 @@ const DEFAULTS = {
    * does not export them). Off: the wishes page shows no download and the route answers 404.
    */
   WISHES_BOOK: false,
+  /**
+   * B-031 (D-063): the owner deletes an invitation from its card on the invitations list: every guest link and writer
+   * treats it as gone at once, the owner may restore it during `INVITATION_DELETION_WINDOW_DAYS`, and the
+   * `invitation_purge` job then removes its guests, wishes, analytics, versions and media. Off until the owner sets the
+   * window (counsel's retention review, EXT): off hides the control and refuses the action; invitations already deleted
+   * stay gone, keep their restore, and their jobs run.
+   */
+  INVITATION_DELETION: false,
 } as const;
 
 export type FlagName = keyof typeof DEFAULTS;

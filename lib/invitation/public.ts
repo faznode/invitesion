@@ -6,6 +6,7 @@ import { db } from '@/lib/db/drizzle';
 import { guestMessages, guests, invitations, mediaAssets } from '@/lib/db/schema';
 import { loadImageVariants } from '@/lib/media/variant-jobs';
 import { normalizeStoredConfig } from './content-read';
+import { liveInvitation } from './deletion-db';
 import type { DetailConfig } from './detail-config';
 import { configForAudience } from './gift-privacy';
 import { pickGuestForSegment } from './guest-link';
@@ -58,7 +59,8 @@ export const visibleWishCount = (invitationId: number) => db.select({ value: cou
  * Arguments are primitives so the cache key is stable.
  */
 export const loadPublicInvitation = cache(async (slug: string, guestSlug?: string, includeDraft = false) => {
-  const [invitation] = await db.select().from(invitations).where(eq(invitations.slug, slug)).limit(1);
+  // B-031 (D-063): a deleted invitation is a missing one for every audience, the owner's preview included.
+  const [invitation] = await db.select().from(invitations).where(and(eq(invitations.slug, slug), liveInvitation)).limit(1);
   if (!invitation || (invitation.status === 'DRAFT' && !includeDraft)) return null;
 
   const expired = invitation.status === 'EXPIRED' || (invitation.expiresAt ? invitation.expiresAt.getTime() < Date.now() : false);
@@ -130,7 +132,7 @@ export async function findGuestByLinkSegment(invitationId: number, segment: stri
  * config is the invitation link's (B-026, D-047): gift details kept to personal links are already gone.
  */
 export async function loadPublishedInvitationSummary(slug: string) {
-  const [invitation] = await db.select().from(invitations).where(eq(invitations.slug, slug)).limit(1);
+  const [invitation] = await db.select().from(invitations).where(and(eq(invitations.slug, slug), liveInvitation)).limit(1);
   if (!invitation || invitation.status === 'DRAFT') return null;
   return { invitation, config: configForAudience(readStoredConfig(invitation.id, invitation.config), 'link').config };
 }
@@ -142,7 +144,7 @@ export async function loadPublishedInvitationSummary(slug: string) {
  * so the image follows exactly the page's privacy rule.
  */
 export async function loadInvitationForGiftAudience(slug: string, guestSegment?: string) {
-  const [invitation] = await db.select().from(invitations).where(eq(invitations.slug, slug)).limit(1);
+  const [invitation] = await db.select().from(invitations).where(and(eq(invitations.slug, slug), liveInvitation)).limit(1);
   if (!invitation || invitation.status === 'DRAFT') return null;
   const guest = guestSegment === undefined ? null : await findGuestByLinkSegment(invitation.id, guestSegment);
   if (guestSegment !== undefined && !guest) return null;

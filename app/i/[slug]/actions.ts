@@ -1,6 +1,6 @@
 'use server';
 
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
@@ -9,6 +9,7 @@ import { db } from '@/lib/db/drizzle';
 import { analyticsEvents, guestMessages, guests, invitations } from '@/lib/db/schema';
 import { isFlagOn } from '@/lib/flags';
 import { normalizeStoredConfig } from '@/lib/invitation/content-read';
+import { liveInvitation } from '@/lib/invitation/deletion-db';
 import { findGuestByLinkSegment } from '@/lib/invitation/public';
 import { guestPath } from '@/lib/invitation/public-url';
 import { decideGuestRsvp, rsvpSubmissionFromForm, type GuestRsvpDecision, type RsvpFlags } from '@/lib/invitation/rsvp-decision';
@@ -25,7 +26,8 @@ import { clientAddressFrom, trustedProxyHops } from '@/lib/net/client-address';
  * (B-011 rule, `lib/invitation/guest-link.ts`) — the same rule as the page.
  */
 async function openInvitationFor(slug: string, guestSlug: string) {
-  const [invitation] = await db.select().from(invitations).where(eq(invitations.slug, slug)).limit(1);
+  // B-031: an old form posted after the owner deleted the invitation is refused like an unknown link.
+  const [invitation] = await db.select().from(invitations).where(and(eq(invitations.slug, slug), liveInvitation)).limit(1);
   if (!invitation || invitation.status === 'DRAFT') return null;
   if (invitation.expiresAt && invitation.expiresAt.getTime() < Date.now()) return null;
   if (invitation.status === 'EXPIRED') return null;

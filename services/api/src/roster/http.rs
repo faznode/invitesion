@@ -361,7 +361,8 @@ async fn accessible_guest(
     let roles = capability.member_role_args();
     let row = sqlx::query!(
         "select g.invited_event_ids, i.config from guests g join invitations i on i.id = g.invitation_id \
-         where g.id = $1 and g.invitation_id = $2 and (i.user_id = $3 or exists (select 1 from invitation_members m \
+         where g.id = $1 and g.invitation_id = $2 and i.deleted_at is null \
+         and (i.user_id = $3 or exists (select 1 from invitation_members m \
          where m.invitation_id = i.id and m.user_id = $3 and m.revoked_at is null and m.role = any($4))) \
          for update of g",
         guest_id,
@@ -1133,7 +1134,7 @@ pub async fn register(
     }
     let link = sqlx::query!(
         "select l.invitation_id, i.status, i.expires_at from guest_registration_links l \
-         join invitations i on i.id = l.invitation_id where l.token = $1",
+         join invitations i on i.id = l.invitation_id where l.token = $1 and i.deleted_at is null",
         token
     )
     .fetch_optional(&state.pool)

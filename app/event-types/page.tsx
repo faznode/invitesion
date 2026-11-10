@@ -1,30 +1,21 @@
-import Link from 'next/link';
-import MarketingHeader from '../marketing-header';
-import MarketingFooter from '../marketing-footer';
-import { marketingPages, marketingHref } from '../marketing-registry';
-import styles from '../home.module.css';
+import type { Metadata } from 'next';
+import { marketingPages } from '../marketing-registry';
+import { MarketingIndexPage } from '../marketing-public-page';
+
+export const metadata: Metadata = {
+  title: 'Jenis acara — Invitesion',
+  description: 'Undangan digital, tautan personal, dan RSVP untuk pernikahan, acara keluarga, komunitas, dan bisnis.',
+};
 
 export default function Page() {
   return (
-    <main className={styles.site}>
-      <MarketingHeader />
-      <section className={styles.simplePageHero}>
-        <small className={styles.eyebrow}>JENIS ACARA</small>
-        <h1>Jenis acara untuk setiap momen.</h1>
-        <p>Pilih kebutuhan Anda dan temukan halaman khusus dengan alur yang relevan.</p>
-        <div className={styles.resourceCards}>
-          {marketingPages['event-types'].map(page => (
-            <article key={page.slug}>
-              <h2>{page.title}</h2>
-              <p>{page.summary}</p>
-              <Link href={marketingHref('event-types', page.title)}>Pelajari <span aria-hidden="true">→</span></Link>
-            </article>
-          ))}
-        </div>
-      </section>
-      <div className={styles.frame}>
-        <MarketingFooter />
-      </div>
-    </main>
+    <MarketingIndexPage
+      category="event-types"
+      eyebrow="JENIS ACARA"
+      title="Jenis acara untuk setiap momen."
+      intro="Pilih kebutuhan Anda dan temukan halaman khusus dengan alur yang relevan."
+      linkLabel="Pelajari"
+      pages={marketingPages['event-types']}
+    />
   );
 }

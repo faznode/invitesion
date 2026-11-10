@@ -39,6 +39,9 @@ export function fixtureInvitation(overrides: Partial<Invitation> = {}): Invitati
     expiresAt: null,
     createdAt: new Date('2026-10-01T00:00:00Z'),
     creationKey: null,
+    deletedAt: null,
+    purgeAfter: null,
+    purgedAt: null,
     ...overrides,
   };
 }

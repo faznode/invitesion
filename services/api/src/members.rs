@@ -19,8 +19,8 @@ pub async fn caller_may(
 ) -> Result<Option<Value>, sqlx::Error> {
     let roles = capability.member_role_args();
     let row = sqlx::query!(
-        "select i.config from invitations i where i.id = $1 and (i.user_id = $2 or exists (select 1 \
-         from invitation_members m where m.invitation_id = i.id and m.user_id = $2 and m.revoked_at is null \
+        "select i.config from invitations i where i.id = $1 and i.deleted_at is null and (i.user_id = $2 or exists \
+         (select 1 from invitation_members m where m.invitation_id = i.id and m.user_id = $2 and m.revoked_at is null \
          and m.role = any($3)))",
         invitation_id,
         user_id,

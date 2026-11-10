@@ -911,6 +911,27 @@
   text-decoration: none;
 }
 
+/* B-022: availability labels on claims that are not generally available */
+.statusBadge,
+.claimLabel {
+  justify-self: start;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--mut);
+}
+.statusBadge {
+  display: inline-flex;
+  margin: 0 0 16px;
+  padding: 5px 12px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+}
+.claimLabel { font-size: 10px; letter-spacing: 0.16em; }
+.statusBadge[data-status='conditional'],
+.claimLabel[data-status='conditional'] { color: var(--pink-deep); }
+
 /* ── Responsive ─────────────────────────────────────── */
 
 @media (max-width: 1023px) {

@@ -1,30 +1,21 @@
-import Link from 'next/link';
-import MarketingHeader from '../marketing-header';
-import MarketingFooter from '../marketing-footer';
-import { marketingPages, marketingHref } from '../marketing-registry';
-import styles from '../home.module.css';
+import type { Metadata } from 'next';
+import { marketingPages } from '../marketing-registry';
+import { MarketingIndexPage } from '../marketing-public-page';
+
+export const metadata: Metadata = {
+  title: 'Fitur — Invitesion',
+  description: 'Fitur Invitesion yang tersedia hari ini, yang sedang diuji terbatas, dan yang belum tersedia.',
+};
 
 export default function Page() {
   return (
-    <main className={styles.site}>
-      <MarketingHeader />
-      <section className={styles.simplePageHero}>
-        <small className={styles.eyebrow}>FITUR INVITESION</small>
-        <h1>Semua fitur dalam satu alur.</h1>
-        <p>Pilih kebutuhan Anda dan temukan halaman khusus dengan alur yang relevan.</p>
-        <div className={styles.resourceCards}>
-          {marketingPages['features'].map(page => (
-            <article key={page.slug}>
-              <h2>{page.title}</h2>
-              <p>{page.summary}</p>
-              <Link href={marketingHref('features', page.title)}>Pelajari <span aria-hidden="true">→</span></Link>
-            </article>
-          ))}
-        </div>
-      </section>
-      <div className={styles.frame}>
-        <MarketingFooter />
-      </div>
-    </main>
+    <MarketingIndexPage
+      category="features"
+      eyebrow="FITUR INVITESION"
+      title="Semua fitur dalam satu alur."
+      intro="Fitur yang tersedia tampil lebih dulu. Fitur yang masih diuji terbatas atau belum tersedia diberi label supaya kamu tahu persis apa yang bisa dipakai hari ini."
+      linkLabel="Pelajari"
+      pages={marketingPages.features}
+    />
   );
 }

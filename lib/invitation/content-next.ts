@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { and, eq, max, or } from 'drizzle-orm';
+import { and, eq, isNull, max, or } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
 import { invitations, invitationVersions, orders, templates } from '@/lib/db/schema';
 import type { Tier } from '@/lib/pricing';
@@ -20,7 +20,8 @@ export async function writeContentNext(input: ContentWriteRequest & { userId: nu
     const [row] = await tx
       .select({ id: invitations.id, eventType: invitations.eventType, templateId: invitations.templateId, config: invitations.config })
       .from(invitations)
-      .where(and(eq(invitations.id, input.invitationId), eq(invitations.userId, input.userId)))
+      // B-031: under the lock, so a save racing the owner's deletion sees it and changes nothing.
+      .where(and(eq(invitations.id, input.invitationId), eq(invitations.userId, input.userId), isNull(invitations.deletedAt)))
       .limit(1)
       .for('update');
     if (!row) return { kind: 'notfound' };

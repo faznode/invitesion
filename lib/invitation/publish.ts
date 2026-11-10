@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
 import { invitations } from '@/lib/db/schema';
 import { requireOwnedInvitation, OwnershipError } from './service';
@@ -64,11 +64,13 @@ export async function publishInvitation(invitationId: number, userId: number) {
   const publishedAt = invitation.publishedAt ?? new Date();
   const expiresAt = invitation.expiresAt ?? addMonths(publishedAt, ACTIVE_PERIOD_MONTHS);
 
+  // B-031: a deletion that lands between the ownership read and this write wins; the publish reports "not found".
   const [updated] = await db
     .update(invitations)
     .set({ status: 'PUBLISHED', publishedAt, expiresAt })
-    .where(eq(invitations.id, invitation.id))
+    .where(and(eq(invitations.id, invitation.id), isNull(invitations.deletedAt)))
     .returning();
+  if (!updated) throw new OwnershipError();
 
   return { invitation: updated, alreadyPublished: false as const };
 }
@@ -87,8 +89,9 @@ export async function unpublishInvitation(invitationId: number, userId: number) 
   const [updated] = await db
     .update(invitations)
     .set({ status: 'DRAFT' })
-    .where(eq(invitations.id, invitation.id))
+    .where(and(eq(invitations.id, invitation.id), isNull(invitations.deletedAt)))
     .returning();
+  if (!updated) throw new OwnershipError();
 
   return updated;
 }
