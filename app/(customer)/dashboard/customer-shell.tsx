@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { Wordmark } from '@/components/brand/wordmark';
+import { useModalDrawer } from '@/components/dashboard/use-modal-drawer';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Briefcase, FileText, LayoutDashboard, LogOut, Mail, Menu, Palette, ReceiptText, UserRound, Users, X, type LucideIcon } from 'lucide-react';
@@ -38,18 +39,11 @@ export function CustomerShell({ children, locale, user, receiptsEnabled = false,
   const initials = displayName.slice(0, 1).toUpperCase();
   const profileActive = path === '/dashboard/profile';
 
+  // Focus, Escape, the scroll lock and the page's inertness while the phone drawer is open.
+  const drawer = useModalDrawer(open, setOpen);
+
   // Close the drawer whenever the route changes.
   useEffect(() => { setOpen(false); }, [path]);
-
-  // Lock body scroll while the mobile drawer is open.
-  useEffect(() => {
-    if (!open) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
-    window.addEventListener('keydown', onKey);
-    return () => { document.body.style.overflow = prev; window.removeEventListener('keydown', onKey); };
-  }, [open]);
 
   const avatar = (
     <span className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-full bg-brand-100 text-xs font-bold text-brand-700">
@@ -111,8 +105,9 @@ export function CustomerShell({ children, locale, user, receiptsEnabled = false,
   return (
     <div data-app-shell="customer" className="min-h-dvh bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 lg:grid lg:grid-cols-[16rem_minmax(0,1fr)] print:block print:min-h-0 print:bg-white">
       {/* Mobile top bar with burger */}
-      <header className="sticky top-0 z-30 flex items-center justify-between gap-2 border-b border-slate-200 bg-white/95 px-3 py-2.5 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 lg:hidden print:hidden">
+      <header inert={open} className="sticky top-0 z-30 flex items-center justify-between gap-2 border-b border-slate-200 bg-white/95 px-3 py-2.5 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 lg:hidden print:hidden">
         <button
+          ref={drawer.triggerRef}
           type="button"
           onClick={() => setOpen(true)}
           aria-label={en ? 'Open menu' : 'Buka menu'}
@@ -128,7 +123,7 @@ export function CustomerShell({ children, locale, user, receiptsEnabled = false,
       </header>
 
       {/* Desktop sidebar */}
-      <aside className="hidden min-h-dvh flex-col border-r border-slate-200 bg-white px-4 py-5 dark:border-slate-800 dark:bg-slate-950 lg:flex print:hidden">
+      <aside inert={open} className="hidden min-h-dvh flex-col border-r border-slate-200 bg-white px-4 py-5 dark:border-slate-800 dark:bg-slate-950 lg:flex print:hidden">
         <div className="mb-8">{brand}</div>
         {nav}
         <div className="mt-auto border-t border-slate-100 pt-4 dark:border-slate-800">{account}</div>
@@ -138,7 +133,7 @@ export function CustomerShell({ children, locale, user, receiptsEnabled = false,
       {/* Closed, the drawer is inert: aria-hidden alone left its links in the tab order (axe aria-hidden-focus, s34). */}
       <div className={`fixed inset-0 z-40 lg:hidden print:hidden ${open ? '' : 'pointer-events-none'}`} aria-hidden={!open} inert={!open}>
         <div
-          onClick={() => setOpen(false)}
+          onClick={drawer.close}
           className={`absolute inset-0 bg-slate-900/40 transition-opacity duration-200 ${open ? 'opacity-100' : 'opacity-0'}`}
         />
         <div
@@ -150,8 +145,9 @@ export function CustomerShell({ children, locale, user, receiptsEnabled = false,
           <div className="mb-6 flex items-center justify-between">
             {brand}
             <button
+              ref={drawer.initialFocusRef}
               type="button"
-              onClick={() => setOpen(false)}
+              onClick={drawer.close}
               aria-label={en ? 'Close menu' : 'Tutup menu'}
               className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 text-slate-500 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
             >
@@ -163,7 +159,7 @@ export function CustomerShell({ children, locale, user, receiptsEnabled = false,
         </div>
       </div>
 
-      <main className="min-w-0">{children}</main>
+      <main inert={open} className="min-w-0">{children}</main>
     </div>
   );
 }

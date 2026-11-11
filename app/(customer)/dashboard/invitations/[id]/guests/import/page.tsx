@@ -30,7 +30,7 @@ export default async function GuestImportPage({ params, searchParams }: { params
             <ChevronLeft className="h-4 w-4" aria-hidden="true" />
             Tamu, RSVP & Check-in
           </Link>
-          <p className="mt-4 text-xs font-bold uppercase tracking-widest text-brand-600">/{invitation.slug}</p>
+          <p className="mt-4 text-xs font-bold uppercase tracking-widest text-brand-700">/{invitation.slug}</p>
           <h1 className="mt-1 text-2xl font-bold text-slate-950">Impor tamu</h1>
           <p className="mt-2 max-w-2xl text-pretty text-sm leading-relaxed text-slate-500">
             Tempel daftar dari Excel atau Google Sheets, atau pilih file CSV. Kolomnya: nama, nomor WhatsApp, kategori, jumlah tamu

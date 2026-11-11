@@ -51,7 +51,7 @@ export default async function CustomerInvitations({
       <div className="mx-auto max-w-6xl">
         <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-brand-600">
+            <p className="text-xs font-semibold uppercase tracking-wide text-brand-700">
               {en ? 'My workspace' : 'Ruang saya'}
             </p>
             <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900">

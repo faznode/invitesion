@@ -37,7 +37,7 @@ export default async function CustomerTemplates({ searchParams }: { searchParams
     <section className="min-h-full bg-slate-50/70 p-4 lg:p-8">
       <div className="mx-auto max-w-6xl space-y-8">
         <header>
-          <p className="text-xs font-semibold uppercase tracking-wide text-brand-600">{en ? 'Catalog' : 'Katalog'}</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-brand-700">{en ? 'Catalog' : 'Katalog'}</p>
           <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900">{en ? 'Choose a theme' : 'Pilih tema'}</h1>
           <p className="mt-1 text-sm text-slate-500">
             {en

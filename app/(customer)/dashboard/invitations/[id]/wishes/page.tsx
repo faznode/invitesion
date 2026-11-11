@@ -92,7 +92,7 @@ export default async function WishesPage({
             <ChevronLeft className="h-4 w-4" aria-hidden="true" />
             {owner ? 'Control center' : 'Dasbor'}
           </Link>
-          <p className="mt-4 text-xs font-bold uppercase tracking-widest text-brand-600">/{inv.slug}</p>
+          <p className="mt-4 text-xs font-bold uppercase tracking-widest text-brand-700">/{inv.slug}</p>
           <h1 className="mt-1 text-2xl font-bold text-balance text-slate-950">Ucapan & Doa</h1>
           <p className="mt-2 text-sm leading-relaxed text-pretty text-slate-500">
             Setujui, sembunyikan, hapus, atau balas ucapan tamu. Balasanmu tampil di bawah ucapan yang tampil di undangan.
