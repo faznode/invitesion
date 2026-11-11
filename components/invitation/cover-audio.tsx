@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react';
+import type { CoverLabels, GuestLanguage } from '@/lib/invitation/guest-copy';
 import { InvitationIcon } from './icons';
 
 /**
@@ -27,10 +28,21 @@ type GateState = 'shown' | 'leaving' | 'gone';
 const GATE_ID = 'sampul';
 const LEAVE_MS = 700;
 
+/** The gate's own words before G-018, kept as the default so the legacy layout's page stays byte-identical (D-041). */
+const INDONESIAN_LABELS: CoverLabels = {
+  dear: 'Kepada Yth.',
+  open: 'Buka Undangan',
+  withMusic: 'Dengan musik latar.',
+  withoutMusic: 'Buka tanpa musik',
+  music: 'Musik latar',
+};
+
 export function CoverAudio({
   music,
   gate,
   style,
+  labels = INDONESIAN_LABELS,
+  lang,
   children,
 }: {
   music: MusicSource;
@@ -38,6 +50,10 @@ export function CoverAudio({
   gate: CoverGateContent | null;
   /** The palette's CSS variables: the gate and the control sit outside the layout's `<main>`. */
   style: CSSProperties;
+  /** G-018: the gate's and the control's words in the page's language (design families); Indonesian otherwise. */
+  labels?: CoverLabels;
+  /** G-018: the language of those words, for pages whose document language differs (the owner's preview). */
+  lang?: GuestLanguage;
   children: ReactNode;
 }) {
   const [hydrated, setHydrated] = useState(false);
@@ -104,6 +120,7 @@ export function CoverAudio({
       {gate && (
         <div
           id={GATE_ID}
+          lang={lang}
           role="dialog"
           aria-modal="true"
           aria-labelledby="sampul-judul"
@@ -129,7 +146,7 @@ export function CoverAudio({
             <span aria-hidden="true" className="mt-8 block h-px w-12 bg-(--inv-accent)" />
             {gate.guestName && (
               <div id="sampul-tamu" className="mt-8">
-                <p className="text-xs uppercase tracking-widest text-(--inv-muted)">Kepada Yth.</p>
+                <p className="text-xs uppercase tracking-widest text-(--inv-muted)">{labels.dear}</p>
                 <p dir="auto" className="mt-1 font-serif text-xl [overflow-wrap:anywhere]">
                   {gate.guestName}
                 </p>
@@ -141,15 +158,15 @@ export function CoverAudio({
               onClick={onOpen(true)}
               className="mt-10 inline-flex min-h-12 items-center justify-center rounded-full bg-(--inv-accent) px-8 text-sm font-semibold tracking-wide text-(--inv-bg) focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-(--inv-accent)"
             >
-              Buka Undangan
+              {labels.open}
             </a>
-            <p className="mt-4 text-sm text-(--inv-muted)">Dengan musik latar.</p>
+            <p className="mt-4 text-sm text-(--inv-muted)">{labels.withMusic}</p>
             <a
               href={`#${GATE_ID}`}
               onClick={onOpen(false)}
               className="inline-flex min-h-11 items-center px-3 text-sm text-(--inv-accent) underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-(--inv-accent)"
             >
-              Buka tanpa musik
+              {labels.withoutMusic}
             </a>
           </div>
         </div>
@@ -161,6 +178,7 @@ export function CoverAudio({
       {hydrated && state === 'gone' && !failed && (
         <button
           type="button"
+          lang={lang}
           aria-pressed={playing}
           onClick={toggle}
           style={style}
@@ -169,7 +187,7 @@ export function CoverAudio({
           }`}
         >
           <InvitationIcon name={playing ? 'volume-2' : 'volume-x'} className="h-5 w-5" />
-          <span className="sr-only">{music.title ? `Musik latar: ${music.title}` : 'Musik latar'}</span>
+          <span className="sr-only">{music.title ? `${labels.music}: ${music.title}` : labels.music}</span>
         </button>
       )}
     </>

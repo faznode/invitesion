@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { after } from 'next/server';
 import { PublicInvitationRenderer } from '@/components/invitation/public-renderer';
 import { isFlagOn } from '@/lib/flags';
+import { guestCopy, guestLanguageOf } from '@/lib/invitation/guest-copy';
 import { passCheckInEnabled, passSigningSecret } from '@/lib/invitation/guest-pass';
 import { invitationShareMetadata } from '@/lib/invitation/preview-image';
 import { loadPublicInvitation, trackInvitationView } from '@/lib/invitation/public';
@@ -24,7 +25,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const data = await loadPublicInvitation(slug, guestSlug);
   if (!data) return { title: 'Undangan tidak ditemukan' };
   return {
-    title: data.config.settings?.title || 'Undangan Digital',
+    title: data.config.settings?.title || guestCopy(guestLanguageOf(data.config.settings?.language)).pageTitle,
     // Link preview (B-010): per invitation, never per guest — the guest name stays out of shared metadata.
     ...invitationShareMetadata(data.invitation, data.config),
     robots: { index: false, follow: false },

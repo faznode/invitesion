@@ -7,6 +7,7 @@ import type { DetailConfig } from '@/lib/invitation/detail-config';
 import { guestAudience, visibleEvents, type EventAudience } from '@/lib/invitation/event-eligibility';
 import { eventDateParts, formatEventDate, formatEventTime } from '@/lib/invitation/event-time';
 import { ownQrisUpload } from '@/lib/invitation/gift-privacy';
+import { GUEST_DATE_LOCALE, guestCopy, type GuestLanguage } from '@/lib/invitation/guest-copy';
 import { invitationDisplayName, invitationHeadline } from '@/lib/invitation/headline';
 import { guestLinkSegment } from '@/lib/invitation/guest-link';
 import { safeImageSrc } from '@/lib/invitation/image-url';
@@ -75,16 +76,25 @@ export type GuestPageProps = {
 /**
  * What every layout derives from the stored config, computed once so the legacy layout and each design family (B-030)
  * show the same data: dates in the event's own zone, the countdown rule, the calendar entry and who may respond.
+ *
+ * G-018 (I-31): `language` is the page's language, chosen by the caller: the renderer passes the invitation's for a design
+ * family and Indonesian for the legacy layout (frozen, D-041). It decides the product's own words (`copy`) and how dates
+ * read; the host's words, time zones and approved quotation text are unchanged.
  */
-export function buildGuestView({ invitation, config, guest, media, readOnly, preview = false, giftWithheld = false, imageVariants, saveData = false, guestPassHref = null }: GuestPageProps) {
+export function buildGuestView(
+  { invitation, config, guest, media, readOnly, preview = false, giftWithheld = false, imageVariants, saveData = false, guestPassHref = null }: GuestPageProps,
+  language: GuestLanguage = 'id',
+) {
   const tone = palette(config.theme?.paletteId);
+  const copy = guestCopy(language);
+  const dateLocale = GUEST_DATE_LOCALE[language];
   // B-032 (G-060): a memorial keeps the product's own words sober (`occasion.ts`); absent = the event type's own.
   const occasion: Occasion | undefined = config.settings?.occasion === 'memorial' ? 'memorial' : undefined;
   // Event-local wall clock with WIB / WITA / WIT from the saved offset, whatever zone the server runs in (B-004).
   const eventZone = config.eventOperations?.timezone;
-  const formatDate = (value?: string) => formatEventDate(value, eventZone);
-  const formatTime = (value?: string) => formatEventTime(value, eventZone);
-  const dateParts = (value?: string) => eventDateParts(value, eventZone);
+  const formatDate = (value?: string) => formatEventDate(value, eventZone, dateLocale);
+  const formatTime = (value?: string) => formatEventTime(value, eventZone, dateLocale);
+  const dateParts = (value?: string) => eventDateParts(value, eventZone, dateLocale);
   const names = invitationHeadline(invitation.eventType, config);
   // D-037: the events this page may show. A guest sees open events and the invite-only ones they are invited to; a page
   // without a guest link sees open events only; the host's preview sees all. Countdown, calendar entry and the per-event
@@ -101,7 +111,7 @@ export function buildGuestView({ invitation, config, guest, media, readOnly, pre
   const showCountdown = primaryIsAhead && config.settings?.countdown !== false;
   const primaryCalendarEvent =
     primaryIsAhead && primaryEvent && invitation.status === 'PUBLISHED'
-      ? calendarEventsFromConfig({ slug: invitation.slug, displayName: invitationDisplayName(invitation.eventType, config), events: [primaryEvent] })[0]
+      ? calendarEventsFromConfig({ slug: invitation.slug, displayName: invitationDisplayName(invitation.eventType, config, copy.invitation), events: [primaryEvent] })[0]
       : undefined;
   const galleryOn = config.gallery?.enabled !== false;
   const gallery = galleryOn ? media.filter((asset) => asset.type === 'photo') : [];
@@ -151,7 +161,7 @@ export function buildGuestView({ invitation, config, guest, media, readOnly, pre
     // HTML can require only an unconditional question with one answer; the action checks the rest ("hadir" only). With
     // per-event answers the overall status is known only to the action, so the browser requires none.
     nativeRequired: question.required && !question.conditional && !isMultiChoice(question) && rsvpEvents.length === 0,
-    condition: conditionText(question, questionsById),
+    condition: conditionText(question, questionsById, copy.rsvp.condition),
     stored: storedAnswers[question.id],
   }));
   // The host's section switches, read once: layouts render a section only while it is shown, and a refusal for a section
@@ -191,11 +201,14 @@ export function buildGuestView({ invitation, config, guest, media, readOnly, pre
   // B-029: the organiser's logo and the event category, corporate invitations only and render-when-filled (S16-L6).
   const corporateMark =
     invitation.eventType === 'corporate'
-      ? corporateMarkOf({
-          logoUrl: config.corporateProfile?.logoUrl,
-          eventCategory: config.corporateProfile?.eventCategory,
-          organisation,
-        })
+      ? corporateMarkOf(
+          {
+            logoUrl: config.corporateProfile?.logoUrl,
+            eventCategory: config.corporateProfile?.eventCategory,
+            organisation,
+          },
+          copy.corporate,
+        )
       : null;
 
   // D-038: person photos. Children's photos (aqiqah, khitanan, a birthday celebrant) need the host's switch and a personal
@@ -230,7 +243,7 @@ export function buildGuestView({ invitation, config, guest, media, readOnly, pre
             photoUrl: config.couple?.groom?.photoUrl,
           },
           displayOrder: config.couple?.displayOrder,
-        })
+        }, copy.people)
       : invitation.eventType === 'birthday'
         ? birthdayPortrait(
             {
@@ -240,6 +253,7 @@ export function buildGuestView({ invitation, config, guest, media, readOnly, pre
               showPhoto: config.birthdayPerson?.showPhoto,
             },
             portraitAudience,
+            copy.people,
           )
         : null;
   const celebrants =
@@ -272,7 +286,7 @@ export function buildGuestView({ invitation, config, guest, media, readOnly, pre
             photoUrl: config.couple?.groom?.photoUrl,
           },
           displayOrder: config.couple?.displayOrder,
-        })
+        }, copy.people)
       : portraits;
   const storedHonoureePortrait = ceremonyPortrait(
     invitation.eventType,
@@ -283,6 +297,7 @@ export function buildGuestView({ invitation, config, guest, media, readOnly, pre
       showPhoto: config.ceremonyProfile?.showPhoto,
     },
     portraitAudience,
+    copy.people,
   );
   const honoureeSrc = childSlot === 'honouree' && storedHonoureePortrait ? childSrc(storedHonoureePortrait.src) : undefined;
   const honoureePortrait =
@@ -313,7 +328,7 @@ export function buildGuestView({ invitation, config, guest, media, readOnly, pre
     thanksgivingCategory: config.ceremonyProfile?.thanksgivingCategory,
     thanksgivingTitle: config.ceremonyProfile?.thanksgivingTitle,
     achievement: config.ceremonyProfile?.achievement,
-  }, honoureePortrait, occasion);
+  }, honoureePortrait, occasion, copy, dateLocale);
   // B-029: the wedding hashtag and filter link; the editor offers this module for weddings only.
   const share =
     invitation.eventType === 'wedding'
@@ -359,12 +374,14 @@ export function buildGuestView({ invitation, config, guest, media, readOnly, pre
   const quote = !quoteOn
     ? null
     : config.quote?.corpusId
-      ? verse && { text: verse.text, author: verse.citation, provenance: provenanceLine(verse) }
+      ? verse && { text: verse.text, author: verse.citation, provenance: provenanceLine(verse, copy.provenance) }
       : config.quote?.text
         ? { text: config.quote.text, author: config.quote?.author || undefined, provenance: undefined }
         : null;
 
   return {
+    language,
+    copy,
     occasion,
     quote,
     headlineKind,

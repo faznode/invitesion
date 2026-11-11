@@ -1,7 +1,8 @@
 'use client';
 
 import { useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent, type ReactNode } from 'react';
-import { photoLabel, type GalleryVideo } from '@/lib/invitation/gallery';
+import type { GalleryVideo } from '@/lib/invitation/gallery';
+import type { LightboxLabels } from '@/lib/invitation/guest-copy';
 import { InvitationIcon } from './icons';
 
 /**
@@ -22,7 +23,33 @@ export type LightboxTone = { bg: string; ink: string; line: string };
 
 const SWIPE_PX = 48;
 
-export function GalleryLightbox({ photos, tone, children }: { photos: LightboxPhoto[]; tone: LightboxTone; children: ReactNode }) {
+/** The lightbox's words before G-018 (Indonesian); the design families pass their page's language. */
+const INDONESIAN_LABELS: LightboxLabels = {
+  dialog: 'Galeri foto',
+  close: 'Tutup galeri',
+  previous: 'Foto sebelumnya',
+  next: 'Foto berikutnya',
+  play: 'Putar',
+  loadsOnTap: 'dimuat setelah diketuk',
+  photo: 'Foto {n} dari {total}',
+};
+
+/** "Foto 2 dari 5" from the template (`photoLabel` in `gallery.ts` is the Indonesian one). */
+function fillPhotoLabel(template: string, index: number, total: number): string {
+  return template.replace('{n}', () => String(index + 1)).replace('{total}', () => String(total));
+}
+
+export function GalleryLightbox({
+  photos,
+  tone,
+  labels = INDONESIAN_LABELS,
+  children,
+}: {
+  photos: LightboxPhoto[];
+  tone: LightboxTone;
+  labels?: LightboxLabels;
+  children: ReactNode;
+}) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
@@ -85,7 +112,7 @@ export function GalleryLightbox({ photos, tone, children }: { photos: LightboxPh
   };
 
   const photo = index === null ? null : photos[index];
-  const label = index === null ? 'Galeri foto' : photoLabel(index, total);
+  const label = index === null ? labels.dialog : fillPhotoLabel(labels.photo, index, total);
   const control = `inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border ${tone.line} focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2`;
 
   return (
@@ -105,7 +132,7 @@ export function GalleryLightbox({ photos, tone, children }: { photos: LightboxPh
             <p aria-live="polite" className="text-sm tabular-nums">
               {index === null ? '' : `${index + 1} / ${total}`}
             </p>
-            <button ref={closeRef} type="button" onClick={close} aria-label="Tutup galeri" className={control}>
+            <button ref={closeRef} type="button" onClick={close} aria-label={labels.close} className={control}>
               <InvitationIcon name="x" className="h-5 w-5" />
             </button>
           </div>
@@ -128,10 +155,10 @@ export function GalleryLightbox({ photos, tone, children }: { photos: LightboxPh
           </div>
           {total > 1 && (
             <div className="flex items-center justify-center gap-6 px-4 py-4">
-              <button type="button" onClick={() => step(-1)} aria-label="Foto sebelumnya" className={control}>
+              <button type="button" onClick={() => step(-1)} aria-label={labels.previous} className={control}>
                 <InvitationIcon name="chevron-left" className="h-5 w-5" />
               </button>
-              <button type="button" onClick={() => step(1)} aria-label="Foto berikutnya" className={control}>
+              <button type="button" onClick={() => step(1)} aria-label={labels.next} className={control}>
                 <InvitationIcon name="chevron-right" className="h-5 w-5" />
               </button>
             </div>
@@ -146,7 +173,17 @@ export function GalleryLightbox({ photos, tone, children }: { photos: LightboxPh
  * B-025: a video as a poster the page draws itself (no provider image, no provider request) that becomes the provider's
  * privacy-enhanced player only after a tap. Without JavaScript the poster is a link to the video's own page.
  */
-export function VideoFacade({ video, tone, label }: { video: Extract<GalleryVideo, { kind: 'embed' }>; tone: LightboxTone & { card: string; muted: string }; label: string }) {
+export function VideoFacade({
+  video,
+  tone,
+  label,
+  labels = INDONESIAN_LABELS,
+}: {
+  video: Extract<GalleryVideo, { kind: 'embed' }>;
+  tone: LightboxTone & { card: string; muted: string };
+  label: string;
+  labels?: LightboxLabels;
+}) {
   const [playing, setPlaying] = useState(false);
   const provider = video.provider === 'youtube' ? 'YouTube' : 'Vimeo';
   return (
@@ -177,8 +214,14 @@ export function VideoFacade({ video, tone, label }: { video: Extract<GalleryVide
           <span aria-hidden="true" className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-current">
             <InvitationIcon name="play" className="ml-0.5 h-6 w-6" />
           </span>
-          <span className="text-sm font-semibold">Putar {label.toLowerCase()}</span>
-          <span className={`text-xs ${tone.muted}`}>{provider} dimuat setelah diketuk</span>
+          <span className="text-sm font-semibold">
+            {`${labels.play} `}
+            {label.toLowerCase()}
+          </span>
+          <span className={`text-xs ${tone.muted}`}>
+            {provider}
+            {` ${labels.loadsOnTap}`}
+          </span>
         </a>
       )}
     </div>

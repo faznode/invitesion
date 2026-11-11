@@ -289,3 +289,21 @@ test('I-11: on the families a reference shows the approved entry with its proven
   }
   assert.deepEqual(loadCorpus().entries, []);
 });
+
+test('I-11 / D-041: the frozen legacy layout keeps showing the typed quote, never an entry, and the editor promises the entry on a family only', () => {
+  const shipped = require('../content/verified-religious-texts/corpus.json') as { entries: ReligiousTextEntry[] };
+  shipped.entries.push(ENTRY);
+  try {
+    const page = renderGuestPage({ config: withFamily({ quote: { enabled: true, corpusId: 'contoh-teks-satu', text: 'Kata-kata tuan rumah', author: 'Tuan rumah' } }), guest: fixtureGuest() });
+    assert.match(page, /Kata-kata tuan rumah/, 'legacy renders the stored quote as before');
+    assert.doesNotMatch(page, /Teks contoh yang sudah disetujui|Kitab Contoh|Sumber:/, 'legacy never renders a corpus entry or its provenance');
+  } finally {
+    shipped.entries.splice(0);
+  }
+  const editor = source('app/(customer)/dashboard/invitations/[id]/edit/editor.tsx');
+  assert.match(
+    editor,
+    /familyOf\(section\('theme'\)\?\.familyId\)\?'Teks terpilih tampil[^']*menggantikan quote di atas\.':'Tata letak klasik belum menampilkan teks terverifikasi/,
+    'the replacement is promised only where the renderer picks a family',
+  );
+});

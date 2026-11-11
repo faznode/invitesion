@@ -1,6 +1,7 @@
 import './globals.css';
 import type { Metadata, Viewport } from 'next';
 import { Manrope, Instrument_Serif } from 'next/font/google';
+import { guestDocumentLanguage } from '@/lib/invitation/guest-document-language';
 import { getLocale } from '@/lib/locale-server';
 import { tierPriceLabel } from '@/lib/pricing';
 
@@ -47,10 +48,11 @@ export const viewport: Viewport = { themeColor: '#e80053' };
 // B-015: no ClerkProvider here. Guest pages (`/i/*`), marketing pages and `/preview` never use Clerk's client components;
 // the route groups that do — (login), (customer), (admin) — wrap themselves in `AuthProvider`.
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const locale = await getLocale();
+  // G-018 (I-31): a guest invitation page is in its invitation's language; every other page in the visitor's locale.
+  const lang = (await guestDocumentLanguage()) ?? (await getLocale());
   return (
     <html
-      lang={locale}
+      lang={lang}
       className={`bg-background text-foreground ${manrope.variable} ${instrumentSerif.variable} ${manrope.className}`}
       style={{ colorScheme: 'light' }}
     >

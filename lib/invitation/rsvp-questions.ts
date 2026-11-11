@@ -154,12 +154,22 @@ export function parseRsvpAnswers(
   return { ok: true, answers: Object.keys(answers).length ? answers : null };
 }
 
-/** The condition in words for the form, e.g. `Isi jika jawaban untuk “Pilihan menu” adalah “Vegetarian”.` */
-export function conditionText(question: CustomQuestion, byId: ReadonlyMap<string, CustomQuestion>): string | undefined {
+/** `Isi jika jawaban untuk “Pilihan menu” adalah “Vegetarian”.` */
+const indonesianCondition = (label: string, values: string[]) => `Isi jika jawaban untuk “${label}” adalah ${values.map((value) => `“${value}”`).join(' atau ')}.`;
+
+/**
+ * The condition in words for the form. G-018: the guest page passes its language's sentence (`guest-copy.ts`); this
+ * module stays free of the guest dictionary because the host's question editor bundles it.
+ */
+export function conditionText(
+  question: CustomQuestion,
+  byId: ReadonlyMap<string, CustomQuestion>,
+  sentence: (label: string, values: string[]) => string = indonesianCondition,
+): string | undefined {
   const condition = question.conditional;
   const source = condition ? byId.get(condition.questionId) : undefined;
   if (!condition || !source) return undefined;
-  return `Isi jika jawaban untuk “${source.label}” adalah ${conditionValues(condition).map((value) => `“${value}”`).join(' atau ')}.`;
+  return sentence(source.label, conditionValues(condition));
 }
 
 /** One export cell: a multiple choice joins with "; ", a number as written. `csvRow` neutralises formulas (B-006). */

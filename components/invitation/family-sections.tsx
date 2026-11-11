@@ -12,11 +12,9 @@ import {
   GuestbookBlock,
   MapLink,
   PortraitsBody,
-  PROGRAMME_HEADINGS,
   ProgrammeBody,
   programmeSections,
   RsvpBlock,
-  SHARE_HEADING,
   ShareBody,
 } from '@/components/invitation/guest-blocks';
 import type { GuestPageProps, GuestView } from '@/components/invitation/guest-view';
@@ -98,9 +96,9 @@ export function sharedSections(props: GuestPageProps, view: GuestView): SectionR
       ) : null,
     events: () =>
       events.length > 0 ? (
-        <SharedSection id="events" tone={tone} title="Waktu & Tempat">
+        <SharedSection id="events" tone={tone} title={view.copy.sections.timeAndPlace}>
           {showCountdown && primaryEvent && (
-            <Countdown target={primaryStartMs} initialNow={renderedAt} eventTitle={primaryEvent.title} boxClassName={card} labelClassName={tone.muted} />
+            <Countdown target={primaryStartMs} initialNow={renderedAt} eventTitle={primaryEvent.title} boxClassName={card} labelClassName={tone.muted} labels={view.copy.countdown} />
           )}
           <div className="mt-8 flex flex-col gap-4">
             {events.map((event, index) => (
@@ -125,13 +123,13 @@ export function sharedSections(props: GuestPageProps, view: GuestView): SectionR
       ) : null,
     programme: () =>
       programmeSections(view).map((id) => (
-        <SharedSection key={id} id="programme" tone={tone} title={PROGRAMME_HEADINGS[id]}>
+        <SharedSection key={id} id="programme" tone={tone} title={view.copy.programme[id]}>
           <ProgrammeBody id={id} view={view} cardClassName={card} />
         </SharedSection>
       )),
     story: () =>
       config.story?.enabled && config.story.items?.length ? (
-        <SharedSection id="story" tone={tone} title="Cerita">
+        <SharedSection id="story" tone={tone} title={view.copy.sections.story}>
           <ol className="mt-8 flex flex-col gap-6">
             {config.story.items.map((item, index) => (
               <li key={index}>
@@ -145,13 +143,13 @@ export function sharedSections(props: GuestPageProps, view: GuestView): SectionR
       ) : null,
     gallery: () =>
       gallery.length > 0 || view.galleryVideos.length > 0 ? (
-        <SharedSection id="gallery" tone={tone} title="Galeri">
+        <SharedSection id="gallery" tone={tone} title={view.copy.sections.gallery}>
           <GalleryBody view={view} frame={SHARED_GALLERY} />
         </SharedSection>
       ) : null,
     streaming: () =>
       config.streaming?.enabled && config.streaming.url ? (
-        <SharedSection id="streaming" tone={tone} title="Siaran Langsung">
+        <SharedSection id="streaming" tone={tone} title={view.copy.sections.liveStream}>
           <a
             href={config.streaming.url}
             target="_blank"
@@ -159,19 +157,19 @@ export function sharedSections(props: GuestPageProps, view: GuestView): SectionR
             className={`mt-6 inline-flex min-h-11 items-center gap-2 rounded-full border border-current px-6 text-sm font-semibold ${tone.accent}`}
           >
             <InvitationIcon name="radio" className="h-4 w-4" />
-            Tonton siaran
+            {view.copy.watchStream}
           </a>
         </SharedSection>
       ) : null,
     share: () =>
       view.share ? (
-        <SharedSection id="share" tone={tone} title={SHARE_HEADING}>
+        <SharedSection id="share" tone={tone} title={view.copy.sections.share}>
           <ShareBody view={view} align="start" />
         </SharedSection>
       ) : null,
     gift: () =>
       view.gift ? (
-        <SharedSection id="gift" tone={tone} title="Hadiah">
+        <SharedSection id="gift" tone={tone} title={view.copy.sections.gifts}>
           {view.gift.accounts.length > 0 && (
             <div className="mt-8 grid gap-4 sm:grid-cols-2">
               {view.gift.accounts.map((account, index) => (
@@ -184,7 +182,7 @@ export function sharedSections(props: GuestPageProps, view: GuestView): SectionR
                   )}
                   {account.holder && <p className={`mt-1 text-sm ${tone.muted}`}>a.n. {account.holder}</p>}
                   {account.number && (
-                    <GiftCopyButton number={account.number} label={account.label} targetId={giftNumberId(index)} accentClass={tone.accent} mutedClass={tone.muted} />
+                    <GiftCopyButton number={account.number} label={account.label} targetId={giftNumberId(index)} accentClass={tone.accent} mutedClass={tone.muted} labels={view.copy.giftCopy} />
                   )}
                   {account.note && <p className={`mt-2 text-sm ${tone.muted}`}>{account.note}</p>}
                 </article>
@@ -197,13 +195,13 @@ export function sharedSections(props: GuestPageProps, view: GuestView): SectionR
       ) : null,
     rsvp: () =>
       view.rsvpShown ? (
-        <SharedSection id="rsvp" tone={tone} title="Konfirmasi Kehadiran">
+        <SharedSection id="rsvp" tone={tone} title={view.copy.sections.rsvp}>
           <RsvpBlock props={props} view={view} formClassName={`mt-8 space-y-5 ${card} p-6`} fallbackClassName={`mt-8 ${card} p-6 text-sm ${tone.muted}`} />
         </SharedSection>
       ) : null,
     guestbook: () =>
       view.guestbookShown ? (
-        <SharedSection id="guestbook" tone={tone} title={config.guestbook?.heading || 'Ucapan & Doa'}>
+        <SharedSection id="guestbook" tone={tone} title={config.guestbook?.heading || view.copy.sections.wishes}>
           {config.guestbook?.prompt && <p className={`mt-2 text-sm ${tone.muted}`}>{config.guestbook.prompt}</p>}
           <GuestbookBlock props={props} view={view} formClassName={`mt-8 space-y-4 ${card} p-6`} messageClassName={`${card} p-5`} />
         </SharedSection>

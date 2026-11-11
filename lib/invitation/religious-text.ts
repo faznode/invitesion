@@ -78,10 +78,19 @@ export function verifiedBlockFor(corpusId: string | null | undefined, corpus: Re
   return { id, text, citation, language, source, ...(translationEdition && { translationEdition }), verifiedBy, verifiedAt };
 }
 
-/** I-11: the provenance line printed under a verified block (source, translation, who checked it and when). */
-export function provenanceLine(block: VerifiedReligiousBlock): string {
+const indonesianProvenance = (source: string, verifiedBy: string, verifiedAt: string) => `Sumber: ${source}. Diperiksa oleh ${verifiedBy} (${verifiedAt}).`;
+
+/**
+ * I-11: the provenance line printed under a verified block (source, translation, who checked it and when). G-018: the
+ * guest page passes its language's frame (`guest-copy.ts`); the corpus values are printed as stored. The editor bundles
+ * this module, so it stays free of the guest dictionary.
+ */
+export function provenanceLine(
+  block: VerifiedReligiousBlock,
+  frame: (source: string, verifiedBy: string, verifiedAt: string) => string = indonesianProvenance,
+): string {
   const source = block.translationEdition ? `${block.source}, ${block.translationEdition}` : block.source;
-  return `Sumber: ${source}. Diperiksa oleh ${block.verifiedBy} (${block.verifiedAt}).`;
+  return frame(source, block.verifiedBy, block.verifiedAt);
 }
 
 export type CorpusOption = { id: string; label: string };

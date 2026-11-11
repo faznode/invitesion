@@ -5,7 +5,7 @@
 > OWNER: Research agent (Architect role)
 > DEPS: ../01-codebase-audit/template-system.md, ../06-gap-analysis/template-catalog-roadmap.md, ../05-feature-matrix/feature-matrix.csv, ../04-template-benchmarks/benchmark-pack.md, 06-backlog.md (B-003, B-009, B-012, B-030), 12-decision-log.md (ADR-O04, ADR-O05), C-INV-001…005
 > GREP: template, manifest, harness, budget, gate, reduced motion, 3D, fallback, license, originality, religious, snapshot, dogfood, product gates, design families, Q-D17
-> UPDATED: 2026-11-06
+> UPDATED: 2026-11-11 (s48: §8 lists the B-032 / I-11 content fields `settings.occasion`, `settings.countdown`, `quote.corpusId`; earlier 2026-11-06)
 
 ## 1. Today (audit baseline `64678cf`; s09 changes marked)
 A template is a data row in `lib/invitation/templates.ts` (64 entries; tiers free 34 / premium 24 / signature 6; 18 palettes, now in `lib/invitation/palettes.ts` since E-010; 27 categories). Guests see **one layout for every template**: `components/invitation/public-renderer.tsx` varies only the palette. Theme art is hot-linked Unsplash; fonts are Manrope + Instrument Serif self-hosted by `next/font`; no audio element, no motion, no 3D, no per-template assets, licenses or budgets. At the baseline, catalog-created invitations lost their preset and three presets carried Qur'an translations of unknown provenance; both were fixed in s09 (B-001, B-003; the verified corpus `content/verified-religious-texts/` is empty).
@@ -15,7 +15,7 @@ A template is a data row in `lib/invitation/templates.ts` (64 entries; tiers fre
 - **What the families share:** the data path and the blocks (content contract E-014), the shell's fonts and stylesheet, and the palette tokens. Since B-016 / E-015 those tokens are contrast-safe pairs with a photo bound.
 - **What differs per family:** composition and ornament only. A family's own bytes are its document plus the few files only it loads (§4a).
 - **Still absent:** no audio element (B-009) and no 3D. Motion is limited to what the design-acceptance gate checks under reduced motion. No per-template manifest exists for the product yet.
-- **Corpus:** the verified corpus still has 0 entries (ADR-O04).
+- **Corpus:** the verified corpus still has 0 entries (ADR-O04). Since I-11 (s47–s48, E-091, D-068) an invitation's quote can reference an entry by `quote.corpusId`; with no approved entry nothing renders from it.
 
 ## 2. Contract: `template.manifest.json` (schema v1)
 Machine-readable, validated by `tools/template-harness/schema.ts` (zod, strict: unknown keys fail). Every template directory holds the manifest, its own files (`template.html`, `template.css`, optional `template.js`), and an `assets/` folder.
@@ -138,6 +138,11 @@ Next steps from the reconciled backlog: B-020's CI, so §4a runs unattended, the
   - `hostOnly`: never guest-facing;
   - `caveat`.
 - A test keeps the map and the renderer in agreement. A field moves from `storedOnly` to `rendered` in the change that renders it.
+- **B-032 / I-11 fields (s47–s48, E-091, D-068), all `rendered`, optional, absent in every config stored before them:**
+  - `settings.occasion` (`'memorial'` only, `lib/invitation/occasion.ts`): set by the `tahlilan` preset on a `tasyakuran` invitation; the product's own words read it, pricing and the writers read the event type. Absent = the event type's own occasion, so a stored invitation renders as before.
+  - `settings.countdown` (boolean): `false` hides the countdown and nothing else (the calendar links stay); absent or `true` = shown. The editor always sends a boolean.
+  - `quote.corpusId` (`''` or a kebab id ≤ 120): names an entry of `content/verified-religious-texts/corpus.json`. The design families render an **approved** entry's text, citation and provenance line, and nothing for any other id, never the typed `quote.text` in its place; `''` clears a reference (the merge keeps a key a save leaves out). **D-041:** the frozen legacy layout keeps rendering the typed quote only.
+  - Both content writers store and refuse these alike: the facade validates and merges, the Rust writer stores the prepared config opaquely (`verify-content-api`, `verify-creation-api`).
 - From U2, the map plus the zod schema are exported as JSON Schema for the Rust validators, so both sides reject the same input.
 
 **Version compatibility:**

@@ -33,6 +33,13 @@ const DEFAULTS = {
    */
   DEFAULT_FAMILY: true,
   /**
+   * G-018 (I-31): a guest page speaks its invitation's language (`settings.language`, Indonesian by default): the design
+   * families' labels, dates and notices, the document language, metadata, the link preview and the guest pass. Off
+   * renders every guest page in Indonesian exactly as before (the rollback); the legacy layout is Indonesian either way
+   * (D-041) and the stored setting is neither read nor removed.
+   */
+  GUEST_LANGUAGE: true,
+  /**
    * B-019 (I-28): a public upload queues WebP variants (made by the Rust jobs), and the design families offer them in a
    * `srcset` (the lite ladder under `Save-Data: on`). Off queues nothing and renders every image as its original exactly
    * as before; stored variants are neither read nor removed.

@@ -1,9 +1,10 @@
 import { googleCalendarUrl } from '@/lib/invitation/calendar';
+import { GUEST_COPY, type GuestCopy } from '@/lib/invitation/guest-copy';
 import { guestLinkSegment } from '@/lib/invitation/guest-link';
 import type { Portrait, Profile, Profiles } from '@/lib/invitation/portraits';
 import { invitationCalendarPath } from '@/lib/invitation/public-path';
 import { ANSWER_LIMITS } from '@/lib/invitation/rsvp-questions';
-import { RSVP_ANSWER_TEXT, rsvpDefaultCount, type RsvpStatus } from '@/lib/invitation/rsvp-rules';
+import { rsvpDefaultCount, type RsvpStatus } from '@/lib/invitation/rsvp-rules';
 import { IMAGE_SIZES } from '@/lib/media/variants';
 import { submitGuestMessage, submitRsvp } from '@/app/i/[slug]/actions';
 import { InvitationIcon } from '@/components/invitation/icons';
@@ -27,18 +28,16 @@ export function Notice({ kind, children }: { kind: 'success' | 'error'; children
   );
 }
 
-const RSVP_REFUSED = 'Konfirmasimu belum tersimpan karena RSVP untuk undangan ini sudah ditutup.';
-const WISH_REFUSED = 'Ucapanmu belum tersimpan karena buku tamu undangan ini sudah ditutup.';
-
 /**
  * B-027: a form rendered before the host switched its section off is refused on submit (`?rsvp=closed`, `?wish=closed`),
  * but that section is no longer on the page, so its own notice has nowhere to appear. Layouts place this where the
  * read-only notice goes, right after the cover. Nothing renders while the section is shown or when nothing was refused.
+ * G-018: every block speaks the view's language (`view.copy`); the legacy layout's view is always Indonesian (D-041).
  */
 export function SwitchedOffNotices({ props, view, className }: { props: GuestPageProps; view: GuestView; className: string }) {
   const refusals = [
-    !view.rsvpShown && props.status.rsvp === 'closed' ? RSVP_REFUSED : null,
-    !view.guestbookShown && props.status.wish === 'closed' ? WISH_REFUSED : null,
+    !view.rsvpShown && props.status.rsvp === 'closed' ? view.copy.rsvp.refusedClosed : null,
+    !view.guestbookShown && props.status.wish === 'closed' ? view.copy.wishes.refusedClosed : null,
   ].filter((text): text is string => text !== null);
   if (!refusals.length) return null;
   return (
@@ -52,11 +51,11 @@ export function SwitchedOffNotices({ props, view, className }: { props: GuestPag
   );
 }
 
-export function ReadOnlyNotice({ className = 'mx-auto max-w-xl px-6' }: { className?: string }) {
+export function ReadOnlyNotice({ className = 'mx-auto max-w-xl px-6', copy = GUEST_COPY.id }: { className?: string; copy?: GuestCopy }) {
   return (
     <p className={className}>
       <span className="block rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-center text-sm text-amber-800">
-        Undangan ini sudah melewati masa aktif. Kamu masih bisa melihat detailnya, tetapi RSVP dan buku tamu sudah ditutup.
+        {copy.readOnly}
       </span>
     </p>
   );
@@ -115,7 +114,7 @@ export function MapLink({ event, view, className = 'mt-5' }: { event: Invitation
       rel="noreferrer"
       className={`${className} inline-flex min-h-11 items-center rounded-full border border-current px-5 text-xs font-semibold ${view.tone.accent}`}
     >
-      Lihat lokasi
+      {view.copy.seeLocation}
     </a>
   );
 }
@@ -142,7 +141,7 @@ export function CalendarLinks({
         className={`inline-flex min-h-11 items-center gap-2 rounded-full border border-current px-5 text-xs font-semibold ${tone.accent}`}
       >
         <InvitationIcon name="calendar-plus" className="h-4 w-4" />
-        Simpan ke Google Calendar
+        {view.copy.calendarGoogle}
       </a>
       <a
         href={invitationCalendarPath(slug)}
@@ -150,7 +149,7 @@ export function CalendarLinks({
         className={`inline-flex min-h-11 items-center gap-2 rounded-full border border-current px-5 text-xs font-semibold ${tone.accent}`}
       >
         <InvitationIcon name="calendar-plus" className="h-4 w-4" />
-        Unduh kalender (.ics)
+        {view.copy.calendarFile}
       </a>
     </div>
   );
@@ -161,12 +160,13 @@ export function CalendarLinks({
  * after the event list. Layouts own the section frame and heading; rows, link rules and order stay here. Host text is
  * isolated for bidirectional scripts and wraps instead of overflowing at 360 px.
  */
+/** The legacy layout's headings (Indonesian, D-041); the design families read `view.copy.programme`. */
 export const PROGRAMME_HEADINGS = {
-  about: 'Tentang Acara',
-  agenda: 'Susunan Acara',
-  speakers: 'Pembicara',
-  info: 'Informasi Tamu',
-} as const;
+  about: GUEST_COPY.id.programme.about,
+  agenda: GUEST_COPY.id.programme.agenda,
+  speakers: GUEST_COPY.id.programme.speakers,
+  info: GUEST_COPY.id.programme.info,
+};
 
 export type ProgrammeSectionId = keyof typeof PROGRAMME_HEADINGS;
 
@@ -266,7 +266,7 @@ export function ProgrammeBody({ id, view, cardClassName }: { id: ProgrammeSectio
     <dl className={`mt-8 flex flex-col gap-5 ${cardClassName} p-5 text-sm`}>
       {dressCode && (
         <div>
-          <dt className={`text-xs uppercase tracking-widest ${tone.muted}`}>Dress code</dt>
+          <dt className={`text-xs uppercase tracking-widest ${tone.muted}`}>{view.copy.programme.dressCode}</dt>
           <dd dir="auto" className={`mt-1 font-medium ${HOST_TEXT}`}>
             {dressCode}
           </dd>
@@ -274,7 +274,7 @@ export function ProgrammeBody({ id, view, cardClassName }: { id: ProgrammeSectio
       )}
       {contact && (
         <div>
-          <dt className={`text-xs uppercase tracking-widest ${tone.muted}`}>Narahubung</dt>
+          <dt className={`text-xs uppercase tracking-widest ${tone.muted}`}>{view.copy.programme.contact}</dt>
           {contact.name && (
             <dd dir="auto" className={`mt-1 font-medium ${HOST_TEXT}`}>
               {contact.name}
@@ -474,7 +474,8 @@ export function PortraitsBody({
   );
 }
 
-export const SHARE_HEADING = 'Bagikan Momen';
+/** The legacy layout's heading (Indonesian, D-041); the design families read `view.copy.sections.share`. */
+export const SHARE_HEADING = GUEST_COPY.id.sections.share;
 
 /**
  * B-029: the wedding hashtag (`view.share`): each tag as text a guest can select in one tap, then the filter link when
@@ -487,7 +488,7 @@ export function ShareBody({ view, align }: { view: GuestView; align: 'center' | 
     <>
       {share.tags.length > 0 && (
         <>
-          <p className={`mt-4 text-sm ${tone.muted}`}>Unggah momenmu dengan tagar:</p>
+          <p className={`mt-4 text-sm ${tone.muted}`}>{view.copy.share.prompt}</p>
           <ul className={`mt-4 flex flex-wrap gap-2 ${align === 'center' ? 'justify-center' : ''}`}>
             {share.tags.map((tag) => (
               <li key={tag} dir="auto" className={`select-all rounded-full border ${tone.line} ${tone.card} px-4 py-2 text-sm font-semibold ${HOST_TEXT}`}>
@@ -504,7 +505,7 @@ export function ShareBody({ view, align }: { view: GuestView; align: 'center' | 
           rel="noopener noreferrer"
           className={`mt-6 inline-flex min-h-11 items-center rounded-full border border-current px-5 text-xs font-semibold ${tone.accent}`}
         >
-          Coba filter Instagram
+          {view.copy.share.filter}
         </a>
       )}
     </>
@@ -516,7 +517,7 @@ export function giftNumberId(index: number) {
   return `hadiah-nomor-${index}`;
 }
 
-export const GIFT_WITHHELD_TEXT = 'Detail rekening dan QRIS hanya tampil di tautan undangan pribadi yang dikirimkan kepada Anda.';
+export const GIFT_WITHHELD_TEXT = GUEST_COPY.id.gift.withheld;
 
 /**
  * B-026 (D-047): what the invitation link shows in place of gift details the host keeps to personal links. The details
@@ -524,7 +525,7 @@ export const GIFT_WITHHELD_TEXT = 'Detail rekening dan QRIS hanya tampil di taut
  */
 export function GiftWithheldNotice({ view, align = 'center' }: { view: GuestView; align?: 'center' | 'start' }) {
   if (!view.gift?.withheld) return null;
-  return <p className={`mt-6 text-sm leading-6 ${align === 'center' ? 'text-center' : ''} ${view.tone.muted}`}>{GIFT_WITHHELD_TEXT}</p>;
+  return <p className={`mt-6 text-sm leading-6 ${align === 'center' ? 'text-center' : ''} ${view.tone.muted}`}>{view.copy.gift.withheld}</p>;
 }
 
 /**
@@ -539,10 +540,10 @@ export function GiftQris({ view, align = 'center' }: { view: GuestView; align?: 
     <figure className={`mt-8 w-full max-w-60 ${align === 'center' ? 'mx-auto' : ''}`}>
       <div className={`rounded-2xl ${view.gift?.qrisPlate} p-3 shadow-sm`}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={src} alt="Kode QRIS untuk tanda kasih" loading="lazy" decoding="async" className="aspect-square w-full object-contain" />
+        <img src={src} alt={view.copy.gift.qrisAlt} loading="lazy" decoding="async" className="aspect-square w-full object-contain" />
       </div>
       <figcaption className={`mt-3 text-sm leading-6 ${align === 'center' ? 'text-center' : ''} ${view.tone.muted}`}>
-        QRIS statis dari tuan rumah. Pindai dengan aplikasi bank atau dompet digital.
+        {view.copy.gift.qrisNote}
       </figcaption>
     </figure>
   );
@@ -638,7 +639,7 @@ type RsvpQuestion = GuestView['rsvpQuestions'][number];
  * One host question in the RSVP form (B-027, D-034). Labels and options are host text, so they wrap and resolve their own
  * direction; the stored answer is the default, and a refused answer is named next to its field.
  */
-function RsvpQuestionField({ question, invalid, tone }: { question: RsvpQuestion; invalid: boolean; tone: GuestView['tone'] }) {
+function RsvpQuestionField({ question, invalid, tone, copy }: { question: RsvpQuestion; invalid: boolean; tone: GuestView['tone']; copy: GuestCopy }) {
   const id = `rsvp-${question.id}`;
   const hintId = question.condition ? `${id}-hint` : undefined;
   const errorId = invalid ? `${id}-error` : undefined;
@@ -653,7 +654,7 @@ function RsvpQuestionField({ question, invalid, tone }: { question: RsvpQuestion
       {question.required && (
         <>
           <span aria-hidden="true"> *</span>
-          <span className="sr-only"> (wajib jika hadir)</span>
+          <span className="sr-only">{copy.rsvp.requiredSr}</span>
         </>
       )}
     </>
@@ -667,7 +668,7 @@ function RsvpQuestionField({ question, invalid, tone }: { question: RsvpQuestion
       )}
       {invalid && (
         <span id={errorId} className="block rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-          Mohon isi atau perbaiki jawaban ini.
+          {copy.rsvp.fixAnswer}
         </span>
       )}
     </>
@@ -716,7 +717,7 @@ function RsvpQuestionField({ question, invalid, tone }: { question: RsvpQuestion
         <textarea {...shared} rows={3} maxLength={ANSWER_LIMITS.textarea} dir="auto" className={`${field} py-2.5 leading-6`} />
       ) : question.type === 'select' ? (
         <select {...shared} className={`h-11 ${field}`}>
-          <option value="">Pilih jawaban</option>
+          <option value="">{copy.rsvp.chooseOption}</option>
           {(question.options ?? []).map((option, index) => (
             <option key={`${index}-${option}`} value={option}>
               {option}
@@ -745,6 +746,7 @@ function RsvpEventField({
   maybe,
   allowance,
   defaultCount,
+  copy,
 }: {
   event: RsvpEvent;
   invalid: boolean;
@@ -752,9 +754,11 @@ function RsvpEventField({
   maybe: boolean;
   allowance: number;
   defaultCount: number;
+  copy: GuestCopy;
 }) {
   const errorId = invalid ? `rsvp-ev-${event.id}-error` : undefined;
-  const choices: Array<[RsvpStatus, string]> = [['CONFIRMED', 'Hadir'], ['DECLINED', 'Tidak hadir'], ...(maybe ? [['MAYBE', 'Mungkin'] as [RsvpStatus, string]] : [])];
+  const words = copy.rsvp.eventChoices;
+  const choices: Array<[RsvpStatus, string]> = [['CONFIRMED', words.CONFIRMED], ['DECLINED', words.DECLINED], ...(maybe ? [['MAYBE', words.MAYBE] as [RsvpStatus, string]] : [])];
   const storedCount = event.stored?.status === 'CONFIRMED' && event.stored.attending ? Math.min(event.stored.attending, allowance) : undefined;
   return (
     <fieldset aria-describedby={errorId} className={`flex flex-col gap-3 rounded-lg border ${tone.line} p-3`}>
@@ -770,7 +774,7 @@ function RsvpEventField({
       )}
       {invalid && (
         <p id={errorId} className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-          Mohon pilih jawaban untuk acara ini.
+          {copy.rsvp.eventInvalid}
         </p>
       )}
       <div className={`grid gap-2 ${maybe ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
@@ -782,7 +786,7 @@ function RsvpEventField({
         ))}
       </div>
       <label className="flex flex-col gap-1.5">
-        <span className="text-xs font-semibold">Jumlah yang hadir di acara ini</span>
+        <span className="text-xs font-semibold">{copy.rsvp.eventCount}</span>
         <input
           name={event.countField}
           type="number"
@@ -809,8 +813,10 @@ export function RsvpBlock({
   fallbackClassName: string;
 }) {
   const { invitation, guest, readOnly, status } = props;
-  const { tone, canRsvp, rsvpMaybe, rsvpQuestions, rsvpEvents, rsvpDeadlineText, rsvpClosedByDeadline } = view;
-  const lastAnswer = guest ? RSVP_ANSWER_TEXT[guest.rsvpStatus as RsvpStatus] : undefined;
+  const { tone, canRsvp, rsvpMaybe, rsvpQuestions, rsvpEvents, rsvpDeadlineText, rsvpClosedByDeadline, copy } = view;
+  const t = copy.rsvp;
+  // The stored answer in the guest's language (`RSVP_ANSWER_TEXT` in Indonesian); an unknown stored value shows nothing.
+  const lastAnswer = guest ? (t.answers as Partial<Record<string, string>>)[guest.rsvpStatus] : undefined;
   const refusedQuestion = status.rsvp === 'answers' ? rsvpQuestions.find((question) => question.id === status.rsvpq) : undefined;
   // D-036: with an answer per event there is one submit button; the action derives the overall answer from the events.
   const perEvent = rsvpEvents.length > 0;
@@ -820,49 +826,44 @@ export function RsvpBlock({
   const retryMinutes = retrySeconds > 0 ? Math.ceil(retrySeconds / 60) : 0;
   // "Required" means required for "hadir" (D-034): the other answers skip the browser's check, the action applies the same rule.
   const skipRequired = rsvpQuestions.length > 0 || undefined;
-  const closedText = readOnly
-    ? 'RSVP untuk undangan ini sudah ditutup.'
-    : rsvpClosedByDeadline
-      ? `Batas waktu konfirmasi kehadiran sudah lewat${rsvpDeadlineText ? ` (${rsvpDeadlineText})` : ''}.`
-      : 'Konfirmasi kehadiran tersedia melalui tautan undangan personal yang dikirimkan kepadamu.';
+  const closedText = readOnly ? t.closed : rsvpClosedByDeadline ? t.deadlinePassed(rsvpDeadlineText) : t.personalOnly;
   return (
     <>
-      {status.rsvp === 'saved' && <Notice kind="success">Terima kasih, konfirmasimu sudah kami terima.</Notice>}
-      {status.rsvp === 'invalid' && <Notice kind="error">Pilihan kehadiran tidak dikenali. Silakan coba lagi.</Notice>}
-      {status.rsvp === 'closed' && <Notice kind="error">{RSVP_REFUSED}</Notice>}
+      {status.rsvp === 'saved' && <Notice kind="success">{t.saved}</Notice>}
+      {status.rsvp === 'invalid' && <Notice kind="error">{t.invalid}</Notice>}
+      {status.rsvp === 'closed' && <Notice kind="error">{t.refusedClosed}</Notice>}
       {status.rsvp === 'busy' && (
         <Notice kind="error">
-          Konfirmasimu belum tersimpan karena terlalu banyak percobaan dalam waktu singkat.{' '}
-          {retryMinutes ? `Silakan coba lagi dalam ${retryMinutes} menit.` : 'Silakan coba lagi beberapa menit lagi.'}
+          {t.busy}{' '}
+          {retryMinutes ? copy.retryIn(retryMinutes) : copy.retryLater}
         </Notice>
       )}
-      {status.rsvp === 'retry' && (
-        <Notice kind="error">
-          Konfirmasimu belum bisa dipastikan tersimpan karena gangguan sambungan. Silakan kirim sekali lagi; jawaban yang sama
-          tidak akan tercatat dua kali.
-        </Notice>
-      )}
+      {status.rsvp === 'retry' && <Notice kind="error">{t.retry}</Notice>}
       {status.rsvp === 'answers' && (
         <Notice kind="error">
-          Konfirmasimu belum tersimpan.{' '}
+          {t.notSaved}{' '}
           {refusedQuestion ? (
             <>
-              Mohon periksa jawaban untuk “<bdi>{refusedQuestion.label}</bdi>”.
+              {t.checkAnswerTo[0]}
+              <bdi>{refusedQuestion.label}</bdi>
+              {t.checkAnswerTo[1]}
             </>
           ) : (
-            'Mohon periksa jawabanmu.'
+            t.checkAnswers
           )}
         </Notice>
       )}
       {status.rsvp === 'events' && (
         <Notice kind="error">
-          Konfirmasimu belum tersimpan.{' '}
+          {t.notSaved}{' '}
           {refusedEvent ? (
             <>
-              Mohon pilih jawaban untuk “<bdi>{refusedEvent.title}</bdi>”.
+              {t.chooseAnswerFor[0]}
+              <bdi>{refusedEvent.title}</bdi>
+              {t.chooseAnswerFor[1]}
             </>
           ) : (
-            'Mohon pilih jawaban untuk setiap acara.'
+            t.chooseEveryEvent
           )}
         </Notice>
       )}
@@ -875,26 +876,30 @@ export function RsvpBlock({
 
           {rsvpDeadlineText && (
             <p className={`text-sm ${tone.muted}`}>
-              Mohon konfirmasi sebelum <span className="font-semibold">{rsvpDeadlineText}</span>.
+              {t.replyBy[0]}
+              <span className="font-semibold">{rsvpDeadlineText}</span>
+              {t.replyBy[1]}
             </p>
           )}
 
           {/* Identity comes from the guest link, not user input, so the name is text rather than a locked control: it
               wraps instead of clipping (s15 review F7), stays in the contrast audit and is isolated for RTL names. */}
           <dl className="flex flex-col gap-1.5">
-            <dt className="text-sm font-semibold">Nama</dt>
+            <dt className="text-sm font-semibold">{t.name}</dt>
             <dd dir="auto" className={`rounded-lg border ${tone.line} ${tone.soft} px-3 py-2.5 text-sm leading-6 ${HOST_TEXT}`}>
               {guest.name}
             </dd>
-            <dd className={`text-xs ${tone.muted}`}>Nama diambil dari undangan personalmu.</dd>
+            <dd className={`text-xs ${tone.muted}`}>{t.nameNote}</dd>
           </dl>
 
           {perEvent ? (
             <div className="flex flex-col gap-4">
               <div className="flex flex-col gap-1">
-                <p className="text-sm font-semibold">Kehadiran per acara</p>
+                <p className="text-sm font-semibold">{t.perEvent}</p>
                 <p className={`text-xs ${tone.muted}`}>
-                  Pilih jawaban untuk setiap acara. Maksimal {guest.guestCount || 1} orang per acara; jumlah dicatat untuk acara yang kamu hadiri.
+                  {t.perEventNote[0]}
+                  {guest.guestCount || 1}
+                  {t.perEventNote[1]}
                 </p>
               </div>
               {rsvpEvents.map((event) => (
@@ -906,12 +911,13 @@ export function RsvpBlock({
                   maybe={rsvpMaybe}
                   allowance={guest.guestCount || 1}
                   defaultCount={rsvpDefaultCount(guest)}
+                  copy={copy}
                 />
               ))}
             </div>
           ) : (
             <label className="block space-y-1.5">
-              <span className="text-sm font-semibold">Jumlah yang hadir</span>
+              <span className="text-sm font-semibold">{t.count}</span>
               <input
                 name="guestCount"
                 type="number"
@@ -922,7 +928,9 @@ export function RsvpBlock({
               />
               {/* "Maybe" stores no headcount and a decline stores 0, so the number only counts with "hadir" (s17 finding R2). */}
               <span className={`block text-xs ${tone.muted}`}>
-                Maksimal {guest.guestCount || 1} orang untuk undangan ini. Jumlah ini dicatat untuk jawaban hadir.
+                {t.countNote[0]}
+                {guest.guestCount || 1}
+                {t.countNote[1]}
               </span>
             </label>
           )}
@@ -930,13 +938,13 @@ export function RsvpBlock({
           {rsvpQuestions.length > 0 && (
             <div className="flex flex-col gap-5">
               <div className="flex flex-col gap-1">
-                <p className="text-sm font-semibold">Pertanyaan dari tuan rumah</p>
+                <p className="text-sm font-semibold">{t.hostQuestions}</p>
                 {rsvpQuestions.some((question) => question.required) && (
-                  <p className={`text-xs ${tone.muted}`}>Tanda * wajib dijawab jika kamu hadir.</p>
+                  <p className={`text-xs ${tone.muted}`}>{t.requiredNote}</p>
                 )}
               </div>
               {rsvpQuestions.map((question) => (
-                <RsvpQuestionField key={question.id} question={question} invalid={refusedQuestion?.id === question.id} tone={tone} />
+                <RsvpQuestionField key={question.id} question={question} invalid={refusedQuestion?.id === question.id} tone={tone} copy={copy} />
               ))}
             </div>
           )}
@@ -948,7 +956,7 @@ export function RsvpBlock({
               value="EVENTS"
               className="min-h-11 rounded-lg bg-emerald-700 px-4 text-sm font-semibold text-white transition hover:bg-emerald-800"
             >
-              Kirim konfirmasi
+              {t.submitEvents}
             </button>
           ) : (
           <div className={`grid gap-3 ${rsvpMaybe ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
@@ -958,7 +966,7 @@ export function RsvpBlock({
               value="CONFIRMED"
               className="min-h-11 rounded-lg bg-emerald-700 px-4 text-sm font-semibold text-white transition hover:bg-emerald-800"
             >
-              Ya, saya hadir
+              {t.yes}
             </button>
             <button
               type="submit"
@@ -967,7 +975,7 @@ export function RsvpBlock({
               formNoValidate={skipRequired}
               className={`min-h-11 rounded-lg border ${tone.line} ${tone.field} px-4 text-sm font-semibold transition ${tone.hoverSoft}`}
             >
-              Maaf, belum bisa
+              {t.no}
             </button>
             {rsvpMaybe && (
               <button
@@ -977,7 +985,7 @@ export function RsvpBlock({
                 formNoValidate={skipRequired}
                 className={`min-h-11 rounded-lg border ${tone.line} ${tone.field} px-4 text-sm font-semibold transition ${tone.hoverSoft}`}
               >
-                Mungkin hadir
+                {t.maybe}
               </button>
             )}
           </div>
@@ -985,7 +993,9 @@ export function RsvpBlock({
 
           {lastAnswer && (
             <p className={`text-center text-xs ${tone.muted}`}>
-              Jawaban terakhirmu: {lastAnswer}. Kamu masih bisa mengubahnya.
+              {t.lastAnswer[0]}
+              {lastAnswer}
+              {t.lastAnswer[1]}
             </p>
           )}
         </form>
@@ -998,7 +1008,7 @@ export function RsvpBlock({
             href={view.guestPassHref}
             className={`inline-flex min-h-11 items-center justify-center rounded-lg border px-5 text-sm font-semibold transition ${tone.line} ${tone.field} ${tone.hoverSoft}`}
           >
-            Lihat QR pass untuk hari-H
+            {t.pass}
           </a>
         </div>
       )}
@@ -1021,32 +1031,25 @@ export function GuestbookBlock({
   listClassName?: string;
 }) {
   const { invitation, guest, messages, status, totalMessages = messages.length, hiddenMessageCount = 0 } = props;
-  const { tone, canRespond, wishesListed, wishesModerated } = view;
+  const { tone, canRespond, wishesListed, wishesModerated, copy } = view;
+  const t = copy.wishes;
   // B-013: whole minutes until the limit's window ends, when the refusal said (`wishr`, seconds).
   const retrySeconds = status.wish === 'busy' && /^\d{1,5}$/.test(status.wishr ?? '') ? Number(status.wishr) : 0;
   const retryMinutes = retrySeconds > 0 ? Math.ceil(retrySeconds / 60) : 0;
   // R-04 (D-044): on a hosts-only guestbook nothing is listed, so "saved" and "pending" both mean delivered to the hosts.
-  const delivered = 'Terima kasih. Ucapanmu sudah tersampaikan kepada tuan rumah.';
   return (
     <>
-      {status.wish === 'saved' && <Notice kind="success">{wishesListed ? 'Terima kasih atas ucapanmu.' : delivered}</Notice>}
-      {status.wish === 'pending' && (
-        <Notice kind="success">{wishesListed ? 'Terima kasih. Ucapanmu akan tampil setelah disetujui tuan rumah.' : delivered}</Notice>
-      )}
-      {status.wish === 'invalid' && <Notice kind="error">Ucapan tidak boleh kosong atau lebih dari 1.000 karakter.</Notice>}
-      {status.wish === 'closed' && <Notice kind="error">{WISH_REFUSED}</Notice>}
+      {status.wish === 'saved' && <Notice kind="success">{wishesListed ? t.saved : t.delivered}</Notice>}
+      {status.wish === 'pending' && <Notice kind="success">{wishesListed ? t.pending : t.delivered}</Notice>}
+      {status.wish === 'invalid' && <Notice kind="error">{t.invalid}</Notice>}
+      {status.wish === 'closed' && <Notice kind="error">{t.refusedClosed}</Notice>}
       {status.wish === 'busy' && (
         <Notice kind="error">
-          Ucapanmu belum tersimpan karena terlalu banyak ucapan dalam waktu singkat.{' '}
-          {retryMinutes ? `Silakan coba lagi dalam ${retryMinutes} menit.` : 'Silakan coba lagi beberapa menit lagi.'}
+          {t.busy}{' '}
+          {retryMinutes ? copy.retryIn(retryMinutes) : copy.retryLater}
         </Notice>
       )}
-      {status.wish === 'retry' && (
-        <Notice kind="error">
-          Ucapanmu belum bisa dipastikan tersimpan karena gangguan sambungan. Silakan kirim sekali lagi; ucapan yang sama tidak akan
-          tercatat dua kali.
-        </Notice>
-      )}
+      {status.wish === 'retry' && <Notice kind="error">{t.retry}</Notice>}
 
       {canRespond && guest && (
         <form action={submitGuestMessage} className={formClassName}>
@@ -1054,7 +1057,10 @@ export function GuestbookBlock({
           <input type="hidden" name="guestSlug" value={guestLinkSegment(guest)} />
           {props.wishKey && <input type="hidden" name="wishKey" value={props.wishKey} />}
           <label className="block space-y-1.5">
-            <span className="text-sm font-semibold">Ucapan dari {guest.name}</span>
+            <span className="text-sm font-semibold">
+              {t.from}
+              {guest.name}
+            </span>
             <textarea
               name="message"
               rows={4}
@@ -1062,16 +1068,16 @@ export function GuestbookBlock({
               maxLength={1000}
               aria-describedby={!wishesListed || wishesModerated ? `wish-note-${invitation.id}` : undefined}
               className={`w-full rounded-lg border ${tone.line} ${tone.field} p-3 text-sm ${tone.placeholder}`}
-              placeholder="Tulis doa dan ucapan terbaikmu…"
+              placeholder={t.placeholder}
             />
           </label>
           {(!wishesListed || wishesModerated) && (
             <p id={`wish-note-${invitation.id}`} className={`text-sm ${tone.muted}`}>
-              {!wishesListed ? 'Ucapanmu hanya dibaca oleh tuan rumah.' : 'Ucapan tampil di sini setelah disetujui tuan rumah.'}
+              {!wishesListed ? t.hostOnly : t.moderated}
             </p>
           )}
           <button type="submit" className={`min-h-11 w-full rounded-lg border border-current px-4 text-sm font-semibold ${tone.accent}`}>
-            Kirim ucapan
+            {t.submit}
           </button>
         </form>
       )}
@@ -1082,7 +1088,11 @@ export function GuestbookBlock({
             // The list is capped for payload reasons. Saying so is better than
             // letting a guest assume the earlier wishes were lost.
             <p className={`text-center text-sm ${tone.muted}`}>
-              Menampilkan {messages.length} ucapan terbaru dari {totalMessages}.
+              {t.showing[0]}
+              {messages.length}
+              {t.showing[1]}
+              {totalMessages}
+              {t.showing[2]}
             </p>
           )}
           {messages.map((message) => (
@@ -1091,13 +1101,13 @@ export function GuestbookBlock({
               <p className="mt-2 text-sm leading-7">{message.message}</p>
               {message.hostReply && (
                 <div className={`mt-4 border-t ${tone.line} pt-3`}>
-                  <p className="text-xs font-semibold uppercase tracking-wider">Balasan tuan rumah</p>
+                  <p className="text-xs font-semibold uppercase tracking-wider">{t.hostReply}</p>
                   <p className="mt-1 text-sm leading-7">{message.hostReply}</p>
                 </div>
               )}
             </article>
           ))}
-          {!messages.length && <p className={`text-center text-sm ${tone.muted}`}>Belum ada ucapan. Jadilah yang pertama.</p>}
+          {!messages.length && <p className={`text-center text-sm ${tone.muted}`}>{t.empty}</p>}
         </div>
       )}
     </>

@@ -1,4 +1,5 @@
 import type { DetailConfig } from './detail-config';
+import { GUEST_COPY, type GuestCopy } from './guest-copy';
 import { safeImageSrc } from './image-url';
 
 type EventCategory = NonNullable<NonNullable<DetailConfig['corporateProfile']>['eventCategory']>;
@@ -24,13 +25,17 @@ export type CorporateMark = { logo?: { src: string; alt: string }; category?: st
  * Logo and category of a corporate invitation, render-when-filled: null when neither would show. The logo is an upload
  * or an http(s) URL (`safeImageSrc`); any other stored scheme renders nothing.
  */
-export function corporateMarkOf(input: { logoUrl?: string; eventCategory?: EventCategory; organisation?: string }): CorporateMark | null {
+export function corporateMarkOf(
+  input: { logoUrl?: string; eventCategory?: EventCategory; organisation?: string },
+  copy: GuestCopy['corporate'] = GUEST_COPY.id.corporate,
+): CorporateMark | null {
   const src = safeImageSrc(input.logoUrl);
-  const category = input.eventCategory && input.eventCategory !== 'other' ? EVENT_CATEGORY_LABELS[input.eventCategory] : undefined;
+  // G-018: the category in the guest's language (the Indonesian words are `EVENT_CATEGORY_LABELS`).
+  const category = input.eventCategory && input.eventCategory !== 'other' ? copy.categories[input.eventCategory] : undefined;
   if (!src && !category) return null;
   const organisation = input.organisation?.trim();
   return {
-    logo: src ? { src, alt: organisation ? `Logo ${organisation}` : 'Logo penyelenggara' } : undefined,
+    logo: src ? { src, alt: organisation ? copy.logoOf(organisation) : copy.logoAlt } : undefined,
     category,
   };
 }

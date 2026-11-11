@@ -15,12 +15,10 @@ import {
   giftNumberId,
   GuestbookBlock,
   MapLink,
-  PROGRAMME_HEADINGS,
   ProgrammeBody,
   programmeSections,
   ReadOnlyNotice,
   RsvpBlock,
-  SHARE_HEADING,
   ShareBody,
   SwitchedOffNotices,
   VariantImage,
@@ -116,7 +114,7 @@ export function GapuraLayout({ props, view }: { props: GuestPageProps; view: Gue
                         </span>
                       </Fragment>
                     ))
-                  : config.settings?.title || 'Undangan'}
+                  : config.settings?.title || view.copy.invitation}
               </h1>
               {organiser && (
                 <p dir="auto" className={`mt-4 text-sm ${tone.muted} [overflow-wrap:anywhere]`}>
@@ -132,7 +130,7 @@ export function GapuraLayout({ props, view }: { props: GuestPageProps; view: Gue
 
         {guest && (
           <div className={rise(`mt-6 w-full max-w-sm rounded-2xl ${tone.soft} px-6 py-4`)}>
-            <p className={`text-xs uppercase tracking-widest ${tone.muted}`}>Kepada Yth.</p>
+            <p className={`text-xs uppercase tracking-widest ${tone.muted}`}>{view.copy.dear}</p>
             <p className="mt-1 font-serif text-xl [overflow-wrap:anywhere]" dir="auto">
               {guest.name}
             </p>
@@ -143,7 +141,7 @@ export function GapuraLayout({ props, view }: { props: GuestPageProps; view: Gue
 
     notices: () => (
       <>
-        {readOnly && <ReadOnlyNotice className="mx-auto max-w-lg px-6" />}
+        {readOnly && <ReadOnlyNotice className="mx-auto max-w-lg px-6" copy={view.copy} />}
         <SwitchedOffNotices props={props} view={view} className="mx-auto max-w-lg px-6" />
       </>
     ),
@@ -176,7 +174,7 @@ export function GapuraLayout({ props, view }: { props: GuestPageProps; view: Gue
 
     events: () =>
       events.length > 0 && (
-        <ArchSection section="events" tone={tone} title="Rangkaian Acara">
+        <ArchSection section="events" tone={tone} title={view.copy.sections.eventSeries}>
           {showCountdown && primaryEvent && (
             <Countdown
               target={primaryStartMs}
@@ -184,6 +182,7 @@ export function GapuraLayout({ props, view }: { props: GuestPageProps; view: Gue
               eventTitle={primaryEvent.title}
               boxClassName={`rounded-t-3xl ${tone.soft}`}
               labelClassName={tone.muted}
+              labels={view.copy.countdown}
             />
           )}
           <div className="mt-10 flex flex-col gap-6">
@@ -216,14 +215,14 @@ export function GapuraLayout({ props, view }: { props: GuestPageProps; view: Gue
 
     programme: () =>
       programmeSections(view).map((id) => (
-        <ArchSection key={id} section="programme" tone={tone} title={PROGRAMME_HEADINGS[id]}>
+        <ArchSection key={id} section="programme" tone={tone} title={view.copy.programme[id]}>
           <ProgrammeBody id={id} view={view} cardClassName={`rounded-2xl ${tone.card} shadow-sm`} />
         </ArchSection>
       )),
 
     story: () =>
       config.story?.enabled && config.story.items?.length ? (
-        <ArchSection section="story" tone={tone} title="Cerita Kami">
+        <ArchSection section="story" tone={tone} title={view.copy.sections.ourStory}>
           <ol className="mt-10 flex flex-col items-center">
             {config.story.items.map((item, index) => (
               <li key={index} className="flex flex-col items-center">
@@ -239,7 +238,7 @@ export function GapuraLayout({ props, view }: { props: GuestPageProps; view: Gue
 
     gallery: () =>
       (gallery.length > 0 || view.galleryVideos.length > 0) && (
-        <ArchSection section="gallery" tone={tone} title="Galeri">
+        <ArchSection section="gallery" tone={tone} title={view.copy.sections.gallery}>
           <GalleryBody view={view} frame={GAPURA_GALLERY} />
         </ArchSection>
       ),
@@ -247,7 +246,7 @@ export function GapuraLayout({ props, view }: { props: GuestPageProps; view: Gue
     streaming: () =>
       config.streaming?.enabled &&
       config.streaming.url && (
-        <ArchSection section="streaming" tone={tone} title="Siaran Langsung">
+        <ArchSection section="streaming" tone={tone} title={view.copy.sections.liveStream}>
           <InvitationIcon name="radio" className={`mx-auto mt-6 h-6 w-6 ${tone.accent}`} />
           <a
             href={config.streaming.url}
@@ -255,21 +254,21 @@ export function GapuraLayout({ props, view }: { props: GuestPageProps; view: Gue
             rel="noreferrer"
             className={`mt-6 inline-flex min-h-11 items-center rounded-full border border-current px-6 text-sm font-semibold ${tone.accent}`}
           >
-            Tonton siaran
+            {view.copy.watchStream}
           </a>
         </ArchSection>
       ),
 
     share: () =>
       view.share && (
-        <ArchSection section="share" tone={tone} title={SHARE_HEADING}>
+        <ArchSection section="share" tone={tone} title={view.copy.sections.share}>
           <ShareBody view={view} align="center" />
         </ArchSection>
       ),
 
     gift: () =>
       view.gift ? (
-        <ArchSection section="gift" tone={tone} title="Tanda Kasih">
+        <ArchSection section="gift" tone={tone} title={view.copy.sections.tokenOfLove}>
           <InvitationIcon name="gift" className={`mx-auto mt-6 h-6 w-6 ${tone.accent}`} />
           {view.gift.accounts.length > 0 && (
             <div className="mt-8 flex flex-col gap-4">
@@ -283,7 +282,7 @@ export function GapuraLayout({ props, view }: { props: GuestPageProps; view: Gue
                   )}
                   {account.holder && <p className={`mt-1 text-sm ${tone.muted}`}>a.n. {account.holder}</p>}
                   {account.number && (
-                    <GiftCopyButton number={account.number} label={account.label} targetId={giftNumberId(index)} accentClass={tone.accent} mutedClass={tone.muted} align="center" />
+                    <GiftCopyButton number={account.number} label={account.label} targetId={giftNumberId(index)} accentClass={tone.accent} mutedClass={tone.muted} align="center" labels={view.copy.giftCopy} />
                   )}
                   {account.note && <p className={`mt-2 text-sm ${tone.muted}`}>{account.note}</p>}
                 </article>
@@ -298,7 +297,7 @@ export function GapuraLayout({ props, view }: { props: GuestPageProps; view: Gue
     // RSVP — only a recognised guest can respond, and only while the invitation is active.
     rsvp: () =>
       view.rsvpShown && (
-        <ArchSection section="rsvp" tone={tone} title="Konfirmasi Kehadiran">
+        <ArchSection section="rsvp" tone={tone} title={view.copy.sections.rsvp}>
           <RsvpBlock
             props={props}
             view={view}
@@ -310,7 +309,7 @@ export function GapuraLayout({ props, view }: { props: GuestPageProps; view: Gue
 
     guestbook: () =>
       view.guestbookShown && (
-        <ArchSection section="guestbook" tone={tone} title={config.guestbook?.heading || 'Ucapan & Doa'}>
+        <ArchSection section="guestbook" tone={tone} title={config.guestbook?.heading || view.copy.sections.wishes}>
           {config.guestbook?.prompt && <p className={`mt-3 text-sm ${tone.muted}`}>{config.guestbook.prompt}</p>}
           <GuestbookBlock
             props={props}
@@ -324,13 +323,13 @@ export function GapuraLayout({ props, view }: { props: GuestPageProps; view: Gue
     footer: () => (
       <footer data-section="footer" className={`flex flex-col items-center gap-4 px-6 pb-12 pt-4 text-center text-xs ${tone.muted}`}>
         <Diamond tone={tone} />
-        <p>Undangan digital oleh Invitesion</p>
+        <p>{view.copy.footer}</p>
       </footer>
     ),
   };
 
   return (
-    <main className={`min-h-screen ${tone.bg} ${tone.ink}`} style={tone.style} data-font-pairing={choices.fontPairing}>
+    <main lang={view.language} className={`min-h-screen ${tone.bg} ${tone.ink}`} style={tone.style} data-font-pairing={choices.fontPairing}>
       {composeSections(FAMILY_MANIFESTS.gapura, sections, sharedSections(props, view), config.theme)}
     </main>
   );

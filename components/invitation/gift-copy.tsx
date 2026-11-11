@@ -1,14 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import type { GiftCopyLabels } from '@/lib/invitation/guest-copy';
 
 type CopyState = 'idle' | 'copied' | 'selected';
 
-const STATUS_TEXT: Record<CopyState, string> = {
-  idle: '',
-  copied: 'Nomor disalin',
-  selected: 'Nomor sudah dipilih, salin dari menu',
-};
+/** The button's words before G-018 (Indonesian); the design families pass their page's language. */
+const INDONESIAN_LABELS: GiftCopyLabels = { copy: 'Salin', number: 'nomor', copied: 'Nomor disalin', selected: 'Nomor sudah dipilih, salin dari menu' };
 
 /**
  * B-026 (D-047): copies an account number exactly as the host stored it. The button appears once hydrated, like the music
@@ -24,6 +22,7 @@ export function GiftCopyButton({
   accentClass,
   mutedClass,
   align = 'start',
+  labels = INDONESIAN_LABELS,
 }: {
   number: string;
   label: string;
@@ -32,6 +31,8 @@ export function GiftCopyButton({
   accentClass: string;
   mutedClass: string;
   align?: 'start' | 'center';
+  /** G-018: the page's language. */
+  labels?: GiftCopyLabels;
 }) {
   const [hydrated, setHydrated] = useState(false);
   const [state, setState] = useState<CopyState>('idle');
@@ -54,10 +55,10 @@ export function GiftCopyButton({
             onClick={copy}
             className={`inline-flex min-h-11 items-center rounded-full border border-current px-5 text-xs font-semibold ${accentClass}`}
           >
-            Salin<span className="sr-only"> nomor {label}</span>
+            {labels.copy}<span className="sr-only">{` ${labels.number} `}{label}</span>
           </button>
           <span role="status" className={`text-sm ${mutedClass}`}>
-            {STATUS_TEXT[state]}
+            {state === 'idle' ? '' : labels[state]}
           </span>
         </>
       )}

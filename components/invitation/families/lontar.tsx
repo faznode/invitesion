@@ -15,12 +15,10 @@ import {
   giftNumberId,
   GuestbookBlock,
   MapLink,
-  PROGRAMME_HEADINGS,
   ProgrammeBody,
   programmeSections,
   ReadOnlyNotice,
   RsvpBlock,
-  SHARE_HEADING,
   ShareBody,
   SwitchedOffNotices,
   VariantImage,
@@ -59,7 +57,7 @@ export function LontarLayout({ props, view }: { props: GuestPageProps; view: Gue
   const greetBeforePhoto = Boolean(mark && band && photo && guest);
   const greeting = guest && (
     <div className={greetBeforePhoto ? 'mt-4 sm:col-span-2 sm:row-start-2' : mark ? 'mt-8' : 'mt-10'}>
-      <p className={`text-xs uppercase tracking-widest ${tone.muted}`}>Kepada Yth.</p>
+      <p className={`text-xs uppercase tracking-widest ${tone.muted}`}>{view.copy.dear}</p>
       <p dir="auto" className="mt-1 font-serif text-2xl [overflow-wrap:anywhere]">
         {guest.name}
       </p>
@@ -95,7 +93,7 @@ export function LontarLayout({ props, view }: { props: GuestPageProps; view: Gue
                   <span dir="auto">{name}</span>
                 </Fragment>
               ))
-            : config.settings?.title || 'Undangan'}
+            : config.settings?.title || view.copy.invitation}
         </h1>
         {organiser && (
           <p dir="auto" className={`mt-4 text-xs font-semibold uppercase tracking-[0.2em] ${tone.muted} [overflow-wrap:anywhere]`}>
@@ -110,7 +108,12 @@ export function LontarLayout({ props, view }: { props: GuestPageProps; view: Gue
                 <Binding tone={tone} />
                 {date && <p className={`text-xs font-semibold uppercase tracking-[0.2em] ${tone.muted}`}>{date}</p>}
                 {start && <p className="mt-2 font-serif text-3xl leading-tight">{start}</p>}
-                {end && <p className={`text-sm ${tone.muted}`}>sampai {end}</p>}
+                {end && (
+                  <p className={`text-sm ${tone.muted}`}>
+                    {`${view.copy.until} `}
+                    {end}
+                  </p>
+                )}
                 {primaryEvent?.venueName && (
                   <p dir="auto" className="mt-3 text-sm font-medium [overflow-wrap:anywhere]">
                     {primaryEvent.venueName}
@@ -147,7 +150,7 @@ export function LontarLayout({ props, view }: { props: GuestPageProps; view: Gue
 
     notices: () => (
       <>
-        {readOnly && <ReadOnlyNotice className="mx-auto max-w-2xl px-5 pt-6" />}
+        {readOnly && <ReadOnlyNotice className="mx-auto max-w-2xl px-5 pt-6" copy={view.copy} />}
         <SwitchedOffNotices props={props} view={view} className="mx-auto max-w-2xl px-5 pt-6" />
       </>
     ),
@@ -168,16 +171,16 @@ export function LontarLayout({ props, view }: { props: GuestPageProps; view: Gue
 
     programme: () =>
       programmeSections(view).map((id) => (
-        <LeafSection key={id} section="programme" tone={tone} title={PROGRAMME_HEADINGS[id]}>
+        <LeafSection key={id} section="programme" tone={tone} title={view.copy.programme[id]}>
           <ProgrammeBody id={id} view={view} cardClassName={card} />
         </LeafSection>
       )),
 
     events: () =>
       events.length > 0 && (
-        <LeafSection section="events" tone={tone} title="Waktu & Tempat">
+        <LeafSection section="events" tone={tone} title={view.copy.sections.timeAndPlace}>
           {showCountdown && primaryEvent && (
-            <Countdown target={primaryStartMs} initialNow={renderedAt} eventTitle={primaryEvent.title} boxClassName={card} labelClassName={tone.muted} />
+            <Countdown target={primaryStartMs} initialNow={renderedAt} eventTitle={primaryEvent.title} boxClassName={card} labelClassName={tone.muted} labels={view.copy.countdown} />
           )}
           <div className="mt-8 flex flex-col gap-4">
             {events.map((event, index) => (
@@ -211,7 +214,7 @@ export function LontarLayout({ props, view }: { props: GuestPageProps; view: Gue
 
     story: () =>
       config.story?.enabled && config.story.items?.length ? (
-        <LeafSection section="story" tone={tone} title="Cerita">
+        <LeafSection section="story" tone={tone} title={view.copy.sections.story}>
           <ol className="mt-8 flex flex-col gap-6">
             {config.story.items.map((item, index) => (
               <li key={index} className="sm:grid sm:grid-cols-[7rem_1fr] sm:gap-4">
@@ -228,7 +231,7 @@ export function LontarLayout({ props, view }: { props: GuestPageProps; view: Gue
 
     gallery: () =>
       (gallery.length > 0 || view.galleryVideos.length > 0) && (
-        <LeafSection section="gallery" tone={tone} title="Galeri">
+        <LeafSection section="gallery" tone={tone} title={view.copy.sections.gallery}>
           <GalleryBody
             view={view}
             frame={{
@@ -248,7 +251,7 @@ export function LontarLayout({ props, view }: { props: GuestPageProps; view: Gue
     streaming: () =>
       config.streaming?.enabled &&
       config.streaming.url && (
-        <LeafSection section="streaming" tone={tone} title="Siaran Langsung">
+        <LeafSection section="streaming" tone={tone} title={view.copy.sections.liveStream}>
           <a
             href={config.streaming.url}
             target="_blank"
@@ -256,21 +259,21 @@ export function LontarLayout({ props, view }: { props: GuestPageProps; view: Gue
             className={`mt-6 inline-flex min-h-11 items-center gap-2 rounded-full border border-current px-6 text-sm font-semibold ${tone.accent}`}
           >
             <InvitationIcon name="radio" className="h-4 w-4" />
-            Tonton siaran
+            {view.copy.watchStream}
           </a>
         </LeafSection>
       ),
 
     share: () =>
       view.share && (
-        <LeafSection section="share" tone={tone} title={SHARE_HEADING}>
+        <LeafSection section="share" tone={tone} title={view.copy.sections.share}>
           <ShareBody view={view} align="start" />
         </LeafSection>
       ),
 
     gift: () =>
       view.gift ? (
-        <LeafSection section="gift" tone={tone} title="Hadiah">
+        <LeafSection section="gift" tone={tone} title={view.copy.sections.gifts}>
           {view.gift.accounts.length > 0 && (
             <div className="mt-8 grid gap-4 sm:grid-cols-2">
               {view.gift.accounts.map((account, index) => (
@@ -286,7 +289,7 @@ export function LontarLayout({ props, view }: { props: GuestPageProps; view: Gue
                   )}
                   {account.holder && <p className={`mt-1 text-sm ${tone.muted}`}>a.n. {account.holder}</p>}
                   {account.number && (
-                    <GiftCopyButton number={account.number} label={account.label} targetId={giftNumberId(index)} accentClass={tone.accent} mutedClass={tone.muted} />
+                    <GiftCopyButton number={account.number} label={account.label} targetId={giftNumberId(index)} accentClass={tone.accent} mutedClass={tone.muted} labels={view.copy.giftCopy} />
                   )}
                   {account.note && <p className={`mt-2 text-sm ${tone.muted}`}>{account.note}</p>}
                 </article>
@@ -301,7 +304,7 @@ export function LontarLayout({ props, view }: { props: GuestPageProps; view: Gue
     // RSVP — only a recognised guest can respond, and only while the invitation is active.
     rsvp: () =>
       view.rsvpShown && (
-        <LeafSection section="rsvp" tone={tone} title="Konfirmasi Kehadiran">
+        <LeafSection section="rsvp" tone={tone} title={view.copy.sections.rsvp}>
           <RsvpBlock
             props={props}
             view={view}
@@ -313,7 +316,7 @@ export function LontarLayout({ props, view }: { props: GuestPageProps; view: Gue
 
     guestbook: () =>
       view.guestbookShown && (
-        <LeafSection section="guestbook" tone={tone} title={config.guestbook?.heading || 'Ucapan & Doa'}>
+        <LeafSection section="guestbook" tone={tone} title={config.guestbook?.heading || view.copy.sections.wishes}>
           {config.guestbook?.prompt && <p className={`mt-2 text-sm ${tone.muted}`}>{config.guestbook.prompt}</p>}
           <GuestbookBlock props={props} view={view} formClassName={`mt-8 space-y-4 ${card} p-6`} messageClassName={`${card} p-5`} />
         </LeafSection>
@@ -321,13 +324,13 @@ export function LontarLayout({ props, view }: { props: GuestPageProps; view: Gue
 
     footer: () => (
       <footer data-section="footer" className={`mx-auto max-w-2xl px-5 pb-12 pt-4 text-xs ${tone.muted}`}>
-        <p>Undangan digital oleh Invitesion</p>
+        <p>{view.copy.footer}</p>
       </footer>
     ),
   };
 
   return (
-    <main className={`min-h-screen ${tone.bg} ${tone.ink}`} style={tone.style} data-font-pairing={choices.fontPairing}>
+    <main lang={view.language} className={`min-h-screen ${tone.bg} ${tone.ink}`} style={tone.style} data-font-pairing={choices.fontPairing}>
       {composeSections(FAMILY_MANIFESTS.lontar, sections, sharedSections(props, view), config.theme)}
     </main>
   );

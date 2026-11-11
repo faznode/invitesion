@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getAdminEntryPath } from '@/lib/env';
 import { resolveLocale } from '@/lib/i18n';
+import { GUEST_ROUTE_HEADER, guestRouteHeaderOf } from '@/lib/invitation/guest-route';
 import { mirrorsLocaleCookie } from '@/lib/locale-cookie';
 import {
   clerkFrontendApiOrigin,
@@ -138,6 +139,11 @@ export default clerkMiddleware(async (getAuth, request) => {
   // middleware and server components for no reason. Named after what they carry.
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set('x-app-locale', locale);
+  // G-018 (I-31): a guest page's document speaks its invitation's language; the root layout reads the route from here.
+  // Never trusted from the client: removed first, then set only for a guest page path.
+  requestHeaders.delete(GUEST_ROUTE_HEADER);
+  const guestRoute = guestRouteHeaderOf(pathname);
+  if (guestRoute) requestHeaders.set(GUEST_ROUTE_HEADER, guestRoute);
 
   // Per-request CSP nonce.
   //

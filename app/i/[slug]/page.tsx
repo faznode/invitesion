@@ -3,6 +3,7 @@ import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { after } from 'next/server';
 import { PublicInvitationRenderer } from '@/components/invitation/public-renderer';
+import { guestCopy, guestLanguageOf } from '@/lib/invitation/guest-copy';
 import { invitationShareMetadata } from '@/lib/invitation/preview-image';
 import { loadPublicInvitation, trackInvitationView } from '@/lib/invitation/public';
 import { saveDataRequested } from '@/lib/media/variants';
@@ -17,7 +18,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const data = await loadPublicInvitation(slug);
   if (!data) return { title: 'Undangan tidak ditemukan' };
   return {
-    title: data.config.settings?.title || 'Undangan Digital',
+    title: data.config.settings?.title || guestCopy(guestLanguageOf(data.config.settings?.language)).pageTitle,
     ...invitationShareMetadata(data.invitation, data.config),
     // A guest link is personal; keep it out of search results.
     robots: { index: false, follow: false },

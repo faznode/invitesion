@@ -4,8 +4,8 @@
 > STATUS: LIVE (design, tervalidasi riset)
 > OWNER: Operator
 > DEPS: design-agent.md, DATABASE_SCHEMA.md (templates)
-> GREP: template, katalog, filter, tag, galeri, occasion, style, color, swatch, pakai tema, wizard, buat, pratinjau, manifest, admin, G-062
-> UPDATED: 2026-11-10 (s45: catalog manifests and the read-only admin console, G-062; s33: "Pakai tema" → wizard B-037 di balik `FLAG_CREATION_WIZARD`; sebelumnya 2026-07-15)
+> GREP: template, katalog, filter, tag, galeri, occasion, style, color, swatch, pakai tema, wizard, buat, pratinjau, manifest, admin, G-062, memorial, tahlilan, countdown, corpus, B-032, I-11
+> UPDATED: 2026-11-11 (s48: memorial themes as an occasion with sober defaults, the countdown switch and corpus references, B-032 / I-11; s45: catalog manifests and the read-only admin console, G-062; s33: "Pakai tema" → wizard B-037 di balik `FLAG_CREATION_WIZARD`; sebelumnya 2026-07-15)
 
 ## Prinsip
 CUSTOMER yang milih template/vibe/warna. Sistem cuma nyajiin katalog + filter jelas. AI NOL peran di sini.
@@ -57,6 +57,13 @@ Aturan skala kecil: opsi filter langsung terlihat (jangan disembunyiin); multi-s
 - **Authorization:** both pages check the private entry and the administrator role on the server before reading anything, in addition to the console layout (a page can be requested on its own). Signed out: the proxy redirects to `/sign-in`; a signed-in non-administrator, a guessed entry and an unknown slug get the private 404. A client-side (flight) request is answered by Next with status 200 and the 404 fallback inside, carrying no catalog data; the page's own check is what protects it, because a soft navigation renders the page without re-running the console layout (s46 browser acceptance).
 - **Review state:** the art records carry the agent's self-review (ADR-O09); the owner's review is pending, and the console says so per file. **Publishing from the console does not exist yet:** it needs a recorded owner review, schema and identity checks, asset integrity and a rollback to the prior valid version (backlog G-062, step 2).
 - **Rollback:** revert the console pages; the manifests and the gate are additive and change nothing a template renders.
+
+## Memorial (tahlilan) themes: an occasion, not an event type (B-032 / I-13, I-11; s47–s48, D-068)
+- **Occasion:** a `tahlilan` theme (today `149 doa-khusyuk`) creates a `tasyakuran` invitation whose config says `settings.occasion = 'memorial'` (`lib/invitation/occasion.ts`). Pricing, publishing, entitlements and both content writers keep reading the event type; the wizard, preview, editor, profile, theme offer and guest page read the occasion for their own words (`MEMORIAL_COPY`: "Undangan Tahlilan & Doa", "Nama almarhum/almarhumah", "Dalam Kenangan"). Absent = the event type's own occasion, so every invitation stored earlier, memorials included, renders as before.
+- **Sober start:** music, gift and the countdown off, no preset opening words (the family writes its own), first event "Tahlilan & Doa Bersama", Gapura when F-02 chooses a family, and only memorial themes in the wizard and the theme tab. A celebration theme on `tasyakuran` (for example `syukur-hangat`) is created exactly as before, and typed names never carry between a celebration's and a memorial's wizard.
+- **Countdown switch:** `settings.countdown: false` hides only the countdown; the add-to-calendar links stay for a published invitation's future first event. Any host can switch it on any invitation.
+- **Religious text (I-11):** only as an owner-approved entry of `content/verified-religious-texts/corpus.json`, referenced by `quote.corpusId` and printed with its provenance on the design families; the corpus is empty, so no theme or page shows one. The frozen legacy layout shows only the host's typed quote (D-041).
+- **Rollback:** revert the code; no flag or migration. The previous schema drops the three keys on the next save, so a memorial created meanwhile falls back to the event type's words and countdown; host-written content is kept.
 
 ## Sumber (tervalidasi)
 - NN/G filter categories & mobile faceted tray, Prefixbox faceted filtering, Minted/Greenvelope/Canva taksonomi (occasion+style+color), Redis semantic-vs-keyword.

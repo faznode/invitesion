@@ -26,7 +26,7 @@ import {
 } from '@/components/invitation/guest-blocks';
 import { buildGuestView, type GuestPageProps, type GuestView } from '@/components/invitation/guest-view';
 import { familyOf, type FamilyId } from '@/lib/invitation/families';
-import { MEMORIAL_COPY } from '@/lib/invitation/occasion';
+import { guestLanguageOf } from '@/lib/invitation/guest-copy';
 
 /**
  * Deterministic config -> HTML renderer.
@@ -49,27 +49,26 @@ const FAMILY_LAYOUTS: Record<FamilyId, (input: LayoutProps) => React.ReactNode> 
 
 export function PublicInvitationRenderer(props: GuestPageProps) {
   const family = familyOf(props.config.theme?.familyId);
+  // G-018 (I-31): a design family speaks the invitation's language; the legacy layout is frozen (D-041) and stays Indonesian.
+  const language = family ? guestLanguageOf(props.config.settings?.language) : 'id';
   // B-019: image variants serve the design families; the legacy layout is frozen (D-041) and keeps its originals.
-  const view = buildGuestView(family ? props : { ...props, imageVariants: undefined });
+  const view = buildGuestView(family ? props : { ...props, imageVariants: undefined }, language);
   const Layout = family ? FAMILY_LAYOUTS[family.id] : LegacyLayout;
   const page = <Layout props={props} view={view} />;
   // B-009 (D-045): only an invitation with playable music gets the island; every other page renders exactly as before.
   if (!view.music) return page;
   return (
-    <CoverAudio music={view.music} gate={coverGateOf(props, view)} style={view.tone.style}>
+    <CoverAudio
+      music={view.music}
+      gate={coverGateOf(props, view)}
+      style={view.tone.style}
+      labels={family ? view.copy.cover : undefined}
+      lang={family ? view.language : undefined}
+    >
       {page}
     </CoverAudio>
   );
 }
-
-const GATE_KICKERS: Record<string, string> = {
-  wedding: 'Undangan Pernikahan',
-  birthday: 'Undangan Ulang Tahun',
-  aqiqah: 'Undangan Aqiqah',
-  khitanan: 'Undangan Khitanan',
-  tasyakuran: 'Undangan Tasyakuran',
-  corporate: 'Undangan Acara',
-};
 
 /**
  * B-009: the cover gate exists to give the music its tap, so it is shown only when the music plays on opening. A guest
@@ -79,10 +78,11 @@ const GATE_KICKERS: Record<string, string> = {
 function coverGateOf({ invitation, config, guest, status }: GuestPageProps, view: GuestView): CoverGateContent | null {
   if (!view.music?.playOnOpen || status.rsvp || status.wish) return null;
   const names = (view.names ?? []).filter((name): name is string => Boolean(name));
+  const { copy } = view;
   return {
-    // B-032: a memorial never falls back to its event type's "Undangan Tasyakuran".
-    kicker: config.theme?.cover?.headline?.trim() || (view.occasion === 'memorial' ? MEMORIAL_COPY.invitation : GATE_KICKERS[invitation.eventType]) || 'Undangan',
-    names: names.length ? names : [config.settings?.title || 'Undangan'],
+    // B-032: a memorial never falls back to its event type's "Undangan Tasyakuran". G-018: the view's language.
+    kicker: config.theme?.cover?.headline?.trim() || (view.occasion === 'memorial' ? copy.memorial.invitation : copy.kickers[invitation.eventType]) || copy.invitation,
+    names: names.length ? names : [config.settings?.title || copy.invitation],
     dateText: (view.primaryEvent?.startAt && view.formatDate(view.primaryEvent.startAt)) || undefined,
     guestName: guest?.name ?? undefined,
   };

@@ -1,3 +1,4 @@
+import { GUEST_COPY, type GuestCopy } from './guest-copy';
 import { isProtectedMediaPath, isUploadedMediaPath, mediaPathInvitationId, safeChildPhotoSrc, safeImageSrc } from './image-url';
 
 /**
@@ -35,21 +36,23 @@ const TYPED_RELATION = new RegExp(
  * editor asks for the parents' names only ("Bapak Budi & Ibu Ani"); when the host typed the relation anyway, their words
  * are kept, with the order the host set added after the relation word only if they wrote no rank of their own.
  */
-export function parentsLine(child: 'putra' | 'putri', parents?: string, order?: number): string | undefined {
+export function parentsLine(child: 'putra' | 'putri', parents?: string, order?: number, people: PeopleCopy = GUEST_COPY.id.people): string | undefined {
   const names = clean(parents);
   if (!names) return undefined;
   const rank = order && order >= 1 ? (ORDINALS[order - 1] ?? `ke-${order}`) : undefined;
   const typed = TYPED_RELATION.exec(names);
   if (typed) return typed[2] || !rank ? names : `${typed[1]} ${rank}${names.slice(typed[1].length)}`;
-  const word = child === 'putri' ? 'Putri' : 'Putra';
-  return `${word}${rank ? ` ${rank}` : ''} dari ${names}`;
+  // G-018: the relation in the guest's language ("Second daughter of …"); a relation the host typed is kept as typed.
+  return people.parentsLine(child, names, order);
 }
 
-function sidePortrait(key: string, side: Side | undefined, child: 'putra' | 'putri', fallbackAlt: string): Portrait | null {
+type PeopleCopy = GuestCopy['people'];
+
+function sidePortrait(key: string, side: Side | undefined, child: 'putra' | 'putri', fallbackAlt: string, people: PeopleCopy): Portrait | null {
   const src = safeImageSrc(side?.photoUrl);
   if (!src) return null;
   const name = clean(side?.fullName) ?? clean(side?.nickName);
-  return { key, src, alt: name ? `Foto ${name}` : fallbackAlt, name, caption: parentsLine(child, side?.parents, side?.order) };
+  return { key, src, alt: name ? people.photoOf(name) : fallbackAlt, name, caption: parentsLine(child, side?.parents, side?.order, people) };
 }
 
 /** Whether a child's photo may be shown here: the host's consent and a personal guest link (or the host's preview). */
@@ -63,29 +66,30 @@ export function childPhotoAllowed(showPhoto: boolean | undefined, audience: Port
  */
 export function couplePortraits(
   input: { bride?: Side; groom?: Side; displayOrder?: 'bride-first' | 'groom-first' },
+  copy: PeopleCopy = GUEST_COPY.id.people,
 ): Portraits {
-  const bride = sidePortrait('bride', input.bride, 'putri', 'Foto mempelai wanita');
-  const groom = sidePortrait('groom', input.groom, 'putra', 'Foto mempelai pria');
+  const bride = sidePortrait('bride', input.bride, 'putri', copy.brideAlt, copy);
+  const groom = sidePortrait('groom', input.groom, 'putra', copy.groomAlt, copy);
   const people = (input.displayOrder === 'groom-first' ? [groom, bride] : [bride, groom]).filter((p): p is Portrait => p !== null);
-  return people.length ? { heading: 'Mempelai', people } : null;
+  return people.length ? { heading: copy.couple, people } : null;
 }
 
 /** B-023: one side of the couple on the design families; the photo is optional (no `src`: a text-only profile). */
 export type Profile = { key: string; src?: string; alt?: string; name?: string; caption?: string };
 export type Profiles = { heading: string; people: Profile[] } | null;
 
-function sideProfile(key: string, side: Side | undefined, child: 'putra' | 'putri', fallbackAlt: string) {
+function sideProfile(key: string, side: Side | undefined, child: 'putra' | 'putri', fallbackAlt: string, people: PeopleCopy) {
   const src = safeImageSrc(side?.photoUrl);
   const fullName = clean(side?.fullName);
   const nickName = clean(side?.nickName);
   const name = fullName ?? nickName;
   // A parents line with neither a name nor a photo has no one to describe, so such a side renders nothing.
   if (!src && !name) return null;
-  const caption = parentsLine(child, side?.parents, side?.order);
+  const caption = parentsLine(child, side?.parents, side?.order, people);
   // The headline already shows the nickname (or the full name without one); a profile adds a photo, a parents line or
   // a full name beside the nickname.
   const adds = Boolean(src || caption || (fullName && nickName && fullName !== nickName));
-  const profile: Profile = { key, name, caption, ...(src && { src, alt: name ? `Foto ${name}` : fallbackAlt }) };
+  const profile: Profile = { key, name, caption, ...(src && { src, alt: name ? people.photoOf(name) : fallbackAlt }) };
   return { profile, adds };
 }
 
@@ -96,11 +100,14 @@ function sideProfile(key: string, side: Side | undefined, child: 'putra' | 'putr
  * stays as it was; then both sides that have a name or a photo appear, in the host's display order. With both photos it
  * equals `couplePortraits`.
  */
-export function coupleProfiles(input: { bride?: Side; groom?: Side; displayOrder?: 'bride-first' | 'groom-first' }): Profiles {
-  const bride = sideProfile('bride', input.bride, 'putri', 'Foto mempelai wanita');
-  const groom = sideProfile('groom', input.groom, 'putra', 'Foto mempelai pria');
+export function coupleProfiles(
+  input: { bride?: Side; groom?: Side; displayOrder?: 'bride-first' | 'groom-first' },
+  copy: PeopleCopy = GUEST_COPY.id.people,
+): Profiles {
+  const bride = sideProfile('bride', input.bride, 'putri', copy.brideAlt, copy);
+  const groom = sideProfile('groom', input.groom, 'putra', copy.groomAlt, copy);
   const sides = (input.displayOrder === 'groom-first' ? [groom, bride] : [bride, groom]).filter((side) => side !== null);
-  return sides.some((side) => side.adds) ? { heading: 'Mempelai', people: sides.map((side) => side.profile) } : null;
+  return sides.some((side) => side.adds) ? { heading: copy.couple, people: sides.map((side) => side.profile) } : null;
 }
 
 /**
@@ -110,12 +117,13 @@ export function coupleProfiles(input: { bride?: Side; groom?: Side; displayOrder
 export function birthdayPortrait(
   input: { fullName?: string; nickName?: string; photoUrl?: string; showPhoto?: boolean },
   audience: PortraitAudience,
+  copy: PeopleCopy = GUEST_COPY.id.people,
 ): Portraits {
   const src = safeChildPhotoSrc(input.photoUrl);
   if (!src) return null;
   if (!childPhotoAllowed(input.showPhoto, audience)) return null;
   const name = clean(input.fullName) ?? clean(input.nickName);
-  return { heading: 'Yang Berulang Tahun', people: [{ key: 'celebrant', src, alt: name ? `Foto ${name}` : 'Foto yang berulang tahun', name }] };
+  return { heading: copy.celebrant, people: [{ key: 'celebrant', src, alt: name ? copy.photoOf(name) : copy.celebrantAlt, name }] };
 }
 
 /** The ceremony honouree: aqiqah and khitanan by the child rule; tasyakuran (an adult's thanksgiving) once uploaded. */
@@ -123,6 +131,7 @@ export function ceremonyPortrait(
   eventType: string,
   input: { honoureeName?: string; nickName?: string; photoUrl?: string; showPhoto?: boolean },
   audience: PortraitAudience,
+  copy: PeopleCopy = GUEST_COPY.id.people,
 ): Portrait | null {
   const child = eventType === 'aqiqah' || eventType === 'khitanan';
   // A protected path in a tasyakuran (an adult's, public) renders nothing: protected uploads exist for children only.
@@ -134,8 +143,8 @@ export function ceremonyPortrait(
     return null;
   }
   const name = clean(input.honoureeName) ?? clean(input.nickName);
-  const fallback = eventType === 'aqiqah' ? 'Foto bayi' : eventType === 'khitanan' ? 'Foto anak' : 'Foto';
-  return { key: 'honouree', src, alt: name ? `Foto ${name}` : fallback, name };
+  const fallback = eventType === 'aqiqah' ? copy.babyAlt : eventType === 'khitanan' ? copy.childAlt : copy.photoAlt;
+  return { key: 'honouree', src, alt: name ? copy.photoOf(name) : fallback, name };
 }
 
 /**

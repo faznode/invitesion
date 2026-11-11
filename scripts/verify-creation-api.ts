@@ -366,6 +366,65 @@ async function main() {
       check(`${backend}: the catalog path creates an empty draft from the theme with version 1 and a key`,
         outcome.kind === 'created' && same(plain?.config, expectedPlain) && typeof plain?.creation_key === 'string' && (await versionsOf(outcome.invitationId)).length === 1);
     }
+
+    // B-032 (G-060, I-13): a memorial theme through the wizard and the catalog path on both writers. Both store the
+    // occasion with the countdown, music and gift off; with F-02 on they start on Gapura, and the wizard stores the one
+    // remembered under a sober first event. A celebration on the same core event type (tasyakuran) is created exactly as
+    // before: no occasion, no countdown switch, its own family. With F-02 off no family is chosen, as for every theme.
+    type Created = { settings?: { occasion?: string; countdown?: boolean }; music?: { enabled?: boolean }; gift?: { enabled?: boolean }; theme?: { familyId?: string }; events?: Array<{ title?: string }>; ceremonyProfile?: { nickName?: string } } | null;
+    const sober = (c: Created) => c?.settings?.occasion === 'memorial' && c.settings.countdown === false && c.music?.enabled === false && c.gift?.enabled === false;
+    const shape = (c: Created) => ({ occasion: c?.settings?.occasion ?? null, countdown: c?.settings?.countdown ?? null, music: c?.music?.enabled ?? null, gift: c?.gift?.enabled ?? null, family: c?.theme?.familyId ?? null, first: c?.events?.[0]?.title ?? null });
+    const configOf = async (outcome: Awaited<ReturnType<typeof createDraftInvitation>>) =>
+      outcome.kind === 'created' ? ((await sql`select config from invitations where id = ${outcome.invitationId}`)[0].config as Created) : null;
+    const memorialRow = await getTemplateRowBySlug('doa-khusyuk');
+    const celebrationRow = await getTemplateRowBySlug('syukur-hangat');
+    const memorialRows: Record<Backend, unknown[]> = { next: [], rust: [] };
+    await signIn(owner);
+    try {
+      for (const backend of ['next', 'rust'] as const) {
+        env.FLAG_DEFAULT_FAMILY = 'on';
+        jar.clear();
+        const remembered = values('doa-khusyuk', `Alm. Soedirman ${backend} ${tag}`, '');
+        await act(backend, () => actions.updateTrial(remembered, randomUUID()));
+        const trial = decodeTrialState(jar.get('inv_trial'));
+        const wizardId = editorId((await act(backend, () => actions.confirmTrialSave())).redirect);
+        const [wizardRow] = await sql`select event_type, config from invitations where id = ${wizardId}`;
+        const wizardConfig = (wizardRow?.config ?? null) as Created;
+        const expectedMemorial = initialDraftConfig(memorialRow?.defaultConfig, 'tasyakuran', { input: remembered, key: trial!.key }).config;
+        check(`${backend}: B-032 the wizard creates a memorial from the one remembered: the preview's config, sober, on Gapura, under a sober first event`,
+          wizardRow?.event_type === 'tasyakuran' && same(wizardConfig, expectedMemorial) && sober(wizardConfig) && wizardConfig?.theme?.familyId === 'gapura'
+            && wizardConfig?.events?.[0]?.title === 'Tahlilan & Doa Bersama' && wizardConfig?.ceremonyProfile?.nickName === remembered.first,
+          JSON.stringify({ type: wizardRow?.event_type, ...shape(wizardConfig) }));
+
+        env.BACKEND_CONTENT = backend;
+        const create = (row: typeof memorialRow) => createDraftInvitation({ userId: owner.id, ownerToken: async () => session.token }, { eventType: 'tasyakuran', template: row, title: row!.name });
+        const catalog = await create(memorialRow);
+        const celebration = await create(celebrationRow);
+        env.FLAG_DEFAULT_FAMILY = 'off';
+        const catalogOff = await create(memorialRow);
+        delete env.BACKEND_CONTENT;
+        const catalogConfig = await configOf(catalog);
+        const celebrationConfig = await configOf(celebration);
+        const catalogOffConfig = await configOf(catalogOff);
+        env.FLAG_DEFAULT_FAMILY = 'on';
+        const requestFor = (row: typeof memorialRow) => prepareDraftRequest({ eventType: 'tasyakuran', template: row, title: row!.name }).config;
+        check(`${backend}: B-032 the catalog path creates the memorial's sober draft on Gapura, the creation request's config exactly`,
+          same(catalogConfig, requestFor(memorialRow)) && sober(catalogConfig) && catalogConfig?.theme?.familyId === 'gapura', JSON.stringify(shape(catalogConfig)));
+        check(`${backend}: B-032 a celebration on the same event type is created as before: no occasion, no countdown switch, Riang`,
+          same(celebrationConfig, requestFor(celebrationRow)) && celebrationConfig?.settings?.occasion === undefined && celebrationConfig?.settings?.countdown === undefined
+            && celebrationConfig?.theme?.familyId === 'riang',
+          JSON.stringify(shape(celebrationConfig)));
+        env.FLAG_DEFAULT_FAMILY = 'off';
+        const offRequest = requestFor(memorialRow);
+        env.FLAG_DEFAULT_FAMILY = 'on';
+        check(`${backend}: B-032 with F-02 off the memorial stays sober and no family is chosen for it`,
+          same(catalogOffConfig, offRequest) && sober(catalogOffConfig) && catalogOffConfig?.theme?.familyId === undefined, JSON.stringify(shape(catalogOffConfig)));
+        memorialRows[backend].push(sorted({ wizard: shape(wizardConfig), catalog: shape(catalogConfig), celebration: shape(celebrationConfig), off: shape(catalogOffConfig) }));
+      }
+      check('B-032: both writers create the same memorial and celebration drafts', same(memorialRows.next, memorialRows.rust), JSON.stringify(memorialRows).slice(0, 400));
+    } finally {
+      delete env.FLAG_DEFAULT_FAMILY;
+    }
   } finally {
     await sql`delete from invitation_versions where invitation_id in (select id from invitations where user_id = any(${created.users}))`;
     await sql`delete from invitations where user_id = any(${created.users})`;

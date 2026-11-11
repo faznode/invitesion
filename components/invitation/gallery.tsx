@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { MASONRY_ASPECTS, photoLabel } from '@/lib/invitation/gallery';
+import { MASONRY_ASPECTS } from '@/lib/invitation/gallery';
 import type { MediaAsset } from '@/lib/db/schema';
 import type { GuestView } from '@/components/invitation/guest-view';
 import { VariantImage } from '@/components/invitation/guest-blocks';
@@ -28,17 +28,19 @@ export type GalleryFrame = {
 };
 
 export function GalleryBody({ view, frame }: { view: GuestView; frame: GalleryFrame }) {
-  const { gallery, galleryLayout: layout, galleryVideos: videos, tone } = view;
+  const { gallery, galleryLayout: layout, galleryVideos: videos, tone, copy } = view;
   if (!gallery.length && !videos.length) return null;
   const total = gallery.length;
   const embeds = videos.filter((video) => video.kind === 'embed').length;
-  const videoLabel = (index: number) => (videos.length > 1 ? `Video ${index + 1}` : 'Video');
+  // G-018: the page's language; "Foto 2 dari 5" in Indonesian, as `photoLabel` (`gallery.ts`) and the lightbox say it.
+  const videoLabel = (index: number) => (videos.length > 1 ? `${copy.gallery.video} ${index + 1}` : copy.gallery.video);
+  const photoName = (index: number) => copy.lightbox.photo.replace('{n}', () => String(index + 1)).replace('{total}', () => String(total));
   const trigger = (asset: MediaAsset, index: number, box: string, image: string, sizes: string) => (
     <a
       key={asset.id}
       href={asset.url}
       data-lightbox-index={index}
-      aria-label={`Buka ${photoLabel(index, total).toLowerCase()}`}
+      aria-label={`${copy.gallery.open} ${photoName(index).toLowerCase()}`}
       className={`block focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4${box ? ` ${box}` : ''}`}
     >
       <VariantImage srcSet={view.imageSrcSet(asset.url)} sizes={sizes} src={asset.url} alt="" loading="lazy" className={image} />
@@ -59,7 +61,7 @@ export function GalleryBody({ view, frame }: { view: GuestView; frame: GalleryFr
     photos = (
       <div
         role="region"
-        aria-label={`Galeri ${total} foto, geser untuk melihat semuanya`}
+        aria-label={copy.gallery.swipe(total)}
         tabIndex={0}
         className={`${frame.spacing} flex snap-x snap-mandatory gap-3 overflow-x-auto pb-3 motion-safe:scroll-smooth focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4`}
       >
@@ -78,7 +80,11 @@ export function GalleryBody({ view, frame }: { view: GuestView; frame: GalleryFr
   }
 
   return (
-    <GalleryLightbox photos={gallery.map((asset) => ({ src: asset.url, srcSet: view.imageSrcSet(asset.url) }))} tone={{ bg: tone.bg, ink: tone.ink, line: tone.line }}>
+    <GalleryLightbox
+      photos={gallery.map((asset) => ({ src: asset.url, srcSet: view.imageSrcSet(asset.url) }))}
+      tone={{ bg: tone.bg, ink: tone.ink, line: tone.line }}
+      labels={copy.lightbox}
+    >
       {photos}
       {videos.length > 0 && (
         <div className={`${total ? 'mt-6' : frame.spacing} flex flex-col gap-4`}>
@@ -88,7 +94,13 @@ export function GalleryBody({ view, frame }: { view: GuestView; frame: GalleryFr
             <div className={embeds > 1 ? 'grid gap-4 sm:grid-cols-2' : 'grid gap-4'}>
               {videos.map((video, index) =>
                 video.kind === 'embed' ? (
-                  <VideoFacade key={video.id} video={video} label={videoLabel(index)} tone={{ bg: tone.bg, ink: tone.ink, line: tone.line, card: tone.card, muted: tone.muted }} />
+                  <VideoFacade
+                    key={video.id}
+                    video={video}
+                    label={videoLabel(index)}
+                    labels={copy.lightbox}
+                    tone={{ bg: tone.bg, ink: tone.ink, line: tone.line, card: tone.card, muted: tone.muted }}
+                  />
                 ) : null,
               )}
             </div>
@@ -104,7 +116,8 @@ export function GalleryBody({ view, frame }: { view: GuestView; frame: GalleryFr
                     rel="noopener noreferrer"
                     className={`inline-flex min-h-11 items-center justify-center rounded-full border border-current px-6 text-sm font-semibold ${tone.accent}`}
                   >
-                    Tonton {videoLabel(index).toLowerCase()}
+                    {`${copy.gallery.watch} `}
+                    {videoLabel(index).toLowerCase()}
                   </a>
                 ) : null,
               )}

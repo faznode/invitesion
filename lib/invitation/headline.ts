@@ -22,9 +22,9 @@ export function invitationHeadline(eventType: string, config: DetailConfig): str
   }
 }
 
-/** "Sari & Budi", the configured title, or a neutral fallback. */
-export function invitationDisplayName(eventType: string, config: DetailConfig): string {
+/** "Sari & Budi", the configured title, or a neutral fallback (G-018: in the guest's language, "Undangan" by default). */
+export function invitationDisplayName(eventType: string, config: DetailConfig, fallback = 'Undangan'): string {
   const names = invitationHeadline(eventType, config);
   if (names?.length) return names.join(' & ');
-  return config.settings?.title?.trim() || 'Undangan';
+  return config.settings?.title?.trim() || fallback;
 }

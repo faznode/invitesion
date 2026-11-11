@@ -15,12 +15,10 @@ import {
   giftNumberId,
   GuestbookBlock,
   MapLink,
-  PROGRAMME_HEADINGS,
   ProgrammeBody,
   programmeSections,
   ReadOnlyNotice,
   RsvpBlock,
-  SHARE_HEADING,
   ShareBody,
   SwitchedOffNotices,
   VariantImage,
@@ -85,13 +83,13 @@ export function RiangLayout({ props, view }: { props: GuestPageProps; view: Gues
           // S22-K2 (s23r): the logo alone, then the category and the cover headline on one eyebrow line.
           <>
             <CorporateLogo view={view} align="center" className="mx-auto mt-6 [--inv-logo-bg:var(--inv-soft)]" />
-            <CoverEyebrow category={mark.category} headline={config.theme?.cover?.headline || 'Kamu diundang'} tone={tone} align="center" className={rise('mt-5')} />
+            <CoverEyebrow category={mark.category} headline={config.theme?.cover?.headline || view.copy.youAreInvited} tone={tone} align="center" className={rise('mt-5')} />
           </>
         ) : (
           <>
             {/* The cover is drawn on the soft tone, so a lost logo file is covered in that colour (s20 acceptance, M2). */}
             <CorporateMark view={view} align="center" className="mt-10 [--inv-logo-bg:var(--inv-soft)]" />
-            <p className={rise(`mt-10 text-sm font-semibold uppercase tracking-[0.2em] ${tone.accent}`)}>{config.theme?.cover?.headline || 'Kamu diundang'}</p>
+            <p className={rise(`mt-10 text-sm font-semibold uppercase tracking-[0.2em] ${tone.accent}`)}>{config.theme?.cover?.headline || view.copy.youAreInvited}</p>
           </>
         )}
         <h1
@@ -108,7 +106,7 @@ export function RiangLayout({ props, view }: { props: GuestPageProps; view: Gues
                   <span dir="auto">{name}</span>
                 </Fragment>
               ))
-            : config.settings?.title || 'Undangan'}
+            : config.settings?.title || view.copy.invitation}
         </h1>
         {organiser && (
           <p dir="auto" className={`mx-auto mt-4 max-w-xl text-sm ${tone.muted} [overflow-wrap:anywhere]`}>
@@ -142,7 +140,7 @@ export function RiangLayout({ props, view }: { props: GuestPageProps; view: Gues
         )}
         {guest && (
           <p className={rise(`mx-auto ${mark ? 'mt-6' : 'mt-10'} inline-flex max-w-full flex-wrap items-center justify-center gap-x-2 ${chip} py-3 text-sm`)}>
-            <span className={tone.muted}>Untuk</span>
+            <span className={tone.muted}>{view.copy.forYou}</span>
             <bdi className="font-semibold [overflow-wrap:anywhere]">{guest.name}</bdi>
           </p>
         )}
@@ -151,7 +149,7 @@ export function RiangLayout({ props, view }: { props: GuestPageProps; view: Gues
 
     notices: () => (
       <>
-        {readOnly && <ReadOnlyNotice className="mx-auto max-w-2xl px-5 pt-8" />}
+        {readOnly && <ReadOnlyNotice className="mx-auto max-w-2xl px-5 pt-8" copy={view.copy} />}
         <SwitchedOffNotices props={props} view={view} className="mx-auto max-w-2xl px-5 pt-8" />
       </>
     ),
@@ -173,9 +171,9 @@ export function RiangLayout({ props, view }: { props: GuestPageProps; view: Gues
         'events',
         'events',
         <>
-          <BandHeading tone={tone}>Acara</BandHeading>
+          <BandHeading tone={tone}>{view.copy.sections.event}</BandHeading>
           {showCountdown && primaryEvent && (
-            <Countdown target={primaryStartMs} initialNow={renderedAt} eventTitle={primaryEvent.title} boxClassName={block} labelClassName={tone.muted} />
+            <Countdown target={primaryStartMs} initialNow={renderedAt} eventTitle={primaryEvent.title} boxClassName={block} labelClassName={tone.muted} labels={view.copy.countdown} />
           )}
           <div className={`mt-8 grid gap-4 ${events.length > 1 ? 'sm:grid-cols-2' : ''}`}>
             {events.map((event, index) => {
@@ -219,7 +217,7 @@ export function RiangLayout({ props, view }: { props: GuestPageProps; view: Gues
           'programme',
           `programme-${id}`,
           <>
-            <BandHeading tone={tone}>{PROGRAMME_HEADINGS[id]}</BandHeading>
+            <BandHeading tone={tone}>{view.copy.programme[id]}</BandHeading>
             <ProgrammeBody id={id} view={view} cardClassName={block} />
           </>,
         ),
@@ -256,7 +254,7 @@ export function RiangLayout({ props, view }: { props: GuestPageProps; view: Gues
             'story',
             'story',
             <>
-              <BandHeading tone={tone}>Cerita</BandHeading>
+              <BandHeading tone={tone}>{view.copy.sections.story}</BandHeading>
               <ol className="mt-8 flex flex-col gap-6">
                 {config.story.items.map((item, index) => (
                   <li key={index} className="flex gap-4">
@@ -279,7 +277,7 @@ export function RiangLayout({ props, view }: { props: GuestPageProps; view: Gues
         'gallery',
         'gallery',
         <>
-          <BandHeading tone={tone}>Galeri</BandHeading>
+          <BandHeading tone={tone}>{view.copy.sections.gallery}</BandHeading>
           <GalleryBody view={view} frame={RIANG_GALLERY} />
         </>,
       ),
@@ -291,7 +289,7 @@ export function RiangLayout({ props, view }: { props: GuestPageProps; view: Gues
         'streaming',
         'streaming',
         <>
-          <BandHeading tone={tone}>Siaran Langsung</BandHeading>
+          <BandHeading tone={tone}>{view.copy.sections.liveStream}</BandHeading>
           <a
             href={config.streaming.url}
             target="_blank"
@@ -299,7 +297,7 @@ export function RiangLayout({ props, view }: { props: GuestPageProps; view: Gues
             className={`mt-8 inline-flex min-h-11 items-center gap-2 rounded-full border border-current px-6 text-sm font-semibold ${tone.accent}`}
           >
             <InvitationIcon name="radio" className="h-4 w-4" />
-            Tonton siaran
+            {view.copy.watchStream}
           </a>
         </>,
       ),
@@ -310,7 +308,7 @@ export function RiangLayout({ props, view }: { props: GuestPageProps; view: Gues
         'share',
         'share',
         <>
-          <BandHeading tone={tone}>{SHARE_HEADING}</BandHeading>
+          <BandHeading tone={tone}>{view.copy.sections.share}</BandHeading>
           <ShareBody view={view} align="start" />
         </>,
       ),
@@ -322,7 +320,7 @@ export function RiangLayout({ props, view }: { props: GuestPageProps; view: Gues
             'gift',
             'gift',
             <>
-              <BandHeading tone={tone}>Kado</BandHeading>
+              <BandHeading tone={tone}>{view.copy.sections.giftsCasual}</BandHeading>
               {gift.accounts.length > 0 && (
                 <div className="mt-8 grid gap-4 sm:grid-cols-2">
                   {gift.accounts.map((account, index) => (
@@ -338,7 +336,7 @@ export function RiangLayout({ props, view }: { props: GuestPageProps; view: Gues
                       )}
                       {account.holder && <p className={`mt-1 text-sm ${tone.muted}`}>a.n. {account.holder}</p>}
                       {account.number && (
-                        <GiftCopyButton number={account.number} label={account.label} targetId={giftNumberId(index)} accentClass={tone.accent} mutedClass={tone.muted} />
+                        <GiftCopyButton number={account.number} label={account.label} targetId={giftNumberId(index)} accentClass={tone.accent} mutedClass={tone.muted} labels={view.copy.giftCopy} />
                       )}
                       {account.note && <p className={`mt-2 text-sm ${tone.muted}`}>{account.note}</p>}
                     </article>
@@ -359,7 +357,7 @@ export function RiangLayout({ props, view }: { props: GuestPageProps; view: Gues
         'rsvp',
         'rsvp',
         <>
-          <BandHeading tone={tone}>Konfirmasi Kehadiran</BandHeading>
+          <BandHeading tone={tone}>{view.copy.sections.rsvp}</BandHeading>
           <RsvpBlock
             props={props}
             view={view}
@@ -375,7 +373,7 @@ export function RiangLayout({ props, view }: { props: GuestPageProps; view: Gues
         'guestbook',
         'guestbook',
         <>
-          <BandHeading tone={tone}>{config.guestbook?.heading || 'Ucapan & Doa'}</BandHeading>
+          <BandHeading tone={tone}>{config.guestbook?.heading || view.copy.sections.wishes}</BandHeading>
           {config.guestbook?.prompt && <p className={`mt-4 text-sm ${tone.muted}`}>{config.guestbook.prompt}</p>}
           <GuestbookBlock props={props} view={view} formClassName={`mt-8 space-y-4 ${block} p-6`} messageClassName={`${block} p-5`} />
         </>,
@@ -383,13 +381,13 @@ export function RiangLayout({ props, view }: { props: GuestPageProps; view: Gues
 
     footer: () => (
       <footer data-section="footer" className={`px-5 pb-12 pt-8 text-center text-xs ${tone.muted}`}>
-        <p>Undangan digital oleh Invitesion</p>
+        <p>{view.copy.footer}</p>
       </footer>
     ),
   };
 
   return (
-    <main className={`min-h-screen ${tone.bg} ${tone.ink}`} style={tone.style} data-font-pairing={choices.fontPairing}>
+    <main lang={view.language} className={`min-h-screen ${tone.bg} ${tone.ink}`} style={tone.style} data-font-pairing={choices.fontPairing}>
       {composeSections(FAMILY_MANIFESTS.riang, sections, sharedSections(props, view), config.theme)}
     </main>
   );

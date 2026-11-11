@@ -126,7 +126,7 @@ async function main() {
     created.users.push(row.id);
     return { id: row.id as number, clerk };
   }
-  async function invitation(owner: number, name: string, eventType: 'wedding' | 'birthday' = 'wedding') {
+  async function invitation(owner: number, name: string, eventType: 'wedding' | 'birthday' | 'tasyakuran' = 'wedding') {
     const made = await createInvitation({ userId: owner, eventType, title: `content api ${name} ${tag}` });
     created.invitations.push(made.id);
     return made.id;
@@ -359,6 +359,87 @@ async function main() {
           && same(restoredConfig.events.map((event) => event.id), eventIds) && same(await guestRow(), guestBefore) && coherent(afterRestore),
         `${withEvents.status}/${restored.status}`);
       results[backend].states.push({ config: { theme: restoredConfig.theme }, versions: afterRestore.versions, live: [] });
+
+      // B-032 (G-060) and I-11 through the editor's real save, on their own invitation so the version arithmetic above is
+      // unchanged: a memorial's occasion and countdown switch, and a corpus reference. The id `fiktif-entri-uji` is
+      // fictional and test-only; the shipped corpus is empty, so no reference resolves on a page (the renders are pinned in
+      // `tests/b032-memorial.test.ts`). The editor always sends the countdown as a boolean and clears a reference with ''.
+      const m = await invitation(owner.id, `b032-${backend}`, 'tasyakuran');
+      let mv = 1;
+      const memorialConfig = async () => (await state(m)).config as { settings?: Record<string, unknown>; quote?: Record<string, unknown> };
+      const saveMemorial = async (body: Record<string, unknown>, recorded = true) => {
+        const answer = await call(backend, 'PATCH', m, { ...body, expectedVersion: mv });
+        if (recorded) record(answer);
+        if (answer.status === 200) mv = answer.body.version;
+        return answer;
+      };
+      // A draft without a template is created with no settings at all, so the title and language are saved first: the
+      // memorial save must keep them beside its own keys (the facade's deep merge).
+      const titled = await saveMemorial({ settings: { title: 'Tahlilan Bapak Sutrisno (fiktif)', language: 'id' } });
+      const marked = await saveMemorial({ settings: { occasion: 'memorial', countdown: false } });
+      const markedReload = record(await call(backend, 'GET', m));
+      const afterMarked = await state(m);
+      const markedSettings = (afterMarked.config as { settings: Record<string, unknown> }).settings;
+      check(`${backend}: B-032 a memorial's occasion and an explicit countdown off are stored, kept beside the other settings and read back by the reload`,
+        titled.status === 200 && marked.status === 200 && markedSettings.occasion === 'memorial' && markedSettings.countdown === false
+          && markedSettings.title === 'Tahlilan Bapak Sutrisno (fiktif)' && markedSettings.language === 'id'
+          && markedReload.body.data.settings.occasion === 'memorial' && markedReload.body.data.settings.countdown === false
+          && markedReload.body.data.settings.title === 'Tahlilan Bapak Sutrisno (fiktif)' && coherent(afterMarked),
+        `${titled.status}/${marked.status} ${JSON.stringify(markedReload.body?.data?.settings)}`);
+
+      const shown = await saveMemorial({ settings: { ...markedSettings, countdown: true } });
+      const shownSettings = (await memorialConfig()).settings ?? {};
+      check(`${backend}: B-032 switching the countdown back on stores an explicit true and keeps the occasion`,
+        shown.status === 200 && shownSettings.countdown === true && shownSettings.occasion === 'memorial', `${shown.status}`);
+
+      const beforeBad = await state(m);
+      const badOccasion = await saveMemorial({ settings: { occasion: 'pesta' } });
+      const badCountdown = await saveMemorial({ settings: { countdown: 'off' } });
+      const badCorpus = await saveMemorial({ quote: { enabled: true, corpusId: 'Bukan Id!' } });
+      check(`${backend}: B-032 / I-11 an unknown occasion, a countdown that is not a boolean and a malformed corpus id are refused before any writer, nothing written`,
+        badOccasion.status === 422 && badCountdown.status === 422 && badCorpus.status === 422 && same(await state(m), beforeBad),
+        `${badOccasion.status}/${badCountdown.status}/${badCorpus.status}`);
+
+      const referenced = await saveMemorial({ quote: { enabled: true, corpusId: 'fiktif-entri-uji' } });
+      const referencedReload = record(await call(backend, 'GET', m));
+      const cleared = await saveMemorial({ quote: { enabled: true, corpusId: '' } });
+      check(`${backend}: I-11 a corpus reference is stored as its id, read back by the reload and cleared by an empty id`,
+        referenced.status === 200 && referencedReload.body.data.quote.corpusId === 'fiktif-entri-uji' && cleared.status === 200 && (await memorialConfig()).quote?.corpusId === '',
+        `${referenced.status}/${cleared.status}`);
+
+      const beforeStale = await state(m);
+      const staleMemorial = record(await call(backend, 'PATCH', m, { settings: { countdown: false }, expectedVersion: mv - 1 }));
+      check(`${backend}: B-032 a stale countdown save is refused with the stored version and writes nothing`,
+        staleMemorial.status === 409 && staleMemorial.body.error.code === 'VERSION_CONFLICT' && staleMemorial.body.error.details.currentVersion === mv && same(await state(m), beforeStale),
+        `${staleMemorial.status}`);
+
+      // A config-only restore of a memorial (what G-046 will send). Event ids are random per run, so these answers stay out
+      // of the cross-writer comparison, as G-041's do.
+      const memorialEvents = await saveMemorial({
+        settings: { countdown: false },
+        events: [{ title: 'Tahlilan & Doa Bersama (fiktif)', startAt: '2027-04-02T19:30:00+07:00' }, { title: 'Doa 40 hari (fiktif)', startAt: '2027-05-05T19:30:00+07:00' }],
+      }, false);
+      const [memorialLive] = await sql`select config from invitation_versions where invitation_id = ${m} and is_live`;
+      const savedMemorial = memorialLive.config as { settings: Record<string, unknown>; events: Array<{ id: string }> };
+      const memorialEventIds = savedMemorial.events.map((event) => event.id);
+      const memorialAnswers = Object.fromEntries(memorialEventIds.map((eventId, i) => [eventId, { status: i === 0 ? 'CONFIRMED' : 'DECLINED', attending: i === 0 ? 3 : null }]));
+      const [mourner] = await sql`insert into guests (invitation_id, name, slug, rsvp_status, rsvp_event_answers)
+        values (${m}, 'Sari Tamu (fiktif)', ${`sari-tamu-${backend}-${tag}`}, 'CONFIRMED', ${JSON.stringify(memorialAnswers)}::text::jsonb) returning id`;
+      const mournerRow = async () => (await sql`select rsvp_status, rsvp_event_answers, rsvp_answers, guest_count from guests where id = ${mourner.id}`)[0];
+      const mournerBefore = await mournerRow();
+      await saveMemorial({ settings: { countdown: true } }, false);
+      const memorialRestored = await saveMemorial({ settings: savedMemorial.settings, events: savedMemorial.events }, false);
+      const afterMemorialRestore = await state(m);
+      const memorialRestoredConfig = afterMemorialRestore.config as typeof savedMemorial & { quote?: unknown };
+      check(`${backend}: B-032 restoring a saved version brings back its countdown off and the occasion, keeps every event id and leaves the guest's RSVP untouched`,
+        memorialEvents.status === 200 && memorialRestored.status === 200 && memorialRestoredConfig.settings.countdown === false && memorialRestoredConfig.settings.occasion === 'memorial'
+          && same(memorialRestoredConfig.events.map((event) => event.id), memorialEventIds) && same(await mournerRow(), mournerBefore) && coherent(afterMemorialRestore),
+        `${memorialEvents.status}/${memorialRestored.status}`);
+      results[backend].states.push({
+        config: { settings: { occasion: memorialRestoredConfig.settings.occasion, countdown: memorialRestoredConfig.settings.countdown }, quote: memorialRestoredConfig.quote },
+        versions: afterMemorialRestore.versions,
+        live: [],
+      });
 
       await signIn(other);
       const intruder = record(await call(backend, 'PATCH', id, { quote: { ...quote, text: 'Bukan milikmu' }, expectedVersion: 4 }));

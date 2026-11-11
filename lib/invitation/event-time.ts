@@ -61,40 +61,44 @@ const formatters = new Map<string, Intl.DateTimeFormat>();
  * One shared formatter per zone and format. Building an `Intl.DateTimeFormat` costs far more than using one, and the
  * guest page formats every event several times per view (≈ 8 % of the page's server CPU in the s21 profile). Instances
  * hold only locale and options, so sharing them across requests shares no request data. `resolve()` returns one of
- * four zones (the three Indonesian zones or UTC), so the map holds at most twelve entries.
+ * four zones (the three Indonesian zones or UTC) and a guest page speaks one of two locales (G-018), so the map holds at
+ * most twenty-four entries.
  */
-function formatter(timeZone: string, format: keyof typeof FORMATS): Intl.DateTimeFormat {
-  const key = `${timeZone}|${format}`;
+function formatter(timeZone: string, format: keyof typeof FORMATS, locale: string): Intl.DateTimeFormat {
+  const key = `${locale}|${timeZone}|${format}`;
   let shared = formatters.get(key);
   if (!shared) {
-    shared = new Intl.DateTimeFormat('id-ID', { timeZone, ...FORMATS[format] });
+    shared = new Intl.DateTimeFormat(locale, { timeZone, ...FORMATS[format] });
     formatters.set(key, shared);
   }
   return shared;
 }
 
-/** "Sabtu, 21 November 2026" in the event's zone, or null for a missing / invalid value. */
-export function formatEventDate(value?: string | null, fallbackZone?: string | null): string | null {
+/**
+ * "Sabtu, 21 November 2026" (or "Saturday 21 November 2026" with `en-GB`, G-018) in the event's zone, or null for a
+ * missing / invalid value.
+ */
+export function formatEventDate(value?: string | null, fallbackZone?: string | null, locale = 'id-ID'): string | null {
   const resolved = resolve(value, fallbackZone);
   if (!resolved) return null;
-  return formatter(resolved.timeZone, 'dateLong').format(resolved.date);
+  return formatter(resolved.timeZone, 'dateLong', locale).format(resolved.date);
 }
 
 export type EventDateParts = { weekday: string; day: string; month: string; monthShort: string; year: string };
 
 /** Weekday, day, month and year in the event's zone, for date tiles; null for a missing / invalid value. */
-export function eventDateParts(value?: string | null, fallbackZone?: string | null): EventDateParts | null {
+export function eventDateParts(value?: string | null, fallbackZone?: string | null, locale = 'id-ID'): EventDateParts | null {
   const resolved = resolve(value, fallbackZone);
   if (!resolved) return null;
   const parts = (format: keyof typeof FORMATS) =>
-    Object.fromEntries(formatter(resolved.timeZone, format).formatToParts(resolved.date).map((part) => [part.type, part.value]));
+    Object.fromEntries(formatter(resolved.timeZone, format, locale).formatToParts(resolved.date).map((part) => [part.type, part.value]));
   const long = parts('dateLong');
   return { weekday: long.weekday, day: long.day, month: long.month, monthShort: parts('monthShort').month.replace('.', ''), year: long.year };
 }
 
-/** "08.00 WIB" in the event's zone, or null for a missing / invalid value. */
-export function formatEventTime(value?: string | null, fallbackZone?: string | null): string | null {
+/** "08.00 WIB" ("08:00 WIB" with `en-GB`) in the event's zone, or null for a missing / invalid value. */
+export function formatEventTime(value?: string | null, fallbackZone?: string | null, locale = 'id-ID'): string | null {
   const resolved = resolve(value, fallbackZone);
   if (!resolved) return null;
-  return `${formatter(resolved.timeZone, 'time24').format(resolved.date)} ${resolved.label}`;
+  return `${formatter(resolved.timeZone, 'time24', locale).format(resolved.date)} ${resolved.label}`;
 }
