@@ -291,6 +291,39 @@ const ID = {
     instructions: 'Tunjukkan QR ini kepada penerima tamu saat tiba. Pass ini khusus untukmu, mohon tidak dibagikan.',
     back: 'Kembali ke undangan',
   },
+  /** G-047: the cover-only page of an invitation its host protected with a passcode. */
+  passcode: {
+    heading: 'Undangan ini dilindungi kode akses',
+    hint: 'Masukkan kode akses dari pengundang untuk membuka undangan.',
+    label: 'Kode akses',
+    submit: 'Buka undangan',
+    wrong: 'Kode akses belum cocok. Periksa lagi kode dari pengundang, lalu coba lagi.',
+    wait: (minutes: number) => `Terlalu banyak percobaan. Coba lagi dalam ${minutes} menit.`,
+  },
+  /** I-21: the post-event memory (the host's thank-you and the photos guests share). */
+  memory: {
+    heading: 'Terima kasih',
+    photosHeading: 'Foto dari tamu',
+    empty: 'Belum ada foto yang ditampilkan.',
+    pending: 'Menunggu persetujuan pengundang',
+    hidden: 'Disembunyikan oleh pengundang',
+    yours: 'Foto Anda',
+    remove: 'Hapus foto saya',
+    uploadHeading: 'Bagikan foto dari acara',
+    uploadHint: (remaining: number) =>
+      `JPG, PNG, atau WebP sampai 5 MB. Foto tampil setelah disetujui pengundang. Anda masih bisa mengirim ${remaining} foto.`,
+    uploadLabel: 'Pilih foto',
+    submit: 'Kirim foto',
+    photoAlt: (n: number) => `Foto dari tamu, ke-${n}`,
+    notices: {
+      sent: 'Foto terkirim. Foto tampil setelah disetujui pengundang.',
+      removed: 'Foto Anda sudah dihapus.',
+      invalid: 'Foto belum bisa dikirim. Gunakan JPG, PNG, atau WebP sampai 5 MB.',
+      full: 'Batas foto Anda sudah tercapai. Hapus salah satu foto untuk mengirim yang baru.',
+      closed: 'Pengiriman foto sudah ditutup.',
+      wait: 'Terlalu banyak kiriman. Coba lagi nanti.',
+    },
+  },
 };
 
 export type GuestCopy = typeof ID;
@@ -517,6 +550,37 @@ const EN: GuestCopy = {
     expired: 'This pass is no longer valid because the event has passed.',
     instructions: 'Show this QR code at the reception desk when you arrive. This pass is just for you; please do not share it.',
     back: 'Back to the invitation',
+  },
+  passcode: {
+    heading: 'This invitation is protected with an access code',
+    hint: 'Enter the access code from your host to open the invitation.',
+    label: 'Access code',
+    submit: 'Open invitation',
+    wrong: 'That access code does not match. Check the code from your host and try again.',
+    wait: (minutes: number) => `Too many attempts. Try again in ${minutes} minutes.`,
+  },
+  memory: {
+    heading: 'Thank you',
+    photosHeading: 'Photos from guests',
+    empty: 'No photos are shown yet.',
+    pending: 'Waiting for the host to approve',
+    hidden: 'Hidden by the host',
+    yours: 'Your photo',
+    remove: 'Delete my photo',
+    uploadHeading: 'Share a photo from the event',
+    uploadHint: (remaining: number) =>
+      `JPG, PNG or WebP up to 5 MB. Photos appear once the host approves them. You can still send ${remaining} ${remaining === 1 ? 'photo' : 'photos'}.`,
+    uploadLabel: 'Choose a photo',
+    submit: 'Send photo',
+    photoAlt: (n: number) => `Photo from a guest, number ${n}`,
+    notices: {
+      sent: 'Photo sent. It appears once the host approves it.',
+      removed: 'Your photo has been deleted.',
+      invalid: 'That photo could not be sent. Use JPG, PNG or WebP up to 5 MB.',
+      full: 'You have reached your photo limit. Delete one of your photos to send a new one.',
+      closed: 'Photo sharing is closed.',
+      wait: 'Too many uploads. Try again later.',
+    },
   },
 };
 

@@ -38,7 +38,7 @@ export const BUNDLED_FONT_TEXT = /^[\u0020-\u007E\u00A0-\u00FF\u2010-\u2027\u203
  * Indonesian by default and always on the classic layout). An Indonesian card's model, and so its version hash, is
  * exactly what it was before G-018, so no cached card is invalidated by the change.
  */
-export function previewImageModel(eventType: string, config: DetailConfig, inviteOnlyOn = isFlagOn('INVITE_ONLY_EVENTS')) {
+export function previewImageModel(eventType: string, config: DetailConfig, inviteOnlyOn = isFlagOn('INVITE_ONLY_EVENTS'), coverOnly = false) {
   const language = guestPageLanguage(config);
   const copy = guestCopy(language);
   const name = clip(invitationDisplayName(eventType, config, copy.invitation), 48);
@@ -48,7 +48,8 @@ export function previewImageModel(eventType: string, config: DetailConfig, invit
     label: (LABELLED_EVENT_TYPES.has(eventType) ? copy.kickers[eventType] : undefined) ?? copy.invitation,
     name,
     imageName: BUNDLED_FONT_TEXT.test(name) ? name : null,
-    date: formatEventDate(firstOpenEvent?.startAt, config.eventOperations?.timezone, GUEST_DATE_LOCALE[language]),
+    // G-047 (D-069): a passcode-protected invitation's card shows its cover alone (label and names), never a date.
+    date: coverOnly ? null : formatEventDate(firstOpenEvent?.startAt, config.eventOperations?.timezone, GUEST_DATE_LOCALE[language]),
     colors: paletteHex(config.theme?.paletteId),
   };
 }
@@ -71,11 +72,15 @@ export function invitationShareTitle(model: PreviewImageModel, config: DetailCon
   return config.settings?.title?.trim() || `${model.label} ${model.name}`;
 }
 
-/** Open Graph + Twitter metadata for a published invitation page (both the general and the personal link). */
-export function invitationShareMetadata(invitation: { slug: string; eventType: string }, config: DetailConfig) {
-  const model = previewImageModel(invitation.eventType, config);
+/**
+ * Open Graph + Twitter metadata for a published invitation page (both the general and the personal link). `coverOnly`
+ * (G-047, a passcode-protected invitation, whether or not this visitor entered the code: unfurlers never do) keeps the
+ * cover's title and names and drops the opening text and the date.
+ */
+export function invitationShareMetadata(invitation: { slug: string; eventType: string }, config: DetailConfig, { coverOnly = false } = {}) {
+  const model = previewImageModel(invitation.eventType, config, undefined, coverOnly);
   const title = invitationShareTitle(model, config);
-  const description = config.settings?.openingCopy?.trim() || undefined;
+  const description = coverOnly ? undefined : config.settings?.openingCopy?.trim() || undefined;
   const url = `${invitationPreviewImagePath(invitation.slug)}?v=${previewImageVersion(model)}`;
   const image = { url, ...PREVIEW_IMAGE_SIZE, alt: `${model.label} ${model.name}` };
   return {

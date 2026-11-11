@@ -7,6 +7,7 @@ import { isFlagOn } from '@/lib/flags';
 import { normalizeStoredConfig } from '@/lib/invitation/content-read';
 import { parseId } from '@/lib/invitation/host-logs';
 import { accessFor } from '@/lib/invitation/members-db';
+import { passcodeGateActive } from '@/lib/invitation/guest-passcode';
 import { cardExportState, cardGuestName } from '@/lib/invitation/print-card';
 import { loadCardGuests } from '@/lib/invitation/print-card-db';
 
@@ -70,6 +71,13 @@ export default async function PrintCardsPage({ params }: { params: Promise<{ id:
           </div>
         ) : (
           <>
+            {/* G-047 (D-069): the public e-card shows the date to anyone it reaches, so a protected invitation has none. */}
+            {passcodeGateActive(invitation) ? (
+              <p role="status" className="rounded-lg border border-slate-200 bg-white p-4 text-pretty text-sm leading-6 text-slate-700">
+                E-card umum tidak tersedia selama kode akses tamu aktif, karena gambarnya bisa dibuka siapa saja tanpa kode. Kartu
+                per tamu di bawah tetap bisa diunduh.
+              </p>
+            ) : (
             <section aria-labelledby="ecard-heading" className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-4 sm:flex-row sm:items-start sm:p-6">
               <img
                 src={eCard}
@@ -96,6 +104,7 @@ export default async function PrintCardsPage({ params }: { params: Promise<{ id:
                 </a>
               </div>
             </section>
+            )}
 
             <section aria-labelledby="guest-cards-heading" className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 sm:p-6">
               <h2 id="guest-cards-heading" className="text-lg font-bold text-slate-950">

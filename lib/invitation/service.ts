@@ -1,5 +1,6 @@
 import 'server-only';
-import { and, asc, eq, isNull } from 'drizzle-orm';
+import { and, asc, eq, isNull, ne } from 'drizzle-orm';
+import { GUEST_PHOTO_TYPE } from './post-event';
 import { z } from 'zod';
 import { db } from '@/lib/db/drizzle';
 import { invitations, mediaAssets } from '@/lib/db/schema';
@@ -118,10 +119,11 @@ export async function listMedia(
   await requireOwnedInvitation(invitationId, userId);
   // Canonical order is the persisted sortOrder, tie-broken by insertion id.
   // Filenames and URLs are never used for ordering.
+  // I-21 (D-070): guest photos are reviewed on their own page, never offered as the host's media.
   return db
     .select()
     .from(mediaAssets)
-    .where(eq(mediaAssets.invitationId, invitationId))
+    .where(and(eq(mediaAssets.invitationId, invitationId), ne(mediaAssets.type, GUEST_PHOTO_TYPE)))
     .orderBy(asc(mediaAssets.sortOrder), asc(mediaAssets.id));
 }
 

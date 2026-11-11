@@ -102,6 +102,10 @@ export const invitations = pgTable(
     // deletion); the workspace's staff get the co-host's or the desk's capabilities through their membership.
     workspaceId: integer('workspace_id').references(() => workspaces.id),
     clientLabel: varchar('client_label', { length: 80 }),
+    // G-047 (D-069): the host's optional guest passcode, as a salted scrypt hash only (never the code; never in `config`,
+    // so never in a version, the editor's payload or a restore). Null = no passcode. Written only by `guest-passcode-db.ts`.
+    guestPasscodeHash: varchar('guest_passcode_hash', { length: 200 }),
+    guestPasscodeSetAt: timestamp('guest_passcode_set_at'),
   },
   // Unique per owner, and only where a key exists: rows created before B-037 (all null) never collide.
   (t) => ({

@@ -7,7 +7,7 @@ import { isFlagOn } from '@/lib/flags';
 import { loadVersionHistory } from '@/lib/invitation/content';
 import { parseId } from '@/lib/invitation/host-logs';
 import { changedSections, HISTORY_PAGE_SIZE, historyCursor, versionAuthor, versionTime } from '@/lib/invitation/version-history';
-import { RestoreVersion } from './restore-version';
+import { HistoryAnnouncer, RestoreVersion } from './restore-version';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,31 +52,33 @@ export default async function VersionHistoryPage({ params, searchParams }: { par
             Belum ada versi tersimpan. Versi pertama tercatat saat undangan disimpan dari editor.
           </p>
         ) : (
-          <ol className="flex flex-col divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white">
-            {versions.map((version) => {
-              const current = version.versionNo === state.version;
-              const changed = current ? [] : changedSections(state.config, version.config);
-              return (
-                <li key={version.versionNo} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-start sm:justify-between sm:p-5">
-                  <div className="flex min-w-0 flex-col gap-1">
-                    <p className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-950">
-                      Versi {version.versionNo}
-                      {current && <span className="rounded-full bg-brand-50 px-2 py-0.5 text-xs font-semibold text-brand-700">Versi saat ini</span>}
-                    </p>
-                    <p className="text-sm text-slate-600">
-                      <time dateTime={version.createdAt.toISOString()}>{versionTime(version.createdAt)}</time> · {versionAuthor(version.createdBy)}
-                    </p>
-                    {!current && (
-                      <p className="text-pretty text-sm leading-6 text-slate-600">
-                        {changed.length ? `Berbeda dari versi saat ini: ${changed.join(', ')}.` : 'Isinya sama dengan versi saat ini.'}
+          <HistoryAnnouncer>
+            <ol className="flex flex-col divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white">
+              {versions.map((version) => {
+                const current = version.versionNo === state.version;
+                const changed = current ? [] : changedSections(state.config, version.config);
+                return (
+                  <li key={version.versionNo} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-start sm:justify-between sm:p-5">
+                    <div className="flex min-w-0 flex-col gap-1">
+                      <p className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-950">
+                        Versi {version.versionNo}
+                        {current && <span className="rounded-full bg-brand-50 px-2 py-0.5 text-xs font-semibold text-brand-700">Versi saat ini</span>}
                       </p>
-                    )}
-                  </div>
-                  {!current && changed.length > 0 && <RestoreVersion invitationId={id} versionNo={version.versionNo} currentVersion={state.version} />}
-                </li>
-              );
-            })}
-          </ol>
+                      <p className="text-sm text-slate-600">
+                        <time dateTime={version.createdAt.toISOString()}>{versionTime(version.createdAt)}</time> · {versionAuthor(version.createdBy)}
+                      </p>
+                      {!current && (
+                        <p className="text-pretty text-sm leading-6 text-slate-600">
+                          {changed.length ? `Berbeda dari versi saat ini: ${changed.join(', ')}.` : 'Isinya sama dengan versi saat ini.'}
+                        </p>
+                      )}
+                    </div>
+                    {!current && changed.length > 0 && <RestoreVersion invitationId={id} versionNo={version.versionNo} currentVersion={state.version} />}
+                  </li>
+                );
+              })}
+            </ol>
+          </HistoryAnnouncer>
         )}
 
         {(before !== undefined || more) && (

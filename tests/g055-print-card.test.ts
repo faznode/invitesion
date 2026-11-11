@@ -129,7 +129,11 @@ test('G-055: the public e-card route takes no guest and reads no guest row, unde
   assert.match(route, /target: cardTarget\(await getPublicOrigin\(\), invitation\.slug\),/);
   assert.match(route, /'Cache-Control': 'public, max-age=600'/);
   assert.match(route, /'X-Robots-Tag': 'noindex'/);
-  const code = route.replace(/\/\*\*[\s\S]*?\*\//g, '');
+  // G-047 (D-069): the passcode is the invitation's rule, not a guest's; its import is the one line allowed to say "guest".
+  const passcodeImport = "import { passcodeGateActive } from '@/lib/invitation/guest-passcode';\n";
+  assert.ok(route.startsWith(passcodeImport), 'the passcode rule is imported exactly once, first');
+  assert.match(route, /if \(!summary \|\| passcodeGateActive\(summary\.invitation\) \|\| !cardExportAvailable/);
+  const code = route.replace(/\/\*\*[\s\S]*?\*\//g, '').replace(passcodeImport, '');
   assert.doesNotMatch(code, /guest|searchParams/i, 'nothing of a guest can reach the public card');
 });
 

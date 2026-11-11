@@ -24,6 +24,7 @@ import { eventCountField, eventStatusField, perEventRsvpEvents, readEventAnswers
 import { rsvpDeadlinePassed } from '@/lib/invitation/rsvp-rules';
 import { shareOf } from '@/lib/invitation/share';
 import { variantSrcSet, type ImageVariants } from '@/lib/media/variants';
+import type { PostEventMemoryView } from '@/lib/invitation/post-event';
 import { galleryLayout, galleryVideo } from '@/lib/invitation/gallery';
 import type { Guest, Invitation, MediaAsset } from '@/lib/db/schema';
 
@@ -35,6 +36,8 @@ export type GuestPageProps = {
   config: DetailConfig;
   guest: Guest | null;
   media: MediaAsset[];
+  /** I-21 (D-070): the post-event memory built on the server for this audience (`loadMemoryView`); absent or null: none. */
+  memory?: PostEventMemoryView | null;
   /** The most recent page of guestbook messages, oldest first. */
   messages: GuestMessage[];
   /** Total visible messages, so a capped list can say what it is hiding. */

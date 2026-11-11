@@ -95,9 +95,10 @@ test('G-035: one rule: guest sharing on, published and not expired, a design fam
   assert.equal(available(published(), withShare(wedding, false)), false, 'hidden by the host');
   assert.equal(available(published(), withShare(wedding, true)), true, 'shown explicitly');
   for (const familyId of FAMILY_IDS) assert.equal(available(published(), withFamily(wedding, familyId)), true, familyId);
-  // The page and the image route ask this one question.
+  // The page and the image route ask this one question. G-047 (D-069) refuses a passcode-protected invitation first; the
+  // one rule itself is unchanged and still decides every other invitation.
   assert.match(source('components/invitation/guest-view.ts'), /inviteShare: inviteShareOf\(invitation, config\),/);
-  assert.match(source('app/i/[slug]/story.png/route.ts'), /if \(!summary \|\| !inviteShareAvailable\(summary\.invitation, summary\.config\)\) return new Response\('Not found', \{ status: 404 \}\);/);
+  assert.match(source('app/i/[slug]/story.png/route.ts'), /if \(!summary \|\| passcodeGateActive\(summary\.invitation\) \|\| !inviteShareAvailable\(summary\.invitation, summary\.config\)\) return new Response\('Not found', \{ status: 404 \}\);/);
   assert.match(source('app/i/[slug]/story.png/route.ts'), /loadPublishedInvitationSummary\(slug\)/);
 });
 

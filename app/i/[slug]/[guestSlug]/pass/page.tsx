@@ -2,7 +2,10 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import QRCode from 'qrcode';
 import { buildGuestView } from '@/components/invitation/guest-view';
+import { PasscodeGate } from '@/components/invitation/passcode-gate';
 import { guestCopy, guestPageLanguage } from '@/lib/invitation/guest-copy';
+import { loadGuestGate } from '@/lib/invitation/guest-gate';
+import { passcodeNoticeOf } from '@/lib/invitation/guest-passcode';
 import { passExpiresAt, passSigningSecret, signGuestPass } from '@/lib/invitation/guest-pass';
 import { guestPassAvailable } from '@/lib/invitation/guest-pass-page';
 import { loadPublicInvitation } from '@/lib/invitation/public';
@@ -11,7 +14,7 @@ import { getLocale } from '@/lib/locale-server';
 // Rendered per request: the token is signed now, and an unknown guest link answers 404 (B-011).
 export const dynamic = 'force-dynamic';
 
-type Params = { params: Promise<{ slug: string; guestSlug: string }> };
+type Params = { params: Promise<{ slug: string; guestSlug: string }>; searchParams: Promise<{ kode?: string; menit?: string }> };
 
 /**
  * G-018: the title in the invitation page's language. A pass that does not exist (`guestPassAvailable`) has the guest
@@ -20,6 +23,8 @@ type Params = { params: Promise<{ slug: string; guestSlug: string }> };
  */
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { slug, guestSlug } = await params;
+  const gate = await loadGuestGate(slug);
+  if (gate?.locked) return { ...gate.metadata, referrer: 'no-referrer' };
   const data = await loadPublicInvitation(slug, guestSlug);
   return {
     title: guestPassAvailable(data) ? guestCopy(guestPageLanguage(data.config)).pass.title : guestCopy(await getLocale()).notFoundTitle,
@@ -37,8 +42,11 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
  * G-018 (I-31): the page speaks its invitation's language (`guestPageLanguage`), like the guest page it links back to;
  * the guest's name and the invitation's title are the host's words and stay as written.
  */
-export default async function GuestPassPage({ params }: Params) {
+export default async function GuestPassPage({ params, searchParams }: Params) {
   const { slug, guestSlug } = await params;
+  // G-047 (D-069): the pass names the guest and the event, so a locked request sees the cover and returns here after entry.
+  const gate = await loadGuestGate(slug);
+  if (gate?.locked) return <PasscodeGate cover={gate.cover} slug={slug} guestSlug={guestSlug} target="pass" notice={passcodeNoticeOf(await searchParams)} />;
   const data = await loadPublicInvitation(slug, guestSlug);
   const secret = passSigningSecret();
   if (!guestPassAvailable(data) || !secret) notFound();

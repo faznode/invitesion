@@ -1,4 +1,4 @@
-import { asc, eq } from 'drizzle-orm';
+import { and, asc, eq, ne } from 'drizzle-orm';
 import { redirect, notFound } from 'next/navigation';
 import { getUser } from '@/lib/db/queries';
 import { getPrivateAdminPath } from '@/lib/auth/admin-access';
@@ -8,7 +8,9 @@ import { isFlagOn } from '@/lib/flags';
 import { getLocale } from '@/lib/locale-server';
 import { loadContentState, loadThemeTier } from '@/lib/invitation/content';
 import { normalizeStoredConfig } from '@/lib/invitation/content-read';
+import { loadPasscodeState } from '@/lib/invitation/guest-passcode-db';
 import { occasionOf } from '@/lib/invitation/occasion';
+import { GUEST_PHOTO_TYPE } from '@/lib/invitation/post-event';
 import { paletteHex, paletteIds } from '@/lib/invitation/palettes';
 import { approvedCorpusOptions } from '@/lib/invitation/religious-text';
 import { ownerPreviewPath } from '@/lib/invitation/public-path';
@@ -24,6 +26,12 @@ const PALETTE_OPTIONS: PaletteOption[] = paletteIds.map((id) => {
 });
 
 export const dynamic = 'force-dynamic';
+
+/** G-047: the passcode's on / off state and date for the editor's card (never the code or its hash). */
+async function passcodeProps(invitationId: number, userId: number) {
+  const state = await loadPasscodeState(invitationId, userId);
+  return { enabled: state?.enabled ?? false, setAt: state?.setAt?.toISOString() ?? null };
+}
 
 export default async function EditInvitationPage({
   params,
@@ -45,10 +53,11 @@ export default async function EditInvitationPage({
   // The guest page's lenient read (S18-Q4): one section that fails today's rules no longer opens an empty editor.
   const { config } = normalizeStoredConfig(invitation.config ?? {});
 
+  // I-21 (D-070): guest photos are reviewed on their own page, never offered as the host's media.
   const media = await db
     .select()
     .from(mediaAssets)
-    .where(eq(mediaAssets.invitationId, id))
+    .where(and(eq(mediaAssets.invitationId, id), ne(mediaAssets.type, GUEST_PHOTO_TYPE)))
     .orderBy(asc(mediaAssets.sortOrder), asc(mediaAssets.id));
 
   const locale = await getLocale();
@@ -76,6 +85,8 @@ export default async function EditInvitationPage({
       guestShare={isFlagOn('GUEST_SHARE')}
       cardExport={isFlagOn('CARD_EXPORT')}
       historyHref={isFlagOn('VERSION_HISTORY') ? `/dashboard/invitations/${id}/history` : null}
+      guestPasscode={isFlagOn('GUEST_PASSCODE') ? await passcodeProps(id, user.id) : null}
+      postEventMemory={isFlagOn('POST_EVENT_MEMORY')}
       initialMedia={media.map((m) => ({
         id: m.id,
         url: m.url,

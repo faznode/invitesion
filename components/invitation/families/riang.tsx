@@ -1,6 +1,7 @@
 import { Fragment } from 'react';
 import { InvitationIcon } from '@/components/invitation/icons';
 import { Countdown } from '@/components/invitation/countdown';
+import { PostEventMemory } from '@/components/invitation/post-event-memory';
 import { GiftCopyButton } from '@/components/invitation/gift-copy';
 import { InviteShareActions } from '@/components/invitation/invite-share';
 import { ReadingToggle } from '@/components/invitation/reading-toggle';
@@ -154,6 +155,7 @@ export function RiangLayout({ props, view }: { props: GuestPageProps; view: Gues
       <>
         {readOnly && <ReadOnlyNotice className="mx-auto max-w-2xl px-5 pt-8" copy={view.copy} />}
         <SwitchedOffNotices props={props} view={view} className="mx-auto max-w-2xl px-5 pt-8" />
+        <PostEventMemory props={props} view={view} className="mx-auto max-w-2xl px-5" />
       </>
     ),
 

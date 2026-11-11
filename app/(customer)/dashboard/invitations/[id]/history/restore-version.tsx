@@ -1,8 +1,38 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, RotateCcw } from 'lucide-react';
+
+const AnnounceRestored = createContext<(text: string) => void>(() => {});
+
+/**
+ * The page's live region for a completed restore. Once the refreshed list shows the restored version as current, its row
+ * no longer has a restore button, so a message kept in that row would vanish with it (and the focused button too). This
+ * region stays mounted through `router.refresh()`: the outcome stays readable and announced, and it takes the focus.
+ */
+export function HistoryAnnouncer({ children }: { children: ReactNode }) {
+  const [notice, setNotice] = useState<{ text: string; at: number } | null>(null);
+  const region = useRef<HTMLParagraphElement>(null);
+
+  useEffect(() => {
+    if (notice) region.current?.focus();
+  }, [notice]);
+
+  return (
+    <AnnounceRestored.Provider value={(text) => setNotice({ text, at: Date.now() })}>
+      <p
+        ref={region}
+        role="status"
+        tabIndex={-1}
+        className={notice ? 'rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-pretty text-sm font-medium leading-6 text-emerald-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700' : 'sr-only'}
+      >
+        {notice?.text ?? ''}
+      </p>
+      {children}
+    </AnnounceRestored.Provider>
+  );
+}
 
 /** Each refusal in the owner's words, with what to do next. */
 const REFUSALS: Record<string, string> = {
@@ -18,12 +48,14 @@ const REFUSALS: Record<string, string> = {
 /**
  * G-046: restores one older version after an explicit confirmation. The request names the version the page showed as
  * current, so a page left open while the invitation changed elsewhere is refused (409) instead of overwriting the newer
- * work. The outcome is announced in a polite live region; on success the page reloads its list from the server.
+ * work. A refusal is announced beside its button, which keeps the focus; a success is announced by the page's region
+ * (`HistoryAnnouncer`), and the page reloads its list from the server.
  */
 export function RestoreVersion({ invitationId, versionNo, currentVersion }: { invitationId: number; versionNo: number; currentVersion: number }) {
   const router = useRouter();
+  const announceRestored = useContext(AnnounceRestored);
   const [step, setStep] = useState<'idle' | 'confirm' | 'busy'>('idle');
-  const [message, setMessage] = useState<{ tone: 'ok' | 'error'; text: string } | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
   const confirmButton = useRef<HTMLButtonElement>(null);
   const startButton = useRef<HTMLButtonElement>(null);
 
@@ -42,14 +74,14 @@ export function RestoreVersion({ invitationId, versionNo, currentVersion }: { in
       });
       const body = await response.json().catch(() => null);
       if (response.ok) {
-        setMessage({ tone: 'ok', text: `Versi ${versionNo} dipulihkan dan disimpan sebagai versi ${body?.version}.` });
+        announceRestored(`Versi ${versionNo} dipulihkan dan disimpan sebagai versi ${body?.version}.`);
         setStep('idle');
         router.refresh();
         return;
       }
-      setMessage({ tone: 'error', text: REFUSALS[body?.error?.code] ?? 'Pemulihan gagal. Coba lagi.' });
+      setMessage(REFUSALS[body?.error?.code] ?? 'Pemulihan gagal. Coba lagi.');
     } catch {
-      setMessage({ tone: 'error', text: 'Koneksi terputus. Periksa internet, lalu coba lagi.' });
+      setMessage('Koneksi terputus. Periksa internet, lalu coba lagi.');
     }
     setStep('idle');
     startButton.current?.focus();
@@ -91,8 +123,8 @@ export function RestoreVersion({ invitationId, versionNo, currentVersion }: { in
           {step === 'busy' ? 'Memulihkan…' : 'Pulihkan versi ini'}
         </button>
       )}
-      <p role="status" className={`min-h-5 text-pretty text-sm leading-5 ${message?.tone === 'error' ? 'text-rose-700' : 'text-emerald-700'}`}>
-        {message?.text ?? ''}
+      <p role="status" className="min-h-5 text-pretty text-sm leading-5 text-rose-700">
+        {message ?? ''}
       </p>
     </div>
   );

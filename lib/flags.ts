@@ -73,6 +73,20 @@ const DEFAULTS = {
    */
   VERSION_HISTORY: true,
   /**
+   * G-047 (D-069): a host may set a guest passcode (`guest-passcode.ts`). Until a visitor enters it, the invitation's
+   * pages show the cover alone and every surface holding its content refuses (`guest-gate.ts`). Off: no page or route
+   * asks for a passcode and the editor offers none, so every protected invitation is public to its link again, exactly
+   * as before G-047 (the rollback); the stored hashes are kept, so turning it back on restores each gate unchanged.
+   */
+  GUEST_PASSCODE: true,
+  /**
+   * I-21 (D-070): the host's post-event memory on the invitation's own link: a thank-you message and, if the host
+   * allows it, photos guests share from their personal links, shown once the host approves each one (`post-event.ts`).
+   * Off by default until the guest-photo privacy notice (B-021 copy) and the retention review (B-031, D-063) are settled.
+   * Off: no memory on any page, no upload, every photo route 404 and the editor offers none; stored photos are kept.
+   */
+  POST_EVENT_MEMORY: false,
+  /**
    * B-019 (I-28): a public upload queues WebP variants (made by the Rust jobs), and the design families offer them in a
    * `srcset` (the lite ladder under `Save-Data: on`). Off queues nothing and renders every image as its original exactly
    * as before; stored variants are neither read nor removed.

@@ -8,6 +8,7 @@ import { test } from 'node:test';
 // First: the harness installs the `server-only` and POSTGRES_URL stand-ins some modules need at import time.
 import './support/render-guest-page';
 import { isFlagOn } from '../lib/flags';
+import { versionHistoryQuery } from '../lib/invitation/content';
 import { CONTENT_SCHEMA_VERSION } from '../lib/invitation/content-contract';
 import { prepareRestoreWrite } from '../lib/invitation/content-read';
 import { changedSections, historyCursor, SECTION_LABELS, versionAuthor } from '../lib/invitation/version-history';
@@ -67,11 +68,33 @@ test('G-046: the restore goes through the one selected writer under every save r
   assert.match(facade, /if \(input\.expectedVersion !== state\.version\) return \{ kind: 'conflict', currentVersion: state\.version \};/, 'a stale page writes nothing');
   assert.match(facade, /if \(input\.versionNo === state\.version\) return \{ kind: 'current' \};/);
   assert.match(facade, /config = prepareRestoreWrite\(state\.config, row\.config\);/);
-  assert.match(facade, /\.filter\(\(key\) => key !== 'schemaVersion'\);\n  return writeContent\(caller, \{ invitationId: input\.invitationId, baseVersion: state\.version, config, touchedSections \}, env\);/, 'every section judged (D-040, B-041)');
+  assert.match(
+    facade,
+    /const touchedSections = \[\.\.\.new Set\(\[\.\.\.Object\.keys\(config\), \.\.\.Object\.keys\(state\.config\)\]\)\]\.filter\(\(key\) => key !== 'schemaVersion'\);\n  return writeContent\(caller, \{ invitationId: input\.invitationId, baseVersion: state\.version, config, touchedSections \}, env\);/,
+    "every section of the version and of today's config judged (D-040, B-041), because a restore replaces them all",
+  );
   assert.match(facade, /return writeContent\(caller, \{ invitationId: input\.invitationId, baseVersion: state\.version, config: validated, touchedSections: Object\.keys\(input\.patch\) \}, env\);/, 'the save shares the same writer selection');
   assert.equal(facade.match(/backendFor\('CONTENT', env\)/g)?.length, 1, 'one place selects the writer');
   const code = facade.replace(/\/\*\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
   assert.doesNotMatch(code, /\b(guests|guestMessages|orders|payments|mediaAssets|giftLogs)\b/, 'no guest, wish, media or payment table here');
+});
+
+test('G-046: the history pages by distinct version number in the database, each by its latest row, so a repeated number never ends the paging early', () => {
+  // The statement as PostgreSQL receives it. Rows written before B-035's lock may repeat a number; DISTINCT ON keeps the
+  // latest row of each (the row a restore reads), and the one extra row says whether an older page exists.
+  const page = versionHistoryQuery(41, { before: 9, limit: 30 }).toSQL();
+  assert.match(page.sql, /^select distinct on \("invitation_versions"\."version_no"\) "version_no", "created_at", "created_by", "config" from "invitation_versions" /, page.sql);
+  assert.match(page.sql, /where \("invitation_versions"\."invitation_id" = \$1 and "invitation_versions"\."version_no" < \$2\) order by "invitation_versions"\."version_no" desc, "invitation_versions"\."id" desc limit \$3$/, page.sql);
+  assert.deepEqual(page.params, [41, 9, 31], 'this invitation, below the cursor, one row more than a page');
+  const first = versionHistoryQuery(41, { limit: 30 }).toSQL();
+  assert.doesNotMatch(first.sql, /"version_no" < /, 'the first page has no cursor');
+  assert.deepEqual(first.params, [41, 31]);
+  const facade = source('lib/invitation/content.ts');
+  assert.match(
+    facade,
+    /const state = await loadContentState\(invitationId, userId\);\n  if \(!state\) return null;\n  const rows = await versionHistoryQuery\(invitationId, \{ before, limit \}\);\n  return \{ state, versions: rows\.slice\(0, limit\), more: rows\.length > limit \};/,
+    'the owner check comes first, then one page',
+  );
 });
 
 test('G-046: the route answers each refusal in its own words; flag first, then the session', () => {
@@ -92,8 +115,16 @@ test('G-046: the owner page explains what a restore keeps before anyone confirms
   const button = source('app/(customer)/dashboard/invitations/[id]/history/restore-version.tsx');
   assert.match(button, /body: JSON\.stringify\(\{ expectedVersion: currentVersion \}\)/);
   assert.match(button, /<p role="status"/, 'the outcome is announced');
+  // A success is announced by the page's region, which outlives the restored row's button (gone once that row is current).
+  assert.match(button, /announceRestored\(`Versi \$\{versionNo\} dipulihkan dan disimpan sebagai versi \$\{body\?\.version\}\.`\);\n\s*setStep\('idle'\);\n\s*router\.refresh\(\);/);
+  assert.match(button, /export function HistoryAnnouncer\(/);
+  assert.match(page, /<HistoryAnnouncer>\n\s*<ol /, 'the region wraps the list, outside every row');
   assert.match(button, /Ya, pulihkan/, 'an explicit confirmation');
   const editor = source('app/(customer)/dashboard/invitations/[id]/edit/editor.tsx');
   assert.match(editor, /\{historyHref && <a href=\{historyHref\}/, 'a plain link, so the unsaved-changes guard still asks');
+  // The editor's first screen (the section list) renders without the section footer, so it carries its own link.
+  const home = editor.slice(editor.indexOf("{tab === 'settings'"), editor.indexOf('<ControlCenter open={setTab}'));
+  assert.match(home, /\{historyHref && <a href=\{historyHref\}/, "the editor's first screen leads to the history too");
+  assert.equal(editor.match(/\{historyHref && <a href=\{historyHref\}/g)?.length, 2, 'the first screen and every section footer');
   assert.match(source('app/(customer)/dashboard/invitations/[id]/edit/page.tsx'), /historyHref=\{isFlagOn\('VERSION_HISTORY'\) \? `\/dashboard\/invitations\/\$\{id\}\/history` : null\}/);
 });

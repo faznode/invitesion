@@ -73,6 +73,9 @@ export const RENDER_CAPABILITIES = {
   // music control (`autoplay` off); the title names the control for screen readers.
   music: { rendered: ['enabled', 'assetUrl', 'title', 'autoplay'], storedOnly: [] },
   greetings: { rendered: ['enabled', 'prayer'], storedOnly: [] },
+  // I-21 (D-070): the design families render the memory once the event is over (`post-event.ts`); the legacy layout
+  // ignores the section (D-041), like `familyId`.
+  postEvent: { rendered: ['enabled', 'message', 'photos'], storedOnly: [] },
   // B-026 (D-047): the QRIS image renders through the route for the page's audience; `personalOnly` decides who sees the
   // details (`lib/invitation/gift-privacy.ts`) and is never shown itself.
   gift: { rendered: ['enabled', 'accounts', 'label', 'number', 'holder', 'note', 'qrisImageUrl'], storedOnly: ['kind'], hostOnly: ['personalOnly'] },

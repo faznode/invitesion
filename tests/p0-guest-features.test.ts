@@ -312,8 +312,9 @@ test('B-010: share metadata points at the 1200×630 image and the opening copy, 
   assert.equal(meta.openGraph.description, 'Kami mengundang Anda.');
   assert.equal(meta.openGraph.locale, 'id_ID');
   assert.equal(meta.twitter.card, 'summary_large_image');
+  // G-047 (D-069): a passcode-protected invitation's preview is its cover for everyone (`coverOnly`), still per invitation.
   for (const page of ['app/i/[slug]/page.tsx', 'app/i/[slug]/[guestSlug]/page.tsx']) {
-    assert.match(source(page), /\.\.\.invitationShareMetadata\(data\.invitation, data\.config\)/, page);
+    assert.match(source(page), /\.\.\.invitationShareMetadata\(data\.invitation, data\.config, \{ coverOnly: gate\?\.passcode === true \}\)/, page);
   }
   const route = source('app/i/[slug]/og.png/route.tsx');
   assert.match(route, /loadPublishedInvitationSummary\(slug\)/);

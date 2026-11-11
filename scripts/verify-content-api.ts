@@ -17,7 +17,11 @@
  * (sent as their own ids since session 44) is stored and read back; choices outside the contract are refused with nothing
  * written; an unchanged retired order does not block another change; a family switch keeps the choices; a Standard
  * invitation's Premium palette is refused whole and a paid Premium one stores it; a config-only restore keeps every event
- * id and the guests' RSVP rows. Across
+ * id and the guests' RSVP rows. G-046 through the restore route: an older version is stored whole as one new live version
+ * and undone by restoring the version it replaced; only the config and its version rows change; a stale page, the current,
+ * an unknown or malformed version, flag off, another customer, an administrator, a signed-out request, an unreadable
+ * version, another invitation's protected image (D-040) and a Premium palette (B-041) write nothing; a repeated number
+ * restores its latest row; the history pages through every version once. Across
  * writers: the same answers and the same stored rows. For the Rust writer: a lost answer is retried under its key and
  * replayed, written once and never reported as a conflict; two lost answers report "unconfirmed" and the next save from
  * the old version meets the conflict. Exactly one writer per call: with the API down under `rust` nothing is written,
@@ -115,6 +119,7 @@ async function main() {
   const { client: sql } = await import('../lib/db/drizzle');
   const route = await import('../app/api/invitations/[id]/detail/route');
   const restoreRoute = await import('../app/api/invitations/[id]/versions/[versionNo]/restore/route');
+  const { loadVersionHistory } = await import('../lib/invitation/content');
   const { createInvitation } = await import('../lib/invitation/create');
   const jose = await import('jose');
 
@@ -547,6 +552,60 @@ async function main() {
         badCards.status === 422 && same(await state(ce), beforeBadCards), `${badCards.status}`);
       results[backend].states.push({ config: { settings: optOutSettings }, versions: afterOptOut.versions, live: [] });
 
+      // I-21 (D-070) through the editor's real save, on its own invitation: the post-event memory is content like any
+      // section. Switched on with a message and photos, the section is stored and the reload reads it; a partial save
+      // merges (photos off keeps the message); an over-long message and a non-boolean switch are refused before any writer
+      // with nothing written; restoring the version from before the memory (G-046) removes the section as one new version
+      // and leaves a guest photo's row as it is (photos are rows, never content).
+      const pe = await invitation(owner.id, `i021-${backend}`);
+      let pev = 1;
+      const savePe = async (body: Record<string, unknown>) => {
+        const answer = record(await call(backend, 'PATCH', pe, { ...body, expectedVersion: pev }));
+        if (answer.status === 200) pev = answer.body.version;
+        return answer;
+      };
+      const peSeeded = await savePe({ settings: { title: 'Laras & Dimas (fiktif)' } });
+      const beforeMemory = pev;
+      const memoryOn = { enabled: true, message: 'Terima kasih sudah hadir (fiktif)', photos: true };
+      const peOn = await savePe({ postEvent: memoryOn });
+      const peReload = record(await call(backend, 'GET', pe));
+      const afterPeOn = await state(pe);
+      const peConfig = afterPeOn.config as { postEvent?: Record<string, unknown>; settings: Record<string, unknown> };
+      check(`${backend}: I-21 the post-event memory saves as a section beside the rest and the reload reads it`,
+        peSeeded.status === 200 && peOn.status === 200 && same(peConfig.postEvent, memoryOn) && peConfig.settings.title === 'Laras & Dimas (fiktif)'
+          && same(peReload.body?.data?.postEvent, memoryOn) && coherent(afterPeOn),
+        `${peSeeded.status}/${peOn.status} ${JSON.stringify(peReload.body?.data?.postEvent)}`);
+      const pePhotosOff = await savePe({ postEvent: { photos: false } });
+      const afterPhotosOff = await state(pe);
+      const photosOffSection = (afterPhotosOff.config as { postEvent?: unknown }).postEvent;
+      check(`${backend}: I-21 a partial save merges: photos off keeps the switch and the message`,
+        pePhotosOff.status === 200 && same(photosOffSection, { ...memoryOn, photos: false }) && coherent(afterPhotosOff), `${pePhotosOff.status} ${JSON.stringify(photosOffSection)}`);
+      const beforeBadMemory = await state(pe);
+      const longMessage = await savePe({ postEvent: { message: 'x'.repeat(1001) } });
+      const badSwitch = await savePe({ postEvent: { enabled: 'yes' } });
+      check(`${backend}: I-21 an over-long message and a non-boolean switch are refused before any writer and nothing is written`,
+        longMessage.status === 422 && badSwitch.status === 422 && same(await state(pe), beforeBadMemory), `${longMessage.status}/${badSwitch.status}`);
+      results[backend].states.push({ config: { postEvent: photosOffSection }, versions: afterPhotosOff.versions, live: [] });
+      await sql`insert into media_assets (invitation_id, type, url, source, meta)
+        values (${pe}, 'guest-photo', ${`/media/protected/${pe}/${'a'.repeat(24)}.jpg`}, 'guest', ${JSON.stringify({ guestId: 1, review: 'visible' })}::text::jsonb)`;
+      const photoRows = async () => JSON.stringify(await sql`select id, type, url, source, meta from media_assets where invitation_id = ${pe} order by id`);
+      const photosBefore = await photoRows();
+      env.BACKEND_CONTENT = backend;
+      let peRestore: Answer;
+      try {
+        const request = new Request(`http://app.test/api/invitations/${pe}/versions/${beforeMemory}/restore`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ expectedVersion: pev }) });
+        const response = await restoreRoute.POST(request, { params: Promise.resolve({ id: String(pe), versionNo: String(beforeMemory) }) });
+        const text = await response.text();
+        peRestore = { status: response.status, body: text ? JSON.parse(text) : null };
+      } finally {
+        delete env.BACKEND_CONTENT;
+      }
+      const afterPeRestore = await state(pe);
+      check(`${backend}: I-21 restoring the version from before the memory removes the section as one new version; the guest photo row stays`,
+        peRestore.status === 200 && !('postEvent' in (afterPeRestore.config as object)) && afterPeRestore.versions.length === afterPhotosOff.versions.length + 1
+          && coherent(afterPeRestore) && (await photoRows()) === photosBefore,
+        `${peRestore.status} ${afterPeRestore.versions.length}`);
+
       // G-046 through the real restore route, on its own invitation: an older version restored whole through this writer.
       // The config and one new version change; nothing else of the invitation does (guests and their RSVP answers, wishes,
       // orders and payments, gift log, media, members, the invitation's other columns). Event ids are random per run, so
@@ -600,6 +659,10 @@ async function main() {
         values (${owner.id}, ${hv}, 'standard', 149000, 'IDR', 'qris', ${`vne_g046_${backend}_${tag}`}, 'PAID', now() at time zone 'utc') returning id`;
       created.orders.push(orderH.id);
       await sql`insert into payments (order_id, provider, transaction_id, status) values (${orderH.id}, 'qris', ${`trx_g046_${backend}_${tag}`}, 'PAID')`;
+      // G-047 (D-069): a guest passcode on this invitation. Its columns belong to no content writer, so every restore below
+      // must leave them as they are (they are inside `others().invitation`, and checked by name after the undo).
+      const passcodeH = `scrypt$16384$8$1$${'A'.repeat(22)}$${'B'.repeat(43)}`;
+      await sql`update invitations set guest_passcode_hash = ${passcodeH}, guest_passcode_set_at = now() at time zone 'utc' where id = ${hv}`;
       const othersBefore = await others();
       const beforeRefusals = await state(hv);
 
@@ -639,6 +702,64 @@ async function main() {
       check(`${backend}: G-046 a restore is itself undone by restoring the version it replaced`,
         undo.status === 200 && same(afterUndo.config, await versionConfig(versionB)) && coherent(afterUndo) && same(await others(), othersBefore), `${undo.status}`);
       results[backend].states.push({ config: { settings: (afterUndo.config as any).settings, quote: (afterUndo.config as any).quote }, versions: afterUndo.versions, live: [] });
+      const [passcodeRow] = await sql`select guest_passcode_hash, guest_passcode_set_at from invitations where id = ${hv}`;
+      check(`${backend}: G-047 the guest passcode is untouched by restores through this writer (no content writer writes its columns)`,
+        passcodeRow.guest_passcode_hash === passcodeH && passcodeRow.guest_passcode_set_at !== null, String(passcodeRow.guest_passcode_hash).slice(0, 12));
+
+      // G-046 on versions written under earlier rules, added as rows under version A's number (rows written before B-035's
+      // lock could repeat a number): a restore reads the latest row of a number. A restore replaces every section, so the
+      // strict schema (422), D-040 (another invitation's protected image) and B-041 (a Premium palette on this Standard
+      // invitation) judge all of them, and each refusal writes nothing.
+      const liveAfterUndo = undo.body?.version as number;
+      const legacyRow = async (config: Record<string, unknown>) => {
+        await sql`insert into invitation_versions (invitation_id, version_no, config, created_by, is_live)
+          values (${hv}, ${versionA}, ${JSON.stringify(config)}::text::jsonb, 'customer', false)`;
+      };
+      const refusedLegacy = async (config: Record<string, unknown>) => {
+        await legacyRow(config);
+        const before = { state: await state(hv), others: await others() };
+        const answer = record(await restoreH(versionA, liveAfterUndo));
+        return { answer, unchanged: same(await state(hv), before.state) && same(await others(), before.others) };
+      };
+      const unrestorable = await refusedLegacy({ ...configA, gift: 'tidak sah (fiktif)' });
+      const foreignMedia = await refusedLegacy({ ...configA, gift: { ...(configA.gift ?? {}), enabled: true, qrisImageUrl: `/media/protected/${id}/${HEX}.png` } });
+      const premiumTheme = await refusedLegacy({ ...configA, theme: { ...(configA.theme ?? {}), paletteId: 'midnight' } });
+      check(`${backend}: G-046 an older version today's rules refuse is never restored and nothing is written: an unreadable section (422), another invitation's protected image (D-040) and a Premium palette on this Standard invitation (B-041)`,
+        unrestorable.answer.status === 422 && unrestorable.answer.body.error.code === 'UNRESTORABLE' && unrestorable.unchanged
+          && foreignMedia.answer.status === 400 && foreignMedia.answer.body.error.code === 'INVALID_MEDIA' && foreignMedia.unchanged
+          && premiumTheme.answer.status === 403 && premiumTheme.answer.body.error.code === 'THEME_NOT_ENTITLED'
+          && same(premiumTheme.answer.body.error.details, [{ path: 'theme.paletteId', reason: 'premium-palette' }]) && premiumTheme.unchanged,
+        [unrestorable, foreignMedia, premiumTheme].map((r) => `${r.answer.status} ${r.answer.body?.error?.code}${r.unchanged ? '' : ' WROTE'}`).join(', '));
+
+      // The latest row of a repeated number is that version: restoring A now stores it as one new live version, and the
+      // history, in keyset pages of two, lists every number once, newest first, by that row, down to version 1.
+      const latestA = { ...configA, settings: { ...(configA.settings ?? {}), title: 'Baris terakhir versi A (fiktif)' } };
+      await legacyRow(latestA);
+      const othersBeforeLatest = await others();
+      const restoredLatest = await restoreH(versionA, liveAfterUndo);
+      const afterLatest = await state(hv);
+      check(`${backend}: G-046 a version number written more than once restores its latest row as one new live version, and the kept event keeps its id`,
+        restoredLatest.status === 200 && restoredLatest.body.version === liveAfterUndo + 1 && (afterLatest.config as any).settings?.title === latestA.settings.title
+          && same((afterLatest.config as any).events.map((event: { id: string }) => event.id), [akadId]) && coherent(afterLatest) && same(await others(), othersBeforeLatest),
+        `${restoredLatest.status} ${JSON.stringify(restoredLatest.body?.error ?? restoredLatest.body?.version)}`);
+      const pages: number[][] = [];
+      const listed: Array<{ versionNo: number; config: unknown }> = [];
+      let cursor: number | undefined;
+      for (let page = 0; page < 20; page++) {
+        const history = await loadVersionHistory(hv, owner.id, { before: cursor, limit: 2 });
+        if (!history) break;
+        pages.push(history.versions.map((version) => version.versionNo));
+        listed.push(...history.versions);
+        if (!history.more) break;
+        cursor = history.versions.at(-1)?.versionNo;
+      }
+      const numbers = (await sql`select distinct version_no from invitation_versions where invitation_id = ${hv} order by version_no desc`).map((row) => row.version_no as number);
+      const listedA = listed.find((version) => version.versionNo === versionA)?.config as { settings?: { title?: string } } | undefined;
+      check(`${backend}: G-046 the history pages through every version once, newest first, each number by its latest row, down to version 1; another customer sees none`,
+        same(listed.map((version) => version.versionNo), numbers) && numbers.at(-1) === 1 && pages.every((page) => page.length > 0 && page.length <= 2)
+          && listedA?.settings?.title === latestA.settings.title && (await loadVersionHistory(hv, other.id, { limit: 2 })) === null,
+        JSON.stringify(pages));
+      results[backend].answers.push(JSON.stringify(pages));
 
       await signIn(other);
       const intruder = record(await call(backend, 'PATCH', id, { quote: { ...quote, text: 'Bukan milikmu' }, expectedVersion: 4 }));
@@ -697,6 +818,8 @@ async function main() {
     await sql`delete from payments where order_id = any(${created.orders}::int[])`;
     await sql`delete from orders where id = any(${created.orders}::int[])`;
     await sql`delete from invitation_versions where invitation_id = any(${ids}::int[])`;
+    // I-21's planted guest photo is a media row; it goes before its invitation (the foreign key refuses otherwise).
+    await sql`delete from media_assets where invitation_id = any(${ids}::int[])`;
     await sql`delete from invitations where id = any(${ids}::int[])`;
     await sql`delete from users where id = any(${created.users}::int[])`;
     await sql`delete from api_idempotency_keys where scope like 'content:%' and (string_to_array(scope, ':'))[3] = any(${ids.map(String)}::text[])`;
@@ -704,8 +827,10 @@ async function main() {
       (select count(*) from users where clerk_user_id like ${`user_contentapi_%_${tag}`})::int as users,
       (select count(*) from api_idempotency_keys where scope like 'content:%' and (string_to_array(scope, ':'))[3] = any(${ids.map(String)}::text[]))::int as keys,
       (select count(*) from orders where id = any(${created.orders}::int[]))::int as orders,
-      (select count(*) from guests where invitation_id = any(${ids}::int[]))::int as guests`;
-    check('the fixture leaves no row behind', left.invitations === 0 && left.users === 0 && left.keys === 0 && left.orders === 0 && left.guests === 0, JSON.stringify(left));
+      (select count(*) from guests where invitation_id = any(${ids}::int[]))::int as guests,
+      (select count(*) from media_assets where invitation_id = any(${ids}::int[]))::int as media`;
+    check('the fixture leaves no row behind',
+      left.invitations === 0 && left.users === 0 && left.keys === 0 && left.orders === 0 && left.guests === 0 && left.media === 0, JSON.stringify(left));
     for (const server of servers) server.close();
     await sql.end();
   }

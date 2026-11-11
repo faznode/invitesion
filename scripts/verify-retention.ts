@@ -464,9 +464,15 @@ async function main() {
       await makeDue(staleJob);
       const mineLive = await rowOf(mine.id);
 
-      // 7b. An invitation with a wish, an order with its payment and webhook event, and four uploads: one its media row
-      //     refers to, an orphan, a protected child photo, and one another live invitation also uses.
+      // 7b. An invitation with a wish, an order with its payment and webhook event, and five uploads: one its media row
+      //     refers to, an orphan, a protected child photo, one another live invitation also uses, and a guest photo
+      //     (I-21, D-070: a `guest-photo` media row whose file is under the protected prefix).
       const doomed = await invitation(owner, 'doomed');
+      // G-047 (D-069, R-X10): a passcode-protected invitation; its hash and time must not outlive the purge.
+      await sql`update invitations set guest_passcode_hash = ${`scrypt$16384$8$1$${'a'.repeat(22)}$${'b'.repeat(43)}`}, guest_passcode_set_at = now() where id = ${doomed.id}`;
+      const passcodeOf = async (id: number) =>
+        (await sql`select guest_passcode_hash is not null as hash, guest_passcode_set_at is not null as set from invitations where id = ${id}`)[0];
+      const protectedBefore = await passcodeOf(doomed.id);
       const sari = await guest(doomed.id, 'Sari Wulandari');
       await sql`insert into guest_messages (invitation_id, guest_id, name, message) values (${doomed.id}, ${sari.id}, 'Sari', 'Bahagia selalu')`;
       const key = (prefix: string, n: string, ext: string) => `${prefix}/${tag}${n.padStart(12, '0')}.${ext}`;
@@ -475,11 +481,14 @@ async function main() {
         orphan: key(String(doomed.id), 'b', 'jpg'),
         child: key(`protected/${doomed.id}`, 'c', 'png'),
         shared: key(String(doomed.id), 'd', 'jpg'),
+        guestPhoto: key(`protected/${doomed.id}`, 'e', 'jpg'),
       };
       const withShared = { ...config, gallery: [`/media/${keys.shared}`] };
       await sql`update invitations set config = ${JSON.stringify(withShared)}::text::jsonb where id = ${doomed.id}`;
       const sharing = await invitation(owner, 'sharing', withShared);
       await sql`insert into media_assets (invitation_id, type, url) values (${doomed.id}, 'image', ${`/media/${keys.referenced}`})`;
+      await sql`insert into media_assets (invitation_id, type, url, source, meta)
+        values (${doomed.id}, 'guest-photo', ${`/media/${keys.guestPhoto}`}, 'guest', ${JSON.stringify({ guestId: sari.id, review: 'visible' })}::text::jsonb)`;
       for (const k of Object.values(keys)) {
         mkdirSync(join(uploads, k, '..'), { recursive: true });
         writeFileSync(join(uploads, k), 'bytes');
@@ -499,7 +508,7 @@ async function main() {
         JSON.stringify({ rows: await rowsOf(doomed.id), money: await moneyOf(doomed.id), invitation: await rowOf(doomed.id), job: await jobRow(doomedJob), files: listFiles(uploads) });
       const beforePlan = await snapshot();
       const plan = runJobs(['--plan-purge', String(doomed.id)]);
-      const own = [keys.referenced, keys.orphan, keys.child].sort();
+      const own = [keys.referenced, keys.orphan, keys.child, keys.guestPhoto].sort();
       const retained = (table: string) => plan.retained?.find((r: { table: string }) => r.table === table)?.rows;
       check('the dry run (Rust) sees the deletion due, its rows and own objects, keeps the shared key, counts the money it keeps',
         redirectedTo(o7, `deleted=${doomed.id}`) && plan.state === 'due' && JSON.stringify(plan.objects) === JSON.stringify(own) &&
@@ -520,9 +529,12 @@ async function main() {
       const waiting = await jobRow(doomedJob);
       check('storage refusing: the rows Next.js deleted are purged and the tombstone written all the same',
         left.guests === 0 && left.wishes === 0 && left.media === 0 && tomb.purged_at !== null && tomb.config === null, `${JSON.stringify(firstPass)} ${JSON.stringify(left)}`);
-      check('the job records its objects, keeps its error and waits to retry; the refused object stays, the other two went',
-        waiting.done_at === null && /^1 of 3 objects not deleted/.test(String(waiting.last_error)) && JSON.stringify(waiting.payload.objects) === JSON.stringify(own) &&
-          existsSync(blocked) && !existsSync(join(uploads, keys.orphan)) && !existsSync(join(uploads, keys.child)),
+      const protectedAfter = await passcodeOf(doomed.id);
+      check('the tombstone keeps no G-047 passcode: its hash and time were set before and are cleared by the purge (R-X10)',
+        protectedBefore.hash && protectedBefore.set && !protectedAfter.hash && !protectedAfter.set, `${JSON.stringify(protectedBefore)} → ${JSON.stringify(protectedAfter)}`);
+      check('the job records its objects, keeps its error and waits to retry; the refused object stays, the other three went (the guest photo too)',
+        waiting.done_at === null && /^1 of 4 objects not deleted/.test(String(waiting.last_error)) && JSON.stringify(waiting.payload.objects) === JSON.stringify(own) &&
+          existsSync(blocked) && !existsSync(join(uploads, keys.orphan)) && !existsSync(join(uploads, keys.child)) && !existsSync(join(uploads, keys.guestPhoto)),
         JSON.stringify(waiting));
       // The outage ends with the object still in place, for the retry to delete.
       rmSync(blocked, { recursive: true });

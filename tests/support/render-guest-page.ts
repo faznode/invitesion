@@ -44,6 +44,8 @@ export function fixtureInvitation(overrides: Partial<Invitation> = {}): Invitati
     purgedAt: null,
     workspaceId: null,
     clientLabel: null,
+    guestPasscodeHash: null,
+    guestPasscodeSetAt: null,
     ...overrides,
   };
 }
@@ -93,10 +95,11 @@ export function renderGuestPage({
   saveData,
   guestPassHref,
   readingLarge,
+  memory,
 }: Partial<GuestPageProps> & { config: DetailConfig }): string {
   const { PublicInvitationRenderer } = require('../../components/invitation/public-renderer') as typeof import('../../components/invitation/public-renderer');
   return renderToStaticMarkup(
-    createElement(PublicInvitationRenderer, { config, invitation, guest, media, messages, readOnly, status, preview, giftWithheld, imageVariants, saveData, guestPassHref, readingLarge }),
+    createElement(PublicInvitationRenderer, { config, invitation, guest, media, messages, readOnly, status, preview, giftWithheld, imageVariants, saveData, guestPassHref, readingLarge, memory }),
   );
 }
 

@@ -19,6 +19,7 @@ export const SECTION_LABELS: Record<string, string> = {
   events: 'Acara',
   music: 'Musik',
   greetings: 'Salam & doa',
+  postEvent: 'Kenangan setelah acara',
   gift: 'Hadiah',
   rsvp: 'RSVP',
   gallery: 'Galeri',

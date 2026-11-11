@@ -444,8 +444,10 @@ async fn purge_rows(
     )
     .execute(&mut *tx)
     .await?;
+    // The tombstone keeps the slug (never reused) and the money; the content and everything that identified or protected
+    // it goes, including G-047's passcode hash and its time (D-069, R-X10).
     sqlx::query!(
-        "update invitations set config = null, creation_key = null, client_label = null, purged_at = $2 where id = $1",
+        "update invitations set config = null, creation_key = null, client_label = null, guest_passcode_hash = null, guest_passcode_set_at = null, purged_at = $2 where id = $1",
         invitation_id,
         now
     )

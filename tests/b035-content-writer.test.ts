@@ -133,15 +133,44 @@ function filesUnder(dir: string, pattern = /\.(ts|tsx)$/): string[] {
 
 const APP_FILES = [...filesUnder('app'), ...filesUnder('lib'), ...filesUnder('components')];
 
+/** A top-level function's source, from its declaration to its closing brace at column 0. */
+function topLevelFunction(text: string, declaration: string): string {
+  const start = text.indexOf(declaration);
+  assert.ok(start >= 0, `missing ${declaration}`);
+  const end = text.indexOf('\n}\n', start);
+  assert.ok(end > start, `unterminated ${declaration}`);
+  return text.slice(start, end + 2);
+}
+
 test('the facade selects exactly one writer and never falls back', () => {
   const facade = source('lib/invitation/content.ts');
-  const save = facade.slice(facade.indexOf('export async function saveInvitationContent'));
-  assert.match(save, /if \(backendFor\('CONTENT', env\) === 'rust'\) \{/);
-  const rustBranch = save.slice(save.indexOf("=== 'rust') {"), save.indexOf('} else {'));
+  // The dispatcher is the only place a writer is chosen and called; a fallback would have to live here.
+  const dispatch = topLevelFunction(facade, 'async function writeContent(');
+  assert.match(dispatch, /if \(backendFor\('CONTENT', env\) === 'rust'\) \{/);
+  const rustBranch = dispatch.slice(dispatch.indexOf("=== 'rust') {"), dispatch.indexOf('} else {'));
   assert.match(rustBranch, /api\.writeContentThroughApi\(/);
   assert.doesNotMatch(rustBranch, /next\./, 'the Rust branch never reaches the TypeScript writer');
-  assert.doesNotMatch(save, /\bcatch\b/, 'no fallback after a failed or unknown Rust answer');
+  assert.match(dispatch.slice(dispatch.indexOf('} else {')), /next\.writeContentNext\(/);
+  assert.doesNotMatch(dispatch, /\b(?:try|catch)\b|\.catch\(/, 'no fallback after a failed or unknown Rust answer');
+  assert.equal(facade.match(/api\.writeContentThroughApi\(/g)?.length, 1, 'the Rust writer is called from the dispatcher only');
+  assert.equal(facade.match(/next\.writeContentNext\(/g)?.length, 1, 'the TypeScript writer is called from the dispatcher only');
+  // Save and restore (G-046) reach the writers through that same dispatcher, once each, and never directly.
+  for (const entry of ['export async function saveInvitationContent(', 'export async function restoreInvitationVersion(']) {
+    const body = topLevelFunction(facade, entry);
+    assert.equal(body.match(/\bwriteContent\(/g)?.length, 1, `${entry} dispatches once`);
+    assert.doesNotMatch(body, /\bapi\.|\bnext\.write/, `${entry} never calls a writer itself`);
+  }
+  const save = topLevelFunction(facade, 'export async function saveInvitationContent(');
+  assert.doesNotMatch(save, /\b(?:try|catch)\b/);
   assert.match(save, /const validated: DetailConfig = prepareConfigWrite\(state\.config, input\.patch\);/, 'the content contract runs once, in the facade');
+  // G-046: restore's one `catch` turns a version today's strict schema refuses into 422 before any writer is chosen; it
+  // never wraps a write, so it cannot become a second writer's fallback.
+  const restore = topLevelFunction(facade, 'export async function restoreInvitationVersion(');
+  const guarded = restore.slice(restore.indexOf('try {'), restore.indexOf('} catch'));
+  assert.match(guarded, /config = prepareRestoreWrite\(state\.config, row\.config\);/);
+  assert.doesNotMatch(guarded, /writeContent|\bapi\.|\bnext\./, 'the guarded statement is the preparation alone');
+  assert.ok(restore.indexOf('} catch') < restore.indexOf('writeContent('), 'the write follows the guarded preparation');
+  assert.equal(facade.match(/\bcatch\b/g)?.length, 1, "the facade's only catch is restore's validation");
   assert.match(source('lib/backend.ts'), /CONTENT: 'next',/);
 });
 

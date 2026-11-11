@@ -1,3 +1,4 @@
+import { passcodeGateActive } from '@/lib/invitation/guest-passcode';
 import { cardExportAvailable, cardFileName, cardTarget } from '@/lib/invitation/print-card';
 import { cardImageResponse } from '@/lib/invitation/print-card-image';
 import { loadPublishedInvitationSummary } from '@/lib/invitation/public';
@@ -13,7 +14,8 @@ export const dynamic = 'force-dynamic';
 export async function GET(_request: Request, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const summary = await loadPublishedInvitationSummary(slug);
-  if (!summary || !cardExportAvailable(summary.invitation, summary.config)) return new Response('Not found', { status: 404 });
+  // G-047 (D-069): the public e-card shows the date and is cached for everyone, so a protected invitation offers none.
+  if (!summary || passcodeGateActive(summary.invitation) || !cardExportAvailable(summary.invitation, summary.config)) return new Response('Not found', { status: 404 });
   const { invitation, config } = summary;
   return cardImageResponse({
     eventType: invitation.eventType,

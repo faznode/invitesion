@@ -162,12 +162,21 @@ export async function loadVersionHistory(
 ): Promise<{ state: ContentState; versions: VersionEntry[]; more: boolean } | null> {
   const state = await loadContentState(invitationId, userId);
   if (!state) return null;
-  const rows = await db
-    .select({ versionNo: invitationVersions.versionNo, createdAt: invitationVersions.createdAt, createdBy: invitationVersions.createdBy, config: invitationVersions.config })
+  const rows = await versionHistoryQuery(invitationId, { before, limit });
+  return { state, versions: rows.slice(0, limit), more: rows.length > limit };
+}
+
+/**
+ * One page of an invitation's versions below `before`, newest first, plus one row that says whether more exist. One row
+ * per number, the latest written (the row a restore of that number reads), made distinct in the database: a page holds
+ * `limit` versions however often a number repeats on rows written before B-035's lock, so the cursor reaches every older
+ * version (dropping repeats after a fixed window ended the paging early and hid them). Callers check ownership first.
+ */
+export function versionHistoryQuery(invitationId: number, { before, limit }: { before?: number; limit: number }) {
+  return db
+    .selectDistinctOn([invitationVersions.versionNo], { versionNo: invitationVersions.versionNo, createdAt: invitationVersions.createdAt, createdBy: invitationVersions.createdBy, config: invitationVersions.config })
     .from(invitationVersions)
     .where(and(eq(invitationVersions.invitationId, invitationId), before === undefined ? undefined : lt(invitationVersions.versionNo, before)))
     .orderBy(desc(invitationVersions.versionNo), desc(invitationVersions.id))
-    .limit(limit * 2 + 1);
-  const unique = rows.filter((row, index) => index === 0 || rows[index - 1].versionNo !== row.versionNo);
-  return { state, versions: unique.slice(0, limit), more: unique.length > limit };
+    .limit(limit + 1);
 }

@@ -1,7 +1,8 @@
 import 'server-only';
 
 import { cache } from 'react';
-import { and, asc, count, desc, eq, isNull, or } from 'drizzle-orm';
+import { and, asc, count, desc, eq, isNull, ne, or } from 'drizzle-orm';
+import { GUEST_PHOTO_TYPE } from './post-event';
 import { db } from '@/lib/db/drizzle';
 import { guestMessages, guests, invitations, mediaAssets } from '@/lib/db/schema';
 import { loadImageVariants } from '@/lib/media/variant-jobs';
@@ -82,7 +83,12 @@ export const loadPublicInvitation = cache(async (slug: string, guestSlug?: strin
 
   // B-019: the WebP variants of the invitation's uploads (none while `IMAGE_VARIANTS` is off).
   const [media, messages, messageCount, imageVariants] = await Promise.all([
-    db.select().from(mediaAssets).where(eq(mediaAssets.invitationId, invitation.id)).orderBy(asc(mediaAssets.sortOrder), asc(mediaAssets.id)),
+    // I-21 (D-070): guest photos are never page media (no gallery, no payload); they reach a page only through its memory.
+    db
+      .select()
+      .from(mediaAssets)
+      .where(and(eq(mediaAssets.invitationId, invitation.id), ne(mediaAssets.type, GUEST_PHOTO_TYPE)))
+      .orderBy(asc(mediaAssets.sortOrder), asc(mediaAssets.id)),
     listed ? visibleWishes(invitation.id) : Promise.resolve([]),
     listed ? visibleWishCount(invitation.id) : Promise.resolve([{ value: 0 }]),
     loadImageVariants(invitation.id),

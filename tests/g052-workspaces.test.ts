@@ -254,8 +254,10 @@ test('migration 0030 only adds: new tables, nullable columns on invitations, ind
   ]);
   for (const table of ['workspaces', 'workspace_members', 'workspace_credit_entries']) assert.match(migration, new RegExp(`CREATE TABLE "${table}"`));
   assert.match(migration, /"workspaces_credit_balance_check" CHECK \("workspaces"\."credit_balance" >= 0\)/);
-  const journal = JSON.parse(source('lib/db/migrations/meta/_journal.json'));
-  assert.equal(journal.entries.at(-1).tag, '0030_workspaces');
+  // Registered under its own index; later migrations (G-047's 0031) follow it and never replace it.
+  const journal = JSON.parse(source('lib/db/migrations/meta/_journal.json')) as { entries: { idx: number; tag: string }[] };
+  assert.equal(journal.entries.find((entry) => entry.idx === 30)?.tag, '0030_workspaces');
+  assert.ok(journal.entries.every((entry) => entry.idx <= 30 || Number(entry.tag.slice(0, 4)) > 30), 'only later migrations follow');
 });
 
 test('the database job runs the workspace acceptance for Next.js and the rust job runs it for both writers', () => {

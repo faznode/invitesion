@@ -1,5 +1,6 @@
 import { ImageResponse } from 'next/og';
 import { guestCopy, guestPageLanguage } from '@/lib/invitation/guest-copy';
+import { passcodeGateActive } from '@/lib/invitation/guest-passcode';
 import { PREVIEW_IMAGE_SIZE, previewImageModel } from '@/lib/invitation/preview-image';
 import { loadPublishedInvitationSummary } from '@/lib/invitation/public';
 
@@ -15,7 +16,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ slu
   const summary = await loadPublishedInvitationSummary(slug);
   if (!summary) return new Response('Not found', { status: 404 });
 
-  const { label, imageName, date, colors } = previewImageModel(summary.invitation.eventType, summary.config);
+  // G-047 (D-069): a passcode-protected invitation's card is its cover alone (no date), for every viewer: it is cached.
+  const { label, imageName, date, colors } = previewImageModel(summary.invitation.eventType, summary.config, undefined, passcodeGateActive(summary.invitation));
   const nameSize = imageName && imageName.length > 32 ? 64 : imageName && imageName.length > 20 ? 80 : 96;
 
   return new ImageResponse(

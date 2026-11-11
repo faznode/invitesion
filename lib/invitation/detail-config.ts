@@ -382,6 +382,19 @@ export const detailConfigSchema = z
       })
       .optional(),
 
+    // I-21 (D-070): the post-event memory, the host's opt-in. The design families show the thank-you message once the
+    // last event the page's audience may see is over (`post-event.ts`); `photos` lets guests share photos from their
+    // personal links, each shown after the host approves it. The legacy layout never shows it (D-041). Both switches are
+    // optional rather than defaulted (absent = off): a default would be applied to a partial save before the merge and
+    // switch off what the stored section has on.
+    postEvent: z
+      .object({
+        enabled: z.boolean().optional(),
+        message: optionalText(1000),
+        photos: z.boolean().optional(),
+      })
+      .optional(),
+
     gift: z
       .object({
         enabled: z.boolean().default(false),

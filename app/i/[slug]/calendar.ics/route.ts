@@ -2,6 +2,7 @@ import { isFlagOn } from '@/lib/flags';
 import { buildIcs, calendarEventsFromConfig } from '@/lib/invitation/calendar';
 import { visibleEvents } from '@/lib/invitation/event-eligibility';
 import { guestCopy, guestPageLanguage } from '@/lib/invitation/guest-copy';
+import { loadGuestGate, lockedResponse } from '@/lib/invitation/guest-gate';
 import { invitationDisplayName } from '@/lib/invitation/headline';
 import { loadPublishedInvitationSummary } from '@/lib/invitation/public';
 import { getPublicOrigin, invitationPath } from '@/lib/invitation/public-url';
@@ -16,6 +17,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ slu
   if (!isFlagOn('GUEST_CALENDAR')) return new Response('Not found', { status: 404 });
 
   const { slug } = await params;
+  // G-047 (D-069): the dates and places are the invitation's content: a locked request gets the missing invitation's 404.
+  const gate = await loadGuestGate(slug);
+  if (gate?.locked) return lockedResponse();
   const summary = await loadPublishedInvitationSummary(slug);
   if (!summary) return new Response('Not found', { status: 404 });
 
@@ -35,7 +39,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ slu
     headers: {
       'Content-Type': 'text/calendar; charset=utf-8',
       'Content-Disposition': `attachment; filename="${filename}"`,
-      'Cache-Control': 'public, max-age=300',
+      // An admitted visitor's copy of a protected invitation is theirs alone: never stored by a shared cache.
+      'Cache-Control': gate?.passcode ? 'private, no-store' : 'public, max-age=300',
       'X-Robots-Tag': 'noindex',
     },
   });
