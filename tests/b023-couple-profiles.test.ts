@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { test } from 'node:test';
 // First: the harness installs the `server-only` and POSTGRES_URL stand-ins the renderer needs at import time.
-import { fixtureGuest, fixtureInvitation, LAYOUTS, renderGuestPage, withFamily, withoutSectionMarkers } from './support/render-guest-page';
+import { fixtureGuest, fixtureInvitation, LAYOUTS, renderGuestPage, withFamily, withoutSectionMarkers, withoutShareActions } from './support/render-guest-page';
 import { buildGuestView } from '../components/invitation/guest-view';
 import type { Guest } from '../lib/db/schema';
 import { RENDER_CAPABILITIES } from '../lib/invitation/content-contract';
@@ -115,11 +115,11 @@ test('B-023 / D-041: the legacy layout renders every couple byte-identically', (
 });
 
 test('B-023: family pages with both photos or nicknames alone are unchanged', () => {
-  // B-030's section markers are the only markup added since; the digests pin the pages without them.
+  // B-030's section markers and G-035's share actions are the only markup added since; the digests pin the pages without them.
   const digest = (config: DetailConfig) =>
     sha(
       FAMILY_IDS.flatMap((familyId) => [renderGuestPage({ config: withFamily(config, familyId), guest: fixtureGuest() }), renderGuestPage({ config: withFamily(config, familyId) })])
-        .map((page) => sha(withoutSectionMarkers(page)))
+        .map((page) => sha(withoutShareActions(withoutSectionMarkers(page))))
         .join('\n'),
     );
   assert.equal(digest(configs.bothPhotos), '0ba9afcbaf27e375cb75201d159d6d3e4cc25f86fd09ca5d6a88545a29387065');

@@ -2,6 +2,7 @@ import { Fragment } from 'react';
 import { InvitationIcon } from '@/components/invitation/icons';
 import { Countdown } from '@/components/invitation/countdown';
 import { GiftCopyButton } from '@/components/invitation/gift-copy';
+import { InviteShareActions } from '@/components/invitation/invite-share';
 import {
   CalendarLinks,
   CeremonyProfileBody,
@@ -334,7 +335,7 @@ export function RiangLayout({ props, view }: { props: GuestPageProps; view: Gues
                           {account.number}
                         </p>
                       )}
-                      {account.holder && <p className={`mt-1 text-sm ${tone.muted}`}>a.n. {account.holder}</p>}
+                      {account.holder && <p className={`mt-1 text-sm ${tone.muted}`}>{view.copy.gift.holderPrefix}{account.holder}</p>}
                       {account.number && (
                         <GiftCopyButton number={account.number} label={account.label} targetId={giftNumberId(index)} accentClass={tone.accent} mutedClass={tone.muted} labels={view.copy.giftCopy} />
                       )}
@@ -381,13 +382,18 @@ export function RiangLayout({ props, view }: { props: GuestPageProps; view: Gues
 
     footer: () => (
       <footer data-section="footer" className={`px-5 pb-12 pt-8 text-center text-xs ${tone.muted}`}>
+        {view.inviteShare && (
+          <div className="mb-6">
+            <InviteShareActions share={view.inviteShare} labels={view.copy.inviteShare} accentClass={tone.accent} mutedClass={tone.muted} fieldClass={`${tone.line} ${tone.field}`} align="center" />
+          </div>
+        )}
         <p>{view.copy.footer}</p>
       </footer>
     ),
   };
 
   return (
-    <main lang={view.language} className={`min-h-screen ${tone.bg} ${tone.ink}`} style={tone.style} data-font-pairing={choices.fontPairing}>
+    <main lang={view.contentLang} className={`min-h-screen ${tone.bg} ${tone.ink}`} style={tone.style} data-font-pairing={choices.fontPairing}>
       {composeSections(FAMILY_MANIFESTS.riang, sections, sharedSections(props, view), config.theme)}
     </main>
   );

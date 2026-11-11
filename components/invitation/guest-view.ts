@@ -11,6 +11,7 @@ import { GUEST_DATE_LOCALE, guestCopy, type GuestLanguage } from '@/lib/invitati
 import { invitationDisplayName, invitationHeadline } from '@/lib/invitation/headline';
 import { guestLinkSegment } from '@/lib/invitation/guest-link';
 import { safeImageSrc } from '@/lib/invitation/image-url';
+import { inviteShareOf } from '@/lib/invitation/invite-share';
 import type { Occasion } from '@/lib/invitation/occasion';
 import { provenanceLine, verifiedBlockFor } from '@/lib/invitation/religious-text';
 import { palette } from '@/lib/invitation/palettes';
@@ -381,6 +382,12 @@ export function buildGuestView(
 
   return {
     language,
+    /**
+     * G-018: the `lang` a layout puts on its own root. The document already carries the invitation's language (the proxy and
+     * root layout); a layout repeats it only when it is not Indonesian, so English text stays marked on a build served
+     * without the proxy (the measurement build) and an Indonesian page stays byte-identical to before G-018.
+     */
+    contentLang: language === 'id' ? undefined : language,
     copy,
     occasion,
     quote,
@@ -395,6 +402,8 @@ export function buildGuestView(
     organiser, corporateMark, ceremonyProfile, share, portraits, profiles,
     // A pass belongs to one guest, so only a page that recognised its guest ever links one.
     guestPassHref: guest && guestPassHref ? guestPassHref : null,
+    // G-035 (I-16): the footer's share actions; the invitation's public face only, the same on every link (no guest).
+    inviteShare: inviteShareOf(invitation, config),
   };
 }
 

@@ -180,7 +180,7 @@ export function sharedSections(props: GuestPageProps, view: GuestView): SectionR
                       {account.number}
                     </p>
                   )}
-                  {account.holder && <p className={`mt-1 text-sm ${tone.muted}`}>a.n. {account.holder}</p>}
+                  {account.holder && <p className={`mt-1 text-sm ${tone.muted}`}>{view.copy.gift.holderPrefix}{account.holder}</p>}
                   {account.number && (
                     <GiftCopyButton number={account.number} label={account.label} targetId={giftNumberId(index)} accentClass={tone.accent} mutedClass={tone.muted} labels={view.copy.giftCopy} />
                   )}

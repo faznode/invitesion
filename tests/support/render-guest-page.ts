@@ -105,6 +105,14 @@ export function renderGuestPage({
  */
 export const withoutSectionMarkers = (html: string) => html.replace(/ data-section="[a-z]+"/g, '');
 
+const SHARE_GROUP = '<div role="group" aria-label="[^"]+" class="flex flex-col gap-3 [^"]+">(?:(?!<div role="group").)*?</p></div>';
+/**
+ * G-035: a family page without its footer's share actions (with the spacing wrapper Kartu, Riang and Lontar give them).
+ * They are the only other markup added since the digests above were pinned; `g035-invite-share` proves that a page with
+ * guest sharing off equals the default page through this, so the rollback is byte-exact.
+ */
+export const withoutShareActions = (html: string) => html.replace(new RegExp(`<div class="mb-6">${SHARE_GROUP}</div>|${SHARE_GROUP}`, 'gs'), '');
+
 const unescapeAttribute = (value: string) => value.replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#x27;/g, "'");
 
 /** Values of the hidden inputs with this name, in document order (what every form on the page posts). */

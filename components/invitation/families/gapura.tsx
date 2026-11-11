@@ -2,6 +2,7 @@ import { Fragment } from 'react';
 import { InvitationIcon } from '@/components/invitation/icons';
 import { Countdown } from '@/components/invitation/countdown';
 import { GiftCopyButton } from '@/components/invitation/gift-copy';
+import { InviteShareActions } from '@/components/invitation/invite-share';
 import {
   CalendarLinks,
   CeremonyProfileBody,
@@ -280,7 +281,7 @@ export function GapuraLayout({ props, view }: { props: GuestPageProps; view: Gue
                       {account.number}
                     </p>
                   )}
-                  {account.holder && <p className={`mt-1 text-sm ${tone.muted}`}>a.n. {account.holder}</p>}
+                  {account.holder && <p className={`mt-1 text-sm ${tone.muted}`}>{view.copy.gift.holderPrefix}{account.holder}</p>}
                   {account.number && (
                     <GiftCopyButton number={account.number} label={account.label} targetId={giftNumberId(index)} accentClass={tone.accent} mutedClass={tone.muted} align="center" labels={view.copy.giftCopy} />
                   )}
@@ -322,6 +323,9 @@ export function GapuraLayout({ props, view }: { props: GuestPageProps; view: Gue
 
     footer: () => (
       <footer data-section="footer" className={`flex flex-col items-center gap-4 px-6 pb-12 pt-4 text-center text-xs ${tone.muted}`}>
+        {view.inviteShare && (
+          <InviteShareActions share={view.inviteShare} labels={view.copy.inviteShare} accentClass={tone.accent} mutedClass={tone.muted} fieldClass={`${tone.line} ${tone.field}`} align="center" />
+        )}
         <Diamond tone={tone} />
         <p>{view.copy.footer}</p>
       </footer>
@@ -329,7 +333,7 @@ export function GapuraLayout({ props, view }: { props: GuestPageProps; view: Gue
   };
 
   return (
-    <main lang={view.language} className={`min-h-screen ${tone.bg} ${tone.ink}`} style={tone.style} data-font-pairing={choices.fontPairing}>
+    <main lang={view.contentLang} className={`min-h-screen ${tone.bg} ${tone.ink}`} style={tone.style} data-font-pairing={choices.fontPairing}>
       {composeSections(FAMILY_MANIFESTS.gapura, sections, sharedSections(props, view), config.theme)}
     </main>
   );

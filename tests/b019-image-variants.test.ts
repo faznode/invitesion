@@ -6,7 +6,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 // First: the harness installs the `server-only` and POSTGRES_URL stand-ins the renderer needs at import time.
-import { fixtureGuest, fixtureInvitation, LAYOUTS, renderGuestPage, withFamily, withoutSectionMarkers } from './support/render-guest-page';
+import { fixtureGuest, fixtureInvitation, LAYOUTS, renderGuestPage, withFamily, withoutSectionMarkers, withoutShareActions } from './support/render-guest-page';
 import type { MediaAsset } from '../lib/db/schema';
 import type { DetailConfig } from '../lib/invitation/detail-config';
 import {
@@ -135,9 +135,10 @@ test('B-019: without variants every page is byte-identical to the renderer befor
     for (const content of ['wedding', 'corporate'] as const) {
       for (const audience of ['personal', 'link'] as const) {
         const key = `${layout.label}/${content}/${audience}`;
-        // B-030's section markers are the only markup added since; the digests pin the page without them.
-        assert.equal(sha(withoutSectionMarkers(render(layout, content, audience))), BEFORE_B019[key], `${key} (no variants)`);
-        assert.equal(sha(withoutSectionMarkers(render(layout, content, audience, { imageVariants: NO_IMAGE_VARIANTS, saveData: true }))), BEFORE_B019[key], `${key} (Save-Data, no variants)`);
+        // B-030's section markers and G-035's share actions are the only markup added since; the digests pin the page without them.
+        const pinned = (html: string) => sha(withoutShareActions(withoutSectionMarkers(html)));
+        assert.equal(pinned(render(layout, content, audience)), BEFORE_B019[key], `${key} (no variants)`);
+        assert.equal(pinned(render(layout, content, audience, { imageVariants: NO_IMAGE_VARIANTS, saveData: true })), BEFORE_B019[key], `${key} (Save-Data, no variants)`);
       }
     }
   }

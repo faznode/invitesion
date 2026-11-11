@@ -40,6 +40,13 @@ const DEFAULTS = {
    */
   GUEST_LANGUAGE: true,
   /**
+   * G-035 (I-16): a published invitation's design-family page offers its guests the invitation link (the device's share
+   * sheet, a copy fallback and WhatsApp) and a 9:16 Status / Story image made from the link preview's public data
+   * (`invite-share.ts`, `/i/<slug>/story.png`), never a guest's. A host can hide both (`settings.guestShare = false`).
+   * Off hides them on every page and the image answers 404 (the rollback); the legacy layout never shows them (D-041).
+   */
+  GUEST_SHARE: true,
+  /**
    * B-019 (I-28): a public upload queues WebP variants (made by the Rust jobs), and the design families offer them in a
    * `srcset` (the lite ladder under `Save-Data: on`). Off queues nothing and renders every image as its original exactly
    * as before; stored variants are neither read nor removed.

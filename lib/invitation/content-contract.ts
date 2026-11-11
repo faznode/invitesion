@@ -28,7 +28,10 @@ export type SectionCapability = {
 export const RENDER_CAPABILITIES = {
   schemaVersion: { rendered: [], storedOnly: [], hostOnly: ['schemaVersion'] },
   // B-032 (G-060): `occasion` keeps a memorial's own labels sober (`occasion.ts`); `countdown: false` hides the countdown.
-  settings: { rendered: ['title', 'openingCopy', 'occasion', 'countdown'], storedOnly: ['fontFamily', 'language'], hostOnly: ['linkSlug'] },
+  // G-018 (I-31): `language` picks the guest page's own words, dates and document language on the design families
+  // (`guestPageLanguage` in guest-copy.ts); the classic layout stays Indonesian whatever is stored (D-041).
+  // G-035 (I-16): `guestShare: false` hides the design families' share actions and Story image (`invite-share.ts`).
+  settings: { rendered: ['title', 'openingCopy', 'occasion', 'countdown', 'language', 'guestShare'], storedOnly: ['fontFamily'], hostOnly: ['linkSlug'] },
   // s20 (D-038, `lib/invitation/portraits.ts`): a couple's photos open a "Mempelai" section with each name and parents line.
   // B-023 (D-049): on the design families the full names, parents lines and child order render without a photo too
   // (`coupleProfiles`); the legacy layout shows them with a photo only (D-041).
@@ -109,7 +112,6 @@ export type ContentSection = keyof typeof RENDER_CAPABILITIES;
 /** Readable names for stored-only fields, used in the editor notice. Unlisted fields fall back to their key. */
 const FIELD_LABELS: Record<string, Label> = {
   fontFamily: { id: 'jenis huruf', en: 'font' },
-  language: { id: 'bahasa', en: 'language' },
   parents: { id: 'nama orang tua', en: 'parents' },
   photoUrl: { id: 'foto', en: 'photo' },
   instagram: { id: 'Instagram', en: 'Instagram' },

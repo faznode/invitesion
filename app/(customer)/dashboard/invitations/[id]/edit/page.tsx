@@ -72,6 +72,8 @@ export default async function EditInvitationPage({
       themeTier={themeTier}
       paletteOptions={PALETTE_OPTIONS}
       corpusOptions={approvedCorpusOptions()}
+      guestLanguage={isFlagOn('GUEST_LANGUAGE')}
+      guestShare={isFlagOn('GUEST_SHARE')}
       initialMedia={media.map((m) => ({
         id: m.id,
         url: m.url,

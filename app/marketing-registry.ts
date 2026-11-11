@@ -394,11 +394,11 @@ const handWritten: Record<MarketingCategory, Record<string, PageCopy>> = {
       ],
     },
     'multi-language': {
-      summary: 'Dashboard dan situs Invitesion tersedia dalam Bahasa Indonesia dan Inggris. Halaman undangan untuk tamu saat ini berbahasa Indonesia.',
-      summaryNeeds: ['interfaceBilingual'],
+      summary: 'Dashboard dan situs Invitesion tersedia dalam Bahasa Indonesia dan Inggris, dan halaman undangan untuk tamu bisa tampil dalam salah satunya.',
+      summaryNeeds: ['interfaceBilingual', 'guestPageBilingual'],
       highlights: [
         { title: 'Bahasa sesuai pengunjung', text: 'Bahasa situs dan dashboard dipilih otomatis dari negara dan pengaturan browser, dan bisa diganti kapan saja.', needs: ['interfaceBilingual'] },
-        { title: 'Undangan dwibahasa untuk tamu', text: 'Pilihan bahasa Inggris di halaman undangan sedang direncanakan.', needs: ['guestPageBilingual'] },
+        { title: 'Undangan dwibahasa untuk tamu', text: 'Pilih Bahasa Indonesia atau Inggris untuk label, tanggal, dan pemberitahuan di halaman tamu pada desain Gapura, Kartu, Riang, dan Lontar. Teks yang kamu tulis tidak diterjemahkan, dan tata letak klasik tetap berbahasa Indonesia.', needs: ['guestPageBilingual'] },
       ],
     },
     'event-check-in-app': {

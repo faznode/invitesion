@@ -234,6 +234,8 @@ export const detailConfigSchema = z
         occasion: z.enum(OCCASIONS).optional(),
         // B-032: `false` hides the countdown (the add-to-calendar links stay); absent = shown, as before.
         countdown: z.boolean().optional(),
+        // G-035 (I-16): `false` hides the guest page's share actions and Story image; absent = shown on the design families.
+        guestShare: z.boolean().optional(),
       })
       .partial()
       .optional(),

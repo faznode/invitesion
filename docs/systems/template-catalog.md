@@ -4,8 +4,8 @@
 > STATUS: LIVE (design, tervalidasi riset)
 > OWNER: Operator
 > DEPS: design-agent.md, DATABASE_SCHEMA.md (templates)
-> GREP: template, katalog, filter, tag, galeri, occasion, style, color, swatch, pakai tema, wizard, buat, pratinjau, manifest, admin, G-062, memorial, tahlilan, countdown, corpus, B-032, I-11
-> UPDATED: 2026-11-11 (s48: memorial themes as an occasion with sober defaults, the countdown switch and corpus references, B-032 / I-11; s45: catalog manifests and the read-only admin console, G-062; s33: "Pakai tema" → wizard B-037 di balik `FLAG_CREATION_WIZARD`; sebelumnya 2026-07-15)
+> GREP: template, katalog, filter, tag, galeri, occasion, style, color, swatch, pakai tema, wizard, buat, pratinjau, manifest, admin, G-062, memorial, tahlilan, countdown, corpus, B-032, I-11, language, bahasa, G-018, english, lang
+> UPDATED: 2026-11-11 (s49: guest page language ID / EN on the design families, the classic layout Indonesian, G-018; s48: memorial themes as an occasion with sober defaults, the countdown switch and corpus references, B-032 / I-11; s45: catalog manifests and the read-only admin console, G-062; s33: "Pakai tema" → wizard B-037 di balik `FLAG_CREATION_WIZARD`; sebelumnya 2026-07-15)
 
 ## Prinsip
 CUSTOMER yang milih template/vibe/warna. Sistem cuma nyajiin katalog + filter jelas. AI NOL peran di sini.
@@ -64,6 +64,14 @@ Aturan skala kecil: opsi filter langsung terlihat (jangan disembunyiin); multi-s
 - **Countdown switch:** `settings.countdown: false` hides only the countdown; the add-to-calendar links stay for a published invitation's future first event. Any host can switch it on any invitation.
 - **Religious text (I-11):** only as an owner-approved entry of `content/verified-religious-texts/corpus.json`, referenced by `quote.corpusId` and printed with its provenance on the design families; the corpus is empty, so no theme or page shows one. The frozen legacy layout shows only the host's typed quote (D-041).
 - **Rollback:** revert the code; no flag or migration. The previous schema drops the three keys on the next save, so a memorial created meanwhile falls back to the event type's words and countdown; host-written content is kept.
+
+## Guest page language, Indonesian or English (G-018 / I-31; s48–s49, E-092)
+- **One resolver:** `guestPageLanguage(config)` in `lib/invitation/guest-copy.ts` decides the language of every guest surface of an invitation: the page, its `<html lang>` (the proxy marks guest routes, the root layout reads the invitation), title, Open Graph locale and text, `og.png`, the `.ics` entry and the QR pass. A design family follows `settings.language` (`id` | `en`, unset = `id`); the classic layout is frozen (D-041) and always Indonesian, whatever is stored. One invitation never mixes languages.
+- **Words:** every product word and accessible label comes from the dictionary (`GUEST_COPY.id` / `.en`, islands included through typed label props). Dates use the event's own time zone in the language's locale. Never translated: anything the host writes (names, titles, event names, programme items, wishes, the quote) and approved corpus text.
+- **Editor:** Tema & Cover → "Bahasa halaman tamu", saved as an explicit `settings.language` through the normal save on both writers; on the classic layout it says the page stays Indonesian until a family is chosen.
+- **404s:** a guest route that finds no invitation, guest or pass answers in the visitor's own locale (heading, title and `lang` once hydrated), because there is no invitation to speak for.
+- **Byte-identity:** an Indonesian family page carries no extra `lang` on its layout root (`view.contentLang` is set only for English), so unset, explicit `id` and flag-off pages are byte-identical to before G-018.
+- **Rollback:** `FLAG_GUEST_LANGUAGE=off` renders every page Indonesian and hides the editor's choice; the stored preference is neither read nor removed.
 
 ## Sumber (tervalidasi)
 - NN/G filter categories & mobile faceted tray, Prefixbox faceted filtering, Minted/Greenvelope/Canva taksonomi (occasion+style+color), Redis semantic-vs-keyword.

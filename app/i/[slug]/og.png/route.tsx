@@ -1,5 +1,5 @@
 import { ImageResponse } from 'next/og';
-import { guestCopy, guestLanguageOf } from '@/lib/invitation/guest-copy';
+import { guestCopy, guestPageLanguage } from '@/lib/invitation/guest-copy';
 import { PREVIEW_IMAGE_SIZE, previewImageModel } from '@/lib/invitation/preview-image';
 import { loadPublishedInvitationSummary } from '@/lib/invitation/public';
 
@@ -37,7 +37,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ slu
         <div style={{ fontSize: 28, letterSpacing: 8, textTransform: 'uppercase', color: colors.accent }}>{label}</div>
         {imageName ? <div style={{ marginTop: 36, fontSize: nameSize, lineHeight: 1.1, maxWidth: 1040 }}>{imageName}</div> : null}
         {date ? <div style={{ marginTop: 40, fontSize: 34, color: colors.accent }}>{date}</div> : null}
-        <div style={{ position: 'absolute', bottom: 48, fontSize: 22, opacity: 0.6 }}>{guestCopy(guestLanguageOf(summary.config.settings?.language)).ogFooter}</div>
+        <div style={{ position: 'absolute', bottom: 48, fontSize: 22, opacity: 0.6 }}>{guestCopy(guestPageLanguage(summary.config)).ogFooter}</div>
       </div>
     ),
     {

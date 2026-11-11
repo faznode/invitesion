@@ -1,7 +1,7 @@
 import { isFlagOn } from '@/lib/flags';
 import { buildIcs, calendarEventsFromConfig } from '@/lib/invitation/calendar';
 import { visibleEvents } from '@/lib/invitation/event-eligibility';
-import { guestCopy, guestLanguageOf } from '@/lib/invitation/guest-copy';
+import { guestCopy, guestPageLanguage } from '@/lib/invitation/guest-copy';
 import { invitationDisplayName } from '@/lib/invitation/headline';
 import { loadPublishedInvitationSummary } from '@/lib/invitation/public';
 import { getPublicOrigin, invitationPath } from '@/lib/invitation/public-url';
@@ -23,7 +23,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ slu
   const events = calendarEventsFromConfig({
     slug,
     // G-018: a nameless invitation's entry is called "Undangan" / "Invitation" in its language.
-    displayName: invitationDisplayName(summary.invitation.eventType, summary.config, guestCopy(guestLanguageOf(summary.config.settings?.language)).invitation),
+    displayName: invitationDisplayName(summary.invitation.eventType, summary.config, guestCopy(guestPageLanguage(summary.config)).invitation),
     // D-037: this file is served without a guest link, so it lists open events only.
     events: visibleEvents(summary.config.events, { kind: 'public' }, isFlagOn('INVITE_ONLY_EVENTS')),
     publicUrl: origin ? `${origin}${invitationPath(slug)}` : null,

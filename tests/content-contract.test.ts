@@ -29,6 +29,10 @@ const guestPageFiles = [
   'components/invitation/family-sections.tsx',
   'lib/invitation/family-manifest.ts',
   'lib/invitation/headline.ts',
+  // G-018: the guest page's words and the one language resolver (`guestPageLanguage` reads `settings.language`).
+  'lib/invitation/guest-copy.ts',
+  // G-035: the one rule for the footer's share actions and the Story image (`inviteShareAvailable` reads `settings.guestShare`).
+  'lib/invitation/invite-share.ts',
 ];
 const guestPageSource = guestPageFiles.map(source).join('\n');
 const ITEM_ALIAS: Partial<Record<ContentSection, string>> = { events: 'event', gift: 'account', story: 'item', registrationForm: 'question' };

@@ -26,7 +26,7 @@ import {
 } from '@/components/invitation/guest-blocks';
 import { buildGuestView, type GuestPageProps, type GuestView } from '@/components/invitation/guest-view';
 import { familyOf, type FamilyId } from '@/lib/invitation/families';
-import { guestLanguageOf } from '@/lib/invitation/guest-copy';
+import { guestPageLanguage } from '@/lib/invitation/guest-copy';
 
 /**
  * Deterministic config -> HTML renderer.
@@ -50,7 +50,7 @@ const FAMILY_LAYOUTS: Record<FamilyId, (input: LayoutProps) => React.ReactNode> 
 export function PublicInvitationRenderer(props: GuestPageProps) {
   const family = familyOf(props.config.theme?.familyId);
   // G-018 (I-31): a design family speaks the invitation's language; the legacy layout is frozen (D-041) and stays Indonesian.
-  const language = family ? guestLanguageOf(props.config.settings?.language) : 'id';
+  const language = guestPageLanguage(props.config);
   // B-019: image variants serve the design families; the legacy layout is frozen (D-041) and keeps its originals.
   const view = buildGuestView(family ? props : { ...props, imageVariants: undefined }, language);
   const Layout = family ? FAMILY_LAYOUTS[family.id] : LegacyLayout;
@@ -63,7 +63,7 @@ export function PublicInvitationRenderer(props: GuestPageProps) {
       gate={coverGateOf(props, view)}
       style={view.tone.style}
       labels={family ? view.copy.cover : undefined}
-      lang={family ? view.language : undefined}
+      lang={view.contentLang}
     >
       {page}
     </CoverAudio>

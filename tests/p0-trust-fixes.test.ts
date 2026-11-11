@@ -151,7 +151,8 @@ test('B-004: missing or invalid values render nothing; no guest-page file format
   assert.equal(formatEventDate(''), null);
   const files = ['components/invitation/public-renderer.tsx', 'components/invitation/guest-view.ts', 'components/invitation/guest-blocks.tsx', ...FAMILY_IDS.map((id) => `components/invitation/families/${id}.tsx`)];
   for (const file of files) assert.doesNotMatch(source(file), /toLocaleTimeString|toLocaleDateString|['"`]\s*WIB['"`]|\} WIB`/, file);
-  assert.match(source('components/invitation/guest-view.ts'), /formatEventTime\(value, eventZone\)/);
+  // G-018: the same formatter, in the page's language (`dateLocale`); the event's own zone still decides the wall clock.
+  assert.match(source('components/invitation/guest-view.ts'), /formatEventTime\(value, eventZone, dateLocale\)/);
 });
 
 test('B-004: every layout renders the event-local day and time on a UTC server, labelled from the saved offset or zone', () => {

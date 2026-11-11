@@ -441,6 +441,79 @@ async function main() {
         live: [],
       });
 
+      // G-018 (I-31) through the editor's real save, on its own invitation: the guest language ID → EN → ID beside the
+      // other settings with a reload after each step, an unknown language refused before any writer, and a stale save
+      // refused. The editor always sends the language explicitly ('id' to go back): the merge keeps a key a save leaves out.
+      const l = await invitation(owner.id, `g018-${backend}`);
+      let lv = 1;
+      const saveLanguage = async (body: Record<string, unknown>) => {
+        const answer = record(await call(backend, 'PATCH', l, { ...body, expectedVersion: lv }));
+        if (answer.status === 200) lv = answer.body.version;
+        return answer;
+      };
+      const seeded = await saveLanguage({ settings: { title: 'Budi & Sari (fiktif)', openingCopy: 'Dengan hormat (fiktif).', countdown: false } });
+      const english = await saveLanguage({ settings: { language: 'en' } });
+      const englishReload = record(await call(backend, 'GET', l));
+      const afterEnglish = await state(l);
+      const englishSettings = (afterEnglish.config as { settings: Record<string, unknown> }).settings;
+      check(`${backend}: G-018 choosing English stores settings.language = en beside the other settings and the reload reads it`,
+        seeded.status === 200 && english.status === 200 && englishSettings.language === 'en' && englishSettings.title === 'Budi & Sari (fiktif)'
+          && englishSettings.openingCopy === 'Dengan hormat (fiktif).' && englishSettings.countdown === false
+          && englishReload.body.data.settings.language === 'en' && englishReload.body.data.settings.title === 'Budi & Sari (fiktif)' && coherent(afterEnglish),
+        `${seeded.status}/${english.status} ${JSON.stringify(englishReload.body?.data?.settings)}`);
+      const back = await saveLanguage({ settings: { ...englishSettings, language: 'id' } });
+      const backReload = record(await call(backend, 'GET', l));
+      const afterBack = await state(l);
+      const backSettings = (afterBack.config as { settings: Record<string, unknown> }).settings;
+      check(`${backend}: G-018 going back to Indonesian stores an explicit id, keeps every other setting and the reload reads it`,
+        back.status === 200 && backSettings.language === 'id' && backSettings.title === 'Budi & Sari (fiktif)' && backSettings.openingCopy === 'Dengan hormat (fiktif).'
+          && backSettings.countdown === false && backReload.body.data.settings.language === 'id' && coherent(afterBack),
+        `${back.status}`);
+      const beforeUnknownLanguage = await state(l);
+      const unknownLanguage = await saveLanguage({ settings: { language: 'fr' } });
+      const booleanLanguage = await saveLanguage({ settings: { language: true } });
+      check(`${backend}: G-018 an unknown language is refused before any writer and nothing is written`,
+        unknownLanguage.status === 422 && booleanLanguage.status === 422 && same(await state(l), beforeUnknownLanguage), `${unknownLanguage.status}/${booleanLanguage.status}`);
+      const beforeStaleLanguage = await state(l);
+      const staleLanguage = record(await call(backend, 'PATCH', l, { settings: { language: 'en' }, expectedVersion: lv - 1 }));
+      check(`${backend}: G-018 a stale language save is refused with the stored version and writes nothing`,
+        staleLanguage.status === 409 && staleLanguage.body.error.code === 'VERSION_CONFLICT' && staleLanguage.body.error.details.currentVersion === lv
+          && same(await state(l), beforeStaleLanguage),
+        `${staleLanguage.status}`);
+      results[backend].states.push({ config: { settings: backSettings }, versions: afterBack.versions, live: [] });
+
+      // G-035 (I-16) through the editor's real save, on its own invitation: hiding the guest page's share actions stores
+      // settings.guestShare = false beside the other settings (the merge keeps the rest) and the reload reads it; showing
+      // them again stores an explicit true; a non-boolean is refused before any writer with nothing written.
+      const sh = await invitation(owner.id, `g035-${backend}`);
+      let shv = 1;
+      const saveShare = async (body: Record<string, unknown>) => {
+        const answer = record(await call(backend, 'PATCH', sh, { ...body, expectedVersion: shv }));
+        if (answer.status === 200) shv = answer.body.version;
+        return answer;
+      };
+      const shareSeeded = await saveShare({ settings: { title: 'Budi & Sari (fiktif)', language: 'en' } });
+      const hidden = await saveShare({ settings: { guestShare: false } });
+      const hiddenReload = record(await call(backend, 'GET', sh));
+      const afterHidden = await state(sh);
+      const hiddenSettings = (afterHidden.config as { settings: Record<string, unknown> }).settings;
+      check(`${backend}: G-035 hiding the share actions stores settings.guestShare = false beside the other settings and the reload reads it`,
+        shareSeeded.status === 200 && hidden.status === 200 && hiddenSettings.guestShare === false && hiddenSettings.title === 'Budi & Sari (fiktif)'
+          && hiddenSettings.language === 'en' && hiddenReload.body.data.settings.guestShare === false && coherent(afterHidden),
+        `${shareSeeded.status}/${hidden.status} ${JSON.stringify(hiddenReload.body?.data?.settings)}`);
+      const shareShown = await saveShare({ settings: { ...hiddenSettings, guestShare: true } });
+      const afterShareShown = await state(sh);
+      const shareShownSettings = (afterShareShown.config as { settings: Record<string, unknown> }).settings;
+      check(`${backend}: G-035 showing them again stores an explicit true and keeps every other setting`,
+        shareShown.status === 200 && shareShownSettings.guestShare === true && shareShownSettings.title === 'Budi & Sari (fiktif)'
+          && shareShownSettings.language === 'en' && coherent(afterShareShown),
+        `${shareShown.status}`);
+      const beforeBadShare = await state(sh);
+      const badShare = await saveShare({ settings: { guestShare: 'no' } });
+      check(`${backend}: G-035 a non-boolean share setting is refused before any writer and nothing is written`,
+        badShare.status === 422 && same(await state(sh), beforeBadShare), `${badShare.status}`);
+      results[backend].states.push({ config: { settings: shareShownSettings }, versions: afterShareShown.versions, live: [] });
+
       await signIn(other);
       const intruder = record(await call(backend, 'PATCH', id, { quote: { ...quote, text: 'Bukan milikmu' }, expectedVersion: 4 }));
       const peek = record(await call(backend, 'GET', id));

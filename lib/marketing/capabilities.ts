@@ -59,7 +59,9 @@ export const CAPABILITIES = {
   checkInScanner: { built: 'yes', evidence: 'app/(customer)/dashboard/invitations/[id]/checkin/page.tsx', flag: 'GUEST_PASS', rollout: 'B-024 phone, camera, handheld scanner and desk timing acceptance' },
   selfRegistration: { built: 'yes', evidence: 'app/daftar/[token]/page.tsx', flag: 'SELF_REGISTRATION', rollout: 'B-021 owner-approved privacy notice' },
   interfaceBilingual: { built: 'yes', evidence: 'lib/i18n.ts' },
-  guestPageBilingual: { built: 'roadmap', evidence: 'G-018 Guest UI language (ID / EN)' },
+  // G-018 (I-31): Indonesian or English on the four design families, chosen per invitation; the classic layout stays
+  // Indonesian (D-041), so claims say "design" and never promise English on every layout.
+  guestPageBilingual: { built: 'yes', evidence: 'lib/invitation/guest-copy.ts', flag: 'GUEST_LANGUAGE', sections: ['settings'] },
 
   // ── Host tools ───────────────────────────────────────────────────────────────
   draftPreview: { built: 'yes', evidence: 'app/preview/[id]/page.tsx' },

@@ -116,7 +116,6 @@ export const marketingCopy = {
       'Pengingat & kirim massal lewat WhatsApp resmi',
       'Log meja, suvenir & hadiah',
       'Check-in QR tamu',
-      'Undangan dwibahasa untuk tamu',
       'Workspace & kredit untuk reseller',
     ],
 
@@ -252,7 +251,6 @@ export const marketingCopy = {
       'WhatsApp reminders & bulk sending (official API)',
       'Table, souvenir & gift logs',
       'Guest QR check-in',
-      'Bilingual invitations for guests',
       'Reseller workspace & credits',
     ],
     ctaTitle: 'Your special moment deserves to be celebrated beautifully.',
@@ -299,7 +297,7 @@ export const marketingClaimNeeds = {
   pricingIncluded: [['invitationPage', 'draftPreview'], ['rsvp', 'guestList'], ['eventDetails', 'mapLink', 'gallery'], ['draftPreview']],
   tierStandardItems: [['invitationPage'], ['themeCatalog', 'themeSwitch'], ['music'], ['gallery', 'videoEmbeds'], ['wishes', 'giftAccounts'], ['loveStory', 'eventDetails']],
   tierPremiumItems: [['invitationPage'], ['themeCatalog'], ['themeSwitch'], ['supportEmail']],
-  roadmapItems: [['whatsappAutomation'], ['seatingLog', 'giftLog'], ['guestPass', 'checkInScanner'], ['guestPageBilingual'], ['resellerWorkspace', 'workspaceCredits']],
+  roadmapItems: [['whatsappAutomation'], ['seatingLog', 'giftLog'], ['guestPass', 'checkInScanner'], ['resellerWorkspace', 'workspaceCredits']],
 } as const satisfies Record<string, readonly (readonly CapabilityId[])[]>;
 
 /** Copy for one locale; tier prices come from `lib/pricing.ts` so they always equal what checkout charges (B-002). */

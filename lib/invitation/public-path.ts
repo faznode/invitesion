@@ -24,6 +24,11 @@ export function invitationPreviewImagePath(invitationSlug: string) {
   return `${invitationPath(invitationSlug)}/og.png`;
 }
 
+/** G-035 (I-16): the 9:16 Status / Story image, made from the link preview's public data. */
+export function invitationStoryImagePath(invitationSlug: string) {
+  return `${invitationPath(invitationSlug)}/story.png`;
+}
+
 /** B-026 (D-047): the host's QRIS image for the invitation link's audience (served only while gift details are public). */
 export function invitationGiftQrisPath(invitationSlug: string) {
   return `${invitationPath(invitationSlug)}/gift-qris.img`;

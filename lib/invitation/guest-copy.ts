@@ -1,4 +1,5 @@
 import { isFlagOn } from '@/lib/flags';
+import { familyOf } from './families';
 import { MEMORIAL_COPY } from './occasion';
 
 /**
@@ -24,6 +25,20 @@ export function guestLanguageOf(language: string | null | undefined, env: Record
   return language === 'en' && isFlagOn('GUEST_LANGUAGE', env) ? 'en' : 'id';
 }
 
+/**
+ * The one language every guest surface of an invitation speaks: the page, its document language (`<html lang>`), title,
+ * link preview (Open Graph and `og.png`), calendar entry and guest pass. A design family follows `settings.language`
+ * (`guestLanguageOf`); the classic layout is frozen (D-041) and renders Indonesian, so an invitation on it stays Indonesian
+ * on every surface, whatever is stored. One invitation never mixes languages, and the document language always matches
+ * the words on the page.
+ */
+export function guestPageLanguage(
+  config: { theme?: { familyId?: string | null }; settings?: { language?: string | null } } | null | undefined,
+  env: Record<string, string | undefined> = process.env,
+): GuestLanguage {
+  return familyOf(config?.theme?.familyId) ? guestLanguageOf(config?.settings?.language, env) : 'id';
+}
+
 /** Dates and times in the guest's language; event time zones (WIB / WITA / WIT) are labelled the same in both. */
 export const GUEST_DATE_LOCALE: Record<GuestLanguage, string> = { id: 'id-ID', en: 'en-GB' };
 
@@ -41,6 +56,8 @@ const englishOrdinal = (n: number) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 't
 const ID = {
   invitation: 'Undangan',
   pageTitle: 'Undangan Digital',
+  /** A guest route's 404 title (unknown, unpublished or deleted invitation, unknown guest, no pass), in the visitor's locale. */
+  notFoundTitle: 'Undangan tidak ditemukan',
   dear: 'Kepada Yth.',
   forYou: 'Untuk',
   youAreInvited: 'Kamu diundang',
@@ -93,10 +110,22 @@ const ID = {
   retryIn: (minutes: number) => `Silakan coba lagi dalam ${minutes} menit.`,
   retryLater: 'Silakan coba lagi beberapa menit lagi.',
   share: { prompt: 'Unggah momenmu dengan tagar:', filter: 'Coba filter Instagram' },
+  /** G-035 (I-16): the footer's share actions; the shared address is always the invitation link, never the guest's own. */
+  inviteShare: {
+    heading: 'Bagikan undangan ini',
+    share: 'Bagikan undangan',
+    whatsapp: 'Kirim lewat WhatsApp',
+    story: 'Unduh gambar Status / Story',
+    copied: 'Tautan undangan disalin.',
+    manual: 'Salin tautan undangan dari kotak di bawah ini.',
+    link: 'Tautan undangan',
+  },
   gift: {
     withheld: 'Detail rekening dan QRIS hanya tampil di tautan undangan pribadi yang dikirimkan kepada Anda.',
     qrisAlt: 'Kode QRIS untuk tanda kasih',
     qrisNote: 'QRIS statis dari tuan rumah. Pindai dengan aplikasi bank atau dompet digital.',
+    /** Printed before the account holder's name as its own text node, exactly as the layouts printed "a.n. " before G-018. */
+    holderPrefix: 'a.n. ',
   },
   rsvp: {
     refusedClosed: 'Konfirmasimu belum tersimpan karena RSVP untuk undangan ini sudah ditutup.',
@@ -255,6 +284,7 @@ export type GuestCopy = typeof ID;
 const EN: GuestCopy = {
   invitation: 'Invitation',
   pageTitle: 'Digital Invitation',
+  notFoundTitle: 'Invitation not found',
   dear: 'Dear',
   forYou: 'For',
   youAreInvited: "You're invited",
@@ -305,10 +335,20 @@ const EN: GuestCopy = {
   retryIn: (minutes: number) => `Please try again in ${minutes} ${minutes === 1 ? 'minute' : 'minutes'}.`,
   retryLater: 'Please try again in a few minutes.',
   share: { prompt: 'Share your photos with the hashtag:', filter: 'Try the Instagram filter' },
+  inviteShare: {
+    heading: 'Share this invitation',
+    share: 'Share invitation',
+    whatsapp: 'Send on WhatsApp',
+    story: 'Download Status / Story image',
+    copied: 'Invitation link copied.',
+    manual: 'Copy the invitation link from the box below.',
+    link: 'Invitation link',
+  },
   gift: {
     withheld: 'Account details and the QRIS code appear only on the personal invitation link sent to you.',
     qrisAlt: 'QRIS code for gifts',
     qrisNote: "A static QRIS code from the host. Scan it with your bank's or e-wallet's app.",
+    holderPrefix: 'Account name: ',
   },
   rsvp: {
     refusedClosed: 'Your reply was not saved because RSVP for this invitation is closed.',
@@ -465,6 +505,7 @@ export function guestCopy(language: GuestLanguage): GuestCopy {
 export type CountdownLabels = GuestCopy['countdown'];
 /** The gift copy island's strings (`components/invitation/gift-copy.tsx`). */
 export type GiftCopyLabels = GuestCopy['giftCopy'];
+export type InviteShareLabels = GuestCopy['inviteShare'];
 /** The gallery lightbox island's strings (`components/invitation/gallery-lightbox.tsx`). */
 export type LightboxLabels = GuestCopy['lightbox'];
 /** The cover gate island's strings (`components/invitation/cover-audio.tsx`). */

@@ -25,6 +25,7 @@ import {
   readGuestPass,
   signGuestPass,
 } from '../lib/invitation/guest-pass';
+import { guestPassAvailable } from '../lib/invitation/guest-pass-page';
 import { looksLikePass, passLookupKeyInBrowser } from '../lib/invitation/pass-lookup-client';
 import { fixtureGuest, LAYOUTS, linkHrefs, renderGuestPage, withFamily } from './support/render-guest-page';
 
@@ -122,9 +123,24 @@ test('layouts never decide the pass; the personal page does, from the flag, the 
     assert.doesNotMatch(source(file), /GUEST_PASS|passCheckInEnabled|passSigningSecret/, file);
   }
   const page = source('app/i/[slug]/[guestSlug]/page.tsx');
-  assert.match(page, /data\.guest && isFlagOn\('GUEST_PASS'\) && passCheckInEnabled\(data\.invitation\.config\) && passSigningSecret\(\)/);
+  assert.match(page, /const guestPassHref = guestPassAvailable\(data\) \?/);
   const passPage = source('app/i/[slug]/[guestSlug]/pass/page.tsx');
-  assert.match(passPage, /if \(!data\?\.guest \|\| !secret \|\| !isFlagOn\('GUEST_PASS'\) \|\| !passCheckInEnabled\(data\.invitation\.config\)\) notFound\(\);/);
+  assert.match(passPage, /if \(!guestPassAvailable\(data\) \|\| !secret\) notFound\(\);/);
   assert.match(passPage, /signGuestPass\(secret, data\.guest\.passId, expiresAt\)/);
   assert.match(passPage, /robots: \{ index: false, follow: false \}/);
+});
+
+test('one rule decides whether a pass exists: a recognised guest, the flag, the opt-in and a secret', () => {
+  const secret = 'x'.repeat(32);
+  const on = { FLAG_GUEST_PASS: 'on', GUEST_PASS_SECRET: secret };
+  const optedIn = { guest: { passId: 'p' }, invitation: { config: { checkInSettings: { enabled: true } } } };
+  assert.equal(guestPassAvailable(optedIn, on), true);
+  assert.equal(guestPassAvailable({ ...optedIn, guest: null }, on), false, 'the shared link has no guest');
+  assert.equal(guestPassAvailable(null, on), false, 'an unknown link');
+  assert.equal(guestPassAvailable(optedIn, { ...on, FLAG_GUEST_PASS: 'off' }), false, 'flag off');
+  assert.equal(guestPassAvailable(optedIn, { GUEST_PASS_SECRET: secret }), false, 'the flag is off by default');
+  assert.equal(guestPassAvailable(optedIn, { FLAG_GUEST_PASS: 'on' }), false, 'no secret');
+  assert.equal(guestPassAvailable(optedIn, { ...on, GUEST_PASS_SECRET: 'x'.repeat(31) }), false, 'a secret under 32 bytes');
+  assert.equal(guestPassAvailable({ ...optedIn, invitation: { config: {} } }, on), false, 'not opted in');
+  assert.equal(guestPassAvailable({ ...optedIn, invitation: { config: { checkInSettings: { enabled: 'true' } } } }, on), false, 'the opt-in is the boolean true');
 });

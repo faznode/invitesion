@@ -3,12 +3,12 @@ import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { after } from 'next/server';
 import { PublicInvitationRenderer } from '@/components/invitation/public-renderer';
-import { isFlagOn } from '@/lib/flags';
-import { guestCopy, guestLanguageOf } from '@/lib/invitation/guest-copy';
-import { passCheckInEnabled, passSigningSecret } from '@/lib/invitation/guest-pass';
+import { guestCopy, guestPageLanguage } from '@/lib/invitation/guest-copy';
+import { guestPassAvailable } from '@/lib/invitation/guest-pass-page';
 import { invitationShareMetadata } from '@/lib/invitation/preview-image';
 import { loadPublicInvitation, trackInvitationView } from '@/lib/invitation/public';
 import { formKey, rsvpFormKey } from '@/lib/invitation/rsvp-form-key';
+import { getLocale } from '@/lib/locale-server';
 import { saveDataRequested } from '@/lib/media/variants';
 
 // Rendered whole, never as a prerendered shell + stream (no Cache Components, no loading boundary above it), so an
@@ -23,9 +23,10 @@ type Params = {
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { slug, guestSlug } = await params;
   const data = await loadPublicInvitation(slug, guestSlug);
-  if (!data) return { title: 'Undangan tidak ditemukan' };
+  // A 404 reads in the visitor's locale, like its body and `<html lang>` (G-018).
+  if (!data) return { title: guestCopy(await getLocale()).notFoundTitle };
   return {
-    title: data.config.settings?.title || guestCopy(guestLanguageOf(data.config.settings?.language)).pageTitle,
+    title: data.config.settings?.title || guestCopy(guestPageLanguage(data.config)).pageTitle,
     // Link preview (B-010): per invitation, never per guest — the guest name stays out of shared metadata.
     ...invitationShareMetadata(data.invitation, data.config),
     robots: { index: false, follow: false },
@@ -49,11 +50,8 @@ export default async function PersonalInvitationPage({ params, searchParams }: P
   after(() => trackInvitationView(data.invitation.id, data.guest?.id));
 
   const status = await searchParams;
-  // B-024 (D-056): the pass link only for a recognised guest, with the flag on, the invitation opted in and a secret.
-  const guestPassHref =
-    data.guest && isFlagOn('GUEST_PASS') && passCheckInEnabled(data.invitation.config) && passSigningSecret()
-      ? `/i/${encodeURIComponent(slug)}/${encodeURIComponent(guestSlug)}/pass`
-      : null;
+  // B-024 (D-056): the pass link only where the pass page exists — a recognised guest, the flag, the opt-in and a secret.
+  const guestPassHref = guestPassAvailable(data) ? `/i/${encodeURIComponent(slug)}/${encodeURIComponent(guestSlug)}/pass` : null;
 
   return (
     <PublicInvitationRenderer
