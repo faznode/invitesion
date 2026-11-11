@@ -31,7 +31,8 @@ export const RENDER_CAPABILITIES = {
   // G-018 (I-31): `language` picks the guest page's own words, dates and document language on the design families
   // (`guestPageLanguage` in guest-copy.ts); the classic layout stays Indonesian whatever is stored (D-041).
   // G-035 (I-16): `guestShare: false` hides the design families' share actions and Story image (`invite-share.ts`).
-  settings: { rendered: ['title', 'openingCopy', 'occasion', 'countdown', 'language', 'guestShare'], storedOnly: ['fontFamily'], hostOnly: ['linkSlug'] },
+  // G-055 (I-30): `cardExport` is the host's opt-in to export printable cards; the guest page never reads it.
+  settings: { rendered: ['title', 'openingCopy', 'occasion', 'countdown', 'language', 'guestShare'], storedOnly: ['fontFamily'], hostOnly: ['linkSlug', 'cardExport'] },
   // s20 (D-038, `lib/invitation/portraits.ts`): a couple's photos open a "Mempelai" section with each name and parents line.
   // B-023 (D-049): on the design families the full names, parents lines and child order render without a photo too
   // (`coupleProfiles`); the legacy layout shows them with a photo only (D-041).

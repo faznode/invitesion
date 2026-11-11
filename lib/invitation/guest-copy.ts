@@ -120,6 +120,20 @@ const ID = {
     manual: 'Salin tautan undangan dari kotak di bawah ini.',
     link: 'Tautan undangan',
   },
+  /** G-036 (I-05): the cover's large-text switch, a toggle button whose pressed state is announced. */
+  reading: {
+    toggle: 'Huruf besar',
+  },
+  /** G-055 (I-30): the caption under a printable card's QR code. */
+  card: {
+    scan: 'Pindai kode ini untuk membuka undangan',
+  },
+  /** G-029: the location's map, shown in place only after the guest asks for it (a disclosure button). */
+  map: {
+    show: 'Tampilkan peta',
+    hide: 'Sembunyikan peta',
+    frame: 'Peta lokasi',
+  },
   gift: {
     withheld: 'Detail rekening dan QRIS hanya tampil di tautan undangan pribadi yang dikirimkan kepada Anda.',
     qrisAlt: 'Kode QRIS untuk tanda kasih',
@@ -344,6 +358,17 @@ const EN: GuestCopy = {
     manual: 'Copy the invitation link from the box below.',
     link: 'Invitation link',
   },
+  reading: {
+    toggle: 'Large text',
+  },
+  card: {
+    scan: 'Scan this code to open the invitation',
+  },
+  map: {
+    show: 'Show map',
+    hide: 'Hide map',
+    frame: 'Map of the venue',
+  },
   gift: {
     withheld: 'Account details and the QRIS code appear only on the personal invitation link sent to you.',
     qrisAlt: 'QRIS code for gifts',
@@ -506,6 +531,8 @@ export type CountdownLabels = GuestCopy['countdown'];
 /** The gift copy island's strings (`components/invitation/gift-copy.tsx`). */
 export type GiftCopyLabels = GuestCopy['giftCopy'];
 export type InviteShareLabels = GuestCopy['inviteShare'];
+export type ReadingLabels = GuestCopy['reading'];
+export type MapLabels = GuestCopy['map'];
 /** The gallery lightbox island's strings (`components/invitation/gallery-lightbox.tsx`). */
 export type LightboxLabels = GuestCopy['lightbox'];
 /** The cover gate island's strings (`components/invitation/cover-audio.tsx`). */

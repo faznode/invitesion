@@ -92,10 +92,11 @@ export function renderGuestPage({
   imageVariants,
   saveData,
   guestPassHref,
+  readingLarge,
 }: Partial<GuestPageProps> & { config: DetailConfig }): string {
   const { PublicInvitationRenderer } = require('../../components/invitation/public-renderer') as typeof import('../../components/invitation/public-renderer');
   return renderToStaticMarkup(
-    createElement(PublicInvitationRenderer, { config, invitation, guest, media, messages, readOnly, status, preview, giftWithheld, imageVariants, saveData, guestPassHref }),
+    createElement(PublicInvitationRenderer, { config, invitation, guest, media, messages, readOnly, status, preview, giftWithheld, imageVariants, saveData, guestPassHref, readingLarge }),
   );
 }
 
@@ -112,6 +113,20 @@ const SHARE_GROUP = '<div role="group" aria-label="[^"]+" class="flex flex-col g
  * guest sharing off equals the default page through this, so the rollback is byte-exact.
  */
 export const withoutShareActions = (html: string) => html.replace(new RegExp(`<div class="mb-6">${SHARE_GROUP}</div>|${SHARE_GROUP}`, 'gs'), '');
+
+/**
+ * G-036: a family page without the cover's large-text switch (its server markup is an empty 44 px row; the button arrives
+ * with hydration) and without the `<main>` reading state. They are the only markup G-036 adds; `g036-reading-mode` proves
+ * that a page with guest reading off, or the legacy layout, equals the default page through this (byte-exact rollback).
+ */
+export const withoutReadingToggle = (html: string) => html.replace(/<div data-reading-toggle="" class="[^"]*"><\/div>| data-reading="large"/g, '');
+
+/**
+ * G-029: a family page without the map facade's server markup (an empty row after the static location link; the button
+ * arrives with hydration and the frame only after a tap). `g029-map-facade` proves that the flag off equals the default
+ * page through this, so the rollback is byte-exact.
+ */
+export const withoutMapFacade = (html: string) => html.replace(/<div data-map-facade="" class="mt-3 w-full"><\/div>/g, '');
 
 const unescapeAttribute = (value: string) => value.replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#x27;/g, "'");
 

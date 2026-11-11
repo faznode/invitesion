@@ -31,7 +31,7 @@ function clip(value: string, max: number) {
  * names to a third party — and it draws Arabic without bidi shaping. Such names stay out of the image (the label and
  * date remain); the unfurler still shows them in og:title, which it renders itself.
  */
-const BUNDLED_FONT_TEXT = /^[\u0020-\u007E\u00A0-\u00FF\u2010-\u2027\u2030-\u203A]*$/;
+export const BUNDLED_FONT_TEXT = /^[\u0020-\u007E\u00A0-\u00FF\u2010-\u2027\u2030-\u203A]*$/;
 
 /**
  * G-018: the card speaks the invitation page's language (`guestPageLanguage`: a design family's `settings.language`,

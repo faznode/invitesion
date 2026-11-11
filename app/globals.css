@@ -161,6 +161,38 @@ button, a { -webkit-tap-highlight-color: transparent; }
 }
 
 /*
+ * G-036 (I-05): elder-friendly reading on a design-family page, chosen by the guest on their own device (the cover's
+ * switch sets `data-reading="large"` on the layout's <main>; the guest routes render it from the device's cookie).
+ * Every text utility reads Tailwind's size variables, so one step up the scale enlarges the whole page in proportion,
+ * small print most (12 -> 15 px, 14 -> 17 px). Muted text takes the palette's own ink (B-016: no new colour, and ink
+ * clears 4.6:1 on every surface of every palette); motion stops whatever the system setting says.
+ */
+main[data-reading='large'] {
+  font-size: 1.1875rem;
+  --text-xs: 0.9375rem;
+  --text-sm: 1.0625rem;
+  --text-base: 1.1875rem;
+  --text-lg: 1.3125rem;
+  --text-xl: 1.5rem;
+  --text-2xl: 1.75rem;
+  --text-3xl: 2.125rem;
+  --text-4xl: 2.5rem;
+  --text-5xl: 3.25rem;
+}
+
+main[data-reading='large'] .text-\(--inv-muted\) {
+  color: var(--inv-ink);
+}
+
+main[data-reading='large'],
+main[data-reading='large'] *,
+main[data-reading='large'] *::before,
+main[data-reading='large'] *::after {
+  animation: none !important;
+  transition: none !important;
+}
+
+/*
  * E-046 (s22): the guest page's decorative icons as CSS masks painted in `currentColor` (`components/invitation/icons.tsx`).
  * Laid out like Tailwind's preflight lays out an inline <svg> (a block box, 24 px unless a utility sizes it); in the
  * `components` layer so the layouts' size, margin and colour utilities win. Printed like an inline SVG would be, and

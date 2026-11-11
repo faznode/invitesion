@@ -3,6 +3,7 @@ import { InvitationIcon } from '@/components/invitation/icons';
 import { Countdown } from '@/components/invitation/countdown';
 import { GiftCopyButton } from '@/components/invitation/gift-copy';
 import { InviteShareActions } from '@/components/invitation/invite-share';
+import { ReadingToggle } from '@/components/invitation/reading-toggle';
 import {
   CalendarLinks,
   CeremonyProfileBody,
@@ -15,7 +16,7 @@ import {
   GiftWithheldNotice,
   giftNumberId,
   GuestbookBlock,
-  MapLink,
+  MapBlock,
   ProgrammeBody,
   programmeSections,
   ReadOnlyNotice,
@@ -149,6 +150,7 @@ export function KartuLayout({ props, view }: { props: GuestPageProps; view: Gues
             )}
           </div>
         </div>
+        {view.reading && <ReadingToggle reading={view.reading} labels={view.copy.reading} accentClass={tone.accent} align="start" className="mx-auto max-w-md" />}
       </header>
     ),
 
@@ -223,7 +225,7 @@ export function KartuLayout({ props, view }: { props: GuestPageProps; view: Gues
                     <h3 className="font-serif text-xl text-balance">{event.title}</h3>
                     <EventFacts event={event} view={view} className="mt-3 space-y-2 text-sm" />
                     {event.note && <p className={`mt-3 text-sm ${tone.muted}`}>{event.note}</p>}
-                    <MapLink event={event} view={view} className="mt-4" />
+                    <MapBlock event={event} view={view} className="mt-4" />
                   </div>
                 </article>
               );
@@ -358,7 +360,7 @@ export function KartuLayout({ props, view }: { props: GuestPageProps; view: Gues
   };
 
   return (
-    <main lang={view.contentLang} className={`min-h-screen ${tone.bg} ${tone.ink}`} style={tone.style} data-font-pairing={choices.fontPairing}>
+    <main lang={view.contentLang} className={`min-h-screen ${tone.bg} ${tone.ink}`} style={tone.style} data-font-pairing={choices.fontPairing} data-reading={view.reading?.on ? 'large' : undefined}>
       {composeSections(FAMILY_MANIFESTS.kartu, sections, sharedSections(props, view), config.theme)}
     </main>
   );

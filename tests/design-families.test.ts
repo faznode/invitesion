@@ -76,7 +76,8 @@ test('B-030: every family composes every guest-facing section of the legacy page
     ['quote.author', /quote\.author/],
     ['events', /<EventFacts\b/],
     ['events.note', /event\.note/],
-    ['events.mapUrl', /<MapLink\b/],
+    // G-029: the families compose the static link through `MapBlock`, which renders `MapLink` and then the map facade.
+    ['events.mapUrl', /<MapBlock\b/],
     ['countdown', /<Countdown\b/],
     ['calendar links', /<CalendarLinks\b/],
     ['story items', /story\.items/],

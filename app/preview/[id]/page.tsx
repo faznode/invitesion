@@ -1,12 +1,14 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { and, eq, isNull } from 'drizzle-orm';
+import { cookies } from 'next/headers';
 import { notFound, redirect } from 'next/navigation';
 import { PublicInvitationRenderer } from '@/components/invitation/public-renderer';
 import { db } from '@/lib/db/drizzle';
 import { getUser } from '@/lib/db/queries';
 import { invitations } from '@/lib/db/schema';
 import { loadPublicInvitation } from '@/lib/invitation/public';
+import { READING_COOKIE, readingRequested } from '@/lib/invitation/reading-mode';
 
 export const dynamic = 'force-dynamic';
 
@@ -72,6 +74,7 @@ export default async function OwnerPreviewPage({
         readOnly={data.readOnly}
         status={{}}
         imageVariants={data.imageVariants}
+        readingLarge={readingRequested((await cookies()).get(READING_COOKIE)?.value)}
       />
     </>
   );

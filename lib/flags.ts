@@ -47,6 +47,32 @@ const DEFAULTS = {
    */
   GUEST_SHARE: true,
   /**
+   * G-036 (I-05): a design-family page offers a large-text switch on its cover: larger text, the palette's own ink for
+   * muted text and no motion, chosen per guest device and kept in a cookie (`reading-mode.ts`). Off shows no switch on any
+   * page and ignores the cookie, so every page renders as before (the rollback); the legacy layout never offers it (D-041).
+   */
+  GUEST_READING: true,
+  /**
+   * G-055 (I-30): a host who opts in (`settings.cardExport = true`, Tema & Cover) can print A6 cards whose QR code opens the
+   * live invitation: a public e-card from the link preview's data (`/i/<slug>/card.png`, never a guest's) and, for the
+   * owner only, a card per guest whose code opens that guest's personal link (`print-card.ts`). Off: every card answers 404
+   * and the editor offers no switch; a stored opt-in is neither read nor removed (the rollback).
+   */
+  CARD_EXPORT: true,
+  /**
+   * G-029: a design-family page shows an event's map in place, but only after the guest asks for it (`map-embed.ts`): no
+   * map request is made before the tap, and the static location link stays as it was. Off renders the static link alone,
+   * exactly as before (the rollback); the legacy layout never shows the map (D-041).
+   */
+  GUEST_MAP: true,
+  /**
+   * G-046: the owner's version history (`/dashboard/invitations/<id>/history`): every saved version listed, and any older
+   * one restored as a new version through the selected content writer (`restoreInvitationVersion`). A restore changes the
+   * config only: guests, RSVP answers, wishes, media and payments are never touched. Off: the page and the restore route
+   * answer 404 and the editor shows no link; the versions themselves are kept as before (the rollback).
+   */
+  VERSION_HISTORY: true,
+  /**
    * B-019 (I-28): a public upload queues WebP variants (made by the Rust jobs), and the design families offer them in a
    * `srcset` (the lite ladder under `Save-Data: on`). Off queues nothing and renders every image as its original exactly
    * as before; stored variants are neither read nor removed.

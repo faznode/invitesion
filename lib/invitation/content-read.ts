@@ -1,6 +1,6 @@
 import { CONTENT_SCHEMA_VERSION } from './content-contract';
 import { customQuestionSchema, detailConfigSchema, mergeDetailConfig, registrationFormReadSchema, type DetailConfig } from './detail-config';
-import { keyEventsForWrite, keyStoredEvents } from './event-ids';
+import { keyEventsForWrite, keyStoredEvents, rekeyRestoredEvents } from './event-ids';
 
 export type NormalizedConfig = { config: DetailConfig; version: number; dropped: string[] };
 type RegistrationForm = NonNullable<DetailConfig['registrationForm']>;
@@ -94,4 +94,29 @@ export function prepareConfigWrite(stored: Record<string, unknown>, patch: Detai
   const merged = { ...mergeDetailConfig(keyedBase, keyedPatch as Record<string, unknown>), schemaVersion: CONTENT_SCHEMA_VERSION };
   const parsed = detailConfigSchema.parse(merged);
   return carried ? { ...parsed, registrationForm: carried.form } : parsed;
+}
+
+const isRecord = (value: unknown): value is Record<string, unknown> => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+
+/**
+ * G-046: the config a restore stores. The saved version as a whole, not merged into today's config (a section the version
+ * did not have is not carried over), re-validated strictly like every save. Null when there is nothing faithful to
+ * restore: no config, or a section today's rules no longer read (the restore would silently drop it).
+ * - D-036 (`rekeyRestoredEvents`): the version's events are keyed before the read rules see them, because the read path
+ *   would give an id-less event its old position's id, which may now belong to another event. An event with an id keeps
+ *   it, so answers stored for it reattach; an id-less one takes the id of today's event with the same title and start.
+ * - S18-Q4 / D-035: a registration form only the read rules accept joins after the strict parse, as on the save path.
+ */
+export function prepareRestoreWrite(stored: Record<string, unknown>, version: unknown): DetailConfig | null {
+  if (!isRecord(version)) return null;
+  const events = version.events;
+  const source = Array.isArray(events) && events.every(isRecord)
+    ? { ...version, events: rekeyRestoredEvents(events, normalizeStoredConfig(stored).config.events ?? []) }
+    : version;
+  const { config, dropped } = normalizeStoredConfig(source);
+  if (dropped.some((key) => key !== 'registrationForm.customQuestions')) return null;
+  const { registrationForm, ...rest } = config;
+  const strictForm = registrationForm !== undefined && detailConfigSchema.shape.registrationForm.safeParse(registrationForm).success;
+  const parsed = detailConfigSchema.parse({ ...rest, ...(strictForm ? { registrationForm } : {}), schemaVersion: CONTENT_SCHEMA_VERSION });
+  return registrationForm && !strictForm ? { ...parsed, registrationForm } : parsed;
 }

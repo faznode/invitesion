@@ -74,6 +74,8 @@ export default async function EditInvitationPage({
       corpusOptions={approvedCorpusOptions()}
       guestLanguage={isFlagOn('GUEST_LANGUAGE')}
       guestShare={isFlagOn('GUEST_SHARE')}
+      cardExport={isFlagOn('CARD_EXPORT')}
+      historyHref={isFlagOn('VERSION_HISTORY') ? `/dashboard/invitations/${id}/history` : null}
       initialMedia={media.map((m) => ({
         id: m.id,
         url: m.url,

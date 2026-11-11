@@ -3,6 +3,7 @@ import { InvitationIcon } from '@/components/invitation/icons';
 import { Countdown } from '@/components/invitation/countdown';
 import { GiftCopyButton } from '@/components/invitation/gift-copy';
 import { InviteShareActions } from '@/components/invitation/invite-share';
+import { ReadingToggle } from '@/components/invitation/reading-toggle';
 import {
   CalendarLinks,
   CeremonyProfileBody,
@@ -15,7 +16,7 @@ import {
   GiftWithheldNotice,
   giftNumberId,
   GuestbookBlock,
-  MapLink,
+  MapBlock,
   ProgrammeBody,
   programmeSections,
   ReadOnlyNotice,
@@ -145,6 +146,7 @@ export function RiangLayout({ props, view }: { props: GuestPageProps; view: Gues
             <bdi className="font-semibold [overflow-wrap:anywhere]">{guest.name}</bdi>
           </p>
         )}
+        {view.reading && <ReadingToggle reading={view.reading} labels={view.copy.reading} accentClass={tone.accent} align="center" />}
       </header>
     ),
 
@@ -192,7 +194,7 @@ export function RiangLayout({ props, view }: { props: GuestPageProps; view: Gues
                   </div>
                   <EventFacts event={event} view={view} />
                   {event.note && <p className={`mt-4 text-sm ${tone.muted}`}>{event.note}</p>}
-                  <MapLink event={event} view={view} />
+                  <MapBlock event={event} view={view} />
                 </article>
               );
             })}
@@ -393,7 +395,7 @@ export function RiangLayout({ props, view }: { props: GuestPageProps; view: Gues
   };
 
   return (
-    <main lang={view.contentLang} className={`min-h-screen ${tone.bg} ${tone.ink}`} style={tone.style} data-font-pairing={choices.fontPairing}>
+    <main lang={view.contentLang} className={`min-h-screen ${tone.bg} ${tone.ink}`} style={tone.style} data-font-pairing={choices.fontPairing} data-reading={view.reading?.on ? 'large' : undefined}>
       {composeSections(FAMILY_MANIFESTS.riang, sections, sharedSections(props, view), config.theme)}
     </main>
   );

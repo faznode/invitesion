@@ -106,7 +106,8 @@ export function contentSecurityPolicy({ nonce, pathname, secure, development = f
     `connect-src 'self' ${clerkHosts.join(' ')}`,
     // Clerk renders its bot-protection challenge in a frame. B-025: a gallery video plays, after the guest's tap, in the
     // provider's privacy-enhanced player, exactly these two hosts (`lib/invitation/gallery.ts` builds only their URLs).
-    "frame-src 'self' https://*.clerk.accounts.dev https://*.clerk.com https://challenges.cloudflare.com https://www.youtube-nocookie.com https://player.vimeo.com",
+    // G-029: an event's map, after the guest's tap, from this one host (`lib/invitation/map-embed.ts` builds only its URLs).
+    "frame-src 'self' https://*.clerk.accounts.dev https://*.clerk.com https://challenges.cloudflare.com https://www.youtube-nocookie.com https://player.vimeo.com https://www.google.com",
     "worker-src 'self' blob:",
     frameAncestorsFor(pathname),
     "object-src 'none'",

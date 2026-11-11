@@ -3,6 +3,7 @@ import { InvitationIcon } from '@/components/invitation/icons';
 import { Countdown } from '@/components/invitation/countdown';
 import { GiftCopyButton } from '@/components/invitation/gift-copy';
 import { InviteShareActions } from '@/components/invitation/invite-share';
+import { ReadingToggle } from '@/components/invitation/reading-toggle';
 import {
   CalendarLinks,
   CeremonyProfileBody,
@@ -15,7 +16,7 @@ import {
   GiftWithheldNotice,
   giftNumberId,
   GuestbookBlock,
-  MapLink,
+  MapBlock,
   ProgrammeBody,
   programmeSections,
   ReadOnlyNotice,
@@ -137,6 +138,7 @@ export function GapuraLayout({ props, view }: { props: GuestPageProps; view: Gue
             </p>
           </div>
         )}
+        {view.reading && <ReadingToggle reading={view.reading} labels={view.copy.reading} accentClass={tone.accent} align="center" />}
       </header>
     ),
 
@@ -199,7 +201,7 @@ export function GapuraLayout({ props, view }: { props: GuestPageProps; view: Gue
                   venueRowClassName="flex max-w-xs flex-col items-center gap-1"
                 />
                 {event.note && <p className={`mt-4 text-sm ${tone.muted}`}>{event.note}</p>}
-                <MapLink event={event} view={view} />
+                <MapBlock event={event} view={view} />
               </article>
             ))}
           </div>
@@ -333,7 +335,7 @@ export function GapuraLayout({ props, view }: { props: GuestPageProps; view: Gue
   };
 
   return (
-    <main lang={view.contentLang} className={`min-h-screen ${tone.bg} ${tone.ink}`} style={tone.style} data-font-pairing={choices.fontPairing}>
+    <main lang={view.contentLang} className={`min-h-screen ${tone.bg} ${tone.ink}`} style={tone.style} data-font-pairing={choices.fontPairing} data-reading={view.reading?.on ? 'large' : undefined}>
       {composeSections(FAMILY_MANIFESTS.gapura, sections, sharedSections(props, view), config.theme)}
     </main>
   );

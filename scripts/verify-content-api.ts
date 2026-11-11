@@ -114,6 +114,7 @@ type Backend = 'next' | 'rust';
 async function main() {
   const { client: sql } = await import('../lib/db/drizzle');
   const route = await import('../app/api/invitations/[id]/detail/route');
+  const restoreRoute = await import('../app/api/invitations/[id]/versions/[versionNo]/restore/route');
   const { createInvitation } = await import('../lib/invitation/create');
   const jose = await import('jose');
 
@@ -514,6 +515,131 @@ async function main() {
         badShare.status === 422 && same(await state(sh), beforeBadShare), `${badShare.status}`);
       results[backend].states.push({ config: { settings: shareShownSettings }, versions: afterShareShown.versions, live: [] });
 
+      // G-055 (I-30) through the editor's real save, on its own invitation: opting in to printable cards stores
+      // settings.cardExport = true beside the other settings (the merge keeps the rest) and the reload reads it; opting
+      // out stores an explicit false; a non-boolean is refused before any writer with nothing written.
+      const ce = await invitation(owner.id, `g055-${backend}`);
+      let cev = 1;
+      const saveCards = async (body: Record<string, unknown>) => {
+        const answer = record(await call(backend, 'PATCH', ce, { ...body, expectedVersion: cev }));
+        if (answer.status === 200) cev = answer.body.version;
+        return answer;
+      };
+      const cardsSeeded = await saveCards({ settings: { title: 'Budi & Sari (fiktif)', guestShare: false } });
+      const optedIn = await saveCards({ settings: { cardExport: true } });
+      const optedInReload = record(await call(backend, 'GET', ce));
+      const afterOptIn = await state(ce);
+      const optInSettings = (afterOptIn.config as { settings: Record<string, unknown> }).settings;
+      check(`${backend}: G-055 opting in to printable cards stores settings.cardExport = true beside the other settings and the reload reads it`,
+        cardsSeeded.status === 200 && optedIn.status === 200 && optInSettings.cardExport === true && optInSettings.title === 'Budi & Sari (fiktif)'
+          && optInSettings.guestShare === false && optedInReload.body.data.settings.cardExport === true && coherent(afterOptIn),
+        `${cardsSeeded.status}/${optedIn.status} ${JSON.stringify(optedInReload.body?.data?.settings)}`);
+      const optedOut = await saveCards({ settings: { ...optInSettings, cardExport: false } });
+      const afterOptOut = await state(ce);
+      const optOutSettings = (afterOptOut.config as { settings: Record<string, unknown> }).settings;
+      check(`${backend}: G-055 opting out stores an explicit false and keeps every other setting`,
+        optedOut.status === 200 && optOutSettings.cardExport === false && optOutSettings.title === 'Budi & Sari (fiktif)'
+          && optOutSettings.guestShare === false && coherent(afterOptOut),
+        `${optedOut.status}`);
+      const beforeBadCards = await state(ce);
+      const badCards = await saveCards({ settings: { cardExport: 'yes' } });
+      check(`${backend}: G-055 a non-boolean card setting is refused before any writer and nothing is written`,
+        badCards.status === 422 && same(await state(ce), beforeBadCards), `${badCards.status}`);
+      results[backend].states.push({ config: { settings: optOutSettings }, versions: afterOptOut.versions, live: [] });
+
+      // G-046 through the real restore route, on its own invitation: an older version restored whole through this writer.
+      // The config and one new version change; nothing else of the invitation does (guests and their RSVP answers, wishes,
+      // orders and payments, gift log, media, members, the invitation's other columns). Event ids are random per run, so
+      // the successful answers stay out of the cross-writer comparison; the refusals and id-free states join it.
+      const hv = await invitation(owner.id, `g046-${backend}`);
+      let hvv = 1;
+      const saveH = async (body: Record<string, unknown>) => {
+        const answer = await call(backend, 'PATCH', hv, { ...body, expectedVersion: hvv });
+        if (answer.status === 200) hvv = answer.body.version;
+        return answer;
+      };
+      const restoreH = async (versionNo: number | string, expectedVersion: unknown): Promise<Answer> => {
+        env.BACKEND_CONTENT = backend;
+        try {
+          const request = new Request(`http://app.test/api/invitations/${hv}/versions/${versionNo}/restore`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ expectedVersion }) });
+          const response = await restoreRoute.POST(request, { params: Promise.resolve({ id: String(hv), versionNo: String(versionNo) }) });
+          const text = await response.text();
+          return { status: response.status, body: text ? JSON.parse(text) : null };
+        } finally {
+          delete env.BACKEND_CONTENT;
+        }
+      };
+      const versionConfig = async (versionNo: number) => (await sql`select config from invitation_versions where invitation_id = ${hv} and version_no = ${versionNo} order by id desc limit 1`)[0].config as Record<string, any>;
+      const others = async () => {
+        const [{ config: _config, ...invitationRow }] = await sql`select * from invitations where id = ${hv}`;
+        return {
+          invitation: invitationRow,
+          guests: await sql`select * from guests where invitation_id = ${hv} order by id`,
+          wishes: await sql`select * from guest_messages where invitation_id = ${hv} order by id`,
+          orders: await sql`select * from orders where invitation_id = ${hv} order by id`,
+          payments: await sql`select p.* from payments p join orders o on o.id = p.order_id where o.invitation_id = ${hv} order by p.id`,
+          gifts: await sql`select * from gift_logs where invitation_id = ${hv} order by id`,
+          media: await sql`select * from media_assets where invitation_id = ${hv} order by id`,
+          members: await sql`select * from invitation_members where invitation_id = ${hv} order by id`,
+        };
+      };
+      const akadH = { title: 'Akad (fiktif)', startAt: '2027-05-01T09:00:00+07:00' };
+      const savedA = await saveH({ settings: { title: 'Versi lama (fiktif)' }, events: [akadH] });
+      const versionA = hvv;
+      const configA = await versionConfig(versionA);
+      const akadId = configA.events[0].id as string;
+      const savedB = await saveH({ settings: { title: 'Versi baru (fiktif)' }, quote: { enabled: true, text: 'Hanya di versi baru (fiktif)' },
+        events: [{ ...akadH, id: akadId }, { title: 'Resepsi (fiktif)', startAt: '2027-05-01T19:00:00+07:00' }] });
+      const versionB = hvv;
+      const resepsiId = (await versionConfig(versionB)).events[1].id as string;
+      const answersH = { [akadId]: { status: 'CONFIRMED', attending: 2 }, [resepsiId]: { status: 'DECLINED', attending: null } };
+      const [guestH] = await sql`insert into guests (invitation_id, name, slug, rsvp_status, guest_count, rsvp_answers, rsvp_event_answers)
+        values (${hv}, 'Sari Tamu (fiktif)', ${`sari-tamu-${backend}-${tag}`}, 'CONFIRMED', 2, ${JSON.stringify({ menu: 'vegetarian' })}::text::jsonb, ${JSON.stringify(answersH)}::text::jsonb) returning id`;
+      await sql`insert into guest_messages (invitation_id, guest_id, name, message) values (${hv}, ${guestH.id}, 'Sari Tamu (fiktif)', 'Selamat menempuh hidup baru (fiktif)')`;
+      const [orderH] = await sql`insert into orders (user_id, invitation_id, tier, amount, currency, rail, reference, status, paid_at)
+        values (${owner.id}, ${hv}, 'standard', 149000, 'IDR', 'qris', ${`vne_g046_${backend}_${tag}`}, 'PAID', now() at time zone 'utc') returning id`;
+      created.orders.push(orderH.id);
+      await sql`insert into payments (order_id, provider, transaction_id, status) values (${orderH.id}, 'qris', ${`trx_g046_${backend}_${tag}`}, 'PAID')`;
+      const othersBefore = await others();
+      const beforeRefusals = await state(hv);
+
+      const staleH = record(await restoreH(versionA, versionB - 1));
+      const currentH = record(await restoreH(versionB, versionB));
+      const unknownH = record(await restoreH(versionB + 50, versionB));
+      const malformedH = record(await restoreH('abc', versionB));
+      const noVersionH = record(await restoreH(versionA, 'v2'));
+      env.FLAG_VERSION_HISTORY = 'off';
+      const flagOffH = record(await restoreH(versionA, versionB));
+      delete env.FLAG_VERSION_HISTORY;
+      await signIn(other);
+      const intruderH = record(await restoreH(versionA, versionB));
+      await signIn(admin);
+      const adminH = record(await restoreH(versionA, versionB));
+      await signIn(null);
+      const anonymousH = record(await restoreH(versionA, versionB));
+      await signIn(owner);
+      check(`${backend}: G-046 a stale page, the current version, an unknown or malformed one, flag off, another customer, an administrator and a signed-out request restore nothing`,
+        savedA.status === 200 && savedB.status === 200 && staleH.status === 409 && staleH.body.error.code === 'VERSION_CONFLICT' && currentH.status === 409 && currentH.body.error.code === 'ALREADY_CURRENT'
+          && unknownH.status === 404 && malformedH.status === 400 && noVersionH.status === 400 && flagOffH.status === 404 && intruderH.status === 404 && adminH.status === 403 && anonymousH.status === 401
+          && same(await state(hv), beforeRefusals) && same(await others(), othersBefore),
+        [staleH, currentH, unknownH, malformedH, noVersionH, flagOffH, intruderH, adminH, anonymousH].map((a) => a.status).join(','));
+
+      const restoredA = await restoreH(versionA, versionB);
+      const afterA = await state(hv);
+      const configAfterA = afterA.config as Record<string, any>;
+      check(`${backend}: G-046 restoring version A stores exactly A's config as a new live version; the newer section and event are gone, the kept event keeps its id`,
+        restoredA.status === 200 && restoredA.body.version === versionB + 1 && restoredA.body.restoredFrom === versionA && same(configAfterA, configA)
+          && configAfterA.quote === undefined && configAfterA.events.length === 1 && configAfterA.events[0].id === akadId && afterA.versions.length === beforeRefusals.versions.length + 1 && coherent(afterA),
+        `${restoredA.status} ${JSON.stringify(restoredA.body?.error ?? restoredA.body?.version)}`);
+      const othersAfter = await others();
+      check(`${backend}: G-046 the restore changed the config only: guests and RSVP answers, wishes, orders and payments, gift log, media, members and the invitation's other columns are identical`,
+        same(othersAfter, othersBefore) && same(othersAfter.guests[0].rsvp_event_answers, answersH), JSON.stringify(Object.keys(othersAfter)));
+      const undo = await restoreH(versionB, restoredA.body?.version);
+      const afterUndo = await state(hv);
+      check(`${backend}: G-046 a restore is itself undone by restoring the version it replaced`,
+        undo.status === 200 && same(afterUndo.config, await versionConfig(versionB)) && coherent(afterUndo) && same(await others(), othersBefore), `${undo.status}`);
+      results[backend].states.push({ config: { settings: (afterUndo.config as any).settings, quote: (afterUndo.config as any).quote }, versions: afterUndo.versions, live: [] });
+
       await signIn(other);
       const intruder = record(await call(backend, 'PATCH', id, { quote: { ...quote, text: 'Bukan milikmu' }, expectedVersion: 4 }));
       const peek = record(await call(backend, 'GET', id));
@@ -566,7 +692,9 @@ async function main() {
       flips.map((f) => f.body?.version).join() === '5,6,7' && afterFlips.versions.map(([n]) => n).join() === '1,2,3,4,5,6,7' && coherent(afterFlips) && (afterFlips.config as any).quote.text === 'Balik 2');
   } finally {
     const ids = created.invitations;
+    await sql`delete from guest_messages where invitation_id = any(${ids}::int[])`;
     await sql`delete from guests where invitation_id = any(${ids}::int[])`;
+    await sql`delete from payments where order_id = any(${created.orders}::int[])`;
     await sql`delete from orders where id = any(${created.orders}::int[])`;
     await sql`delete from invitation_versions where invitation_id = any(${ids}::int[])`;
     await sql`delete from invitations where id = any(${ids}::int[])`;

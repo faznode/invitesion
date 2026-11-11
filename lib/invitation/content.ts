@@ -1,14 +1,15 @@
 import 'server-only';
 
-import { and, eq, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, isNull, lt, sql } from 'drizzle-orm';
+import { ZodError } from 'zod';
 import { backendFor } from '@/lib/backend';
 import { db } from '@/lib/db/drizzle';
 import { invitations, invitationVersions } from '@/lib/db/schema';
 import * as api from './content-api';
 import * as next from './content-next';
-import { normalizeStoredConfig, prepareConfigWrite } from './content-read';
+import { normalizeStoredConfig, prepareConfigWrite, prepareRestoreWrite } from './content-read';
 import type { Tier } from '@/lib/pricing';
-import type { ContentWriteOutcome } from './content-rules';
+import type { ContentWriteOutcome, ContentWriteRequest } from './content-rules';
 import type { DetailConfig } from './detail-config';
 
 /**
@@ -95,8 +96,11 @@ export async function saveInvitationContent(
   // S18-Q4 / D-035 (a stored condition naming a deleted question cannot block saving another section; a save of the form
   // itself is checked strictly) and D-036 (events keep their ids; new ones get fresh ids): `prepareConfigWrite`.
   const validated: DetailConfig = prepareConfigWrite(state.config, input.patch);
-  const request = { invitationId: input.invitationId, baseVersion: state.version, config: validated, touchedSections: Object.keys(input.patch) };
+  return writeContent(caller, { invitationId: input.invitationId, baseVersion: state.version, config: validated, touchedSections: Object.keys(input.patch) }, env);
+}
 
+/** Exactly one writer per call, the one `BACKEND_CONTENT` selects; never a fallback to the other (B-035). */
+async function writeContent(caller: ContentCaller, request: ContentWriteRequest, env: Env): Promise<ContentSaveOutcome> {
   let outcome: ContentWriteOutcome;
   if (backendFor('CONTENT', env) === 'rust') {
     const ownerToken = await caller.ownerToken();
@@ -104,5 +108,66 @@ export async function saveInvitationContent(
   } else {
     outcome = await next.writeContentNext({ ...request, userId: caller.userId });
   }
-  return outcome.kind === 'saved' ? { kind: 'saved', version: outcome.version, config: validated } : outcome;
+  return outcome.kind === 'saved' ? { kind: 'saved', version: outcome.version, config: request.config } : outcome;
+}
+
+export type ContentRestoreOutcome = ContentSaveOutcome | { kind: 'current' } | { kind: 'unrestorable' };
+
+/**
+ * G-046: restores the owner's saved version `versionNo` as a new version, through the selected writer like any save, so
+ * every writer rule applies to it: the version check under the row lock (a restore prepared from a stale page is a
+ * conflict and writes nothing), D-040 media references and the B-041 theme entitlement, judged on every section because a
+ * restore replaces them all. It writes the config and a version row, nothing else: guests, RSVP answers, wishes, media
+ * and payments are never read or written here.
+ */
+export async function restoreInvitationVersion(
+  caller: ContentCaller,
+  input: { invitationId: number; versionNo: number; expectedVersion: number },
+  env: Env = process.env,
+): Promise<ContentRestoreOutcome> {
+  const state = await loadContentState(input.invitationId, caller.userId);
+  if (!state) return { kind: 'notfound' };
+  if (input.expectedVersion !== state.version) return { kind: 'conflict', currentVersion: state.version };
+  if (input.versionNo === state.version) return { kind: 'current' };
+  // A number may repeat on rows written before B-035's lock: the latest row of that number is the version shown.
+  const [row] = await db
+    .select({ config: invitationVersions.config })
+    .from(invitationVersions)
+    .where(and(eq(invitationVersions.invitationId, input.invitationId), eq(invitationVersions.versionNo, input.versionNo)))
+    .orderBy(desc(invitationVersions.id))
+    .limit(1);
+  if (!row) return { kind: 'notfound' };
+  let config: DetailConfig | null;
+  try {
+    config = prepareRestoreWrite(state.config, row.config);
+  } catch (error) {
+    if (error instanceof ZodError) return { kind: 'unrestorable' };
+    throw error;
+  }
+  if (!config) return { kind: 'unrestorable' };
+  const touchedSections = [...new Set([...Object.keys(config), ...Object.keys(state.config)])].filter((key) => key !== 'schemaVersion');
+  return writeContent(caller, { invitationId: input.invitationId, baseVersion: state.version, config, touchedSections }, env);
+}
+
+export type VersionEntry = { versionNo: number; createdAt: Date; createdBy: string; config: unknown };
+
+/**
+ * G-046: the owner's versions, newest first, `limit` at a time below `before` (keyset paging), with the current state
+ * they are compared to. Null when the invitation is not this owner's (or deleted), exactly as for the editor.
+ */
+export async function loadVersionHistory(
+  invitationId: number,
+  userId: number,
+  { before, limit }: { before?: number; limit: number },
+): Promise<{ state: ContentState; versions: VersionEntry[]; more: boolean } | null> {
+  const state = await loadContentState(invitationId, userId);
+  if (!state) return null;
+  const rows = await db
+    .select({ versionNo: invitationVersions.versionNo, createdAt: invitationVersions.createdAt, createdBy: invitationVersions.createdBy, config: invitationVersions.config })
+    .from(invitationVersions)
+    .where(and(eq(invitationVersions.invitationId, invitationId), before === undefined ? undefined : lt(invitationVersions.versionNo, before)))
+    .orderBy(desc(invitationVersions.versionNo), desc(invitationVersions.id))
+    .limit(limit * 2 + 1);
+  const unique = rows.filter((row, index) => index === 0 || rows[index - 1].versionNo !== row.versionNo);
+  return { state, versions: unique.slice(0, limit), more: unique.length > limit };
 }

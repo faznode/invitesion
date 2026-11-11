@@ -10,7 +10,7 @@ import {
   GiftWithheldNotice,
   giftNumberId,
   GuestbookBlock,
-  MapLink,
+  MapBlock,
   PortraitsBody,
   ProgrammeBody,
   programmeSections,
@@ -108,7 +108,7 @@ export function sharedSections(props: GuestPageProps, view: GuestView): SectionR
                 </h3>
                 <EventFacts event={event} view={view} className="mt-3 space-y-2 text-sm" />
                 {event.note && <p className={`mt-3 text-sm ${tone.muted}`}>{event.note}</p>}
-                <MapLink event={event} view={view} className="mt-4" />
+                <MapBlock event={event} view={view} className="mt-4" />
               </article>
             ))}
           </div>

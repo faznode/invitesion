@@ -236,6 +236,9 @@ export const detailConfigSchema = z
         countdown: z.boolean().optional(),
         // G-035 (I-16): `false` hides the guest page's share actions and Story image; absent = shown on the design families.
         guestShare: z.boolean().optional(),
+        // G-055 (I-30): `true` lets the host export printable cards and a public e-card with a QR code (`print-card.ts`);
+        // absent = off, so no stored invitation gains a card it did not ask for.
+        cardExport: z.boolean().optional(),
       })
       .partial()
       .optional(),

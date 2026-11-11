@@ -1,6 +1,7 @@
 import { googleCalendarUrl } from '@/lib/invitation/calendar';
 import { GUEST_COPY, type GuestCopy } from '@/lib/invitation/guest-copy';
 import { guestLinkSegment } from '@/lib/invitation/guest-link';
+import { mapFacadeOf } from '@/lib/invitation/map-embed';
 import type { Portrait, Profile, Profiles } from '@/lib/invitation/portraits';
 import { invitationCalendarPath } from '@/lib/invitation/public-path';
 import { ANSWER_LIMITS } from '@/lib/invitation/rsvp-questions';
@@ -8,6 +9,7 @@ import { rsvpDefaultCount, type RsvpStatus } from '@/lib/invitation/rsvp-rules';
 import { IMAGE_SIZES } from '@/lib/media/variants';
 import { submitGuestMessage, submitRsvp } from '@/app/i/[slug]/actions';
 import { InvitationIcon } from '@/components/invitation/icons';
+import { MapFacade } from '@/components/invitation/map-facade';
 import type { GuestPageProps, GuestView, InvitationEvent } from '@/components/invitation/guest-view';
 
 /**
@@ -116,6 +118,29 @@ export function MapLink({ event, view, className = 'mt-5' }: { event: Invitation
     >
       {view.copy.seeLocation}
     </a>
+  );
+}
+
+/**
+ * G-029: the design families' location: the static link exactly as `MapLink` renders it, then, when the event can be
+ * mapped (`mapFacadeOf`), the map behind its button. Without a map (flag off, no link, no coordinates or address) this is
+ * `MapLink` itself, byte for byte. The legacy layout keeps `MapLink` (D-041).
+ */
+export function MapBlock({ event, view, className = 'mt-5' }: { event: InvitationEvent; view: GuestView; className?: string }) {
+  const link = <MapLink event={event} view={view} className={className} />;
+  const facade = mapFacadeOf(event, view.language);
+  if (!facade) return link;
+  return (
+    <>
+      {link}
+      <MapFacade
+        embedUrl={facade.embedUrl}
+        title={event.venueName ? `${view.copy.map.frame}: ${event.venueName}` : view.copy.map.frame}
+        labels={view.copy.map}
+        accentClass={view.tone.accent}
+        lineClass={view.tone.line}
+      />
+    </>
   );
 }
 

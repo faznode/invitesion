@@ -18,6 +18,7 @@ import { palette } from '@/lib/invitation/palettes';
 import { birthdayPortrait, ceremonyPortrait, childPhotoSlotOf, childPhotoSrcFor, coupleProfiles, couplePortraits, type Profiles } from '@/lib/invitation/portraits';
 import { guestChildPhotoPath, guestGiftQrisPath, invitationGiftQrisPath } from '@/lib/invitation/public-path';
 import { programmeOf } from '@/lib/invitation/programme';
+import { readingModeOf } from '@/lib/invitation/reading-mode';
 import { answerField, askableQuestions, conditionText, isMultiChoice, readStoredAnswers, rsvpQuestionsOf } from '@/lib/invitation/rsvp-questions';
 import { eventCountField, eventStatusField, perEventRsvpEvents, readEventAnswers } from '@/lib/invitation/rsvp-events';
 import { rsvpDeadlinePassed } from '@/lib/invitation/rsvp-rules';
@@ -72,6 +73,11 @@ export type GuestPageProps = {
    * on, the invitation opted in and a signing secret exists; layouts show it through `RsvpBlock`, never decide it.
    */
   guestPassHref?: string | null;
+  /**
+   * G-036 (I-05): this guest's device asked for large text (the cover switch's cookie, read by the guest routes). Only a
+   * design family with guest reading on acts on it (`readingModeOf`); the legacy layout ignores it (D-041).
+   */
+  readingLarge?: boolean;
 };
 
 /**
@@ -83,7 +89,7 @@ export type GuestPageProps = {
  * read; the host's words, time zones and approved quotation text are unchanged.
  */
 export function buildGuestView(
-  { invitation, config, guest, media, readOnly, preview = false, giftWithheld = false, imageVariants, saveData = false, guestPassHref = null }: GuestPageProps,
+  { invitation, config, guest, media, readOnly, preview = false, giftWithheld = false, imageVariants, saveData = false, guestPassHref = null, readingLarge = false }: GuestPageProps,
   language: GuestLanguage = 'id',
 ) {
   const tone = palette(config.theme?.paletteId);
@@ -404,6 +410,8 @@ export function buildGuestView(
     guestPassHref: guest && guestPassHref ? guestPassHref : null,
     // G-035 (I-16): the footer's share actions; the invitation's public face only, the same on every link (no guest).
     inviteShare: inviteShareOf(invitation, config),
+    // G-036 (I-05): the cover's large-text switch and the page's reading state (null: no switch, nothing changes).
+    reading: readingModeOf(config, readingLarge),
   };
 }
 

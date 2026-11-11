@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { headers } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { after } from 'next/server';
 import { PublicInvitationRenderer } from '@/components/invitation/public-renderer';
@@ -7,6 +7,7 @@ import { guestCopy, guestPageLanguage } from '@/lib/invitation/guest-copy';
 import { guestPassAvailable } from '@/lib/invitation/guest-pass-page';
 import { invitationShareMetadata } from '@/lib/invitation/preview-image';
 import { loadPublicInvitation, trackInvitationView } from '@/lib/invitation/public';
+import { READING_COOKIE, readingRequested } from '@/lib/invitation/reading-mode';
 import { formKey, rsvpFormKey } from '@/lib/invitation/rsvp-form-key';
 import { getLocale } from '@/lib/locale-server';
 import { saveDataRequested } from '@/lib/media/variants';
@@ -70,6 +71,7 @@ export default async function PersonalInvitationPage({ params, searchParams }: P
       imageVariants={data.imageVariants}
       saveData={saveDataRequested((await headers()).get('save-data'))}
       guestPassHref={guestPassHref}
+      readingLarge={readingRequested((await cookies()).get(READING_COOKIE)?.value)}
     />
   );
 }
