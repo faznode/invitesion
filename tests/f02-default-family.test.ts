@@ -11,6 +11,7 @@ import { fixtureGuest, renderGuestPage, withFamily } from './support/render-gues
 import { detailConfigSchema, type DetailConfig } from '../lib/invitation/detail-config';
 import { defaultFamilyFor, FAMILIES, FAMILY_IDS, familyOf } from '../lib/invitation/families';
 import { newInvitationConfig, withDefaultFamily } from '../lib/invitation/new-invitation';
+import { occasionOfCategory } from '../lib/invitation/occasion';
 import { catalogDefaultConfig, presetConfigFromTemplateDefaults } from '../lib/invitation/template-defaults';
 import { resolveEventType } from '../lib/invitation/template-sync';
 import { invitationTemplates } from '../lib/invitation/templates';
@@ -64,7 +65,8 @@ test('F-02: every catalog template starts a valid invitation on a family', () =>
     assert.ok(preset.ok, template.slug);
     const parsed = detailConfigSchema.safeParse(newInvitationConfig(preset.config as Record<string, unknown>, eventType, ON));
     assert.ok(parsed.success, `${template.slug}: the new invitation passes the strict schema`);
-    assert.equal(parsed.data.theme?.familyId, defaultFamilyFor(eventType), `${template.slug} (${eventType})`);
+    // B-032: a memorial category's preset declares its occasion, which starts it on a calmer family.
+    assert.equal(parsed.data.theme?.familyId, defaultFamilyFor(eventType, occasionOfCategory(template.category)), `${template.slug} (${eventType})`);
     assert.equal(parsed.data.theme?.paletteId, template.preset.theme?.paletteId, `${template.slug}: the template\u2019s palette is kept`);
   }
 });

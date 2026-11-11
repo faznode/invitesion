@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { PublicInvitationRenderer } from '@/components/invitation/public-renderer';
 import { isFlagOn } from '@/lib/flags';
+import { occasionOfCategory } from '@/lib/invitation/occasion';
 import { catalogDefaultConfig } from '@/lib/invitation/template-defaults';
 import { templateEventTypes } from '@/lib/invitation/template-event-types';
 import { getTemplateBySlug } from '@/lib/invitation/templates';
@@ -35,8 +36,14 @@ export default async function TrialPreviewPage({ searchParams }: { searchParams:
 
   const eventType = templateEventTypes[template.category];
   const stateTemplate = state ? getTemplateBySlug(state.slug) : undefined;
-  // Names belong to fields of one event type (a couple, a celebrant, an event name), so they carry across themes of it only.
-  const typed = state && stateTemplate && templateEventTypes[stateTemplate.category] === eventType ? state : EMPTY_TRIAL_INPUT;
+  // Names belong to fields of one event type (a couple, a celebrant, an event name), so they carry across themes of it only,
+  // and never between a celebration and a memorial (B-032).
+  const carried =
+    state &&
+    stateTemplate &&
+    templateEventTypes[stateTemplate.category] === eventType &&
+    occasionOfCategory(stateTemplate.category) === occasionOfCategory(template.category);
+  const typed = carried ? state : EMPTY_TRIAL_INPUT;
   const input = previewInput(typed, trialPlaceholders(template, eventType), eventType);
   const { config } = initialDraftConfig(catalogDefaultConfig(template), eventType, { input, key: state?.key ?? NO_KEY });
 

@@ -1,4 +1,5 @@
 import type { Tier } from '../pricing';
+import { occasionOfCategory, type Occasion } from './occasion';
 import { resolveEventType } from './template-event-types';
 import { invitationTemplates, type InvitationTemplate } from './templates';
 import { catalogThemeTier } from './theme-entitlement';
@@ -29,8 +30,11 @@ const optionOf = (template: InvitationTemplate): ThemeSwitchOption => ({
   swatch: [template.palette.bg, template.palette.accent, template.palette.ink],
 });
 
-export function themeSwitchOptions(eventType: string, currentTemplateId?: number): ThemeSwitchOption[] {
-  const listed = invitationTemplates.filter((template) => resolveEventType(template.category) === eventType);
+export function themeSwitchOptions(eventType: string, currentTemplateId?: number, occasion?: Occasion): ThemeSwitchOption[] {
+  // B-032 (G-060): a memorial is offered memorial themes only; without an occasion the list is the event type's, as before.
+  const listed = invitationTemplates.filter(
+    (template) => resolveEventType(template.category) === eventType && (!occasion || occasionOfCategory(template.category) === occasion),
+  );
   const ordered = [...listed.filter((t) => t.tier === 'free'), ...listed.filter((t) => t.tier !== 'free')].map(optionOf);
   const current = invitationTemplates.find((template) => template.id === currentTemplateId);
   return current && !listed.includes(current) ? [optionOf(current), ...ordered] : ordered;

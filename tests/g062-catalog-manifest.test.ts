@@ -116,9 +116,11 @@ test('old invitations never depend on a manifest: the guest renderer and the wri
       const path = join(dir, name);
       return statSync(path).isDirectory() ? files(path) : /\.(ts|tsx)$/.test(name) ? [path] : [];
     });
+  // The admin console's read-only view is the one other reader (`tests/g062-catalog-admin.test.ts` bounds it).
+  const ownModules = [join('lib', 'invitation', 'catalog-manifest.ts'), join('lib', 'invitation', 'catalog-admin-view.ts')];
   const readers = ['components/invitation', 'app/i', 'lib/invitation']
     .flatMap(files)
-    .filter((path) => path !== join('lib', 'invitation', 'catalog-manifest.ts'))
+    .filter((path) => !ownModules.includes(path))
     .filter((path) => /from ['"][^'"]*catalog-manifest['"]/.test(readFileSync(path, 'utf8')));
   assert.deepEqual(readers, []);
   assert.equal(catalogManifestFor('a-retired-template'), undefined);

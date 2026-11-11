@@ -129,8 +129,10 @@ export function CalendarLinks({
   slug: string;
   className?: string;
 }) {
-  const { tone, showCountdown, primaryCalendarEvent } = view;
-  if (!showCountdown || !primaryCalendarEvent) return null;
+  // The calendar entry exists only for a published invitation's future primary event; it no longer depends on the
+  // countdown, which the host can switch off (B-032).
+  const { tone, primaryCalendarEvent } = view;
+  if (!primaryCalendarEvent) return null;
   return (
     <div className={className}>
       <a

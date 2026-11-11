@@ -8,7 +8,9 @@ import { isFlagOn } from '@/lib/flags';
 import { getLocale } from '@/lib/locale-server';
 import { loadContentState, loadThemeTier } from '@/lib/invitation/content';
 import { normalizeStoredConfig } from '@/lib/invitation/content-read';
+import { occasionOf } from '@/lib/invitation/occasion';
 import { paletteHex, paletteIds } from '@/lib/invitation/palettes';
+import { approvedCorpusOptions } from '@/lib/invitation/religious-text';
 import { ownerPreviewPath } from '@/lib/invitation/public-path';
 import { paletteTier } from '@/lib/invitation/theme-entitlement';
 import { themeSwitchOptions } from '@/lib/invitation/theme-switch';
@@ -53,7 +55,8 @@ export default async function EditInvitationPage({
   // B-036: which catalog themes the picker offers as a free switch; the writers judge each switch again.
   const themeTier = (await loadThemeTier(id, user.id)) ?? 'standard';
   const storedTemplateId = (config.theme as { templateId?: unknown } | undefined)?.templateId;
-  const themeOptions = themeSwitchOptions(invitation.eventType, typeof storedTemplateId === 'number' ? storedTemplateId : undefined);
+  // B-032: a memorial is offered memorial themes only.
+  const themeOptions = themeSwitchOptions(invitation.eventType, typeof storedTemplateId === 'number' ? storedTemplateId : undefined, occasionOf(config));
 
   return (
     <InvitationEditor
@@ -68,6 +71,7 @@ export default async function EditInvitationPage({
       themeOptions={themeOptions}
       themeTier={themeTier}
       paletteOptions={PALETTE_OPTIONS}
+      corpusOptions={approvedCorpusOptions()}
       initialMedia={media.map((m) => ({
         id: m.id,
         url: m.url,

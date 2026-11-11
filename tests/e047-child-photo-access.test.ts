@@ -125,7 +125,7 @@ test('/media protected: the owner gets it privately; anyone else, and every fail
   assert.equal(missing.headers.get('cache-control'), 'private, no-store');
 });
 
-// ── Personal-link photo route ────────────────────���────────────
+// ── Personal-link photo route ────────────────────����────────────
 
 type Summary = Awaited<ReturnType<GuestChildPhotoDeps['loadPublished']>>;
 function guestDeps(config: DetailConfig, opts: { eventType?: string; draft?: boolean; guest?: boolean; objects?: Record<string, string> } = {}) {
@@ -310,8 +310,9 @@ test('wiring: the Clerk proxy covers /media/protected (its general matcher skips
   );
   assert.match(upload, /if \(purpose === 'gift-qris'\) \{[\s\S]*?saveImage\(\(ext\) => protectedInvitationMediaKey\(id, ext\), file, QRIS_MAX_BYTES, QRIS_IMAGE_EXT\)/);
   assert.equal([...editor.matchAll(/<ImageUpload label="[^"]+" purpose=/g)].length, 4, 'no other upload field is protected');
-  assert.equal([...editor.matchAll(/<ImageUpload /g)].length, 8, 'eight upload fields in all');
-  assert.ok(!/label="Foto \(opsional\)" purpose=/.test(editor), 'the tasyakuran (adult) photo stays public');
+  assert.equal([...editor.matchAll(/<ImageUpload /g)].length, 9, 'nine upload fields in all (B-032 added the memorial photo)');
+  assert.ok(!/label="Foto \(opsional\)" purpose=/.test(editor), 'the tasyakuran and memorial (adult) photos stay public');
+  assert.equal([...editor.matchAll(/<ImageUpload label="Foto \(opsional\)" invitationId=/g)].length, 2, 'both adult photos');
   assert.match(read('app/media/[...path]/route.ts'), /user\.role === 'ADMIN'\) return false/);
   assert.throws(() => assertSafeKey('protected/../1/x.png'), InvalidKeyError);
 });

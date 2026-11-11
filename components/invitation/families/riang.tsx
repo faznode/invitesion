@@ -238,15 +238,15 @@ export function RiangLayout({ props, view }: { props: GuestPageProps; view: Gues
       ),
 
     quote: () =>
-      config.quote?.enabled &&
-      config.quote.text &&
+      view.quote &&
       band(
         'quote',
         'quote',
         <figure className="text-center">
           <InvitationIcon name="quote" className={`mx-auto h-8 w-8 ${tone.accent}`} />
-          <blockquote className="mx-auto mt-4 max-w-xl font-serif text-2xl leading-snug text-balance">{config.quote.text}</blockquote>
-          {config.quote.author && <figcaption className={`mt-4 text-xs uppercase tracking-widest ${tone.muted}`}>{config.quote.author}</figcaption>}
+          <blockquote className="mx-auto mt-4 max-w-xl font-serif text-2xl leading-snug text-balance">{view.quote.text}</blockquote>
+          {view.quote.author && <figcaption className={`mt-4 text-xs uppercase tracking-widest ${tone.muted}`}>{view.quote.author}</figcaption>}
+          {view.quote.provenance && <p className={`mx-auto mt-3 max-w-xl text-xs leading-5 ${tone.muted}`}>{view.quote.provenance}</p>}
         </figure>,
       ),
 

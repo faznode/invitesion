@@ -158,12 +158,12 @@ export function GapuraLayout({ props, view }: { props: GuestPageProps; view: Gue
       ),
 
     quote: () =>
-      config.quote?.enabled &&
-      config.quote.text && (
+      view.quote && (
         <ArchSection section="quote" tone={tone}>
           <InvitationIcon name="quote" className={`mx-auto h-6 w-6 ${tone.accent}`} />
-          <blockquote className="mt-4 font-serif text-xl leading-8 text-pretty">{config.quote.text}</blockquote>
-          {config.quote.author && <cite className={`mt-3 block text-xs uppercase not-italic tracking-widest ${tone.muted}`}>{config.quote.author}</cite>}
+          <blockquote className="mt-4 font-serif text-xl leading-8 text-pretty">{view.quote.text}</blockquote>
+          {view.quote.author && <cite className={`mt-3 block text-xs uppercase not-italic tracking-widest ${tone.muted}`}>{view.quote.author}</cite>}
+          {view.quote.provenance && <p className={`mt-3 text-xs leading-5 ${tone.muted}`}>{view.quote.provenance}</p>}
         </ArchSection>
       ),
 

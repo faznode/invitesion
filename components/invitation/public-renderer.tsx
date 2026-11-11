@@ -26,6 +26,7 @@ import {
 } from '@/components/invitation/guest-blocks';
 import { buildGuestView, type GuestPageProps, type GuestView } from '@/components/invitation/guest-view';
 import { familyOf, type FamilyId } from '@/lib/invitation/families';
+import { MEMORIAL_COPY } from '@/lib/invitation/occasion';
 
 /**
  * Deterministic config -> HTML renderer.
@@ -79,7 +80,8 @@ function coverGateOf({ invitation, config, guest, status }: GuestPageProps, view
   if (!view.music?.playOnOpen || status.rsvp || status.wish) return null;
   const names = (view.names ?? []).filter((name): name is string => Boolean(name));
   return {
-    kicker: config.theme?.cover?.headline?.trim() || GATE_KICKERS[invitation.eventType] || 'Undangan',
+    // B-032: a memorial never falls back to its event type's "Undangan Tasyakuran".
+    kicker: config.theme?.cover?.headline?.trim() || (view.occasion === 'memorial' ? MEMORIAL_COPY.invitation : GATE_KICKERS[invitation.eventType]) || 'Undangan',
     names: names.length ? names : [config.settings?.title || 'Undangan'],
     dateText: (view.primaryEvent?.startAt && view.formatDate(view.primaryEvent.startAt)) || undefined,
     guestName: guest?.name ?? undefined,

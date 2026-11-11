@@ -1,3 +1,5 @@
+import type { Occasion } from './occasion';
+
 /**
  * Design families (B-030, template system v2): trusted layout code that renders the same invitation content as the
  * legacy page through the content contract, with its own composition. A family is opt-in per invitation
@@ -83,6 +85,8 @@ const DEFAULT_FAMILY_BY_EVENT_TYPE: Readonly<Record<string, FamilyId>> = {
   corporate: 'lontar',
 };
 
-export function defaultFamilyFor(eventType: string): FamilyId | undefined {
+export function defaultFamilyFor(eventType: string, occasion?: Occasion): FamilyId | undefined {
+  // B-032 (G-060): a memorial starts on the symmetric, solemn composition, never on a celebration's bunting.
+  if (occasion === 'memorial') return 'gapura';
   return Object.hasOwn(DEFAULT_FAMILY_BY_EVENT_TYPE, eventType) ? DEFAULT_FAMILY_BY_EVENT_TYPE[eventType] : undefined;
 }

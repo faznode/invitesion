@@ -1,4 +1,5 @@
 import type { DetailConfig } from './detail-config';
+import { MEMORIAL_COPY, type Occasion } from './occasion';
 import type { Portrait } from './portraits';
 
 /**
@@ -61,8 +62,16 @@ export function formatPlainDate(value: string | undefined): string | undefined {
   return PLAIN_DATE.format(at);
 }
 
-/** The profile for this event type with blank values dropped; null for other event types or when nothing is filled. */
-export function ceremonyProfileOf(eventType: string, input: CeremonyProfileInput | undefined, portrait?: Portrait | null): CeremonyProfile | null {
+/**
+ * The profile for this event type with blank values dropped; null for other event types or when nothing is filled. A
+ * memorial (B-032, `occasion.ts`) shows who is remembered and the family's own words, never the thanksgiving fields.
+ */
+export function ceremonyProfileOf(
+  eventType: string,
+  input: CeremonyProfileInput | undefined,
+  portrait?: Portrait | null,
+  occasion?: Occasion,
+): CeremonyProfile | null {
   if (!input || !isCeremonyEventType(eventType)) return null;
   const rows: ProfileRow[] = [];
   const texts: ProfileText[] = [];
@@ -100,6 +109,10 @@ export function ceremonyProfileOf(eventType: string, input: CeremonyProfileInput
     row('Orang tua', parents);
     text('Doa & harapan', input.prayer);
     text('Catatan', input.recoveryNote);
+  } else if (occasion === 'memorial') {
+    row('Nama lengkap', fullName);
+    row('Keluarga', parents);
+    text('Pesan keluarga', input.ceremonyNote);
   } else {
     const category = input.thanksgivingCategory;
     row('Acara', filled(input.thanksgivingTitle));
@@ -109,5 +122,6 @@ export function ceremonyProfileOf(eventType: string, input: CeremonyProfileInput
   }
 
   if (!rows.length && !texts.length && !portrait) return null;
-  return { heading: eventType === 'tasyakuran' ? 'Tentang Syukuran' : 'Tentang Ananda', rows, texts, ...(portrait && { portrait }) };
+  const heading = occasion === 'memorial' ? MEMORIAL_COPY.profileHeading : eventType === 'tasyakuran' ? 'Tentang Syukuran' : 'Tentang Ananda';
+  return { heading, rows, texts, ...(portrait && { portrait }) };
 }

@@ -14,4 +14,6 @@ export POSTGRES_URL=${POSTGRES_URL:-postgres://build:build@127.0.0.1:9/no-databa
 step "typecheck" pnpm typecheck
 step "unit tests" pnpm test
 step "family manifests (B-030, pnpm harness families)" pnpm harness families
+# G-062: every catalog template's manifest and its art files on disk, byte for byte.
+step "catalog manifests (G-062, pnpm harness catalog)" pnpm harness catalog
 step "production build (with proxy)" pnpm build

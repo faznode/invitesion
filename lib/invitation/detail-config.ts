@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { FAMILY_IDS } from './families';
 import { isAbsoluteUrl, isProtectedMediaPath, isUploadedMediaPath } from './image-url';
+import { OCCASIONS } from './occasion';
 
 /**
  * Typed contract for the invitation detail editor.
@@ -228,6 +229,11 @@ export const detailConfigSchema = z
         fontFamily: optionalText(80),
         openingCopy: optionalText(600),
         language: z.enum(['id', 'en']).optional(),
+        // B-032 (G-060): the occasion a preset declares when the core event type is broader (`occasion.ts`); absent = the
+        // event type's own, so stored invitations read as before.
+        occasion: z.enum(OCCASIONS).optional(),
+        // B-032: `false` hides the countdown (the add-to-calendar links stay); absent = shown, as before.
+        countdown: z.boolean().optional(),
       })
       .partial()
       .optional(),
@@ -425,6 +431,10 @@ export const detailConfigSchema = z
         enabled: z.boolean().default(false),
         text: optionalText(600),
         author: optionalText(120),
+        // I-11: an owner-approved corpus entry (`religious-text.ts`). The page renders that entry's text, citation and
+        // provenance, and nothing at all when the id is not an approved entry. `''` = no reference: a save clears one with
+        // it, because the merge keeps every key a save leaves out (`mergeDetailConfig`).
+        corpusId: z.union([z.literal(''), z.string().max(120).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)]).optional(),
       })
       .optional(),
 

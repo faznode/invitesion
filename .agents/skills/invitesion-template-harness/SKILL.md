@@ -60,9 +60,17 @@ Precedence: `AGENTS.md` > this skill > third-party skills. Third-party design sk
   higher tier exists until it has a byte budget, a reduced-motion fallback and a written review.
 - Two self-hosted fonts only (`font-serif`, `font-sans`). Touch targets ≥ 44 px (`min-h-11`). (review)
 
+## Catalog manifests (G-062)
+- Each of the 64 catalog templates has a derived manifest (`lib/invitation/catalog-manifest.ts`): never edit one by
+  hand; change the registry, the palette tokens or the art register, and the manifest follows. `pnpm harness catalog`
+  validates every manifest and hashes every declared art file on disk (the sandbox app job runs it). New theme art
+  needs a register entry with its prompt, original digest, crop and review; the owner's review stays pending until
+  recorded, and the admin console (`/admin/<entry>/templates`) shows that state read-only.
+
 ## Commands
 ```bash
 pnpm typecheck && pnpm test                     # rendered tests iterate legacy + every family automatically
+pnpm harness families && pnpm harness catalog   # B-030 family manifests; G-062 catalog manifests + art files
 bash invitation-research/_tools/ops/bootstrap-sandbox.sh tools   # Chrome for Testing, Lighthouse (background)
 bash invitation-research/_tools/ops/local-stack.sh up            # Postgres + snapshot build without middleware
 bash invitation-research/_tools/ops/local-stack.sh start         # background; :3100

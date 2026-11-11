@@ -55,6 +55,44 @@ export function isVerifiedReligiousText(text: string, corpus: ReligiousTextCorpu
   return corpus.entries.some((entry) => entry.status === 'approved' && entry.text === text);
 }
 
+/** I-11: what a guest page shows for a corpus reference: the entry's own text and citation, and where they come from. */
+export type VerifiedReligiousBlock = {
+  id: string;
+  text: string;
+  citation: string;
+  language: string;
+  source: string;
+  translationEdition?: string;
+  verifiedBy: string;
+  verifiedAt: string;
+};
+
+/**
+ * I-11: the approved entry a quote names, with its provenance; null when the id is absent, unknown or not approved, so a
+ * pending or withdrawn entry disappears from every page that named it. With the corpus empty this is always null.
+ */
+export function verifiedBlockFor(corpusId: string | null | undefined, corpus: ReligiousTextCorpus = loadCorpus()): VerifiedReligiousBlock | null {
+  const entry = corpusId ? approvedEntry(corpusId, corpus) : undefined;
+  if (!entry) return null;
+  const { id, text, citation, language, source, translationEdition, verifiedBy, verifiedAt } = entry;
+  return { id, text, citation, language, source, ...(translationEdition && { translationEdition }), verifiedBy, verifiedAt };
+}
+
+/** I-11: the provenance line printed under a verified block (source, translation, who checked it and when). */
+export function provenanceLine(block: VerifiedReligiousBlock): string {
+  const source = block.translationEdition ? `${block.source}, ${block.translationEdition}` : block.source;
+  return `Sumber: ${source}. Diperiksa oleh ${block.verifiedBy} (${block.verifiedAt}).`;
+}
+
+export type CorpusOption = { id: string; label: string };
+
+/** I-11: the entries the editor may offer, approved ones only, in corpus order. An empty corpus offers nothing. */
+export function approvedCorpusOptions(corpus: ReligiousTextCorpus = loadCorpus()): CorpusOption[] {
+  return corpus.entries
+    .filter((entry) => entry.status === 'approved')
+    .map((entry) => ({ id: entry.id, label: `${entry.citation} (${entry.language})` }));
+}
+
 // Scripture references ("QS. Ar-Rum: 21", "HR. Bukhari", "Matius 19:6", "1 Korintus 13:4") and religious vocabulary.
 // Deliberately broad: a false positive only asks for a corpus entry, a false negative would ship unverified scripture.
 const SCRIPTURE_SOURCE = /\b(Q\.?\s?S|Al[\s-]?Qur'?an|Surah|Surat|H\.?R|Hadits?|Hadis|Injil|Alkitab|Bible|Weda|Veda|Bhagavad|Dhammapada|Tripitaka)\b/i;
@@ -74,13 +112,18 @@ export type UnverifiedReligiousText = { path: string; text: string };
  * attributed literary quotes stay allowed. Customer-written invitation content is never checked with this.
  */
 export function findUnverifiedReligiousText(
-  config: { greetings?: { prayer?: string | null } | null; quote?: { enabled?: boolean; text?: string | null; author?: string | null } | null },
+  config: {
+    greetings?: { prayer?: string | null } | null;
+    quote?: { enabled?: boolean; text?: string | null; author?: string | null; corpusId?: string | null } | null;
+  },
   corpus: ReligiousTextCorpus = loadCorpus(),
 ): UnverifiedReligiousText[] {
   const found: UnverifiedReligiousText[] = [];
   const prayer = config.greetings?.prayer?.trim();
   if (prayer && !isVerifiedReligiousText(prayer, corpus)) found.push({ path: 'greetings.prayer', text: prayer });
   const quote = config.quote;
+  // I-11: a reference counts only while it names an approved entry.
+  if (quote?.corpusId && !approvedEntry(quote.corpusId, corpus)) found.push({ path: 'quote.corpusId', text: quote.corpusId });
   const quoteText = quote?.text?.trim();
   if (quoteText && looksReligious(quoteText, quote?.author) && !isVerifiedReligiousText(quoteText, corpus)) {
     found.push({ path: 'quote.text', text: quoteText });

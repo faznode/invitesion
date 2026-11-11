@@ -10,6 +10,8 @@ import { ownQrisUpload } from '@/lib/invitation/gift-privacy';
 import { invitationDisplayName, invitationHeadline } from '@/lib/invitation/headline';
 import { guestLinkSegment } from '@/lib/invitation/guest-link';
 import { safeImageSrc } from '@/lib/invitation/image-url';
+import type { Occasion } from '@/lib/invitation/occasion';
+import { provenanceLine, verifiedBlockFor } from '@/lib/invitation/religious-text';
 import { palette } from '@/lib/invitation/palettes';
 import { birthdayPortrait, ceremonyPortrait, childPhotoSlotOf, childPhotoSrcFor, coupleProfiles, couplePortraits, type Profiles } from '@/lib/invitation/portraits';
 import { guestChildPhotoPath, guestGiftQrisPath, invitationGiftQrisPath } from '@/lib/invitation/public-path';
@@ -76,6 +78,8 @@ export type GuestPageProps = {
  */
 export function buildGuestView({ invitation, config, guest, media, readOnly, preview = false, giftWithheld = false, imageVariants, saveData = false, guestPassHref = null }: GuestPageProps) {
   const tone = palette(config.theme?.paletteId);
+  // B-032 (G-060): a memorial keeps the product's own words sober (`occasion.ts`); absent = the event type's own.
+  const occasion: Occasion | undefined = config.settings?.occasion === 'memorial' ? 'memorial' : undefined;
   // Event-local wall clock with WIB / WITA / WIT from the saved offset, whatever zone the server runs in (B-004).
   const eventZone = config.eventOperations?.timezone;
   const formatDate = (value?: string) => formatEventDate(value, eventZone);
@@ -92,9 +96,11 @@ export function buildGuestView({ invitation, config, guest, media, readOnly, pre
   // B-008: countdown and save-the-date only for a future primary event; the calendar file only exists once published.
   const renderedAt = Date.now();
   const primaryStartMs = primaryEvent?.startAt ? Date.parse(primaryEvent.startAt) : Number.NaN;
-  const showCountdown = isFlagOn('GUEST_CALENDAR') && Number.isFinite(primaryStartMs) && primaryStartMs > renderedAt;
+  const primaryIsAhead = isFlagOn('GUEST_CALENDAR') && Number.isFinite(primaryStartMs) && primaryStartMs > renderedAt;
+  // B-032: the host can switch the countdown off (memorial presets start with it off); the calendar links stay.
+  const showCountdown = primaryIsAhead && config.settings?.countdown !== false;
   const primaryCalendarEvent =
-    showCountdown && primaryEvent && invitation.status === 'PUBLISHED'
+    primaryIsAhead && primaryEvent && invitation.status === 'PUBLISHED'
       ? calendarEventsFromConfig({ slug: invitation.slug, displayName: invitationDisplayName(invitation.eventType, config), events: [primaryEvent] })[0]
       : undefined;
   const galleryOn = config.gallery?.enabled !== false;
@@ -307,7 +313,7 @@ export function buildGuestView({ invitation, config, guest, media, readOnly, pre
     thanksgivingCategory: config.ceremonyProfile?.thanksgivingCategory,
     thanksgivingTitle: config.ceremonyProfile?.thanksgivingTitle,
     achievement: config.ceremonyProfile?.achievement,
-  }, honoureePortrait);
+  }, honoureePortrait, occasion);
   // B-029: the wedding hashtag and filter link; the editor offers this module for weddings only.
   const share =
     invitation.eventType === 'wedding'
@@ -345,7 +351,22 @@ export function buildGuestView({ invitation, config, guest, media, readOnly, pre
   // B-019 / I-28: the WebP `srcset` of an uploaded image, or undefined (no variants: the original exactly as before).
   const imageSrcSet = (src: string | undefined) => variantSrcSet(imageVariants, src, saveData);
 
+  // I-11: a quote that names a corpus entry shows only an approved entry with its provenance (`religious-text.ts`), never
+  // the host's typed text in its place; without a reference it is the host's own words, as before. The design families
+  // read this; the legacy layout keeps reading the stored quote (D-041).
+  const quoteOn = config.quote?.enabled === true;
+  const verse = quoteOn && config.quote?.corpusId ? verifiedBlockFor(config.quote.corpusId) : null;
+  const quote = !quoteOn
+    ? null
+    : config.quote?.corpusId
+      ? verse && { text: verse.text, author: verse.citation, provenance: provenanceLine(verse) }
+      : config.quote?.text
+        ? { text: config.quote.text, author: config.quote?.author || undefined, provenance: undefined }
+        : null;
+
   return {
+    occasion,
+    quote,
     headlineKind,
     music,
     gift,

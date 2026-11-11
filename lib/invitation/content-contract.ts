@@ -27,7 +27,8 @@ export type SectionCapability = {
 
 export const RENDER_CAPABILITIES = {
   schemaVersion: { rendered: [], storedOnly: [], hostOnly: ['schemaVersion'] },
-  settings: { rendered: ['title', 'openingCopy'], storedOnly: ['fontFamily', 'language'], hostOnly: ['linkSlug'] },
+  // B-032 (G-060): `occasion` keeps a memorial's own labels sober (`occasion.ts`); `countdown: false` hides the countdown.
+  settings: { rendered: ['title', 'openingCopy', 'occasion', 'countdown'], storedOnly: ['fontFamily', 'language'], hostOnly: ['linkSlug'] },
   // s20 (D-038, `lib/invitation/portraits.ts`): a couple's photos open a "Mempelai" section with each name and parents line.
   // B-023 (D-049): on the design families the full names, parents lines and child order render without a photo too
   // (`coupleProfiles`); the legacy layout shows them with a photo only (D-041).
@@ -81,7 +82,9 @@ export const RENDER_CAPABILITIES = {
   story: { rendered: ['enabled', 'items', 'date', 'title', 'body'], storedOnly: [] },
   // B-029 (s17): weddings show the hashtag and an http(s) filter link once switched on (`lib/invitation/share.ts`).
   instagramStory: { rendered: ['enabled', 'hashtag', 'filterUrl'], storedOnly: [] },
-  quote: { rendered: ['enabled', 'text', 'author'], storedOnly: [] },
+  // I-11: `corpusId` renders an approved corpus entry with its provenance on the design families (`religious-text.ts`);
+  // the legacy layout keeps rendering the host's own text only (D-041).
+  quote: { rendered: ['enabled', 'text', 'author', 'corpusId'], storedOnly: [] },
   // R-04 (D-044): moderation holds new wishes for the host (the form says so) and `visibility: 'host'` lists none.
   guestbook: { rendered: ['enabled', 'heading', 'prompt', 'moderation', 'visibility'], storedOnly: [] },
   eventPlanner: { rendered: [], storedOnly: [], hostOnly: ['enabled', 'eventName', 'coordinatorName', 'coordinatorPhone', 'notes', 'checklist'] },

@@ -6,6 +6,7 @@ import { auth } from '@clerk/nextjs/server';
 import { ArrowLeft } from 'lucide-react';
 import { Wordmark } from '@/components/brand/wordmark';
 import { isFlagOn } from '@/lib/flags';
+import { occasionOfCategory } from '@/lib/invitation/occasion';
 import { templateEventTypes } from '@/lib/invitation/template-event-types';
 import { getTemplateBySlug, invitationTemplates } from '@/lib/invitation/templates';
 import { themeSwitchOptions } from '@/lib/invitation/theme-switch';
@@ -40,9 +41,15 @@ export default async function TrialWizardPage({ params }: PageProps) {
   if (!template) notFound();
 
   const eventType = templateEventTypes[template.category];
+  // B-032: a memorial theme asks for the name of the one remembered and offers memorial themes only.
+  const occasion = occasionOfCategory(template.category);
   const [state, session] = await Promise.all([readTrialState(), auth()]);
   const stateTemplate = state ? getTemplateBySlug(state.slug) : undefined;
-  const carried = state && stateTemplate && templateEventTypes[stateTemplate.category] === eventType;
+  const carried =
+    state &&
+    stateTemplate &&
+    templateEventTypes[stateTemplate.category] === eventType &&
+    occasionOfCategory(stateTemplate.category) === occasion;
   const initial = {
     slug: template.slug,
     first: carried ? state.first : EMPTY_TRIAL_INPUT.first,
@@ -51,7 +58,7 @@ export default async function TrialWizardPage({ params }: PageProps) {
     time: carried ? state.time : EMPTY_TRIAL_INPUT.time,
     zone: carried ? state.zone : EMPTY_TRIAL_INPUT.zone,
   };
-  const themes: TrialThemeOption[] = themeSwitchOptions(eventType).flatMap((option) => {
+  const themes: TrialThemeOption[] = themeSwitchOptions(eventType, undefined, occasion).flatMap((option) => {
     const entry = invitationTemplates.find((candidate) => candidate.id === option.id);
     return entry ? [{ slug: entry.slug, name: option.name, premium: option.tier === 'premium', swatch: option.swatch }] : [];
   });
@@ -75,7 +82,7 @@ export default async function TrialWizardPage({ params }: PageProps) {
         <TrialWizard
           initial={initial}
           draftKey={state?.key ?? randomUUID()}
-          fields={trialFieldsFor(eventType)}
+          fields={trialFieldsFor(eventType, occasion)}
           placeholders={trialPlaceholders(template, eventType)}
           nameMax={TRIAL_NAME_MAX}
           themes={themes}

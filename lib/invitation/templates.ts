@@ -292,10 +292,15 @@ function basePreset(seed: TemplateSeed): Record<string, unknown> {
         music: { enabled: true },
       };
     case 'tahlilan':
+      // B-032 (G-060, I-13): a memorial with sober defaults. Music, gift and countdown start off; the opening words are the
+      // family's own (an empty field renders nothing), and any religious text may only be an approved corpus entry picked in
+      // the editor (ADR-O04, I-11: the corpus is empty, so the preset adds none).
       return {
         ...common,
-        settings: { language: 'id', openingCopy: 'Dengan memohon rahmat dan maghfirah Allah SWT, kami mengundang Bapak/Ibu/Saudara/i hadir dalam majelis tahlil dan doa bersama.' },
+        settings: { language: 'id', occasion: 'memorial', countdown: false },
         greetings: { enabled: true },
+        music: { enabled: false },
+        gift: { enabled: false },
         guestbook: { enabled: true, heading: 'Doa & Kenangan' },
       };
     case 'retirement':

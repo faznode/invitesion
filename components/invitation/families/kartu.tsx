@@ -176,14 +176,14 @@ export function KartuLayout({ props, view }: { props: GuestPageProps; view: Gues
       ),
 
     quote: () =>
-      config.quote?.enabled &&
-      config.quote.text && (
+      view.quote && (
         <CardSection section="quote" tone={tone}>
           <figure className="flex gap-4">
             <InvitationIcon name="quote" className={`h-8 w-8 shrink-0 ${tone.accent}`} />
             <div>
-              <blockquote className="font-serif text-xl leading-8 text-pretty">{config.quote.text}</blockquote>
-              {config.quote.author && <figcaption className={`mt-3 text-xs uppercase tracking-widest ${tone.muted}`}>{config.quote.author}</figcaption>}
+              <blockquote className="font-serif text-xl leading-8 text-pretty">{view.quote.text}</blockquote>
+              {view.quote.author && <figcaption className={`mt-3 text-xs uppercase tracking-widest ${tone.muted}`}>{view.quote.author}</figcaption>}
+              {view.quote.provenance && <p className={`mt-3 text-xs leading-5 ${tone.muted}`}>{view.quote.provenance}</p>}
             </div>
           </figure>
         </CardSection>

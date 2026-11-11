@@ -1,6 +1,7 @@
 import { isFlagOn } from '@/lib/flags';
 import { defaultFamilyFor, familyOf } from './families';
 import { withNewInvitationGiftDefaults } from './gift-privacy';
+import { occasionOf } from './occasion';
 
 type Config = Record<string, unknown>;
 
@@ -22,6 +23,7 @@ export function newInvitationConfig(preset: Config, eventType: string, env: Reco
 export function withDefaultFamily(config: Config, eventType: string): Config {
   const theme = isRecord(config.theme) ? config.theme : {};
   if (typeof theme.familyId === 'string' && familyOf(theme.familyId)) return config;
-  const familyId = defaultFamilyFor(eventType);
+  // B-032: the preset's occasion (a memorial) can choose a calmer family than its event type's.
+  const familyId = defaultFamilyFor(eventType, occasionOf(config));
   return familyId ? { ...config, theme: { ...theme, familyId } } : config;
 }

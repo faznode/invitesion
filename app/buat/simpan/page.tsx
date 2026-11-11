@@ -6,6 +6,7 @@ import { getPrivateAdminPath } from '@/lib/auth/admin-access';
 import { getUser } from '@/lib/db/queries';
 import { isFlagOn } from '@/lib/flags';
 import { formatEventDate, formatEventTime } from '@/lib/invitation/event-time';
+import { occasionOfCategory } from '@/lib/invitation/occasion';
 import { templateEventTypes } from '@/lib/invitation/template-event-types';
 import { getTemplateBySlug } from '@/lib/invitation/templates';
 import { trialFieldsFor } from '@/lib/invitation/trial';
@@ -35,7 +36,7 @@ export default async function SaveTrialPage() {
   const state = await readTrialState();
   const template = state ? getTemplateBySlug(state.slug) : undefined;
   const eventType = template ? templateEventTypes[template.category] : null;
-  const fields = eventType ? trialFieldsFor(eventType) : null;
+  const fields = eventType && template ? trialFieldsFor(eventType, occasionOfCategory(template.category)) : null;
   const startAt = state?.date ? `${state.date}T${state.time}:00${ZONE_OFFSETS[state.zone]}` : null;
 
   return (

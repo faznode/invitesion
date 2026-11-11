@@ -3,6 +3,7 @@ import { boundedSlugBase, catalogIdOfDefaults } from './creation-rules';
 import { detailConfigSchema, type DetailConfig } from './detail-config';
 import { EVENT_ID_PATTERN, legacyEventPosition } from './event-ids';
 import { newInvitationConfig } from './new-invitation';
+import { MEMORIAL_COPY, occasionOf, type Occasion } from './occasion';
 import { slugify } from './slug';
 import { presetConfigFromTemplateDefaults } from './template-defaults';
 import type { InvitationTemplate } from './templates';
@@ -85,8 +86,9 @@ export function decodeTrialState(raw: string | null | undefined): TrialState | n
 
 export type TrialFieldLabels = { first: string; second: string | null; secondRequired: boolean };
 
-/** The name fields the wizard asks for, by core event type. */
-export function trialFieldsFor(eventType: string): TrialFieldLabels {
+/** The name fields the wizard asks for, by core event type; a memorial (B-032) asks for the name of the one remembered. */
+export function trialFieldsFor(eventType: string, occasion?: Occasion): TrialFieldLabels {
+  if (occasion === 'memorial') return { first: MEMORIAL_COPY.nameField, second: null, secondRequired: false };
   switch (eventType) {
     case 'wedding':
       return { first: 'Nama panggilan mempelai wanita', second: 'Nama panggilan mempelai pria', secondRequired: true };
@@ -157,7 +159,8 @@ export function applyTrialContent(config: Config, eventType: string, input: Omit
   }
   if (input.date) {
     const language = section(config, 'settings').language === 'en' ? 'en' : 'id';
-    const titles = EVENT_TITLES[eventType] ?? EVENT_TITLES.tasyakuran;
+    // B-032: a memorial preset's first event is never titled "Tasyakuran / Thanksgiving".
+    const titles = occasionOf(config) === 'memorial' ? MEMORIAL_COPY.firstEventTitle : (EVENT_TITLES[eventType] ?? EVENT_TITLES.tasyakuran);
     next.events = [{ id: trialEventId(key), title: titles[language], startAt: `${input.date}T${input.time}:00${ZONE_OFFSETS[input.zone]}` }];
   }
   return next;
@@ -214,8 +217,8 @@ export function previewInput(input: Omit<TrialInput, 'slug'>, placeholders: { fi
 export type TrialFieldIssue = { field: 'first' | 'second' | 'date'; message: string };
 
 /** What a save needs before it may create the draft: the names the event type asks for and the date. */
-export function trialSaveIssues(eventType: string, input: Omit<TrialInput, 'slug'>): TrialFieldIssue[] {
-  const fields = trialFieldsFor(eventType);
+export function trialSaveIssues(eventType: string, input: Omit<TrialInput, 'slug'>, occasion?: Occasion): TrialFieldIssue[] {
+  const fields = trialFieldsFor(eventType, occasion);
   const issues: TrialFieldIssue[] = [];
   if (!input.first.trim()) issues.push({ field: 'first', message: `${fields.first} wajib diisi.` });
   if (fields.second && fields.secondRequired && !input.second.trim()) issues.push({ field: 'second', message: `${fields.second} wajib diisi.` });

@@ -6,6 +6,7 @@ import { ownerSessionToken } from '@/lib/auth/clerk-user';
 import { getUser } from '@/lib/db/queries';
 import { isFlagOn } from '@/lib/flags';
 import { createDraftInvitation } from '@/lib/invitation/creation';
+import { occasionOfCategory } from '@/lib/invitation/occasion';
 import { templateEventTypes } from '@/lib/invitation/template-event-types';
 import { getTemplateRowBySlug, resolveEventType } from '@/lib/invitation/template-sync';
 import { getTemplateBySlug } from '@/lib/invitation/templates';
@@ -97,7 +98,7 @@ export async function saveTrial(values: TrialFormValues, key: string): Promise<T
   const prepared = stateFrom(values, key);
   if ('result' in prepared) return prepared.result;
   const template = getTemplateBySlug(prepared.state.slug);
-  const issues = template ? trialSaveIssues(templateEventTypes[template.category], prepared.state) : [];
+  const issues = template ? trialSaveIssues(templateEventTypes[template.category], prepared.state, occasionOfCategory(template.category)) : [];
   if (issues.length) return { ok: false, errors: Object.fromEntries(issues.map((issue) => [issue.field, issue.message])) };
   await writeTrialState(prepared.state);
   return persistTrial(prepared.state);
@@ -109,7 +110,7 @@ export async function confirmTrialSave(): Promise<TrialActionResult> {
   const state = await readTrialState();
   const template = state ? getTemplateBySlug(state.slug) : undefined;
   if (!state || !template) return { ok: false, errors: {}, message: 'Tidak ada draf yang menunggu disimpan.' };
-  if (trialSaveIssues(templateEventTypes[template.category], state).length) {
+  if (trialSaveIssues(templateEventTypes[template.category], state, occasionOfCategory(template.category)).length) {
     return { ok: false, errors: {}, message: 'Draf belum lengkap. Kembali ke wizard untuk melengkapinya.' };
   }
   return persistTrial(state);

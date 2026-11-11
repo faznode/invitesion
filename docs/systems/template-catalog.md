@@ -4,8 +4,8 @@
 > STATUS: LIVE (design, tervalidasi riset)
 > OWNER: Operator
 > DEPS: design-agent.md, DATABASE_SCHEMA.md (templates)
-> GREP: template, katalog, filter, tag, galeri, occasion, style, color, swatch, pakai tema, wizard, buat, pratinjau
-> UPDATED: 2026-11-07 (s33: "Pakai tema" → wizard B-037 di balik `FLAG_CREATION_WIZARD`; sebelumnya 2026-07-15)
+> GREP: template, katalog, filter, tag, galeri, occasion, style, color, swatch, pakai tema, wizard, buat, pratinjau, manifest, admin, G-062
+> UPDATED: 2026-11-10 (s45: catalog manifests and the read-only admin console, G-062; s33: "Pakai tema" → wizard B-037 di balik `FLAG_CREATION_WIZARD`; sebelumnya 2026-07-15)
 
 ## Prinsip
 CUSTOMER yang milih template/vibe/warna. Sistem cuma nyajiin katalog + filter jelas. AI NOL peran di sini.
@@ -48,6 +48,15 @@ Aturan skala kecil: opsi filter langsung terlihat (jangan disembunyiin); multi-s
 - Tautan lama ke `/dashboard/templates/use` dan pemilih tema di dashboard diteruskan ke wizard saat flag menyala.
 - Semua pembuatan draf lewat fasad `lib/invitation/creation.ts` (`BACKEND_CONTENT`), dengan kunci pembuatan per pemilik: retry atau ketuk dua kali tetap satu draf.
 - Detail dan bukti: `invitation-research/09-masterplan/12-decision-log.md` D-055, `invitation-research/_handoff/IMPLEMENTATION-LOG.md` E-073.
+
+## Catalog manifests and the read-only admin console (G-062; s44–s45)
+- **One manifest per catalog template** (`lib/invitation/catalog-manifest.ts`, schema v1): derived from the registry (`templates.ts`), the guest-page palette tokens (`palettes.ts`) and the art register (`theme-art-register.ts`); never hand-edited. It holds identity (id = `config.theme.templateId`, slug = `/templates/<slug>`), tier and the entitlement checkout prices, palette tokens and the card palette, the preset's sections, the G-041 choices within the entitlement, and the G-016 art with each file's SHA-256, size, licence, provenance and review. It is data only: unknown keys, external scripts and remote art are refused, so a manifest can never carry HTML, CSS or a script.
+- **Readers:** the admin console and `pnpm harness catalog` only. The public catalog, the guest page and the writers never read a manifest, and an invitation keeps rendering from its stored config (`tests/g062-catalog-manifest.test.ts`, `tests/g062-catalog-admin.test.ts`).
+- **Release gate:** `pnpm harness catalog` validates all 64 manifests and hashes every declared art file on disk; a missing or changed file fails with its path. The sandbox app job runs it before the build (`scripts/ci/app.sh`, ADR-O13).
+- **Console:** `/admin/<entry>/templates` lists every entry (refused manifests first in an alert, then the table): validation status, tier → entitlement, palette, art pool, review state and the seeded `templates` row (missing, or a premium flag that disagrees with the tier). `/admin/<entry>/templates/<slug>` shows the palette tokens, tier, choices, every art file with its prompt, original digest and crop, the provenance and, for a refused manifest, its problems and the derived candidate. ID / EN follow the console locale.
+- **Authorization:** both pages check the private entry and the administrator role on the server before reading anything, in addition to the console layout (a page can be requested on its own). Signed out: the proxy redirects to `/sign-in`; a signed-in non-administrator, a guessed entry and an unknown slug get the private 404. A client-side (flight) request is answered by Next with status 200 and the 404 fallback inside, carrying no catalog data; the page's own check is what protects it, because a soft navigation renders the page without re-running the console layout (s46 browser acceptance).
+- **Review state:** the art records carry the agent's self-review (ADR-O09); the owner's review is pending, and the console says so per file. **Publishing from the console does not exist yet:** it needs a recorded owner review, schema and identity checks, asset integrity and a rollback to the prior valid version (backlog G-062, step 2).
+- **Rollback:** revert the console pages; the manifests and the gate are additive and change nothing a template renders.
 
 ## Sumber (tervalidasi)
 - NN/G filter categories & mobile faceted tray, Prefixbox faceted filtering, Minted/Greenvelope/Canva taksonomi (occasion+style+color), Redis semantic-vs-keyword.
