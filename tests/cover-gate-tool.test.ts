@@ -1,8 +1,12 @@
 // B-009: the pure parts of the cover-gate acceptance tool and the fixture's music variants. The browser run itself is a
 // product gate (`scripts/ci/product-gates.sh`).
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { test } from 'node:test';
-import { gateVerdict, OPEN_LIMIT_MS, toneWav } from '../tools/template-harness/cover-gate';
+import { gateVerdict, MUSIC_CONTROL, OPEN_LIMIT_MS, toneWav } from '../tools/template-harness/cover-gate';
+
+const read = (path: string) => readFileSync(join(process.cwd(), path), 'utf8');
 
 // The seeder builds its Drizzle client at import time; postgres.js connects lazily and this test never queries, so an
 // unreachable placeholder stands in (as in tests/support/render-guest-page.ts) and the module is required afterwards.
@@ -30,6 +34,21 @@ test('a page passes only when every check passed, and I-15 limits the opening to
   assert.equal(gateVerdict([]), 'FAIL', 'a page with no checks proves nothing');
   assert.equal(gateVerdict([{ name: 'a', pass: true }, { name: 'b', pass: true }]), 'PASS');
   assert.equal(gateVerdict([{ name: 'a', pass: true }, { name: 'b', pass: false }]), 'FAIL');
+});
+
+test("the gate addresses the music control as the toggle after the island's <audio>, never G-036's reading switch (s52 R-H16)", () => {
+  assert.equal(MUSIC_CONTROL, 'audio ~ button[aria-pressed]');
+  assert.doesNotMatch(read('tools/template-harness/cover-gate.ts'), /['"]button\[aria-pressed\]['"]/, 'every lookup of the control goes through MUSIC_CONTROL');
+  const island = read('components/invitation/cover-audio.tsx');
+  const audioAt = island.indexOf('<audio ref=');
+  const pressedAt = island.indexOf('aria-pressed={playing}');
+  assert.ok(audioAt > 0 && pressedAt > audioAt, 'the island renders its audio element before the music control');
+  const between = island.slice(audioAt, pressedAt);
+  assert.equal(between.match(/<button\b/g)?.length, 1, 'one button between them: the music control');
+  assert.doesNotMatch(between, /<\/?(?:div|span|main|section)\b/, 'nothing wraps the control, so it stays a later sibling of <audio>');
+  const reading = read('components/invitation/reading-toggle.tsx');
+  assert.ok(reading.indexOf('data-reading-toggle') >= 0 && reading.indexOf('data-reading-toggle') < reading.indexOf('aria-pressed={on}'), 'the reading switch sits in its own row inside the layout');
+  assert.doesNotMatch(reading, /<audio\b/);
 });
 
 test('`--music-url` adds a play-on-open and a manual music page to every layout, and nothing without it', () => {

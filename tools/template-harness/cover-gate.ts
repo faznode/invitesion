@@ -154,10 +154,17 @@ async function key(cdp: Cdp, name: 'Tab' | 'Enter' | 'Escape') {
 const OPEN = '#sampul a[href="#sampul"]:first-of-type';
 const QUIET = '#sampul a[href="#sampul"]:nth-of-type(2)';
 const OPEN_FOCUSED = `document.activeElement?.matches(${JSON.stringify(OPEN)}) === true`;
+/**
+ * The music control is the toggle that follows the island's `<audio>`, outside the layout's `<main>`. G-036's reading
+ * switch on the design families' covers is a toggle too (`aria-pressed`, inside `<main>`, earlier in the document), so a
+ * bare `button[aria-pressed]` reads and clicks the reading switch instead (s52 R-H16).
+ */
+export const MUSIC_CONTROL = 'audio ~ button[aria-pressed]';
+const MUSIC = `document.querySelector(${JSON.stringify(MUSIC_CONTROL)})`;
 const STATE = `(() => {
   const gate = document.getElementById('sampul');
   const audio = document.querySelector('audio');
-  const toggle = document.querySelector('button[aria-pressed]');
+  const toggle = ${MUSIC};
   return {
     gateShown: !!gate && getComputedStyle(gate).display !== 'none' && !gate.hidden,
     playing: !!audio && !audio.paused,
@@ -222,19 +229,19 @@ export async function runCoverGate(options: { base: string; pages: string[]; man
         check('tap: the page is usable again (not inert, scrolls) and focus is in it', !opened.inert && !opened.locked && opened.focusInPage, opened);
 
         // toggle
-        await waitFor(cdp, `!!document.querySelector('button[aria-pressed]')`, 2000);
+        await waitFor(cdp, `!!${MUSIC}`, 2000);
         const pressedWhilePlaying = (await state()).pressed;
-        await clickSelector(cdp, 'button[aria-pressed]');
-        const pausedIn = await waitFor(cdp, `(() => { const a = document.querySelector('audio'); const b = document.querySelector('button[aria-pressed]'); return a.paused && b.getAttribute('aria-pressed') === 'false'; })()`, 2000);
-        await clickSelector(cdp, 'button[aria-pressed]');
-        const resumedIn = await waitFor(cdp, `(() => { const a = document.querySelector('audio'); const b = document.querySelector('button[aria-pressed]'); return !a.paused && b.getAttribute('aria-pressed') === 'true'; })()`, 3000);
+        await clickSelector(cdp, MUSIC_CONTROL);
+        const pausedIn = await waitFor(cdp, `(() => { const a = document.querySelector('audio'); const b = ${MUSIC}; return a.paused && b.getAttribute('aria-pressed') === 'false'; })()`, 2000);
+        await clickSelector(cdp, MUSIC_CONTROL);
+        const resumedIn = await waitFor(cdp, `(() => { const a = document.querySelector('audio'); const b = ${MUSIC}; return !a.paused && b.getAttribute('aria-pressed') === 'true'; })()`, 3000);
         check('toggle: aria-pressed follows the music; a click pauses it and another resumes it', pressedWhilePlaying === 'true' && pausedIn !== null && resumedIn !== null, { pressedWhilePlaying, pausedIn, resumedIn });
 
         // quiet
         await load(cdp, url(page));
         await waitFor(cdp, HYDRATED, 10_000);
         await clickSelector(cdp, QUIET);
-        await waitFor(cdp, `!!document.querySelector('button[aria-pressed]')`, 3000);
+        await waitFor(cdp, `!!${MUSIC}`, 3000);
         await sleep(300);
         const quiet = await state();
         check('quiet: "Buka tanpa musik" opens without sound and offers the control unpressed', !quiet.gateShown && !quiet.playing && quiet.pressed === 'false', quiet);
@@ -292,7 +299,7 @@ export async function runCoverGate(options: { base: string; pages: string[]; man
       const checks: GateCheck[] = [];
       await load(cdp, url(page));
       await waitFor(cdp, HYDRATED, 10_000);
-      await waitFor(cdp, `!!document.querySelector('button[aria-pressed]')`, 3000);
+      await waitFor(cdp, `!!${MUSIC}`, 3000);
       const s = await state();
       checks.push({ name: 'manual: no gate, one audio element, the control offered unpressed', pass: !s.gateShown && s.audioCount === 1 && s.pressed === 'false' && !s.playing, detail: JSON.stringify(s) });
       rows.push({ page, kind: 'manual', checks, verdict: gateVerdict(checks) });

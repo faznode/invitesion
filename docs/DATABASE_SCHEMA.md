@@ -4,8 +4,8 @@
 > STATUS: LIVE (MVP scope)
 > OWNER: Architect
 > DEPS: PROJECT_OVERVIEW.md
-> GREP: schema, drizzle, tabel, users, invitations, guests, orders, versions, version_no, guest_registrations, guest_registration_links, import_batch_id, template_id, templateId, creation_key, invitation_members, co-host, usher, team, seating_tables, guest_logs, gift_logs, host logs, meja, suvenir, kado, family_side, pihak keluarga, deleted_at, purge_after, purged_at, hapus, retensi, tombstone, invitation_purge, checkout_key, checkout_intent, payment_settled, outbox, BACKEND_PAYMENT, coupons, order_coupons, list_amount, kupon, G-053, workspaces, workspace_members, workspace_credit_entries, workspace_id, client_label, credit ledger, G-052
-> UPDATED: 2026-11-10 (s42: migration 0030 (workspaces, workspace_members, workspace_credit_entries, invitations.workspace_id / client_label) G-052 / D-067, drift none, rehearsed 0029 → 0030 with stored rows and a G-053 code rollback; s40: migrasi 0029 (coupons, order_coupons, orders.list_amount) G-053 / D-066, drift none, diuji 0028 → 0029 dengan baris dan rollback kode G-050; migrasi 0028 (receipts, receipt_counters) dibuat dengan drizzle-kit, drift none, diuji 0027 → 0028 dengan baris; s39: orders.checkout_key / checkout_intent + index unik parsial (user_id, invitation_id, checkout_key) migrasi 0027, kunci checkout B-039 / D-064, diuji 0026 → 0027 dengan baris; jobs `payment_settled` = outbox entitlement setelah settlement, kedua penulis `BACKEND_PAYMENT`; s38: invitations.deleted_at / purge_after / purged_at migrasi 0026, hapus + retensi B-031 / D-063, diuji 0025 → 0026 dengan baris; s36: gift_logs.family_side migrasi 0025, pihak keluarga kado I-04 / D-059; buku ucapan membaca guest_messages VISIBLE, I-22 / D-060; s35: seating_tables + guest_logs + gift_logs migrasi 0024, catatan hari acara pemilik G-045 / D-058; invitation_members migrasi 0023, tim undangan G-044 / D-057; s33: invitations.creation_key + index unik parsial (user_id, creation_key) migrasi 0021, pembuatan draf lewat fasad `BACKEND_CONTENT`, B-037 / D-055; s32 turn 3: dua ruang id template_id vs config.theme.templateId, ganti tema B-036 / D-054; s32: index invitation_versions (invitation_id, version_no) migrasi 0020, cek versi simpan editor `BACKEND_CONTENT`, B-035 / D-053; s31: guests import_batch_id + guest_registration_links + guest_registrations migrasi 0019, penulis roster `BACKEND_ROSTER`, B-033 / D-052; s28: guest_messages reviewed_at / host_reply / replied_at + index ucapan VISIBLE migrasi 0017, R-04 / D-044; api_rate_limits + api_idempotency_keys migrasi 0016, ditulis hanya oleh services/api, R-03 / D-043; s20/s21: guests invited_event_ids migrasi 0015, events[].inviteOnly, D-037; showPhoto foto anak, D-038; s19: guests rsvp_event_answers migrasi 0014; id acara tetap di invitations.config.events migrasi data 0013, D-036; guests rsvp_answers, migrasi 0012; earlier: analytics_events view-dedupe index, guests attending_count, link_token)
+> GREP: schema, drizzle, tabel, users, invitations, guests, orders, versions, version_no, guest_registrations, guest_registration_links, import_batch_id, template_id, templateId, creation_key, invitation_members, co-host, usher, team, seating_tables, guest_logs, gift_logs, host logs, meja, suvenir, kado, family_side, pihak keluarga, deleted_at, purge_after, purged_at, hapus, retensi, tombstone, invitation_purge, checkout_key, checkout_intent, payment_settled, outbox, BACKEND_PAYMENT, coupons, order_coupons, list_amount, kupon, G-053, workspaces, workspace_members, workspace_credit_entries, workspace_id, client_label, credit ledger, G-052, guest_passcode_hash, guest_passcode_set_at, passcode, kode akses, G-047, guest-photo, foto tamu, kenangan, postEvent, I-21
+> UPDATED: 2026-11-11 (s52: migration 0031 (invitations.guest_passcode_hash / guest_passcode_set_at) G-047 / D-069, cleared by the purge (R-X10), drift none, upgrade rehearsed 0030 → 0031 on rows written by the 0030 application (35 tables, 718 rows identical; schema equal to a fresh 0031); media_assets type `guest-photo` I-21 / D-070, no migration; s42: migration 0030 (workspaces, workspace_members, workspace_credit_entries, invitations.workspace_id / client_label) G-052 / D-067, drift none, rehearsed 0029 → 0030 with stored rows and a G-053 code rollback; s40: migrasi 0029 (coupons, order_coupons, orders.list_amount) G-053 / D-066, drift none, diuji 0028 → 0029 dengan baris dan rollback kode G-050; migrasi 0028 (receipts, receipt_counters) dibuat dengan drizzle-kit, drift none, diuji 0027 → 0028 dengan baris; s39: orders.checkout_key / checkout_intent + index unik parsial (user_id, invitation_id, checkout_key) migrasi 0027, kunci checkout B-039 / D-064, diuji 0026 → 0027 dengan baris; jobs `payment_settled` = outbox entitlement setelah settlement, kedua penulis `BACKEND_PAYMENT`; s38: invitations.deleted_at / purge_after / purged_at migrasi 0026, hapus + retensi B-031 / D-063, diuji 0025 → 0026 dengan baris; s36: gift_logs.family_side migrasi 0025, pihak keluarga kado I-04 / D-059; buku ucapan membaca guest_messages VISIBLE, I-22 / D-060; s35: seating_tables + guest_logs + gift_logs migrasi 0024, catatan hari acara pemilik G-045 / D-058; invitation_members migrasi 0023, tim undangan G-044 / D-057; s33: invitations.creation_key + index unik parsial (user_id, creation_key) migrasi 0021, pembuatan draf lewat fasad `BACKEND_CONTENT`, B-037 / D-055; s32 turn 3: dua ruang id template_id vs config.theme.templateId, ganti tema B-036 / D-054; s32: index invitation_versions (invitation_id, version_no) migrasi 0020, cek versi simpan editor `BACKEND_CONTENT`, B-035 / D-053; s31: guests import_batch_id + guest_registration_links + guest_registrations migrasi 0019, penulis roster `BACKEND_ROSTER`, B-033 / D-052; s28: guest_messages reviewed_at / host_reply / replied_at + index ucapan VISIBLE migrasi 0017, R-04 / D-044; api_rate_limits + api_idempotency_keys migrasi 0016, ditulis hanya oleh services/api, R-03 / D-043; s20/s21: guests invited_event_ids migrasi 0015, events[].inviteOnly, D-037; showPhoto foto anak, D-038; s19: guests rsvp_event_answers migrasi 0014; id acara tetap di invitations.config.events migrasi data 0013, D-036; guests rsvp_answers, migrasi 0012; earlier: analytics_events view-dedupe index, guests attending_count, link_token)
 > ORM DECISION (whyme 2026-07-15): pakai **Drizzle** (bukan Prisma) — ikut fondasi nextjs/saas-starter biar backend cepat jalan. Schema di bawah = kanonik, diimplementasi sbg Drizzle schema (lib/db/schema.ts).
 
 ## Prinsip
@@ -59,10 +59,20 @@ invitations
     AND purged_at IS NULL. `deleted_at` terisi = hilang bagi tamu dan SEMUA penulis di kedua bahasa (404 / not_found,
     sama seperti tidak ada); pemilik bisa memulihkan sampai purge berjalan (kunci baris yang sama). Purge (job Rust
     `invitation_purge`) mengosongkan 15 tabel anak (`PURGED_TABLES`), catatan replay idempotensi dan job varian, mengosongkan
-    `config` + `creation_key`, mengisi `purged_at`; baris tombstone tetap (slug tidak pernah dipakai ulang) bersama
+    `config` + `creation_key` + `client_label` (G-052) + `guest_passcode_hash` / `guest_passcode_set_at` (G-047, R-X10),
+    mengisi `purged_at`; baris tombstone tetap (slug tidak pernah dipakai ulang) bersama
     orders / payments / payment_events dan conversations / messages / customer_session_summary (`RETAINED_TABLES`).
     Ditulis: Next.js (hapus / pulihkan, `lib/invitation/deletion-db.ts`) dan `invitesion-jobs` (sapuan retensi, purge).
     Baris lama: NULL (aditif; diuji 0025 → 0026 dengan baris, s38).
+  guest_passcode_hash (varchar 200, nullable), guest_passcode_set_at (timestamp, nullable)
+  ← G-047 (migration 0031, D-069): the host's optional guest passcode, stored only as a salted scrypt hash
+    (`scrypt$N$r$p$<salt>$<hash>`, base64url), never the code and never in `config`, so it is never versioned, restored by
+    G-046, sent to the editor or written by either content writer. NULL = no passcode (every row from before 0031).
+    One writer, `lib/invitation/guest-passcode-db.ts` (the owner's live rows), behind `PUT` / `DELETE
+    /api/invitations/<id>/passcode`; the guest gate (`lib/invitation/guest-gate.ts`) reads it before any content query.
+    B-031's purge clears both columns on the tombstone (R-X10). `FLAG_GUEST_PASSCODE=off` (the rollback) ignores the hash
+    and keeps it. Additive: rehearsed 0030 → 0031 on rows written by the 0030 application (s52), the upgraded schema equal
+    to a fresh one; reverting the code leaves both columns unread.
 
 invitation_versions               ← rollback revisi AI
   id, invitation_id→invitations, version_no,
@@ -75,7 +85,15 @@ invitation_versions               ← rollback revisi AI
 
 media_assets
   id, invitation_id→invitations,
-  type[photo|video|music], url, meta(json), created_at
+  type[photo|video|music|guest-photo], url, sort_order, upload_sequence, source[web|chat|import|guest], meta(json), created_at
+  ← I-21 (D-070, no migration): `type = 'guest-photo'` is a photo a guest shared after the event from their personal link:
+    its file under the invitation's protected prefix (`/media/protected/<invitation>/<random>.<ext>`, D-040), `source`
+    `guest`, `meta` {guestId, review pending|visible|hidden, reviewedAt}. One writer, `lib/invitation/guest-photos-db.ts`
+    (every statement scoped to one invitation and the type). Never listed by the gallery, the editor or the media library
+    (their queries exclude the type; `config.gallery.assetIds` is host-only and unread, and the photo's URL is refused in
+    any content field by D-040); delivered only through `/i/<slug>[/<guest>]/kenangan/<id>` (`private, no-store`) and to
+    the owner through `/media` while the invitation is live. B-031's purge removes the rows and their files with the invitation's other media.
+    `FLAG_POST_EVENT_MEMORY` (default off) hides every surface and keeps the rows.
 ```
 
 ### GUESTS

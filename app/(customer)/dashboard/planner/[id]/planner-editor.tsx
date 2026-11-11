@@ -69,7 +69,7 @@ export function PlannerEditor({ invitationId, slug, locale, initial }: Props) {
         </div>
       </header>
 
-      <main className="mx-auto max-w-5xl min-w-0 p-4 lg:p-6">
+      <div className="mx-auto max-w-5xl min-w-0 p-4 lg:p-6">
         <div className="mb-6 border-b border-slate-200 pb-4">
           <h1 className="text-2xl font-bold leading-tight text-slate-900">Event Planner</h1>
           <p className="mt-1.5 text-sm text-slate-500">
@@ -213,7 +213,7 @@ export function PlannerEditor({ invitationId, slug, locale, initial }: Props) {
             </button>
           </div>
         </div>
-      </main>
+      </div>
     </section>
   );
 }

@@ -4,8 +4,8 @@
 > STATUS: LIVE (design)
 > OWNER: Operator
 > DEPS: DATABASE_SCHEMA.md (guests, guest_messages, analytics_events, guest_registrations, guest_registration_links), services/api/README.md (jobs runner)
-> GREP: guest, tamu, slug, url, rsvp, csv, import, impor, pendaftaran, daftar, self-registration, BACKEND_ROSTER, roster, tracking, collision, token, link_token, attending_count, calendar, og, analitik, tindak lanjut, follow-up, insights, digest, guest pass, QR pass, check-in, pemindai, scanner, GUEST_PASS, pass_id, tim, team, co-host, usher, penerima tamu, invitation_members, FLAG_TEAM_ACCESS, pihak keluarga, family_side, buku ucapan, wishes book, PDF, FLAG_WISHES_BOOK, hapus undangan, pulihkan, retensi, deleted_at, purge, FLAG_INVITATION_DELETION, workspace, ruang kerja, reseller, client invitation, workspace_members, manager, desk, credit ledger, FLAG_WORKSPACES
-> UPDATED: 2026-11-10 (s42: reseller workspaces, client invitations, manager and desk staff links, the credit ledger's mechanics, G-052 / D-067 / E-085; s38: hapus & retensi undangan, pulihkan, sapuan setelah kedaluwarsa, B-031 / D-063 / E-081; s36: pihak keluarga kado khusus pernikahan, I-04 / D-059 / E-077; buku ucapan PDF khusus pemilik, I-22 / D-060 / E-078; s35: meja, suvenir & kado khusus pemilik + ekspor, G-045 / D-058 / E-076; tim undangan, co-host & penerima tamu, G-044 / D-057 / E-075; s34: QR pass tamu + meja check-in + antrean tanpa sinyal, B-024 / D-056 / ADR-A3 / E-074; koreksi: kedua penulis menulis RSVP / GUESTBOOK / CHECKIN ke analytics_events; s31: impor tamu + pendaftaran mandiri + penulis roster `BACKEND_ROSTER` Next.js / API Rust, B-033 / D-052 / E-070; analitik & tindak lanjut host, daftar belum membuka / belum menjawab, ringkasan harian, B-034 / E-069; hanya VIEW yang ditulis ke analytics_events; s29: detail hadiah hanya di link pribadi, QRIS statis host, tombol salin, B-026 / D-047 / E-063; s28: musik latar + sampul "Buka Undangan", B-009 / D-045 / E-061; moderasi / balasan / visibilitas buku tamu dan penulis ucapan `BACKEND_WISHES`, R-04 / D-044 / E-060; penulis RSVP `BACKEND_RSVP` Next.js / API Rust, kunci idempotensi, batas per link / alamat, kontrak proxy tepercaya, R-03 / D-043 / E-059; s23r: akses file foto anak D-040 / E-047; s20, dicatat s21: acara khusus undangan + override RSVP host D-037, foto mempelai / anak D-038; s19: id acara tetap, konfirmasi per acara, ringkasan jawaban host, D-036; s18: pertanyaan custom host + editor, D-034/D-035, ringkasan RSVP dashboard E-033; s17: B-027 MAYBE status, headcount hint; s09: B-007 attending_count, B-011 opt-in token + 404, B-008/B-010 side routes)
+> GREP: guest, tamu, slug, url, rsvp, csv, import, impor, pendaftaran, daftar, self-registration, BACKEND_ROSTER, roster, tracking, collision, token, link_token, attending_count, calendar, og, analitik, tindak lanjut, follow-up, insights, digest, guest pass, QR pass, check-in, pemindai, scanner, GUEST_PASS, pass_id, tim, team, co-host, usher, penerima tamu, invitation_members, FLAG_TEAM_ACCESS, pihak keluarga, family_side, buku ucapan, wishes book, PDF, FLAG_WISHES_BOOK, hapus undangan, pulihkan, retensi, deleted_at, purge, FLAG_INVITATION_DELETION, workspace, ruang kerja, reseller, client invitation, workspace_members, manager, desk, credit ledger, FLAG_WORKSPACES, kode akses, passcode, G-047, FLAG_GUEST_PASSCODE, inv_unlock, guest_passcode_hash, kenangan, foto tamu, guest-photo, I-21, FLAG_POST_EVENT_MEMORY, postEvent
+> UPDATED: 2026-11-11 (s52: kode akses tamu G-047 / D-069 / E-096 dengan migrasi 0031 dan perilaku rollback `FLAG_GUEST_PASSCODE=off`; kenangan setelah acara I-21 / D-070 / E-097, foto tamu sebagai media terlindungi `guest-photo`, `FLAG_POST_EVENT_MEMORY` default off; purge mengosongkan kode akses dan menghapus foto tamu; s42: reseller workspaces, client invitations, manager and desk staff links, the credit ledger's mechanics, G-052 / D-067 / E-085; s38: hapus & retensi undangan, pulihkan, sapuan setelah kedaluwarsa, B-031 / D-063 / E-081; s36: pihak keluarga kado khusus pernikahan, I-04 / D-059 / E-077; buku ucapan PDF khusus pemilik, I-22 / D-060 / E-078; s35: meja, suvenir & kado khusus pemilik + ekspor, G-045 / D-058 / E-076; tim undangan, co-host & penerima tamu, G-044 / D-057 / E-075; s34: QR pass tamu + meja check-in + antrean tanpa sinyal, B-024 / D-056 / ADR-A3 / E-074; koreksi: kedua penulis menulis RSVP / GUESTBOOK / CHECKIN ke analytics_events; s31: impor tamu + pendaftaran mandiri + penulis roster `BACKEND_ROSTER` Next.js / API Rust, B-033 / D-052 / E-070; analitik & tindak lanjut host, daftar belum membuka / belum menjawab, ringkasan harian, B-034 / E-069; hanya VIEW yang ditulis ke analytics_events; s29: detail hadiah hanya di link pribadi, QRIS statis host, tombol salin, B-026 / D-047 / E-063; s28: musik latar + sampul "Buka Undangan", B-009 / D-045 / E-061; moderasi / balasan / visibilitas buku tamu dan penulis ucapan `BACKEND_WISHES`, R-04 / D-044 / E-060; penulis RSVP `BACKEND_RSVP` Next.js / API Rust, kunci idempotensi, batas per link / alamat, kontrak proxy tepercaya, R-03 / D-043 / E-059; s23r: akses file foto anak D-040 / E-047; s20, dicatat s21: acara khusus undangan + override RSVP host D-037, foto mempelai / anak D-038; s19: id acara tetap, konfirmasi per acara, ringkasan jawaban host, D-036; s18: pertanyaan custom host + editor, D-034/D-035, ringkasan RSVP dashboard E-033; s17: B-027 MAYBE status, headcount hint; s09: B-007 attending_count, B-011 opt-in token + 404, B-008/B-010 side routes)
 
 ## URL unik per-tamu (differentiator utama)
 Format: `/i/:invitationSlug/:guestSlug` → `invitation.com/i/wedding-andi/budi-santoso`
@@ -223,8 +223,72 @@ center). Hanya baca; kode `lib/invitation/host-analytics.ts` (aturan murni) dan 
 - Tamu yang kembali dari kiriman form (`?rsvp=`, `?wish=`) tidak melihat sampul lagi (pemberitahuannya tetap terlihat).
 - Flag `FLAG_GUEST_MUSIC` (default on); off = HTML halaman persis seperti sebelumnya, setelan tersimpan tidak dibaca. HTML halaman tanpa musik byte-identik (layout tidak diubah; sampul adalah pulau klien `components/invitation/cover-audio.tsx` di luar `<main>`). Semua halaman tamu tetap mengunduh chunk pulau itu (5,6 KB; Next.js mendaftar chunk rute secara statis), tetapi hanya berjalan di halaman bermusik.
 
+## Kode akses tamu (G-047, D-069, E-096; kode s51, diverifikasi s52)
+- **Pilihan pemilik:** kartu "Kode akses tamu" di Tema & Cover editor menyetel, mengganti atau menghapus kode lewat
+  `PUT` / `DELETE /api/invitations/<id>/passcode` (urutan: flag, sesi, peran, id; keluar 401, administrator 403,
+  pelanggan lain 404, kode tidak sah 422 `INVALID_PASSCODE`). Kode 6–32 huruf atau angka, dibandingkan setelah NFKC, tanpa
+  spasi di tepi dan tanpa beda huruf besar / kecil. Jawaban tidak pernah memuat kode atau hash.
+- **Penyimpanan:** hanya hash scrypt bergaram di `invitations.guest_passcode_hash` + `guest_passcode_set_at` (migrasi
+  0031, aditif; `NULL` = tanpa kode, termasuk semua undangan lama). Tidak pernah di `config`: tidak ikut versi, pemulihan
+  G-046, payload editor atau penulis konten mana pun. Satu penulis: `lib/invitation/guest-passcode-db.ts`.
+- **Gerbang sebelum query konten:** `loadGuestGate` (`lib/invitation/guest-gate.ts`) berjalan sekali per permintaan
+  sebelum query tamu, ucapan, media atau kado di tautan undangan, setiap tautan pribadi, pass dan metadata-nya. Halaman
+  terkunci hanya sampul (label dan nama; tidak pernah nama tamu) dengan form biasa ke server action; HTML dan payload RSC
+  sama-sama hanya gerbang, `private, no-store`. Segmen tamu yang tidak dikenal mendapat gerbang yang sama.
+- **Izin masuk:** cookie `inv_unlock_<id>` (kedaluwarsa + HMAC berkunci hash tersimpan), HttpOnly, SameSite=Lax, path
+  `/i/<slug>`, 30 hari. Mengganti atau menghapus kode mengakhiri setiap izin; izin satu undangan tidak membuka yang lain.
+- **Percobaan dibatasi, dihitung sebelum kode dicek:** per undangan 50 / 10 menit dari semua alamat
+  (`RATE_LIMIT_PASSCODE_LINK`) dan per alamat 5 / 10 menit (`RATE_LIMIT_PASSCODE_IP`), disimpan sebagai hash alamat berkunci
+  (butuh `INTERNAL_API_SECRET`; alamat mentah tidak disimpan). Jendela yang habis menolak kode yang benar juga.
+- **Permukaan samping (D-069):** kalender, kedua rute QRIS dan foto anak menjawab 404 `private, no-store` selama terkunci
+  (kalender setelah masuk: `private, no-store`); gambar Story dan e-card publik 404 untuk undangan berkode (di-cache untuk
+  semua orang dan memuat tanggal); kartu tautan dan metadata berbagi = sampul untuk semua penonton (tanpa tanggal, tanpa teks
+  pembuka, noindex); RSVP dan ucapan ditolak sebelum penulis mana pun; foto dan unggahan kenangan (I-21) ditolak selama
+  terkunci. Halaman kartu pemilik menjelaskan mengapa e-card tidak ada.
+- **Default dan rollback:** `FLAG_GUEST_PASSCODE` default **on**. `FLAG_GUEST_PASSCODE=off` adalah rollback dan
+  **membuat setiap undangan berkode langsung publik kembali** (konten, Story, kalender, kartu tautan asli), menyembunyikan
+  kartu editor dan membuat rute pemilik 404; hash dan waktunya **disimpan**, jadi menyalakannya lagi mengembalikan gerbang
+  dan izin yang sama. Beri tahu pemilik yang memasang kode sebelum flag dimatikan; rollback di lingkungan hidup tetap
+  langkah operasional pemilik (agen tidak mengubah flag produksi). Membalik kode membiarkan kedua kolom tak terbaca.
+- **Retensi:** purge B-031 mengosongkan kedua kolom pada tombstone (R-X10).
+- **Batas:** kode melindungi halaman, bukan apa yang sudah disimpan atau diteruskan tamu yang sudah masuk; batas per alamat
+  butuh `INTERNAL_API_SECRET`. Bukti: `tests/g047-guest-passcode.test.ts`, `verify-content-api` (pemulihan lewat kedua
+  penulis tidak menyentuh kode), `verify-retention`, penerimaan browser s51 dan s52 (E-096). Clerk asli: DA-01 butir 19.
+
+## Kenangan setelah acara (I-21, D-070, E-097; kode s51, diverifikasi s52)
+- **Konten, pilihan pemilik:** `config.postEvent` {`enabled`, `message` ≤ 1.000, `photos`} dari kartu "Kenangan setelah
+  acara" di bawah Ucapan & Doa; disimpan, diberi versi dan dipulihkan seperti bagian lain lewat kedua penulis konten.
+  Kedua sakelar opsional, kosong = off (R-X7).
+- **Kapan dan di mana:** empat keluarga desain menampilkannya di tautan undangan itu sendiri setelah acara terakhir yang
+  boleh dilihat audiens halaman selesai (`endAt`, atau mulai + 6 jam; per audiens, D-037). Layout klasik tidak pernah
+  (D-041). Sebelum itu pesannya tidak terkirim sama sekali (HTML maupun RSC).
+- **Foto tamu = baris media terlindungi:** `media_assets.type = 'guest-photo'` (tanpa migrasi), file di prefiks terlindungi
+  undangan (D-040), `meta` {`guestId`, `review` pending / visible / hidden, `reviewedAt`}. Satu penulis:
+  `lib/invitation/guest-photos-db.ts`. Tidak pernah tampil di galeri, editor atau pustaka media (query-nya mengecualikan
+  tipe ini; `config.gallery.assetIds` khusus pemilik dan tidak dibaca; URL foto ditolak di field konten mana pun, D-040).
+- **Siapa berbagi, siapa melihat:** tamu mengunggah dari tautan pribadinya selama kenangan terbuka, foto dinyalakan dan
+  undangan masih menerima tulisan; 5 foto per tamu, 10 unggahan per jam (`RATE_LIMIT_GUEST_PHOTO`); JPG, PNG atau WebP
+  menurut isi file, ≤ 5 MB (tanpa GIF, tidak pernah SVG). Unggahan lewat rute `POST /i/<slug>/<guest>/kenangan` (bukan
+  server action, yang dibatasi 1 MB; R-X8): hanya same-origin, setiap penolakan diputuskan dari tautan sebelum body dibaca,
+  jawaban selalu 303 ke tautan pribadi (`?foto=terkirim|ditolak|penuh|tutup|tunggu|dihapus`). Setiap foto menunggu
+  pemilik; tamunya melihat dan boleh menghapus fotonya apa pun statusnya; orang lain hanya melihat foto yang ditampilkan.
+  Tautan undangan hanya melihat.
+- **Pengiriman:** `/i/<slug>[/<guest>]/kenangan/<id>` memeriksa gerbang G-047, undangan terbit dan hidup, tautan tamu,
+  kenangan terbuka dengan foto on, lalu foto yang tampil atau milik tamu itu; `private, no-store`, nosniff, CSP sandbox.
+  `/media` hanya untuk pemilik, yang meninjau di `/dashboard/invitations/<id>/kenangan` (tampilkan, sembunyikan, hapus;
+  co-host dan administrator tidak punya akses).
+- **Default dan rollback:** `FLAG_POST_EVENT_MEMORY` default **off** sampai teks pemberitahuan foto tamu (B-021) dan
+  tinjauan retensi (B-031, D-063) mencakup foto tamu, dan sampai ada bukti Clerk asli (DA-01 butir 20) dan ponsel asli.
+  Mematikannya lagi menyembunyikan kenangan, setiap rute foto, unggahan dan halaman tinjauan sekaligus dan menyimpan
+  barisnya (kembali seperti semula saat dinyalakan). Foto off, kenangan off, kode akses dan penghapusan B-031 juga
+  menyembunyikan sambil menyimpan baris.
+- **Retensi:** purge B-031 menghapus baris dan file foto tamu bersama media undangan lainnya.
+- **Batas:** foto tamu tidak punya varian gambar (media terlindungi, D-040); pemilik tidak diberi tahu foto baru. Bukti:
+  `tests/i21-post-event.test.ts`, `verify-content-api`, `verify-retention`, penerimaan browser s51 dan s52 (E-097).
+
 ## Expired (12 bulan)
-- Undangan READ-ONLY: tamu masih bisa lihat, RSVP + guestbook NUTUP. Data tamu disimpan.
+- Undangan READ-ONLY: tamu masih bisa lihat, RSVP + guestbook NUTUP. Data tamu disimpan. Kenangan I-21 tetap tampil
+  read-only (unggahan `tutup`); undangan kedaluwarsa yang berkode tetap hanya menampilkan gerbang.
 
 ## Hapus & retensi undangan (B-031, D-063, E-081; kode s37, integrasi s38)
 - **Hapus oleh pemilik** (`FLAG_INVITATION_DELETION`, default **off**, + `INVITATION_DELETION_WINDOW_DAYS`): di kartu
@@ -245,7 +309,8 @@ center). Hanya baca; kode `lib/invitation/host-analytics.ts` (aturan murni) dan 
   Selama kedua durasi tetap terisi, undangan kedaluwarsa yang dipulihkan pemilik akan dihapus lagi pada putaran
   berikutnya dengan window baru (pertanyaan terbuka D-063 Q3); tidak ada yang di-purge sebelum satu window penuh.
 - **Purge** (Rust, runbook di `services/api/README.md`): baris tamu, ucapan, statistik, catatan, versi, media + objeknya
-  di prefiks milik undangan; tombstone, orders / payments / payment_events dan percakapan pelanggan disimpan. Dry run:
+  di prefiks milik undangan (termasuk foto tamu I-21); tombstone (tanpa `config`, `creation_key`, `client_label` dan kedua
+  kolom kode akses G-047), orders / payments / payment_events dan percakapan pelanggan disimpan. Dry run:
   `invitesion-jobs --plan-purge <id>`.
 - **Batas:** salinan di luar origin tidak terjangkau (gambar yang sudah disimpan peramban atau cache jaringan; unggahan
   publik `public, max-age=31536000, immutable`), file CSV / PDF yang sudah diunduh, tangkapan layar. Tidak ada purge CDN.
