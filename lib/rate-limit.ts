@@ -4,7 +4,19 @@ import { sql } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
 import { retryAfter, windowStart, type Limit, type Verdict } from './rate-limit-keys';
 
-export { addressKey, addressSecret, ipBucket, parseLimit, retryAfter, windowStart, type Limit, type Verdict } from './rate-limit-keys';
+export {
+  addressKey,
+  addressSecret,
+  guestWriteLimits,
+  ipBucket,
+  parseLimit,
+  retryAfter,
+  windowStart,
+  WRITE_LIMIT_DEFAULTS,
+  type Limit,
+  type Verdict,
+  type WriteLimits,
+} from './rate-limit-keys';
 
 /**
  * B-033: the TypeScript writer's side of the write limits (B-013), a port of `services/api/src/limits.rs`: the same

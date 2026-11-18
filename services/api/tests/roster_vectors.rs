@@ -4,7 +4,7 @@
 
 use std::collections::HashSet;
 
-use invitesion_api::limits::{Limit, address_key, ip_bucket};
+use invitesion_api::limits::{Limit, Limits, address_key, ip_bucket};
 use invitesion_api::roster::phone::{WhatsAppNumber, parse_whatsapp_number};
 use invitesion_api::roster::rules::{
     self, Existing, ImportVerdict, Known, RegistrationVerdict, RosterRow, RowInput, check_row, claim_slug,
@@ -120,6 +120,23 @@ fn rate_limit_identities_match_the_typescript_writer() {
             .map_or(Value::Null, |limit| json!({ "max": limit.max, "windowSeconds": limit.window_seconds }));
         assert_eq!(got, entry["expect"], "{input:?}");
     }
+}
+
+/// W1.1 (D-071): every guest write path starts from the same defaults in both writers (`WRITE_LIMIT_DEFAULTS`).
+#[test]
+fn rate_limit_defaults_match_the_typescript_writer() {
+    let defaults = &vectors()["rateLimit"]["defaults"];
+    let default_of = |path: &str, kind: &str| {
+        Limit::parse(defaults[path][kind].as_str().expect("a default limit")).expect("a valid default limit")
+    };
+    let want = Limits::default();
+    assert_eq!(default_of("rsvp", "perLink"), want.rsvp_per_link);
+    assert_eq!(default_of("rsvp", "perIp"), want.rsvp_per_ip);
+    assert_eq!(default_of("wish", "perLink"), want.wish_per_link);
+    assert_eq!(default_of("wish", "perIp"), want.wish_per_ip);
+    assert_eq!(default_of("registration", "perLink"), want.registration_per_link);
+    assert_eq!(default_of("registration", "perIp"), want.registration_per_ip);
+    assert_eq!(defaults.as_object().expect("the defaults").len(), 3, "rsvp, wish and registration only");
 }
 
 #[test]

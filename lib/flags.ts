@@ -174,6 +174,16 @@ const DEFAULTS = {
    * assignments and the credit ledger are kept.
    */
   WORKSPACES: false,
+  /**
+   * W1.1 (B-013, D-071): the default writers (`BACKEND_RSVP` and `BACKEND_WISHES` = `next`) count every guest RSVP and
+   * wish against the Rust writer's limits, in its buckets and windows (`api_rate_limits`), at its position: after the link
+   * resolves and before the decision, per link and then per address. Over a limit the guest gets the busy notice and
+   * nothing is written; a flip between writers keeps the count. Default on; the `RATE_LIMIT_RSVP_*` and
+   * `RATE_LIMIT_WISH_*` values govern both writers. Prerequisites of the per-address limit: `INTERNAL_API_SECRET` (the
+   * bucket key) and `TRUSTED_PROXY_HOPS` (the address); without the secret only the per-link limit applies. Off: the
+   * default writers call no limiter, exactly as before W1.1 (the rollback); the Rust writers keep their limits.
+   */
+  GUEST_WRITE_LIMITS: true,
 } as const;
 
 export type FlagName = keyof typeof DEFAULTS;

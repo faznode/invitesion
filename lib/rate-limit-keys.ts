@@ -25,6 +25,37 @@ export function parseLimit(raw: string | undefined, fallback: Limit): Limit {
   return fits ? limit : fallback;
 }
 
+/** A write path's pair of limits (B-013): per link and per address. */
+export type WriteLimits = { perLink: Limit; perIp: Limit };
+
+/**
+ * The defaults of `services/api/src/limits.rs` (`Limits::default`) for every guest write path, pinned by
+ * `rateLimit.defaults` in `contracts/vectors/roster-rules.json`, so both writers start from the same quota.
+ */
+export const WRITE_LIMIT_DEFAULTS: Readonly<Record<'rsvp' | 'wish' | 'registration', Readonly<WriteLimits>>> = {
+  rsvp: { perLink: { max: 10, windowSeconds: 600 }, perIp: { max: 60, windowSeconds: 600 } },
+  wish: { perLink: { max: 5, windowSeconds: 600 }, perIp: { max: 60, windowSeconds: 600 } },
+  registration: { perLink: { max: 20, windowSeconds: 600 }, perIp: { max: 5, windowSeconds: 600 } },
+};
+
+/**
+ * W1.1 (D-071): the guest RSVP and wish limits of the default writer, read from the API's own `RATE_LIMIT_RSVP_LINK`,
+ * `RATE_LIMIT_RSVP_IP`, `RATE_LIMIT_WISH_LINK` and `RATE_LIMIT_WISH_IP` over the same defaults, so one setting governs
+ * both writers and an invalid value falls back as it does there.
+ */
+export function guestWriteLimits(env: Record<string, string | undefined> = process.env): { rsvp: WriteLimits; wish: WriteLimits } {
+  return {
+    rsvp: {
+      perLink: parseLimit(env.RATE_LIMIT_RSVP_LINK, WRITE_LIMIT_DEFAULTS.rsvp.perLink),
+      perIp: parseLimit(env.RATE_LIMIT_RSVP_IP, WRITE_LIMIT_DEFAULTS.rsvp.perIp),
+    },
+    wish: {
+      perLink: parseLimit(env.RATE_LIMIT_WISH_LINK, WRITE_LIMIT_DEFAULTS.wish.perLink),
+      perIp: parseLimit(env.RATE_LIMIT_WISH_IP, WRITE_LIMIT_DEFAULTS.wish.perIp),
+    },
+  };
+}
+
 /** The start of the epoch-aligned window holding `now`. */
 export function windowStart(now: Date, windowSeconds: number): Date {
   const seconds = Math.floor(now.getTime() / 1000);

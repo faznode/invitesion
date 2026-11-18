@@ -9,7 +9,7 @@ import { test } from 'node:test';
 import { detectDelimiter, MAX_IMPORT_TEXT, parseGuestImport } from '../lib/invitation/guest-import-parse';
 import { checkRosterRow, claimSlug, decideRegistration, planImport, ROSTER_LIMITS, type RosterRowInput } from '../lib/invitation/roster-rules';
 import { parseWhatsAppNumber } from '../lib/invitation/whatsapp';
-import { addressKey, ipBucket, parseLimit } from '../lib/rate-limit-keys';
+import { addressKey, guestWriteLimits, ipBucket, parseLimit, WRITE_LIMIT_DEFAULTS } from '../lib/rate-limit-keys';
 
 type Text = string | { prefix?: string; repeat: string; times: number; suffix?: string };
 type Person = { name: string; phone: string | null };
@@ -29,6 +29,7 @@ type Vectors = {
   }[];
   registrations: { name: string; input: Record<string, unknown>; guests: Person[]; pending: Person[]; padPending?: number; expect: unknown }[];
   rateLimit: {
+    defaults: Record<string, { perLink: string; perIp: string }>;
     addresses: { input: string; expect: string | null }[];
     buckets: { secret: string; scope: string; address: string; expect: string }[];
     limitStrings: { input: string; expect: { max: number; windowSeconds: number } | null }[];
@@ -106,6 +107,17 @@ test('rate limits: address keys, keyed buckets and limit strings are the API lim
   for (const entry of vectors.rateLimit.limitStrings) {
     assert.deepEqual(parseLimit(entry.input, fallback), entry.expect ?? fallback, JSON.stringify(entry.input));
   }
+});
+
+test('rate limits: every guest write path starts from the API\'s `Limits::default` (W1.1, D-071)', () => {
+  const sentinel = { max: -1, windowSeconds: -1 };
+  assert.deepEqual(Object.keys(vectors.rateLimit.defaults).sort(), Object.keys(WRITE_LIMIT_DEFAULTS).sort());
+  for (const [path, pair] of Object.entries(vectors.rateLimit.defaults)) {
+    const want = WRITE_LIMIT_DEFAULTS[path as keyof typeof WRITE_LIMIT_DEFAULTS];
+    assert.deepEqual(parseLimit(pair.perLink, sentinel), want.perLink, `${path} per link`);
+    assert.deepEqual(parseLimit(pair.perIp, sentinel), want.perIp, `${path} per address`);
+  }
+  assert.deepEqual(guestWriteLimits({}), { rsvp: WRITE_LIMIT_DEFAULTS.rsvp, wish: WRITE_LIMIT_DEFAULTS.wish });
 });
 
 test('parser: a byte-order mark and a ; delimiter (Excel with Indonesian settings)', () => {

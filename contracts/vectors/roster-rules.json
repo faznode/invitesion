@@ -218,7 +218,12 @@
     }
   ],
   "rateLimit": {
-    "$comment": "B-013 / D-043: the limiter's identities, run by tests/b033-roster-rules.test.ts (lib/rate-limit-keys.ts) and services/api/tests/roster_vectors.rs (src/limits.rs), so a self-registration counts against the same windows whichever writer is live. addresses: null = not an IP literal (the per-address limit is skipped). buckets: expectations computed independently with Python's hmac. limitStrings: RATE_LIMIT_* values, null = the default applies. Documentation addresses only (RFC 5737, RFC 3849).",
+    "$comment": "B-013 / D-043: the limiter's identities, run by tests/b033-roster-rules.test.ts (lib/rate-limit-keys.ts) and services/api/tests/roster_vectors.rs (src/limits.rs), so a self-registration, an RSVP or a wish counts against the same windows whichever writer is live. defaults (W1.1, D-071): every guest write path's limits as RATE_LIMIT_* strings, equal to Limits::default and WRITE_LIMIT_DEFAULTS. addresses: null = not an IP literal (the per-address limit is skipped). buckets: expectations computed independently with Python's hmac; the scope is a prefix only, so one address has the same digest in every scope. limitStrings: RATE_LIMIT_* values, null = the default applies. Documentation addresses only (RFC 5737, RFC 3849).",
+    "defaults": {
+      "rsvp": { "perLink": "10/600", "perIp": "60/600" },
+      "wish": { "perLink": "5/600", "perIp": "60/600" },
+      "registration": { "perLink": "20/600", "perIp": "5/600" }
+    },
     "addresses": [
       { "input": " 203.0.113.7 ", "expect": "203.0.113.7" },
       { "input": "::ffff:203.0.113.7", "expect": "203.0.113.7" },
@@ -244,7 +249,9 @@
       { "secret": "roster-vector-secret-0123456789abcdef", "scope": "registration", "address": " 203.0.113.7 ", "expect": "registration:ip:e6c7e0a8cde1703c7d5aa53fa2b7ec3a" },
       { "secret": "roster-vector-secret-fedcba9876543210", "scope": "registration", "address": "203.0.113.7", "expect": "registration:ip:f5f1dac0ce70975af3ee85471e4acdad" },
       { "secret": "roster-vector-secret-0123456789abcdef", "scope": "registration", "address": "2001:db8:aa:bb::/64", "expect": "registration:ip:28782d7ea00d3c1065d6d0f4e84ac26e" },
-      { "secret": "roster-vector-secret-0123456789abcdef", "scope": "rsvp", "address": "198.51.100.20", "expect": "rsvp:ip:cd03211cfd0488fd6d026f7d0921a81e" }
+      { "secret": "roster-vector-secret-0123456789abcdef", "scope": "rsvp", "address": "198.51.100.20", "expect": "rsvp:ip:cd03211cfd0488fd6d026f7d0921a81e" },
+      { "secret": "roster-vector-secret-0123456789abcdef", "scope": "wish", "address": "198.51.100.20", "expect": "wish:ip:cd03211cfd0488fd6d026f7d0921a81e" },
+      { "secret": "roster-vector-secret-0123456789abcdef", "scope": "wish", "address": "2001:db8:aa:bb::/64", "expect": "wish:ip:28782d7ea00d3c1065d6d0f4e84ac26e" }
     ],
     "limitStrings": [
       { "input": "20/600", "expect": { "max": 20, "windowSeconds": 600 } },

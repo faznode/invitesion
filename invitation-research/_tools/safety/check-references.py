@@ -42,9 +42,12 @@ ROOT_DOCS = ['README.md', 'archive/README.md']
 
 # Absent by design: git-ignored private/scratch locations and owner-removed folders that docs name only to forbid them.
 # `.clerk` (root `.gitignore`: `/.clerk/`) is written at runtime by Clerk's keyless dev mode and must never be committed.
+# Source files removed on the owner's instruction stay citable in the entries written while they existed: s55's W1.5
+# retired the event-blueprint picker (AM-006, E-105), which E-098 names.
 INTENTIONALLY_ABSENT = {
     'invitation-research/_private', 'invitation-research/_handoff/briefs', 'invitation-research/_handoff/logs',
     'tools/template-harness/.out', 'storage', '.env', '.env.local', '.clerk',
+    'app/(customer)/dashboard/event-blueprint/picker.tsx',
 }
 # Path-map tables record moves: cells under these headers name retired paths on purpose; every other column is checked.
 RETIRED_PATH_COLUMNS = ('old path', 'original path', 'previous path')

@@ -64,7 +64,7 @@ export default async function CustomerInvitations({
             </p>
           </div>
           <Link
-            href="/dashboard/event-blueprint"
+            href="/dashboard/templates"
             className="inline-flex w-fit items-center gap-2 rounded-lg bg-brand-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
           >
             + {en ? 'Build an event' : 'Buat event'}

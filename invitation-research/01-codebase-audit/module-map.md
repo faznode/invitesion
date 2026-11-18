@@ -5,7 +5,7 @@
 > OWNER: Oracle (research)
 > DEPS: architecture.md, feature-inventory.csv, quality-audit.md
 > GREP: module, M-0, paths, responsibility, quality
-> UPDATED: 2026-10-29
+> UPDATED: 2026-11-18 (s55: M-030 no longer lists the removed `/api/user` route, W1.4 / E-104; M-022's `event-blueprint/**` is only a redirect, W1.5 / E-105); 2026-10-29
 
 IDs are stable: if a module is split later, keep the old ID and add suffixes (M-013a, M-013b). Quality scores are [INFERRED] from reading the code at `22ed99e`, with the reason stated.
 
@@ -41,7 +41,7 @@ IDs are stable: if a module is split later, keep the old ID and add suffixes (M-
 | M-019 | Guest management | `app/(customer)/dashboard/guests/**`, `app/(customer)/dashboard/invitations/[id]/guests/**` | Add guest, mark sent, RSVP override, manual check-in, wa.me links | 2 | One-by-one add (no bulk import); one wa.me link variant skips 08→62 normalisation |
 | M-020 | Guest CSV export | `app/(customer)/dashboard/invitations/[id]/analytics/route.ts` | CSV of guests (named "analytics") | 2 | No spreadsheet-formula neutralisation (CSV injection via guest names) |
 | M-021 | Manage center | `app/(customer)/dashboard/invitations/[id]/manage/**` | Operational module config panel | 2 | Config-only modules (registration, meals, seating, ticketing) with no guest-facing UI |
-| M-022 | Event planner | `app/(customer)/dashboard/planner/**`, `invitations/[id]/planner/**`, `event-blueprint/**` | Internal checklist/notes | 3 | Not guest-facing |
+| M-022 | Event planner | `app/(customer)/dashboard/planner/**`, `invitations/[id]/planner/**`, `event-blueprint/**` (since s55 only a redirect to the theme catalog: W1.5, E-105) | Internal checklist/notes | 3 | Not guest-facing |
 | M-023 | Customer templates | `app/(customer)/dashboard/templates/**` | Pick/use a template | 3 | Feeds M-017 → affected by QA-001 |
 | M-024 | Checkout | `app/(customer)/dashboard/invitations/[id]/checkout/**` | QRIS / Stripe payment for activation | 3 | QR rendered from server SVG |
 
@@ -53,7 +53,7 @@ IDs are stable: if a module is split later, keep the old ID and add suffixes (M-
 | M-027 | Media API | `app/api/invitations/[id]/media/**`, `upload/route.ts`, `app/media/[...path]/route.ts` | Upload (5 MB, image types), ordered gallery, sandboxed serving | 3 | No image resizing/WebP/AVIF; no `next/image`; originals served to guests |
 | M-028 | Storage drivers | `lib/storage/*` | Local disk or S3-compatible (own SigV4) | 4 | Unit-tested signer; not tested against a real bucket (AUDIT B2) |
 | M-029 | Detail API | `app/api/invitations/[id]/detail/route.ts`, `lib/api/respond.ts` | PATCH config | 4 | Validates merged config |
-| M-030 | Auth bridge | `lib/auth/clerk-user.ts`, `lib/auth/clerk-appearance.ts`, `app/(login)/**`, `app/api/user/route.ts`, `lib/db/queries.ts` | Clerk session → local `users` row, roles in DB | 4 | Clean separation of identity and authorisation |
+| M-030 | Auth bridge | `lib/auth/clerk-user.ts`, `lib/auth/clerk-appearance.ts`, `app/(login)/**`, `lib/db/queries.ts` (the uncalled `/api/user` route was removed in s55: W1.4, E-104) | Clerk session → local `users` row, roles in DB | 4 | Clean separation of identity and authorisation |
 | M-031 | Admin panel | `app/(admin)/admin/[entry]/**`, `lib/auth/admin-access.ts` | Private-entry admin: orders (manual confirm), customers, templates, activity | 3 | Several pages are stubs (8–17 lines) |
 | M-032 | Middleware | `middleware.ts` | Clerk session, protected-route redirect, locale, per-request CSP nonce (report-only) | 3 | Runs on every request incl. guest pages; sets `locale` cookie on every response → public pages uncacheable |
 | M-033 | Config & env | `lib/env.ts`, `next.config.ts` | Env validation, security headers, PPR | 4 | Build fails when `POSTGRES_URL` is absent (DB evaluated at build) |

@@ -1,0 +1,182 @@
+{
+  "$comment": "W1.2 (D-072): the guest writers' Idempotency-Key request hashes and stored answers, so a key recorded by one writer replays in the other. rsvp: SHA-256 hex of serde_json's [submission, flags] (struct fields in declaration order, null for an absent count, BTreeMap keys in UTF-8 byte order); wish: of the message as typed (a JSON string). canonical: the hashed text, computed independently with Python's json and hashlib. saved: the 200 bodies both writers record (RsvpSaved, WishSaved). Run by tests/w12-guest-write-keys.test.ts (lib/invitation/guest-write-keys.ts) and services/api/tests/guest_write_hash_vectors.rs (src/idempotency.rs).",
+  "rsvp": [
+    {
+      "name": "a single answer with a count",
+      "submission": {
+        "status": "CONFIRMED",
+        "guestCount": "2",
+        "events": {},
+        "answers": {}
+      },
+      "flags": {
+        "maybe": true,
+        "perEvent": true,
+        "inviteOnlyEvents": true,
+        "questions": true
+      },
+      "canonical": "[{\"status\":\"CONFIRMED\",\"guestCount\":\"2\",\"events\":{},\"answers\":{}},{\"maybe\":true,\"perEvent\":true,\"inviteOnlyEvents\":true,\"questions\":true}]",
+      "expect": "2d8e685ff71633abac7c64509c59382a9ec7fee92fa6f5f5a3795327aca66b55"
+    },
+    {
+      "name": "an empty form (no count is null)",
+      "submission": {
+        "status": "",
+        "guestCount": null,
+        "events": {},
+        "answers": {}
+      },
+      "flags": {
+        "maybe": true,
+        "perEvent": true,
+        "inviteOnlyEvents": true,
+        "questions": true
+      },
+      "canonical": "[{\"status\":\"\",\"guestCount\":null,\"events\":{},\"answers\":{}},{\"maybe\":true,\"perEvent\":true,\"inviteOnlyEvents\":true,\"questions\":true}]",
+      "expect": "7808826d2fd22997373d6e11ffc56ae18b94b6fe49499e067ac2f64dc3abd49d"
+    },
+    {
+      "name": "per event, ids sorted by UTF-8 bytes (10 before 9, never numerically)",
+      "submission": {
+        "status": "",
+        "guestCount": null,
+        "events": {
+          "9": {
+            "status": "DECLINED",
+            "guestCount": null
+          },
+          "10": {
+            "status": "CONFIRMED",
+            "guestCount": "1"
+          },
+          "akad": {
+            "status": "MAYBE",
+            "guestCount": ""
+          }
+        },
+        "answers": {}
+      },
+      "flags": {
+        "maybe": true,
+        "perEvent": true,
+        "inviteOnlyEvents": true,
+        "questions": true
+      },
+      "canonical": "[{\"status\":\"\",\"guestCount\":null,\"events\":{\"10\":{\"status\":\"CONFIRMED\",\"guestCount\":\"1\"},\"9\":{\"status\":\"DECLINED\",\"guestCount\":null},\"akad\":{\"status\":\"MAYBE\",\"guestCount\":\"\"}},\"answers\":{}},{\"maybe\":true,\"perEvent\":true,\"inviteOnlyEvents\":true,\"questions\":true}]",
+      "expect": "e737704352321900f62f193f53ec6e0e9e3ad346e60b98e882e0f0b577986789"
+    },
+    {
+      "name": "answers: several values, escapes, and keys beyond the BMP after U+E000 (UTF-8 order, not UTF-16)",
+      "submission": {
+        "status": "CONFIRMED",
+        "guestCount": "3",
+        "events": {},
+        "answers": {
+          "😀": [
+            "A"
+          ],
+          "": [
+            "B"
+          ],
+          "é": [
+            "C"
+          ],
+          "z": [
+            "Kacang \"tanah\"\n",
+            "\\ /"
+          ],
+          "diet": [
+            "Vegetarian"
+          ],
+          "songs": [
+            "A",
+            "C"
+          ]
+        }
+      },
+      "flags": {
+        "maybe": true,
+        "perEvent": true,
+        "inviteOnlyEvents": true,
+        "questions": true
+      },
+      "canonical": "[{\"status\":\"CONFIRMED\",\"guestCount\":\"3\",\"events\":{},\"answers\":{\"diet\":[\"Vegetarian\"],\"songs\":[\"A\",\"C\"],\"z\":[\"Kacang \\\"tanah\\\"\\n\",\"\\\\ /\"],\"é\":[\"C\"],\"\":[\"B\"],\"😀\":[\"A\"]}},{\"maybe\":true,\"perEvent\":true,\"inviteOnlyEvents\":true,\"questions\":true}]",
+      "expect": "cdd9eaf9b1e5cc39b6395246801b6866d0303435c3fc281f5ffa523e7fb6e381"
+    },
+    {
+      "name": "switches off change the hash",
+      "submission": {
+        "status": "MAYBE",
+        "guestCount": null,
+        "events": {},
+        "answers": {}
+      },
+      "flags": {
+        "maybe": false,
+        "perEvent": true,
+        "inviteOnlyEvents": false,
+        "questions": true
+      },
+      "canonical": "[{\"status\":\"MAYBE\",\"guestCount\":null,\"events\":{},\"answers\":{}},{\"maybe\":false,\"perEvent\":true,\"inviteOnlyEvents\":false,\"questions\":true}]",
+      "expect": "8a55d01be7d7792efb50ca47fb659836792434ee74139f5ffcd104f8f1bddbc0"
+    }
+  ],
+  "wish": [
+    {
+      "name": "a plain message",
+      "message": "Selamat menempuh hidup baru!",
+      "canonical": "\"Selamat menempuh hidup baru!\"",
+      "expect": "75ee0453319371f548b62c471b486ee79e4a051a4d8e36eb3786db36d003140a"
+    },
+    {
+      "name": "untrimmed, with line breaks, quotes and backslashes (hashed as typed)",
+      "message": "  Baris satu\r\nBaris dua\t\"kutip\" \\ /  ",
+      "canonical": "\"  Baris satu\\r\\nBaris dua\\t\\\"kutip\\\" \\\\ /  \"",
+      "expect": "2d6a95dec230c78c8b4cf080eeeab794c73265bb4a0135d19f9f41e4f468aa76"
+    },
+    {
+      "name": "non-ASCII is never escaped: NEL, U+2028, an emoji, e-acute",
+      "message": " NEL   LS 🎉 é",
+      "canonical": "\" NEL   LS 🎉 é\"",
+      "expect": "977a1701182b426aea8badf446d48a15722f10ae65a4c862d78e70fc50e2823e"
+    },
+    {
+      "name": "control characters as lowercase \\u00XX",
+      "message": "Halo\u0000dunia\u001f",
+      "canonical": "\"Halo\\u0000dunia\\u001f\"",
+      "expect": "e1423c6428f7d3b05e0bdfdd3bfb288893a2cb519253e6b1d7f8a160958ffaa5"
+    },
+    {
+      "name": "empty",
+      "message": "",
+      "canonical": "\"\"",
+      "expect": "12ae32cb1ec02d01eda3581b127c1fee3b0dc53572ed6baf239721a03d82e126"
+    }
+  ],
+  "saved": {
+    "rsvp": [
+      {
+        "status": "CONFIRMED",
+        "attendingCount": 2
+      },
+      {
+        "status": "MAYBE",
+        "attendingCount": null
+      },
+      {
+        "status": "DECLINED",
+        "attendingCount": 0
+      }
+    ],
+    "wish": [
+      {
+        "id": 7,
+        "state": "VISIBLE"
+      },
+      {
+        "id": 8,
+        "state": "PENDING"
+      }
+    ]
+  }
+}

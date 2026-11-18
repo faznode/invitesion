@@ -5,7 +5,7 @@
 > OWNER: Operator
 > DEPS: lib/auth/clerk-user.ts, lib/auth/admin-access.ts, DATABASE_SCHEMA.md
 > GREP: auth, clerk, session, login, signup, admin, role, jit, provisioning, team, co-host, usher, penerima tamu, invitation_members, FLAG_TEAM_ACCESS, inv_join
-> UPDATED: 2026-11-09 (s36: pihak keluarga kado I-04 / D-059 dan buku ucapan PDF I-22 / D-060, keduanya khusus pemilik; s35: catatan meja / suvenir / kado khusus pemilik, G-045 / D-058; tim undangan per undangan, co-host & penerima tamu, G-044 / D-057; s21: B-015, ClerkProvider hanya di grup rute yang login)
+> UPDATED: 2026-11-18 (s55: W1.3, setiap halaman konten konsol admin memeriksa administrator di level halaman, `/activity` dan `/general` termasuk, E-102); 2026-11-09 (s36: pihak keluarga kado I-04 / D-059 dan buku ucapan PDF I-22 / D-060, keduanya khusus pemilik; s35: catatan meja / suvenir / kado khusus pemilik, G-045 / D-058; tim undangan per undangan, co-host & penerima tamu, G-044 / D-057; s21: B-015, ClerkProvider hanya di grup rute yang login)
 
 > **Keputusan 2026-07-27 (whyme):** auth password buatan sendiri diganti **Clerk**.
 > Dokumen ini menggantikan status "nyusul" di `AGENTS.md`.
@@ -36,6 +36,12 @@ sedikit. Clerk menutup semuanya sekaligus.
 **Role sengaja tetap lokal.** Admin diberikan dengan `role = 'ADMIN'` pada baris database, bukan
 di dashboard Clerk. Artinya instance Clerk yang salah konfigurasi atau dikompromikan **tidak bisa
 mencetak administrator**, dan entry path privat tetap berlaku di atasnya.
+
+**Konsol admin memeriksa di dua lapis.** Layout `(console)` memeriksa entry path lalu administrator, dan setiap halaman
+konten memanggil `assertAuthorizedAdmin(await getUser())` sendiri sebelum membaca apa pun (W1.3, E-102; `/activity` dan
+`/general` dulu hanya mengalihkan pengunjung yang belum masuk). Jadi pengunjung yang belum masuk dan customer mendapat 404
+privat yang sama di setiap halaman, apa pun urutan render layout. Satu-satunya pengecualian, `/profile`, hanya mengalihkan ke
+`/general`. Dipatok oleh `tests/w13-admin-page-asserts.test.ts`.
 
 ## Satu jembatan, bukan tersebar
 

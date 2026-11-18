@@ -74,7 +74,8 @@ test('B-027: the action checks the flag before any write; the dashboard counts a
   const action = source('app/i/[slug]/actions.ts');
   // R-03: the flag is read once per request (`rsvpFlags`) and handed to the decision, which runs before the one write and
   // passes it to both the single answer and the per-event answers (s19, D-036). The vectors run it with the flag on and off.
-  const write = action.indexOf('db.update(guests)');
+  // W1.2 (D-072) moved the one write into the key's transaction (`tx.update(guests)`).
+  const write = action.indexOf('.update(guests)');
   const decide = action.indexOf('decideGuestRsvp({');
   assert.ok(action.indexOf("maybe: isFlagOn('RSVP_MAYBE')") > 0, 'the action reads the flag');
   assert.ok(decide > 0 && decide < write, 'the decision runs before the write');

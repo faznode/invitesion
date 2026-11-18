@@ -167,7 +167,8 @@ test('B-027 2b: flag off or form off renders no questions and leaves the form ma
 test('B-027 2b wiring: the action checks answers after every refusal and before the one write; flag off leaves the column alone', () => {
   const action = source('app/i/[slug]/actions.ts');
   const rsvp = action.slice(action.indexOf('export async function submitRsvp'), action.indexOf('export async function submitGuestMessage'));
-  const write = rsvp.indexOf('db.update(guests)');
+  // W1.2 (D-072) moved the one write into the key's transaction (`tx.update(guests)`).
+  const write = rsvp.indexOf('.update(guests)');
   // R-03: every refusal is decided before the one write, in the decision's order: closed, the answer, then the questions.
   const decide = rsvp.indexOf('decideGuestRsvp({');
   const refused = rsvp.indexOf("if (decision.kind !== 'write') redirect(");
@@ -179,7 +180,7 @@ test('B-027 2b wiring: the action checks answers after every refusal and before 
   const order = ['rsvpClosedReason(', 'isRsvpStatus(submitted, { maybe })', 'input.flags.questions ?', 'parseRsvpAnswers(form, questions, status)', "return { kind: 'answers', questionId: parsed.questionId }"].map((marker) => body.indexOf(marker));
   assert.ok(order.every((at, index) => at > 0 && (index === 0 || at > order[index - 1])), `decision order ${order.join(', ')}`);
   assert.match(rsvp, /\.\.\.\(rsvpAnswers !== undefined && \{ rsvpAnswers \}\)/, 'undefined leaves stored answers untouched');
-  assert.equal((rsvp.match(/db\.update\(guests\)/g) ?? []).length, 1, 'status, headcount and answers in one statement');
+  assert.equal((rsvp.match(/\.update\(guests\)/g) ?? []).length, 1, 'status, headcount and answers in one statement');
   assert.doesNotMatch(rsvp, /meta: \{[^}]*answers/i, 'answers never enter analytics events');
 });
 

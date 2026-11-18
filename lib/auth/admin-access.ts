@@ -33,7 +33,8 @@ export function assertPrivateAdminEntry(entry: string) {
   if (!privateEntry || !secretEquals(entry, privateEntry)) notFound();
 }
 
-export function assertAuthorizedAdmin(user: AuthenticatedUser | null | undefined) {
+/** Answers the private 404 unless `user` is an allowed administrator; returns the caller's own user type (W1.3). */
+export function assertAuthorizedAdmin<T extends AuthenticatedUser>(user: T | null | undefined): T {
   if (!user || user.role !== 'ADMIN') notFound();
 
   const allowedEmails = getAdminAllowedEmails();

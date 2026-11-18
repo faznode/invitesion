@@ -145,7 +145,8 @@ test('wiring: the action and the dashboard read the same rules, and every host w
   assert.match(action, /inviteOnlyEvents: isFlagOn\('INVITE_ONLY_EVENTS'\)/);
   assert.match(decision, /visibleEvents\(listed, guestAudience\(guest\), input\.flags\.inviteOnlyEvents\)/);
   assert.match(decision, /singleAnswerEventAnswers\(/);
-  assert.equal(action.match(/db\.update\(guests\)/g)?.length, 1, 'still one UPDATE per RSVP');
+  // W1.2 (D-072): the UPDATE runs inside the key's transaction (`tx.update(guests)`).
+  assert.equal(action.match(/\.update\(guests\)/g)?.length, 1, 'still one UPDATE per RSVP');
   const host = read('app/(customer)/dashboard/invitations/[id]/guests/actions.ts');
   // G-044 (D-057): the owner or a co-host (`guests`), through the flag-aware guard, before any write.
   assert.match(host, /const access = await accessFor\(user\.id, invitationId, 'guests'\);\s*if \(!access\) redirect\('\/dashboard\/invitations'\);/);

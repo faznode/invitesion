@@ -101,12 +101,15 @@ test('B-027: wiring — both actions refuse before writing, with the page rule a
   assert.match(actions, /normalizeStoredConfig\(invitation\.config/);
   // R-03: the shared decision checks the switch and the deadline first, at this request's clock, before the one write.
   const decidedAt = rsvp.indexOf('now: Date.now() })');
-  assert.ok(decidedAt > 0 && decidedAt < rsvp.indexOf('db.update(guests)'), 'RSVP decides at the request clock before the write');
+  // W1.2 (D-072) moved each one write into its key's transaction (`tx.update(guests)`, `tx.insert(guestMessages)`).
+  const rsvpWrite = rsvp.indexOf('.update(guests)');
+  assert.ok(decidedAt > 0 && rsvpWrite > 0 && decidedAt < rsvpWrite, 'RSVP decides at the request clock before the write');
   const decision = readFileSync(join(process.cwd(), 'lib/invitation/rsvp-decision.ts'), 'utf8');
   assert.match(decision, /const closed = rsvpClosedReason\(config\.rsvp, input\.now\);\n\s*if \(closed\) return \{ kind: 'closed', reason: closed \};/, 'RSVP checks its switch and deadline');
   // R-04 (D-044): the switch is the first rule of the shared wish decision, which runs before the one write.
   const wishDecidedAt = wish.indexOf('decideGuestWish({ config: context.config, message })');
-  assert.ok(wishDecidedAt > 0 && wishDecidedAt < wish.indexOf('db.insert(guestMessages)'), 'the guestbook refuses before the write');
+  const wishWrite = wish.indexOf('.insert(guestMessages)');
+  assert.ok(wishDecidedAt > 0 && wishWrite > 0 && wishDecidedAt < wishWrite, 'the guestbook refuses before the write');
   const wishRules = readFileSync(join(process.cwd(), 'lib/invitation/wish-decision.ts'), 'utf8');
   assert.match(wishRules, /enabled: section\?\.enabled !== false/, 'the guestbook checks its switch');
   assert.match(wishRules, /if \(!rules\.enabled\) return \{ kind: 'closed', reason: 'disabled' \};/, 'before judging the message');

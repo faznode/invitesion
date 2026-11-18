@@ -64,17 +64,21 @@ views_end_to_end() {
   API_BASE_URL="http://127.0.0.1:$API_PORT" INTERNAL_API_SECRET=$API_SECRET npx tsx scripts/verify-views-api.ts
 }
 
-# R-03: the guest's RSVP action and the host's dashboard action, through both writers, against the binary.
+# R-03: the guest's RSVP action and the host's dashboard action, through both writers, against the binary. W1.1: the
+# in-process default writer reads the binary's limits too, so both count the same quota in the same buckets.
 rsvp_end_to_end() {
   API_BASE_URL="http://127.0.0.1:$API_PORT" INTERNAL_API_SECRET=$API_SECRET OWNER_TOKEN_JWKS_PORT=$JWKS_PORT \
     OWNER_TOKEN_ISSUER=$OWNER_ISSUER OWNER_TOKEN_AUTHORIZED_PARTIES=$OWNER_PARTY \
+    RATE_LIMIT_RSVP_LINK="$RSVP_LIMIT_LINK/600" RATE_LIMIT_RSVP_IP="$RSVP_LIMIT_IP/600" \
     RSVP_LIMIT_LINK=$RSVP_LIMIT_LINK RSVP_LIMIT_IP=$RSVP_LIMIT_IP npx tsx scripts/verify-rsvp-api.ts
 }
 
 # R-04: the guest's wish action and the host's moderation and reply actions, through both writers, against the binary.
+# W1.1: as for the RSVP, the default writer counts with the binary's limits.
 wishes_end_to_end() {
   API_BASE_URL="http://127.0.0.1:$API_PORT" INTERNAL_API_SECRET=$API_SECRET OWNER_TOKEN_JWKS_PORT=$JWKS_PORT \
     OWNER_TOKEN_ISSUER=$OWNER_ISSUER OWNER_TOKEN_AUTHORIZED_PARTIES=$OWNER_PARTY \
+    RATE_LIMIT_WISH_LINK="$WISH_LIMIT_LINK/600" RATE_LIMIT_WISH_IP="$WISH_LIMIT_IP/600" \
     WISH_LIMIT_LINK=$WISH_LIMIT_LINK WISH_LIMIT_IP=$WISH_LIMIT_IP npx tsx scripts/verify-wishes-api.ts
 }
 

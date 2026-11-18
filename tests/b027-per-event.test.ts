@@ -153,7 +153,8 @@ test('the action writes per-event answers in the same UPDATE as the status, scop
   // D-037 moved the rule into `singleAnswerEventAnswers` (flag off: untouched; per-event off: null), unit-tested in tests/d037-*.
   assert.match(decision, /rsvpEventAnswers = singleAnswerEventAnswers\(\{ flagOn: perEventOn, listed,/, 'a single answer replaces per-event answers only while the flag is on');
   assert.match(action, /\.\.\.\(rsvpEventAnswers !== undefined && \{ rsvpEventAnswers \}\) \}\)\.where\(eq\(guests\.id, context\.guest\.id\)\);/);
-  assert.equal((action.match(/db\.update\(guests\)/g) ?? []).length, 1, 'one statement');
+  // W1.2 (D-072): the one statement runs inside the key's transaction (`tx.update(guests)`).
+  assert.equal((action.match(/\.update\(guests\)/g) ?? []).length, 1, 'one statement');
   assert.match(action, /meta: \{ status, guestCount: attendingCount, source: 'public' \}/, 'analytics carries no answers');
   assert.match(source('lib/db/migrations/0014_guest_rsvp_event_answers.sql'), /ALTER TABLE "guests" ADD COLUMN "rsvp_event_answers" jsonb;/);
 });

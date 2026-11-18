@@ -5,7 +5,7 @@ import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
 import { analyticsEvents, guestRegistrationLinks, guestRegistrations, guests, invitations } from '@/lib/db/schema';
 import { lookupIdempotent, recordIdempotent, type IdempotentPrior } from '@/lib/idempotency';
-import { addressKey, addressSecret, hit, ipBucket, parseLimit, type Limit } from '@/lib/rate-limit';
+import { addressKey, addressSecret, hit, ipBucket, parseLimit, WRITE_LIMIT_DEFAULTS, type Limit } from '@/lib/rate-limit';
 import { normalizeStoredConfig } from './content-read';
 import { invitedIdsFromTicked, inviteOnlyEvents } from './event-eligibility';
 import { GUEST_LINK_TOKEN_PATTERN, newGuestLinkToken } from './guest-link';
@@ -432,8 +432,8 @@ export async function registrationLinkNext(input: { userId: number; invitationId
 /** The registration limits (B-013's shape): per link and per address, overridable as the API's are. */
 export function registrationLimits(env: Record<string, string | undefined> = process.env): { perLink: Limit; perIp: Limit } {
   return {
-    perLink: parseLimit(env.RATE_LIMIT_REGISTRATION_LINK, { max: 20, windowSeconds: 600 }),
-    perIp: parseLimit(env.RATE_LIMIT_REGISTRATION_IP, { max: 5, windowSeconds: 600 }),
+    perLink: parseLimit(env.RATE_LIMIT_REGISTRATION_LINK, WRITE_LIMIT_DEFAULTS.registration.perLink),
+    perIp: parseLimit(env.RATE_LIMIT_REGISTRATION_IP, WRITE_LIMIT_DEFAULTS.registration.perIp),
   };
 }
 

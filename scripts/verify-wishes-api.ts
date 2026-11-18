@@ -73,6 +73,10 @@ const AZP = need('OWNER_TOKEN_AUTHORIZED_PARTIES').split(',')[0].trim();
 const LIMIT_LINK = Number(need('WISH_LIMIT_LINK'));
 const LIMIT_IP = Number(need('WISH_LIMIT_IP'));
 if (!(LIMIT_LINK >= 6 && LIMIT_IP > LIMIT_LINK + 2)) throw new Error('WISH_LIMIT_LINK must be at least 6 and WISH_LIMIT_IP above it by 3 or more');
+// W1.1 (D-071): the in-process default writer counts in the API's buckets, so it must run with the API's limits.
+if (env.RATE_LIMIT_WISH_LINK?.trim() !== `${LIMIT_LINK}/600` || env.RATE_LIMIT_WISH_IP?.trim() !== `${LIMIT_IP}/600`) {
+  throw new Error('RATE_LIMIT_WISH_LINK and RATE_LIMIT_WISH_IP must be <WISH_LIMIT_LINK>/600 and <WISH_LIMIT_IP>/600, as on the API');
+}
 
 let failures = 0;
 let passes = 0;
@@ -425,6 +429,254 @@ async function main() {
       `${notice(v6Answers[LIMIT_IP]).wish} ${notice(otherLine).wish}`);
     const [{ plain }] = await sql`select count(*)::int as plain from api_rate_limits where bucket like 'wish:ip:%' and (bucket like ${`%${ipv4}%`} or bucket like '%2001:db8%')`;
     check('the limiter table holds keyed hashes, never an address', plain === 0);
+
+    // ── 6b. W1.1 (D-071): the default writer counts the same quota, in the same buckets, where the Rust writer counts ──
+    const { addressKey, WRITE_LIMIT_DEFAULTS } = await import('../lib/rate-limit-keys');
+    const hitsOf = async (bucket: string) => Number((await sql`select hits from api_rate_limits where bucket = ${bucket}`)[0]?.hits ?? 0);
+    /** Seconds from now to the end of the 600 s window, so a refusal's retry time can be checked against the clock. */
+    const toWindowEnd = () => 600 - (Math.floor(Date.now() / 1000) % 600);
+    const retryFits = (raw: string | undefined) => {
+      const gap = Math.abs(Number(raw) - toWindowEnd());
+      return Number(raw) >= 1 && Number(raw) <= 600 && (gap <= 2 || gap >= 598);
+    };
+    const written = async (guestId: number) => ({ wishes: (await wishRows(guestId)).length, events: (await events(guestId)).length });
+    const nextLinkGuest = await guest(limitInv, 'next-link');
+    const nextLinkAnswers: string[] = [];
+    for (let n = 0; n <= LIMIT_LINK; n++) nextLinkAnswers.push(await guestAction(nextLinkGuest, `Ucapan lewat Next ${n}`, 'next'));
+    const nextRefused = notice(nextLinkAnswers[LIMIT_LINK]);
+    check(`W1.1 next per link: ${LIMIT_LINK} pass and the next is "busy" with the retry time to the window's end, writing nothing, as through Rust`,
+      nextLinkAnswers.slice(0, LIMIT_LINK).every((url) => notice(url).wish === 'saved') && same(Object.keys(nextRefused), Object.keys(refused)) && nextRefused.wish === 'busy' &&
+        retryFits(nextRefused.wishr) && same(await written(nextLinkGuest.id), { wishes: LIMIT_LINK, events: LIMIT_LINK }) &&
+        (await hitsOf(`wish:link:${nextLinkGuest.id}`)) === LIMIT_LINK + 1,
+      JSON.stringify(nextRefused));
+
+    const linkFlips: string[] = [];
+    for (const [first, second] of [['next', 'rust'], ['rust', 'next']] as const) {
+      const g = await guest(limitInv, `flip-link-${first}`);
+      const answers: string[] = [];
+      for (let i = 0; i < 3; i++) answers.push(await guestAction(g, `Pertama ${i}`, first));
+      for (let i = 0; i <= LIMIT_LINK - 3; i++) answers.push(await guestAction(g, `Kedua ${i}`, second));
+      const last = notice(answers[LIMIT_LINK]);
+      const ok = answers.slice(0, LIMIT_LINK).every((url) => notice(url).wish === 'saved') && last.wish === 'busy' && retryFits(last.wishr) &&
+        same(await written(g.id), { wishes: LIMIT_LINK, events: LIMIT_LINK }) && (await hitsOf(`wish:link:${g.id}`)) === LIMIT_LINK + 1;
+      linkFlips.push(`${first} then ${second}: ${ok ? 'ok' : 'FAIL'} (hits ${await hitsOf(`wish:link:${g.id}`)}, last ${last.wish})`);
+    }
+    check(`W1.1 shared per-link bucket: after 3 wishes through one writer the other allows exactly the remaining ${LIMIT_LINK - 3} and refuses the next, both ways`,
+      linkFlips.every((f) => f.includes(': ok')), linkFlips.join('; '));
+
+    /** `count` wishes through one writer from one address (or one /64), spread over fresh guests under the per-link limit. */
+    async function fillVia(writer: 'next' | 'rust', prefix: string, address: string | ((n: number) => string), count: number): Promise<boolean> {
+      let left = count;
+      let n = 0;
+      for (let index = 0; left > 0; index++) {
+        const g = await guest(limitInv, `${prefix}-${index}`);
+        for (let i = 0; i < Math.min(LIMIT_LINK, left); i++) {
+          const xff = typeof address === 'string' ? address : address(n++);
+          if (notice(await guestAction(g, `Dari ${prefix} ${n} ${i}`, writer, { xff })).wish !== 'saved') return false;
+        }
+        left -= Math.min(LIMIT_LINK, left);
+      }
+      return true;
+    }
+    const [a, b] = [Number.parseInt(tag.slice(0, 2), 16), Number.parseInt(tag.slice(2, 4), 16)];
+    const nextAddress = `198.19.${a}.${b}`;
+    const neighbour = `198.19.${a}.${(b + 1) % 256}`;
+    const flipAddresses = [`198.19.${(a + 1) % 256}.${b}`, `198.19.${(a + 2) % 256}.${b}`];
+    const v6Prefix = `2001:db8:${tag.slice(8, 12)}:${tag.slice(0, 4)}`;
+    const v6Other = `2001:db8:${tag.slice(8, 12)}:${(Number.parseInt(tag.slice(0, 4), 16) ^ 1).toString(16)}`;
+    for (const raw of [nextAddress, neighbour, ...flipAddresses, `${v6Prefix}::1`, `${v6Other}::1`]) addressKeys.add(addressKey(raw) as string);
+    const nextFilled = await fillVia('next', 'nip4', nextAddress, LIMIT_IP);
+    const nextFresh = await guest(limitInv, 'nip4-fresh');
+    const nextFull = notice(await guestAction(nextFresh, 'Penuh', 'next', { xff: nextAddress }));
+    const nextForged = notice(await guestAction(nextFresh, 'Menyamar', 'next', { xff: `203.0.113.250, ${nextAddress}` }));
+    const nextNeighbour = notice(await guestAction(nextFresh, 'Tetangga', 'next', { xff: neighbour }));
+    const nextUntrusted = notice(await withEnv({ TRUSTED_PROXY_HOPS: '0' }, () => guestAction(nextFresh, 'Tanpa proksi', 'next', { xff: nextAddress })));
+    const nextKeyless = notice(await withEnv({ INTERNAL_API_SECRET: undefined }, () => guestAction(nextFresh, 'Tanpa kunci', 'next', { xff: nextAddress })));
+    check(`W1.1 next per address: ${LIMIT_IP} wishes from one address pass, the next is "busy"; a client-supplied left entry does not escape it; another address writes`,
+      nextFilled && nextFull.wish === 'busy' && retryFits(nextFull.wishr) && nextForged.wish === 'busy' && nextNeighbour.wish === 'saved' &&
+        (await hitsOf(ipBucket(nextAddress))) === LIMIT_IP + 2,
+      `filled ${nextFilled}, full ${nextFull.wish}, forged ${nextForged.wish}, other address ${nextNeighbour.wish}, hits ${await hitsOf(ipBucket(nextAddress))}`);
+    check('W1.1 next: TRUSTED_PROXY_HOPS=0 or no INTERNAL_API_SECRET means no per-address limit; the per-link one still counts',
+      nextUntrusted.wish === 'saved' && nextKeyless.wish === 'saved' && (await hitsOf(`wish:link:${nextFresh.id}`)) === 5, `hops 0 ${nextUntrusted.wish}, no secret ${nextKeyless.wish}`);
+    const v6Filled = await fillVia('next', 'nip6', (n) => `${v6Prefix}::${(n + 1).toString(16)}`, LIMIT_IP);
+    const v6Fresh = await guest(limitInv, 'nip6-fresh');
+    const v6SameLine = notice(await guestAction(v6Fresh, 'Satu jalur', 'next', { xff: `[${v6Prefix}:ffff::1]:443` }));
+    const v6NextLine = notice(await guestAction(v6Fresh, 'Jalur lain', 'next', { xff: `${v6Other}::1` }));
+    const v6Key = addressKey(`${v6Prefix}::1`) as string;
+    check('W1.1 next: IPv6 addresses share their /64\u2019s budget, the next /64 has its own',
+      v6Filled && v6SameLine.wish === 'busy' && v6NextLine.wish === 'saved' && (await hitsOf(ipBucket(v6Key))) === LIMIT_IP + 1,
+      `same /64 ${v6SameLine.wish}, next /64 ${v6NextLine.wish}, hits ${await hitsOf(ipBucket(v6Key))}`);
+
+    const addressFlips: string[] = [];
+    for (const [index, [first, second]] of ([['next', 'rust'], ['rust', 'next']] as const).entries()) {
+      const address = flipAddresses[index];
+      const firstOk = await fillVia(first, `flip-ip-${first}-a`, address, 5);
+      const secondOk = await fillVia(second, `flip-ip-${first}-b`, address, LIMIT_IP - 5);
+      const over = notice(await guestAction(await guest(limitInv, `flip-ip-${first}-c`), 'Lebih', second, { xff: address }));
+      const ok = firstOk && secondOk && over.wish === 'busy' && (await hitsOf(ipBucket(address))) === LIMIT_IP + 1;
+      addressFlips.push(`${first} then ${second}: ${ok ? 'ok' : 'FAIL'} (hits ${await hitsOf(ipBucket(address))}, last ${over.wish})`);
+    }
+    check(`W1.1 shared per-address bucket: after 5 wishes through one writer the other allows exactly the remaining ${LIMIT_IP - 5} and refuses the next, both ways`,
+      addressFlips.every((f) => f.includes(': ok')), addressFlips.join('; '));
+
+    // Closed invitations: a link-level closure is refused before any count by both writers; the guestbook switched off is
+    // a decision, counted first by both (the Rust order), so over quota both answer "busy" where it would say "closed".
+    const pastDate = new Date(Date.now() - 3_600_000);
+    const closures = [
+      { name: 'deleted', level: 'link', inv: await invitation(owner.id, {}) },
+      { name: 'draft', level: 'link', inv: await invitation(owner.id, {}, { status: 'DRAFT' }) },
+      { name: 'expired', level: 'link', inv: await invitation(owner.id, {}, { expiresAt: pastDate }) },
+      { name: 'guestbook off', level: 'decision', inv: await invitation(owner.id, { guestbook: { enabled: false } }) },
+    ] as const;
+    const closureResults: string[] = [];
+    for (const [index, closure] of closures.entries()) {
+      const targets = { next: await guest(closure.inv, `w11-c${index}-next`), rust: await guest(closure.inv, `w11-c${index}-rust`) };
+      // B-031's constraint: a deletion always carries its purge time.
+      if (closure.name === 'deleted') await sql`update invitations set deleted_at = now(), purge_after = now() + interval '30 days' where id = ${closure.inv.id}`;
+      for (const writer of ['next', 'rust'] as const) {
+        const target = targets[writer];
+        const notices: string[] = [];
+        for (let i = 0; i <= LIMIT_LINK; i++) notices.push(notice(await guestAction(target, `Tertutup ${i}`, writer)).wish);
+        const counted = await hitsOf(`wish:link:${target.id}`);
+        const expected = closure.level === 'link'
+          ? notices.every((n) => n === 'closed') && counted === 0
+          : notices.slice(0, LIMIT_LINK).every((n) => n === 'closed') && notices[LIMIT_LINK] === 'busy' && counted === LIMIT_LINK + 1;
+        const untouched = same(await written(target.id), { wishes: 0, events: 0 });
+        closureResults.push(`${closure.name} ${writer}: ${expected && untouched ? 'ok' : 'FAIL'} (over quota "${notices[LIMIT_LINK]}", hits ${counted})`);
+      }
+    }
+    check('W1.1 closed invitations: both writers refuse and write nothing; link-level closures are never counted, the guestbook off is counted alike and answers "busy" over quota',
+      closureResults.every((r) => r.includes(': ok')), closureResults.join('; '));
+
+    const offGuest = await guest(limitInv, 'w11-flag-off');
+    const fullBefore = await hitsOf(ipBucket(nextAddress));
+    const offAnswers = await withEnv({ FLAG_GUEST_WRITE_LIMITS: 'off' }, async () => {
+      const urls: string[] = [];
+      for (let i = 0; i < LIMIT_LINK + 2; i++) urls.push(await guestAction(offGuest, `Tanpa batas ${i}`, 'next', { xff: nextAddress }));
+      return urls;
+    });
+    check('W1.1 FLAG_GUEST_WRITE_LIMITS=off: the default writer calls no limiter, exactly as before (every wish saved from a full address, no bucket touched)',
+      offAnswers.every((url) => notice(url).wish === 'saved') && same(await written(offGuest.id), { wishes: LIMIT_LINK + 2, events: LIMIT_LINK + 2 }) &&
+        (await hitsOf(`wish:link:${offGuest.id}`)) === 0 && (await hitsOf(ipBucket(nextAddress))) === fullBefore,
+      `${offAnswers.filter((url) => notice(url).wish === 'saved').length} saved`);
+
+    const fallbackMax = WRITE_LIMIT_DEFAULTS.wish.perLink.max;
+    const fallbackGuest = await guest(limitInv, 'w11-fallback');
+    const fallbackAnswers = await withEnv({ RATE_LIMIT_WISH_LINK: 'lima/600' }, async () => {
+      const urls: string[] = [];
+      for (let i = 0; i <= fallbackMax; i++) urls.push(await guestAction(fallbackGuest, `Cadangan ${i}`, 'next'));
+      return urls;
+    });
+    check(`W1.1 an invalid RATE_LIMIT_WISH_LINK falls back to the default (${fallbackMax} per link), as the API's Limit::parse does`,
+      fallbackAnswers.slice(0, fallbackMax).every((url) => notice(url).wish === 'saved') && notice(fallbackAnswers[fallbackMax]).wish === 'busy');
+    const allBuckets = (await sql`select bucket from api_rate_limits where bucket like 'wish:%'`).map((r) => r.bucket as string);
+    check('W1.1 the limiter table still holds only guest ids and keyed hashes: no address, no name',
+      allBuckets.length > 0 && allBuckets.every((bucket) => /^wish:(?:link:\d+|ip:[0-9a-f]{32})$/.test(bucket)), `${allBuckets.length} buckets`);
+
+    // ── 6c. W1.2 (D-072): the default writer honours the form's key like the Rust writer, in the same records ──
+    const { writeGuestWishThroughApi } = await import('../lib/invitation/wish-writer');
+    const keyInv = await invitation(owner.id, {});
+    const moderatedInv = await invitation(owner.id, { guestbook: { moderation: true } });
+    const twinRuns: string[] = [];
+    for (const writer of ['next', 'rust'] as const) {
+      const g = await guest(keyInv, `w12-twins-${writer}`);
+      const key = randomUUID();
+      const urls = await Promise.all(Array.from({ length: 5 }, () => guestAction(g, 'Kembar lima', writer, { key })));
+      const ok = urls.every((url) => notice(url).wish === 'saved') && same(await written(g.id), { wishes: 1, events: 1 }) && same(await keysOf(g.id), [key]);
+      twinRuns.push(`${writer}: ${ok ? 'ok' : 'FAIL'} (${JSON.stringify(await written(g.id))}, keys ${(await keysOf(g.id)).length}, link hits ${await hitsOf(`wish:link:${g.id}`)})`);
+    }
+    check('W1.2 five concurrent sends of one form: all "saved", one wish, one analytics row, one stored key, on each writer (link hits as measured)',
+      twinRuns.every((r) => r.includes(': ok')), twinRuns.join('; '));
+
+    const seqGuest = await guest(moderatedInv, 'w12-sequential');
+    const seqKey = randomUUID();
+    const seqFirst = notice(await guestAction(seqGuest, 'Menunggu tuan rumah', 'next', { key: seqKey })).wish;
+    const seqHits = await hitsOf(`wish:link:${seqGuest.id}`);
+    const seqAgain: string[] = [];
+    for (let i = 0; i < 3; i++) seqAgain.push(notice(await guestAction(seqGuest, 'Menunggu tuan rumah', 'next', { key: seqKey })).wish);
+    check('W1.2 next: three sequential re-sends of one moderated wish replay "pending", store nothing more and take no limiter hit',
+      seqFirst === 'pending' && seqAgain.every((n) => n === 'pending') && same(await written(seqGuest.id), { wishes: 1, events: 1 }) && seqHits === 1 &&
+        (await hitsOf(`wish:link:${seqGuest.id}`)) === 1,
+      `${seqAgain.join(',')}, hits ${await hitsOf(`wish:link:${seqGuest.id}`)}`);
+
+    const crossRuns: string[] = [];
+    for (const [label, inv, expected] of [['open', keyInv, 'saved'], ['moderated', moderatedInv, 'pending']] as const) {
+      for (const [first, second] of [['next', 'rust'], ['rust', 'next']] as const) {
+        const g = await guest(inv, `w12-cross-${label}-${first}`);
+        const key = randomUUID();
+        const message = `Lintas penulis ${label} ${first}`;
+        const a = notice(await guestAction(g, message, first, { key })).wish;
+        const hitsBefore = await hitsOf(`wish:link:${g.id}`);
+        const b = notice(await guestAction(g, message, second, { key })).wish;
+        const ok = a === expected && b === expected && same(await written(g.id), { wishes: 1, events: 1 }) && same(await keysOf(g.id), [key]) &&
+          (await hitsOf(`wish:link:${g.id}`)) === hitsBefore;
+        crossRuns.push(`${label}, ${first} then ${second}: ${ok ? 'ok' : 'FAIL'} (${a}/${b}, ${JSON.stringify(await written(g.id))})`);
+      }
+    }
+    check('W1.2 a key recorded by one writer replays through the other, both ways, open and moderated (the stored state decides "saved" or "pending"): one wish, one key, no limiter hit',
+      crossRuns.every((r) => r.includes(': ok')), crossRuns.join('; '));
+
+    const overlapRuns: string[] = [];
+    for (let round = 0; round < 3; round++) {
+      const g = await guest(keyInv, `w12-overlap-${round}`);
+      const key = randomUUID();
+      // The Rust call goes straight to the client, so it cannot race the action over `BACKEND_WISHES`.
+      const [viaNext, viaRust] = await Promise.all([
+        guestAction(g, 'Bersamaan', 'next', { key }),
+        writeGuestWishThroughApi({ slug: g.slug, guestSlug: g.segment, message: 'Bersamaan', idempotencyKey: key }),
+      ]);
+      const ok = notice(viaNext).wish === 'saved' && viaRust.kind === 'saved' && same(await written(g.id), { wishes: 1, events: 1 }) && same(await keysOf(g.id), [key]);
+      overlapRuns.push(`round ${round}: ${ok ? 'ok' : 'FAIL'} (next ${notice(viaNext).wish}, rust ${viaRust.kind}, ${JSON.stringify(await written(g.id))})`);
+    }
+    check('W1.2 one form in flight on both writers at once (3 rounds): both "saved", one wish, one key', overlapRuns.every((r) => r.includes(': ok')), overlapRuns.join('; '));
+
+    // An injected failure after the wish is inserted: a trigger refuses this guest's analytics row.
+    await sql.unsafe(`create or replace function w12_fail_analytics() returns trigger language plpgsql as $$ begin raise exception 'w12 injected failure'; end $$`);
+    const faultRuns: string[] = [];
+    for (const writer of ['next', 'rust'] as const) {
+      const g = await guest(keyInv, `w12-fault-${writer}`);
+      const key = randomUUID();
+      await sql.unsafe(`create trigger w12_fail_${Number(g.id)} before insert on analytics_events for each row when (new.guest_id = ${Number(g.id)}) execute function w12_fail_analytics()`);
+      let failed = '';
+      try {
+        failed = notice(await quietly(() => guestAction(g, 'Gagal di tengah', writer, { key }))).wish ?? '(no notice)';
+      } catch {
+        failed = 'error';
+      } finally {
+        await sql.unsafe(`drop trigger if exists w12_fail_${Number(g.id)} on analytics_events`);
+      }
+      const untouched = same(await written(g.id), { wishes: 0, events: 0 }) && (await keysOf(g.id)).length === 0;
+      const retried = notice(await guestAction(g, 'Gagal di tengah', writer, { key })).wish;
+      const once = retried === 'saved' && same(await written(g.id), { wishes: 1, events: 1 }) && same(await keysOf(g.id), [key]);
+      faultRuns.push(`${writer}: ${untouched && once ? 'ok' : 'FAIL'} (failure answered ${failed}, nothing kept ${untouched}, retry ${retried})`);
+    }
+    await sql.unsafe('drop function if exists w12_fail_analytics()');
+    check('W1.2 a failure after the wish is inserted keeps nothing (wish, analytics, key), and a retry under the same key stores it once, on each writer',
+      faultRuns.every((r) => r.includes(': ok')), faultRuns.join('; '));
+
+    const changedGuest = await guest(keyInv, 'w12-changed');
+    const changedKey = randomUUID();
+    const changedNotices = [
+      notice(await guestAction(changedGuest, 'Pesan pertama', 'next', { key: changedKey })).wish,
+      notice(await guestAction(changedGuest, 'Pesan kedua', 'next', { key: changedKey })).wish,
+    ];
+    const changedKeys = await keysOf(changedGuest.id);
+    check('W1.2 next: a changed message under a reused key is stored once as a new wish (D-044 (5)), under a fresh key',
+      changedNotices.every((n) => n === 'saved') && same(await written(changedGuest.id), { wishes: 2, events: 2 }) && changedKeys.length === 2 && changedKeys.includes(changedKey),
+      changedNotices.join(','));
+
+    const scopeA = await guest(keyInv, 'w12-scope-a');
+    const scopeB = await guest(keyInv, 'w12-scope-b');
+    const sharedKey = randomUUID();
+    const scopeNotices = [
+      notice(await guestAction(scopeA, 'Kunci bersama', 'next', { key: sharedKey })).wish,
+      notice(await guestAction(scopeB, 'Kunci bersama', 'next', { key: sharedKey })).wish,
+      notice(await guestAction(scopeB, 'Pesan lain', 'rust', { key: sharedKey })).wish,
+    ];
+    check('W1.2 keys stay guest-scoped: another guest\u2019s identical wish under the same key is stored for that guest, never replayed (E-062); a changed message under it goes through Rust as new',
+      scopeNotices.every((n) => n === 'saved') && same(await written(scopeA.id), { wishes: 1, events: 1 }) && same(await written(scopeB.id), { wishes: 2, events: 2 }) &&
+        same(await keysOf(scopeA.id), [sharedKey]) && (await keysOf(scopeB.id)).length === 2,
+      scopeNotices.join(','));
 
     // ── 7. The host's moderation and replies through both writers: the same notice and the same row ──
     session.clerkUserId = owner.clerk;

@@ -71,6 +71,10 @@ const AZP = need('OWNER_TOKEN_AUTHORIZED_PARTIES').split(',')[0].trim();
 const LIMIT_LINK = Number(need('RSVP_LIMIT_LINK'));
 const LIMIT_IP = Number(need('RSVP_LIMIT_IP'));
 if (!(LIMIT_LINK >= 3 && LIMIT_IP > LIMIT_LINK)) throw new Error('RSVP_LIMIT_IP must exceed RSVP_LIMIT_LINK, which must be at least 3');
+// W1.1 (D-071): the in-process default writer counts in the API's buckets, so it must run with the API's limits.
+if (env.RATE_LIMIT_RSVP_LINK?.trim() !== `${LIMIT_LINK}/600` || env.RATE_LIMIT_RSVP_IP?.trim() !== `${LIMIT_IP}/600`) {
+  throw new Error('RATE_LIMIT_RSVP_LINK and RATE_LIMIT_RSVP_IP must be <RSVP_LIMIT_LINK>/600 and <RSVP_LIMIT_IP>/600, as on the API');
+}
 
 let failures = 0;
 let passes = 0;
@@ -167,7 +171,7 @@ async function main() {
   const { client: sql } = await import('../lib/db/drizzle');
   const { submitRsvp } = await import('../app/i/[slug]/actions');
   const { updateGuestOperation } = await import('../app/(customer)/dashboard/invitations/[id]/guests/actions');
-  const { writeHostRsvpThroughApi } = await import('../lib/invitation/rsvp-writer');
+  const { writeGuestRsvpThroughApi, writeHostRsvpThroughApi } = await import('../lib/invitation/rsvp-writer');
   const { ApiProblem } = await import('../lib/api/client');
   const jose = await import('jose');
 
@@ -477,6 +481,253 @@ async function main() {
       sameLine.rsvp === 'busy' && nextLine.rsvp === 'saved' && line?.hits === LIMIT_IP + 1, `same /64 ${sameLine.rsvp}, next /64 ${nextLine.rsvp}, hits ${line?.hits}`);
     const stored = (await sql`select bucket from api_rate_limits where bucket like 'rsvp:ip:%'`).map((r) => r.bucket as string);
     check('the limiter table holds keyed hashes, never an address', stored.length > 0 && stored.every((b) => !/198\.51\.100|2001:db8|192\.0\.2/.test(b)));
+
+    // ── 6b. W1.1 (D-071): the default writer counts the same quota, in the same buckets, where the Rust writer counts ──
+    const hitsOf = async (bucket: string) => Number((await sql`select hits from api_rate_limits where bucket = ${bucket}`)[0]?.hits ?? 0);
+    /** Seconds from now to the end of the 600 s window, so a refusal's retry time can be checked against the clock. */
+    const toWindowEnd = () => 600 - (Math.floor(Date.now() / 1000) % 600);
+    const retryFits = (raw: string | undefined) => {
+      const gap = Math.abs(Number(raw) - toWindowEnd());
+      return Number(raw) >= 1 && Number(raw) <= 600 && (gap <= 2 || gap >= 598);
+    };
+    const nextLinkGuest = await guest(limitInv, 'next-link-limit');
+    const nextLinkUrls: string[] = [];
+    for (let n = 1; n <= LIMIT_LINK + 1; n++) nextLinkUrls.push(await guestAction(nextLinkGuest, { status: 'CONFIRMED', guestCount: String(1 + (n % 3)) }, 'next'));
+    const nextRefusal = notice(nextLinkUrls[LIMIT_LINK]);
+    const nextLinkRow = await row(nextLinkGuest.id);
+    check(`W1.1 next per link: ${LIMIT_LINK} writes pass, the next is "busy" with the retry time to the window's end and writes nothing, as through Rust`,
+      nextLinkUrls.slice(0, LIMIT_LINK).every((u) => notice(u).rsvp === 'saved') && same(Object.keys(nextRefusal), Object.keys(refusal)) && nextRefusal.rsvp === 'busy' &&
+        retryFits(nextRefusal.rsvpr) && (await metas(nextLinkGuest.id)).length === LIMIT_LINK && nextLinkRow.attending_count === 1 + (LIMIT_LINK % 3) &&
+        (await hitsOf(`rsvp:link:${nextLinkGuest.id}`)) === LIMIT_LINK + 1,
+      JSON.stringify(nextRefusal));
+
+    const flips: string[] = [];
+    for (const [first, second] of [['next', 'rust'], ['rust', 'next']] as const) {
+      const g = await guest(limitInv, `flip-link-${first}`);
+      const firstUrls: string[] = [];
+      for (let i = 0; i < 3; i++) firstUrls.push(await guestAction(g, { status: 'CONFIRMED' }, first));
+      const secondUrls: string[] = [];
+      for (let i = 0; i <= LIMIT_LINK - 3; i++) secondUrls.push(await guestAction(g, { status: 'DECLINED' }, second));
+      const last = notice(secondUrls[LIMIT_LINK - 3]);
+      const ok = firstUrls.every((u) => notice(u).rsvp === 'saved') && secondUrls.slice(0, LIMIT_LINK - 3).every((u) => notice(u).rsvp === 'saved') &&
+        last.rsvp === 'busy' && retryFits(last.rsvpr) && (await metas(g.id)).length === LIMIT_LINK && (await hitsOf(`rsvp:link:${g.id}`)) === LIMIT_LINK + 1;
+      flips.push(`${first} then ${second}: ${ok ? 'ok' : 'FAIL'} (hits ${await hitsOf(`rsvp:link:${g.id}`)}, writes ${(await metas(g.id)).length}, last ${last.rsvp})`);
+    }
+    check(`W1.1 shared per-link bucket: after 3 writes through one writer the other allows exactly the remaining ${LIMIT_LINK - 3} and refuses the next, both ways`,
+      flips.every((f) => f.includes(': ok')), flips.join('; '));
+
+    /** `count` writes through one writer from one address (or one /64), spread over fresh guests under the per-link limit. */
+    async function fillVia(writer: 'next' | 'rust', prefix: string, address: string | ((n: number) => string), count: number): Promise<boolean> {
+      let left = count;
+      let n = 0;
+      for (let index = 0; left > 0; index++) {
+        const g = await guest(limitInv, `${prefix}-${index}`);
+        for (let i = 0; i < Math.min(LIMIT_LINK, left); i++) {
+          const xff = typeof address === 'string' ? address : address(n++);
+          if (notice(await guestAction(g, { status: 'CONFIRMED' }, writer, { xff })).rsvp !== 'saved') return false;
+        }
+        left -= Math.min(LIMIT_LINK, left);
+      }
+      return true;
+    }
+    for (const key of ['198.51.100.30', '198.51.100.31', '198.51.100.40', '198.51.100.41', '2001:db8:65:1::/64', '2001:db8:65:2::/64']) addressKeys.add(key);
+    const nextFilled = await fillVia('next', 'nip4', '198.51.100.30', LIMIT_IP);
+    const nextFresh = await guest(limitInv, 'nip4-fresh');
+    const nextFull = notice(await guestAction(nextFresh, { status: 'CONFIRMED' }, 'next', { xff: '198.51.100.30' }));
+    const nextForged = notice(await guestAction(nextFresh, { status: 'CONFIRMED' }, 'next', { xff: '192.0.2.99, 198.51.100.30' }));
+    const nextNeighbour = notice(await guestAction(nextFresh, { status: 'CONFIRMED' }, 'next', { xff: '198.51.100.31' }));
+    const nextUntrusted = notice(await withEnv({ TRUSTED_PROXY_HOPS: '0' }, () => guestAction(nextFresh, { status: 'CONFIRMED' }, 'next', { xff: '198.51.100.30' })));
+    const nextKeyless = notice(await withEnv({ INTERNAL_API_SECRET: undefined }, () => guestAction(nextFresh, { status: 'CONFIRMED' }, 'next', { xff: '198.51.100.30' })));
+    check(`W1.1 next per address: ${LIMIT_IP} writes from one address pass, the next is "busy"; a client-supplied left entry does not escape it; another address writes`,
+      nextFilled && nextFull.rsvp === 'busy' && retryFits(nextFull.rsvpr) && nextForged.rsvp === 'busy' && nextNeighbour.rsvp === 'saved' && (await hitsOf(ipBucket('198.51.100.30'))) === LIMIT_IP + 2,
+      `filled ${nextFilled}, full ${nextFull.rsvp}, forged ${nextForged.rsvp}, other address ${nextNeighbour.rsvp}, hits ${await hitsOf(ipBucket('198.51.100.30'))}`);
+    check('W1.1 next: TRUSTED_PROXY_HOPS=0 or no INTERNAL_API_SECRET means no per-address limit; the per-link one still counts',
+      nextUntrusted.rsvp === 'saved' && nextKeyless.rsvp === 'saved' && (await hitsOf(`rsvp:link:${nextFresh.id}`)) === 5, `hops 0 ${nextUntrusted.rsvp}, no secret ${nextKeyless.rsvp}`);
+    const v6Filled = await fillVia('next', 'nip6', (n) => `2001:db8:65:1::${(n + 1).toString(16)}`, LIMIT_IP);
+    const v6Fresh = await guest(limitInv, 'nip6-fresh');
+    const v6SameLine = notice(await guestAction(v6Fresh, { status: 'CONFIRMED' }, 'next', { xff: '[2001:db8:65:1:ffff::1]:443' }));
+    const v6NextLine = notice(await guestAction(v6Fresh, { status: 'CONFIRMED' }, 'next', { xff: '2001:db8:65:2::1' }));
+    check(`W1.1 next: IPv6 addresses share their /64's budget, the next /64 has its own`,
+      v6Filled && v6SameLine.rsvp === 'busy' && v6NextLine.rsvp === 'saved' && (await hitsOf(ipBucket('2001:db8:65:1::/64'))) === LIMIT_IP + 1,
+      `same /64 ${v6SameLine.rsvp}, next /64 ${v6NextLine.rsvp}, hits ${await hitsOf(ipBucket('2001:db8:65:1::/64'))}`);
+
+    const addressFlips: string[] = [];
+    for (const [first, second, address] of [['next', 'rust', '198.51.100.40'], ['rust', 'next', '198.51.100.41']] as const) {
+      const firstOk = await fillVia(first, `flip-ip-${first}-a`, address, 5);
+      const secondOk = await fillVia(second, `flip-ip-${first}-b`, address, LIMIT_IP - 5);
+      const over = notice(await guestAction(await guest(limitInv, `flip-ip-${first}-c`), { status: 'CONFIRMED' }, second, { xff: address }));
+      const ok = firstOk && secondOk && over.rsvp === 'busy' && (await hitsOf(ipBucket(address))) === LIMIT_IP + 1;
+      addressFlips.push(`${first} then ${second}: ${ok ? 'ok' : 'FAIL'} (hits ${await hitsOf(ipBucket(address))}, last ${over.rsvp})`);
+    }
+    check(`W1.1 shared per-address bucket: after 5 writes through one writer the other allows exactly the remaining ${LIMIT_IP - 5} and refuses the next, both ways`,
+      addressFlips.every((f) => f.includes(': ok')), addressFlips.join('; '));
+
+    // Closed invitations: a link-level closure is refused before any count by both writers; a decision-level closure is
+    // counted first by both (the Rust order), so over quota both answer "busy" where the decision would say "closed".
+    const pastDate = new Date(Date.now() - 3_600_000);
+    const closures = [
+      { name: 'deleted', level: 'link', inv: await invitation(owner.id, 'w11-deleted', {}) },
+      { name: 'draft', level: 'link', inv: await invitation(owner.id, 'w11-draft', {}, { status: 'DRAFT' }) },
+      { name: 'expired', level: 'link', inv: await invitation(owner.id, 'w11-expired', {}, { expiresAt: pastDate }) },
+      { name: 'RSVP off', level: 'decision', inv: await invitation(owner.id, 'w11-rsvp-off', { rsvp: { enabled: false } }) },
+      { name: 'past the deadline', level: 'decision', inv: await invitation(owner.id, 'w11-deadline', { rsvp: { deadline: pastDate.toISOString() } }) },
+    ] as const;
+    const closureResults: string[] = [];
+    for (const [index, closure] of closures.entries()) {
+      const targets = { next: await guest(closure.inv, `w11-c${index}-next`), rust: await guest(closure.inv, `w11-c${index}-rust`) };
+      // B-031's constraint: a deletion always carries its purge time.
+      if (closure.name === 'deleted') await sql`update invitations set deleted_at = now(), purge_after = now() + interval '30 days' where id = ${closure.inv.id}`;
+      for (const writer of ['next', 'rust'] as const) {
+        const target = targets[writer];
+        const before = await row(target.id);
+        const notices: string[] = [];
+        for (let i = 0; i <= LIMIT_LINK; i++) notices.push(notice(await guestAction(target, { status: 'CONFIRMED' }, writer)).rsvp);
+        const counted = await hitsOf(`rsvp:link:${target.id}`);
+        const expected = closure.level === 'link'
+          ? notices.every((n) => n === 'closed') && counted === 0
+          : notices.slice(0, LIMIT_LINK).every((n) => n === 'closed') && notices[LIMIT_LINK] === 'busy' && counted === LIMIT_LINK + 1;
+        const untouched = same(await row(target.id), before) && (await metas(target.id)).length === 0;
+        closureResults.push(`${closure.name} ${writer}: ${expected && untouched ? 'ok' : 'FAIL'} (over quota "${notices[LIMIT_LINK]}", hits ${counted})`);
+      }
+    }
+    check('W1.1 closed invitations: both writers refuse and write nothing; link-level closures are never counted, decision-level ones are counted alike and answer "busy" over quota',
+      closureResults.every((r) => r.includes(': ok')), closureResults.join('; '));
+
+    const offGuest = await guest(limitInv, 'w11-flag-off');
+    const fullBefore = await hitsOf(ipBucket('198.51.100.30'));
+    const offUrls = await withEnv({ FLAG_GUEST_WRITE_LIMITS: 'off' }, async () => {
+      const urls: string[] = [];
+      for (let i = 0; i < LIMIT_LINK + 2; i++) urls.push(await guestAction(offGuest, { status: 'CONFIRMED' }, 'next', { xff: '198.51.100.30' }));
+      return urls;
+    });
+    check('W1.1 FLAG_GUEST_WRITE_LIMITS=off: the default writer calls no limiter, exactly as before (every write saved from a full address, no bucket touched)',
+      offUrls.every((u) => notice(u).rsvp === 'saved') && (await metas(offGuest.id)).length === LIMIT_LINK + 2 && (await hitsOf(`rsvp:link:${offGuest.id}`)) === 0 &&
+        (await hitsOf(ipBucket('198.51.100.30'))) === fullBefore,
+      `${offUrls.filter((u) => notice(u).rsvp === 'saved').length} saved`);
+
+    const { WRITE_LIMIT_DEFAULTS } = await import('../lib/rate-limit-keys');
+    const fallbackMax = WRITE_LIMIT_DEFAULTS.rsvp.perLink.max;
+    const fallbackGuest = await guest(limitInv, 'w11-fallback');
+    const fallbackUrls = await withEnv({ RATE_LIMIT_RSVP_LINK: 'sepuluh/600' }, async () => {
+      const urls: string[] = [];
+      for (let i = 0; i <= fallbackMax; i++) urls.push(await guestAction(fallbackGuest, { status: 'CONFIRMED' }, 'next'));
+      return urls;
+    });
+    check(`W1.1 an invalid RATE_LIMIT_RSVP_LINK falls back to the default (${fallbackMax} per link), as the API's Limit::parse does`,
+      fallbackUrls.slice(0, fallbackMax).every((u) => notice(u).rsvp === 'saved') && notice(fallbackUrls[fallbackMax]).rsvp === 'busy');
+    const allBuckets = (await sql`select bucket from api_rate_limits where bucket like 'rsvp:%'`).map((r) => r.bucket as string);
+    check('W1.1 the limiter table still holds only guest ids and keyed hashes: no address, no name',
+      allBuckets.length > 0 && allBuckets.every((b) => /^rsvp:(?:link:\d+|ip:[0-9a-f]{32})$/.test(b)), `${allBuckets.length} buckets`);
+
+    // ── 6c. W1.2 (D-072): the default writer honours the form's key like the Rust writer, in the same records ──
+    const { rsvpSubmissionFromForm } = await import('../lib/invitation/rsvp-decision');
+    const { isFlagOn } = await import('../lib/flags');
+    const keyInv = await invitation(owner.id, 'w12-keys', {});
+    const eventsInv = await invitation(owner.id, 'w12-events', PER_EVENT);
+    const twinRuns: string[] = [];
+    for (const writer of ['next', 'rust'] as const) {
+      const g = await guest(keyInv, `w12-twins-${writer}`);
+      const key = randomUUID();
+      const urls = await Promise.all(Array.from({ length: 5 }, () => guestAction(g, { status: 'CONFIRMED', guestCount: '2' }, writer, { key })));
+      const ok = urls.every((u) => notice(u).rsvp === 'saved') && (await metas(g.id)).length === 1 && same(await keysOf(g.id), [key]) && (await row(g.id)).attending_count === 2;
+      twinRuns.push(`${writer}: ${ok ? 'ok' : 'FAIL'} (writes ${(await metas(g.id)).length}, keys ${(await keysOf(g.id)).length}, link hits ${await hitsOf(`rsvp:link:${g.id}`)})`);
+    }
+    check('W1.2 five concurrent sends of one form: all "saved", one write, one analytics row, one stored key, on each writer (link hits as measured)',
+      twinRuns.every((r) => r.includes(': ok')), twinRuns.join('; '));
+
+    const seqGuest = await guest(keyInv, 'w12-sequential');
+    const seqKey = randomUUID();
+    const seqFirst = notice(await guestAction(seqGuest, { status: 'CONFIRMED', guestCount: '3' }, 'next', { key: seqKey })).rsvp;
+    const seqHits = await hitsOf(`rsvp:link:${seqGuest.id}`);
+    const seqAgain: string[] = [];
+    for (let i = 0; i < 3; i++) seqAgain.push(notice(await guestAction(seqGuest, { status: 'CONFIRMED', guestCount: '3' }, 'next', { key: seqKey })).rsvp);
+    check('W1.2 next: three sequential re-sends of one form replay "saved", write nothing more and take no limiter hit',
+      seqFirst === 'saved' && seqAgain.every((n) => n === 'saved') && (await metas(seqGuest.id)).length === 1 && seqHits === 1 && (await hitsOf(`rsvp:link:${seqGuest.id}`)) === 1,
+      `${seqAgain.join(',')}, hits ${await hitsOf(`rsvp:link:${seqGuest.id}`)}`);
+
+    const crossRuns: string[] = [];
+    const crossForms: Array<{ label: string; inv: { id: number; slug: string }; form: Form }> = [
+      { label: 'single', inv: keyInv, form: { status: 'MAYBE', guestCount: '2' } },
+      { label: 'per event', inv: eventsInv, form: { 'ev:akad': 'CONFIRMED', 'evn:akad': '2', 'ev:resepsi': 'DECLINED' } },
+    ];
+    for (const [index, { label, inv, form }] of crossForms.entries()) {
+      for (const [first, second] of [['next', 'rust'], ['rust', 'next']] as const) {
+        const g = await guest(inv, `w12-cross-${index}-${first}`);
+        const key = randomUUID();
+        const a = notice(await guestAction(g, form, first, { key })).rsvp;
+        const hitsBefore = await hitsOf(`rsvp:link:${g.id}`);
+        const b = notice(await guestAction(g, form, second, { key })).rsvp;
+        const ok = a === 'saved' && b === 'saved' && (await metas(g.id)).length === 1 && same(await keysOf(g.id), [key]) && (await hitsOf(`rsvp:link:${g.id}`)) === hitsBefore;
+        crossRuns.push(`${label}, ${first} then ${second}: ${ok ? 'ok' : 'FAIL'} (${a}/${b}, writes ${(await metas(g.id)).length}, keys ${(await keysOf(g.id)).length})`);
+      }
+    }
+    check('W1.2 a key recorded by one writer replays through the other, both ways, for a single and a per-event answer: one write, one key, no limiter hit',
+      crossRuns.every((r) => r.includes(': ok')), crossRuns.join('; '));
+
+    const overlapRuns: string[] = [];
+    const renderedFlags = { maybe: isFlagOn('RSVP_MAYBE'), perEvent: isFlagOn('RSVP_PER_EVENT'), inviteOnlyEvents: isFlagOn('INVITE_ONLY_EVENTS'), questions: isFlagOn('RSVP_QUESTIONS') };
+    for (let round = 0; round < 3; round++) {
+      const g = await guest(keyInv, `w12-overlap-${round}`);
+      const key = randomUUID();
+      const data = new FormData();
+      data.set('status', 'CONFIRMED');
+      data.set('guestCount', '2');
+      // The Rust call goes straight to the client, so it cannot race the action over `BACKEND_RSVP`.
+      const [viaNext, viaRust] = await Promise.all([
+        guestAction(g, { status: 'CONFIRMED', guestCount: '2' }, 'next', { key }),
+        writeGuestRsvpThroughApi({ slug: g.slug, guestSlug: g.segment, submission: rsvpSubmissionFromForm(data), flags: renderedFlags, idempotencyKey: key }),
+      ]);
+      const ok = notice(viaNext).rsvp === 'saved' && viaRust.kind === 'saved' && (await metas(g.id)).length === 1 && same(await keysOf(g.id), [key]);
+      overlapRuns.push(`round ${round}: ${ok ? 'ok' : 'FAIL'} (next ${notice(viaNext).rsvp}, rust ${viaRust.kind}, writes ${(await metas(g.id)).length})`);
+    }
+    check('W1.2 one form in flight on both writers at once (3 rounds): both "saved", one write, one key, no deadlock', overlapRuns.every((r) => r.includes(': ok')), overlapRuns.join('; '));
+
+    // An injected failure after the guest row is written: a trigger refuses this guest's analytics row.
+    await sql.unsafe(`create or replace function w12_fail_analytics() returns trigger language plpgsql as $$ begin raise exception 'w12 injected failure'; end $$`);
+    const faultRuns: string[] = [];
+    for (const writer of ['next', 'rust'] as const) {
+      const g = await guest(keyInv, `w12-fault-${writer}`);
+      const key = randomUUID();
+      await sql.unsafe(`create trigger w12_fail_${Number(g.id)} before insert on analytics_events for each row when (new.guest_id = ${Number(g.id)}) execute function w12_fail_analytics()`);
+      let failed = '';
+      try {
+        failed = notice(await guestAction(g, { status: 'CONFIRMED', guestCount: '2' }, writer, { key })).rsvp ?? '(no notice)';
+      } catch {
+        failed = 'error';
+      } finally {
+        await sql.unsafe(`drop trigger if exists w12_fail_${Number(g.id)} on analytics_events`);
+      }
+      const untouched = (await row(g.id)).rsvp_status === 'PENDING' && (await metas(g.id)).length === 0 && (await keysOf(g.id)).length === 0;
+      const retried = notice(await guestAction(g, { status: 'CONFIRMED', guestCount: '2' }, writer, { key })).rsvp;
+      const once = retried === 'saved' && (await metas(g.id)).length === 1 && same(await keysOf(g.id), [key]) && (await row(g.id)).rsvp_status === 'CONFIRMED';
+      faultRuns.push(`${writer}: ${untouched && once ? 'ok' : 'FAIL'} (failure answered ${failed}, nothing kept ${untouched}, retry ${retried})`);
+    }
+    await sql.unsafe('drop function if exists w12_fail_analytics()');
+    check('W1.2 a failure after the guest row is written keeps nothing (row, analytics, key), and a retry under the same key writes once, on each writer',
+      faultRuns.every((r) => r.includes(': ok')), faultRuns.join('; '));
+
+    const changedGuest = await guest(keyInv, 'w12-changed');
+    const changedKey = randomUUID();
+    const changedFirst = notice(await guestAction(changedGuest, { status: 'CONFIRMED', guestCount: '2' }, 'next', { key: changedKey })).rsvp;
+    const changedSecond = notice(await guestAction(changedGuest, { status: 'DECLINED' }, 'next', { key: changedKey })).rsvp;
+    const changedKeys = await keysOf(changedGuest.id);
+    const changedNow = await row(changedGuest.id);
+    check('W1.2 next: the form key with a changed answer is a new submission under a fresh key (written once more, the new answer stored), as through Rust',
+      changedFirst === 'saved' && changedSecond === 'saved' && (await metas(changedGuest.id)).length === 2 && changedNow.rsvp_status === 'DECLINED' && changedNow.attending_count === 0 &&
+        changedKeys.length === 2 && changedKeys.includes(changedKey));
+
+    const scopeA = await guest(keyInv, 'w12-scope-a');
+    const scopeB = await guest(keyInv, 'w12-scope-b');
+    const sharedKey = randomUUID();
+    const scopeNotices = [
+      notice(await guestAction(scopeA, { status: 'CONFIRMED', guestCount: '2' }, 'next', { key: sharedKey })).rsvp,
+      notice(await guestAction(scopeB, { status: 'CONFIRMED', guestCount: '2' }, 'next', { key: sharedKey })).rsvp,
+      notice(await guestAction(scopeB, { status: 'MAYBE' }, 'rust', { key: sharedKey })).rsvp,
+    ];
+    check('W1.2 keys stay guest-scoped: another guest\u2019s identical form under the same key is written for that guest, never replayed (E-062); a changed answer under it goes through Rust as new',
+      scopeNotices.every((n) => n === 'saved') && (await metas(scopeA.id)).length === 1 && (await metas(scopeB.id)).length === 2 && same(await keysOf(scopeA.id), [sharedKey]) &&
+        (await keysOf(scopeB.id)).length === 2 && (await row(scopeB.id)).rsvp_status === 'MAYBE',
+      scopeNotices.join(','));
 
     // ── 7. Host overrides: the dashboard action, owner tokens, ownership and role from the database ──
     session.clerkUserId = owner.clerk;
