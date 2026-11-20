@@ -1,11 +1,11 @@
 <!-- SUMMARY (first 7 lines — greppable) -->
 # invitesion-session-55-report.md — Supervisor session report 55: W1 closed in the sandbox, F4
 > WHAT: Session 55's identity and receipts (Part A) and the changes for the two Supervisor companions, which are absent at the verified HEAD `4e36e20` (Part B: the progress file's §18 / §0 / change log and the audit map), with the S2 §8 report block. Merge into `invitesion-progress.md` and `invitesion-auditmap.md`; this file overwrites nothing.
-> STATUS: DRAFT during F4 (2026-11-18). Untracked: the owner commits the Supervisor files (S2 §1.3).
+> STATUS: Parts A and B as written during F4 (2026-11-18); F4's completion is in the Post-F4 addendum at the end (2026-11-20, s56, AM-060). Published in `ba0049c`.
 > OWNER: Supervisor (merge). Written by the Operator of session 55.
 > DEPS: invitation-research/_handoff/sessions/session-55-20261118-1810.md, invitation-research/_handoff/LATEST.md, invitation-research/_handoff/IMPLEMENTATION-LOG.md (E-100 to E-105), invitation-research/09-masterplan/12-decision-log.md (D-071, D-072)
-> GREP: supervisor, session 55, s55, report, W1, F4, AM-001, AM-002, AM-003, AM-004, AM-006, AM-054, AM-056, AM-057, D-071, D-072, E-100, E-105, progress, auditmap
-> UPDATED: 2026-11-18 (s55, during F4)
+> GREP: supervisor, session 55, s55, report, W1, F4, AM-001, AM-002, AM-003, AM-004, AM-006, AM-054, AM-056, AM-057, AM-060, D-071, D-072, E-100, E-105, progress, auditmap, post-F4 addendum
+> UPDATED: 2026-11-20 (s56: Post-F4 addendum appended; Parts A and B unchanged)
 
 ---
 
@@ -75,3 +75,27 @@ Extraction `/vercel/share/work/s55/f4-src-20261118192108` (`git archive`), every
 | AM-055 (LOW, provisional) | No change: W2.5 | — |
 
 **Provisional ids:** the audit map is absent at `4e36e20`, so S2's provisional ids are kept as given (AM-s54-1 = AM-054; AM-055–AM-059 as S2 §4.2 and §3.3 assign them). The next provisional id stays AM-060.
+
+---
+
+# Post-F4 addendum (2026-11-20, written by the Operator of session 56; AM-060)
+
+Parts A and B above are left exactly as written during F4. Where they say "running", "pending", "in progress" or "in F4", read them with this addendum. Every figure below is **carried from s55** (not re-run by s56) and comes from the session 55 worksheet `invitation-research/_handoff/sessions/session-55-20261118-1810.md` (log lines 19:26:32Z to 19:41:25Z), the "Session 55 resume point" in `invitation-research/_handoff/LATEST.md`, and the "Served (F4, s55)" lines of E-100 to E-105 in `invitation-research/_handoff/IMPLEMENTATION-LOG.md`.
+
+## F4 completed on local `0ef8c7d` / `3c2b287` (2,345 paths, 21 symlinks, 3 executables, 11 g018 files)
+Each job ran on the proven `git archive` extraction, input MATCH before and after:
+- research: exit 0, 10 / 10 in 7 s.
+- app: r1 exit 0, 909 / 909 in 102 s (its BUILD_ID lost to the next job's sync); **r2 exit 0, 909 / 909 in 105 s, BUILD_ID `wRMT9uTQVauJNW70Axymu`**. This closes A3's "re-run pending".
+- database: exit 0, 15 / 15 in 17 s.
+- rust: exit 0, 23 / 23 in 144 s (cargo 163: service 146, feasibility 17; RSVP 41 / 41 and wishes 44 / 44 through both writers).
+- **product-gates: exit 0, 18 / 18 in 614 s, BUILD_ID `d5bYFEF8UY8LUiR6F2wjZ`** (measurement variant): gift privacy 57 / 57; design 198 / 198; cover fold 90 / 90; rendered contrast 9 / 9; F-02 6 / 6; cover gate and music 69 / 69; gallery 253 / 253; guest shell 635.5 KiB decoded (225.4 KiB transfer; budget 640); 0 OOM lines. This replaces A3's "running (detached)".
+- **Served regression: 159 / 159** (harness 148 / 148 plus database checks 11 / 11, counted from the stored files) on the stack build `gmO6gGhSBbpwF7YWMCyhg` (a scratch copy of the F4 extraction, real `proxy.ts`, cookie Clerk stub, fictional data; sandbox evidence, never production acceptance): E-098 landmarks 51 / 51; E-099 25 / 25; English 14 / 14; controls 3 / 3; W1.3 7 / 7; W1.6 7 / 7; W1.4 3 / 3; W1.5 22 / 22; W1.1's burst 6 / 6; W1.2's replay over quota 2 / 2; no page errors 8 / 8. Chrome for Testing 159.0.8154.6; full axe on 12 page × width runs: 0 violations; the 6 console errors are the 404 responses the checks expect. This replaces A3's "Served regression: pending".
+
+## How Part B reads with this addendum
+- B1 §18: **F4 is done**; the unchecked "F4: in progress" line reads as checked, and W1 is closed in the sandbox (6 / 6 items plus F4).
+- B2: the served checks that Part B places "in F4" ran and passed (AM-001's burst, AM-003 / AM-057, AM-054's clicks, AM-004's 404, AM-006); each closure stands with its served line in E-100 to E-105.
+
+## After F4 (S4 §2.2, verified by session 56 against the repository)
+- The records written after F4 were never committed locally, because turn 3 timed out before F4's records checkpoint: E-100 to E-105's served lines and the log header, LATEST's resume point ("Resume here: W2.1"), the session 55 worksheet's F4 lines and this report. They reached `develop` through the owner's import `ba0049c` / `14c450f` (2,346 paths: F4's 2,345 plus this report), which squashes the six W1 commits onto `4e36e20`: 45 paths change (10 added, 2 deleted, 33 modified), each named by E-100 to E-105 or a records file.
+- LATEST's Session 55 resume point says "F4's receipts sit in a records-only checkpoint on top"; no such checkpoint exists in the published history, because the receipts sit in `ba0049c` itself.
+- No `local.sh research` run ever covered those post-F4 records. On `14c450f`, research fails on one reference: the W2.1 line's backticked path for a file that W2.1 creates. Session 56 corrects it at the cause, records W2.0's re-anchor receipts in its worksheet `invitation-research/_handoff/sessions/session-56-20261120-0034.md`, and carries this session's companion changes in its own report.
